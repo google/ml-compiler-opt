@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to configure GCE instance to run sanitizer build bots.
+# Script to configure GCE instance to run LLVM ml-driven optimization build bots.
 
 # NOTE: GCE can wait up to 20 hours before reloading this file.
 # If some instance needs changes sooner just shutdown the instance 
@@ -95,17 +95,17 @@ chown buildbot:buildbot $BOT_DIR
 
 rm -f /b/buildbot.tac
 
-buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
-  "sanitizer-$(hostname | cut -d '-' -f2)" \
-  "$(gsutil cat gs://sanitizer-buildbot/buildbot_password)"
+echo buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
+  "ml-compiler-opt-$(hostname | cut -d '-' -f2)" \
+  "$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
 systemctl stop buildslave.service
 while pkill buildslave; do sleep 5; done;
 
-echo "Vitaly Buka <vitalybuka@google.com>" > $BOT_DIR/info/admin
+echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
 {
-  echo "How to reproduce locally: https://github.com/google/sanitizers/wiki/SanitizerBotReproduceBuild"
+  echo "<TO BE FILLED IN: How to reproduce locally>"
   echo
   uname -a | head -n1
   date
