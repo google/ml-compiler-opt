@@ -109,9 +109,12 @@ chown buildbot:buildbot $BOT_DIR
 
 rm -f /b/buildbot.tac
 
+HOSTNAME="$(hostname)"
+WORKER_NAME="${HOSTNAME%-*}"
+WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
+
 # buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
-#   "ml-compiler-opt-$(hostname | cut -d '-' -f2)" \
-#   "$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
+#   "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
 systemctl stop buildslave.service
 while pkill buildslave; do sleep 5; done;
