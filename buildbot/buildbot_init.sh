@@ -113,8 +113,8 @@ HOSTNAME="$(hostname)"
 WORKER_NAME="${HOSTNAME%-*}"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
-# buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
-#   "${WORKER_NAME}" "${WORKER_PASSWORD}"
+buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
+   "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
 systemctl stop buildslave.service
 while pkill buildslave; do sleep 5; done;
