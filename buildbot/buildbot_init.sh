@@ -109,9 +109,9 @@ chown buildbot:buildbot $BOT_DIR
 
 rm -f /b/buildbot.tac
 
-echo buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
-  "ml-compiler-opt-$(hostname | cut -d '-' -f2)" \
-  "$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
+# buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
+#   "ml-compiler-opt-$(hostname | cut -d '-' -f2)" \
+#   "$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
 systemctl stop buildslave.service
 while pkill buildslave; do sleep 5; done;
@@ -140,7 +140,7 @@ EOF
 
 chown -R buildbot:buildbot $BOT_DIR
 systemctl daemon-reload
-systemctl start buildslave.service
+# systemctl start buildslave.service
 
 sleep 30
 cat $BOT_DIR/twistd.log
