@@ -33,6 +33,8 @@ mount -t tmpfs tmpfs -o size=80% $BOT_DIR
 
 BUSTER_PACKAGES=
 
+TF_API_DEP_PACKAGES="python3 python3-pip"
+
 if lsb_release -a | grep "buster" ; then
   BUSTER_PACKAGES="python3-distutils"
 
@@ -71,6 +73,7 @@ fi
 
       apt-get install -qq -y \
         $BUSTER_PACKAGES \
+        $TF_API_DEP_PACKAGES \
         g++ \
         cmake \
         binutils-gold \
@@ -92,6 +95,7 @@ fi
         libssl-dev \
         libgss-dev \
         python-dev \
+        tmux \
         wget \
         zlib1g-dev
 
@@ -104,6 +108,36 @@ fi
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.gold" 20
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
+python3 -m pip install --upgrade pip
+python3 -m pip install --user tf_nightly==2.3.0.dev20200528
+TF_PIP=$(python3 -m pip show tf_nightly | grep Location | cut -d ' ' -f 2)
+
+export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
+
+if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
+then
+  echo "TENSORFLOW_AOT_PATH=${TENSORFLOW_AOT_PATH}"
+else
+  echo "TENSORFLOW_AOT_PATH not found"
+  $ON_ERROR
+fi
+
+mkdir /tmp/tensorflow
+pushd /tmp/tensorflow
+wget https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz \
+  || echo "failed to download tensorflow C library"
+tar xvfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz || echo "failed to unarchive tensorflow C library"
+popd
+export TENSORFLOW_API_PATH=/tmp/tensorflow
+
+if [ -f "${TENSORFLOW_API_PATH}/libtensorflow.so" ]
+then
+  echo "TENSORFLOW_API_PATH=${TENSORFLOW_API_PATH}"
+else
+  echo "TENSORFLOW_API_PATH not found"
+  $ON_ERROR
+fi
+
 systemctl set-property buildslave.service TasksMax=100000
 
 chown buildbot:buildbot $BOT_DIR
@@ -114,6 +148,7 @@ HOSTNAME="$(hostname)"
 WORKER_NAME="${HOSTNAME%-*}"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
+echo "Starting build worker ${WORKER_NAME}"
 buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
    "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
@@ -149,6 +184,8 @@ systemctl start buildslave.service
 sleep 30
 cat $BOT_DIR/twistd.log
 grep "slave is ready" $BOT_DIR/twistd.log || $ON_ERROR
+
+echo "Started build worker ${WORKER_NAME} successfully."
 
 # GCE can restart instance after 24h in the middle of the build.
 # Gracefully restart before that happen.
