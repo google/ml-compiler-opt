@@ -22,8 +22,9 @@
 # the instance and reload the script.
 
 MASTER_PORT=${MASTER_PORT:-9990}
-ON_ERROR=${ON_ERROR:-shutdown now}
-
+# FIXME: ON_ERROR should shutdown. Echo-ing for now, for experimentation
+# ON_ERROR=${ON_ERROR:-shutdown now}
+ON_ERROR=${ON_ERROR:-echo error}
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
@@ -143,7 +144,7 @@ EOF
 
 chown -R buildbot:buildbot $BOT_DIR
 systemctl daemon-reload
-# systemctl start buildslave.service
+systemctl start buildslave.service
 
 sleep 30
 cat $BOT_DIR/twistd.log
