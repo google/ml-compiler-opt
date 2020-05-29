@@ -21,10 +21,13 @@
 # with GCE UI or "sudo shutdown now" over ssh. GCE will recreate
 # the instance and reload the script.
 
+function on_error {
+  echo $1
+  # FIXME: ON_ERROR should shutdown. Echo-ing for now, for experimentation
+  # shutdown now
+}
+
 MASTER_PORT=${MASTER_PORT:-9990}
-# FIXME: ON_ERROR should shutdown. Echo-ing for now, for experimentation
-# ON_ERROR=${ON_ERROR:-shutdown now}
-ON_ERROR=${ON_ERROR:-echo error}
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
@@ -33,10 +36,11 @@ mount -t tmpfs tmpfs -o size=80% $BOT_DIR
 
 BUSTER_PACKAGES=
 
-TF_API_DEP_PACKAGES="python3 python3-pip"
-
 if lsb_release -a | grep "buster" ; then
   BUSTER_PACKAGES="python3-distutils"
+
+TF_API_DEP_PACKAGES="python3 python3-pip"
+ADMIN_PACKAGES="tmux"
 
   # buildbot from "buster" does not work with llvm master.
   cat <<EOF >/etc/apt/sources.list.d/stretch.list
@@ -74,8 +78,10 @@ fi
       apt-get install -qq -y \
         $BUSTER_PACKAGES \
         $TF_API_DEP_PACKAGES \
+        $ADMIN_PACKAGES \
         g++ \
         cmake \
+        ccache \
         binutils-gold \
         binutils-dev \
         ninja-build \
@@ -95,7 +101,6 @@ fi
         libssl-dev \
         libgss-dev \
         python-dev \
-        tmux \
         wget \
         zlib1g-dev
 
@@ -103,11 +108,12 @@ fi
     ) && exit 0
   done
   exit 1
-) || $ON_ERROR
+) || on_error "Failed to install required packages."
 
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.gold" 20
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
+# install the tf pip package for the AOT ("release" scenario).
 python3 -m pip install --upgrade pip
 python3 -m pip install --user tf_nightly==2.3.0.dev20200528
 TF_PIP=$(python3 -m pip show tf_nightly | grep Location | cut -d ' ' -f 2)
@@ -118,34 +124,31 @@ if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
 then
   echo "TENSORFLOW_AOT_PATH=${TENSORFLOW_AOT_PATH}"
 else
-  echo "TENSORFLOW_AOT_PATH not found"
-  $ON_ERROR
+  on_error "TENSORFLOW_AOT_PATH not found"
 fi
 
+# install the tf C API library ("development" scenario).
 mkdir /tmp/tensorflow
-pushd /tmp/tensorflow
-wget https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz \
-  || echo "failed to download tensorflow C library"
-tar xvfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz || echo "failed to unarchive tensorflow C library"
-popd
 export TENSORFLOW_API_PATH=/tmp/tensorflow
+wget https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz \
+  || on_error "failed to download tensorflow C library"
+tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
 
-if [ -f "${TENSORFLOW_API_PATH}/libtensorflow.so" ]
+if [ -f "${TENSORFLOW_API_PATH}/lib/libtensorflow.so" ]
 then
   echo "TENSORFLOW_API_PATH=${TENSORFLOW_API_PATH}"
 else
-  echo "TENSORFLOW_API_PATH not found"
-  $ON_ERROR
+  on_error "TENSORFLOW_API_PATH not found"
 fi
 
+# continue with getting the build worker up.
 systemctl set-property buildslave.service TasksMax=100000
 
 chown buildbot:buildbot $BOT_DIR
 
 rm -f /b/buildbot.tac
 
-HOSTNAME="$(hostname)"
-WORKER_NAME="${HOSTNAME%-*}"
+WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
 echo "Starting build worker ${WORKER_NAME}"
@@ -158,7 +161,7 @@ while pkill buildslave; do sleep 5; done;
 echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
 {
-  echo "<TO BE FILLED IN: How to reproduce locally>"
+  echo "How to reproduce locally: https://github.com/google/ml-compiler-opt/wiki/BuildBotReproduceLocally"
   echo
   uname -a | head -n1
   date
@@ -183,7 +186,7 @@ systemctl start buildslave.service
 
 sleep 30
 cat $BOT_DIR/twistd.log
-grep "slave is ready" $BOT_DIR/twistd.log || $ON_ERROR
+grep "slave is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
 
 echo "Started build worker ${WORKER_NAME} successfully."
 
@@ -191,4 +194,4 @@ echo "Started build worker ${WORKER_NAME} successfully."
 # Gracefully restart before that happen.
 sleep 72000
 while pkill -SIGHUP buildslave; do sleep 5; done;
-$ON_ERROR
+echo "build worker exited"
