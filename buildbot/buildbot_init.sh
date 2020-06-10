@@ -27,7 +27,7 @@ function on_error {
   # shutdown now
 }
 
-MASTER_PORT=${MASTER_PORT:-9990}
+MASTER_PORT=${MASTER_PORT:-9994}
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
