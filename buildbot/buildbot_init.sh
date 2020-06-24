@@ -115,8 +115,8 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 # install the tf pip package for the AOT ("release" scenario).
 python3 -m pip install --upgrade pip
-python3 -m pip install --user tf_nightly==2.3.0.dev20200528
-TF_PIP=$(python3 -m pip show tf_nightly | grep Location | cut -d ' ' -f 2)
+sudo -u buildbot python3 -m pip install --user tf_nightly==2.3.0.dev20200528
+TF_PIP=$(sudo -u buildbot python3 -m pip show tf_nightly | grep Location | cut -d ' ' -f 2)
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
 
@@ -145,6 +145,7 @@ fi
 systemctl set-property buildslave.service TasksMax=100000
 
 chown buildbot:buildbot $BOT_DIR
+chown buildbot:buildbot $TENSORFLOW_API_PATH
 
 rm -f /b/buildbot.tac
 
