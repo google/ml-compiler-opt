@@ -104,7 +104,7 @@ fi
         wget \
         zlib1g-dev
 
-      apt-get install -qq -y -t stretch buildbot-slave
+      apt-get install -qq -y -t stretch buildbot-worker
     ) && exit 0
   done
   exit 1
@@ -142,7 +142,7 @@ else
 fi
 
 # continue with getting the build worker up.
-systemctl set-property buildslave.service TasksMax=100000
+systemctl set-property buildworker.service TasksMax=100000
 
 chown buildbot:buildbot $BOT_DIR
 
@@ -152,11 +152,11 @@ WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
 echo "Starting build worker ${WORKER_NAME}"
-buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
+buildworker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
    "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
-systemctl stop buildslave.service
-while pkill buildslave; do sleep 5; done;
+systemctl stop buildworker.service
+while pkill buildworker; do sleep 5; done;
 
 echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
@@ -171,27 +171,27 @@ echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
   lscpu
 } > $BOT_DIR/info/host
 
-cat <<EOF >/etc/default/buildslave
-SLAVE_ENABLED[1]=1
-SLAVE_NAME[1]="default"
-SLAVE_USER[1]="buildbot"
-SLAVE_BASEDIR[1]="$BOT_DIR"
-SLAVE_OPTIONS[1]=""
-SLAVE_PREFIXCMD[1]=""
+cat <<EOF >/etc/default/buildworker
+WORKER_ENABLED[1]=1
+WORKER_NAME[1]="default"
+WORKER_USER[1]="buildbot"
+WORKER_BASEDIR[1]="$BOT_DIR"
+WORKER_OPTIONS[1]=""
+WORKER_PREFIXCMD[1]=""
 EOF
 
 chown -R buildbot:buildbot $BOT_DIR
 systemctl daemon-reload
-systemctl start buildslave.service
+systemctl start buildworker.service
 
 sleep 30
 cat $BOT_DIR/twistd.log
-grep "slave is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
+grep "worker is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
 
 echo "Started build worker ${WORKER_NAME} successfully."
 
 # GCE can restart instance after 24h in the middle of the build.
 # Gracefully restart before that happen.
 sleep 72000
-while pkill -SIGHUP buildslave; do sleep 5; done;
+while pkill -SIGHUP buildworker; do sleep 5; done;
 echo "build worker exited"
