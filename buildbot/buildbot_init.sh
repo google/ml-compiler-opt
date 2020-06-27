@@ -69,8 +69,8 @@ fi
       dpkg --add-architecture i386
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
       dpkg --configure -a
+      apt-get clean
       apt-get -qq -y update
-      #apt-get -qq -y upgrade
 
       # Logs consume a lot of storage space.
       apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
