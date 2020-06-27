@@ -104,7 +104,7 @@ fi
         wget \
         zlib1g-dev
 
-      apt-get install -qq -y -t stretch buildbot-slave
+      apt-get install -qq -y -t stretch buildbot-slave=0.8.12-1
     ) && exit 0
   done
   exit 1
