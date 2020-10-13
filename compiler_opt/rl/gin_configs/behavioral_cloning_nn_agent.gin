@@ -1,0 +1,32 @@
+import gin.tf.external_configurables
+import compiler_opt.rl.gin_external_configurables
+import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
+import tf_agents.networks.q_network
+
+train_eval.agent_name='behavioral_cloning'
+train_eval.num_policy_iterations=0
+train_eval.num_iterations=100000
+train_eval.batch_size=64
+train_eval.train_sequence_length=1
+train_eval.extra_inlining_reward=0
+train_eval.reward_shaping=False
+train_eval.deploy_policy_name='saved_policy'
+
+get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/vocab'
+get_observation_processing_layer_creator.with_z_score_normalization = False
+
+create_agent.policy_network = @q_network.QNetwork
+
+QNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
+QNetwork.fc_layer_params=(20, 10)
+QNetwork.dropout_layer_params=(0.2, 0.2)
+QNetwork.activation_fn=@tf.keras.activations.relu
+
+tf.train.AdamOptimizer.learning_rate = 0.001
+tf.train.AdamOptimizer.epsilon = 0.0003125
+
+BehavioralCloningAgent.optimizer = @tf.train.AdamOptimizer()
+BehavioralCloningAgent.epsilon_greedy = 0.1
+BehavioralCloningAgent.gradient_clipping = None
+BehavioralCloningAgent.debug_summaries = True
+BehavioralCloningAgent.summarize_grads_and_vars = True

@@ -1,0 +1,44 @@
+import gin.tf.external_configurables
+import compiler_opt.rl.gin_external_configurables
+import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
+import tf_agents.networks.actor_distribution_network
+
+train_eval.agent_name='actor_behavioral_cloning'
+train_eval.num_policy_iterations=0
+train_eval.num_iterations=100000
+train_eval.batch_size=64
+train_eval.train_sequence_length=1
+train_eval.extra_inlining_reward=0
+train_eval.reward_shaping=False
+train_eval.deploy_policy_name='saved_policy'
+
+get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/vocab'
+get_observation_processing_layer_creator.with_z_score_normalization = True
+
+create_agent.policy_network = @actor_distribution_network.ActorDistributionNetwork
+
+ActorDistributionNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
+ActorDistributionNetwork.fc_layer_params=(20, 20, 20, 20)
+ActorDistributionNetwork.dropout_layer_params=None
+ActorDistributionNetwork.activation_fn=@tf.keras.activations.relu
+
+tf.train.AdamOptimizer.learning_rate = 0.001
+tf.train.AdamOptimizer.epsilon = 0.0003125
+
+BehavioralCloningAgent.optimizer = @tf.train.AdamOptimizer()
+BehavioralCloningAgent.epsilon_greedy = 0.1
+BehavioralCloningAgent.gradient_clipping = None
+BehavioralCloningAgent.debug_summaries = True
+BehavioralCloningAgent.summarize_grads_and_vars = True
+BehavioralCloningAgent.loss_fn=@loss_fn
+
+# Train the agent to output probability vector (alpha, 1 - alpha) or
+# (1 - alpha, alpha), where the index with alpha is the target action.
+# Empirical guidelines for setting alpha when pretraining ES policy:
+# (1) Set the alpha to 1.0 for sampling-based ES policy.
+# (2) Set tha alpha to 0.55 for argmax-based ES policy.
+loss_fn.alpha = 1.0
+
+loss_fn.loss_function = @tf.keras.losses.MeanSquaredError()
+# Alternatively we can use cross entropy loss:
+# loss_fn.loss_function = @tf.keras.losses.CategoricalCrossentropy()
