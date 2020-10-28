@@ -18,7 +18,7 @@
 import collections
 import random
 import time
-from typing import Callable, Iterator, List, Tuple
+from typing import Callable, Iterator, List, Tuple, Iterable
 
 from absl import logging
 from tf_agents.system import system_multiprocessing as multiprocessing
@@ -40,12 +40,13 @@ _WAIT_TERMINATION = ((0.98, 0), (0.95, 0.25), (0.9, 0.5), (0, 1))
 class LocalDataCollector(data_collector.DataCollector):
   """class for local data collection."""
 
-  def __init__(self, ir_files: List[str], num_workers: int, num_modules: int,
-               runner: Callable[[str, str, int], Tuple[str, int]],
+  def __init__(self, file_paths: List[Iterable[str]], num_workers: int,
+               num_modules: int, runner: Callable[[str, str, int], Tuple[str,
+                                                                         int]],
                parser: Callable[[List[str]], Iterator[trajectory.Trajectory]]):
     super(LocalDataCollector, self).__init__()
 
-    self._ir_files = ir_files
+    self._file_paths = file_paths
     self._num_modules = num_modules
     self._runner = runner
     self._parser = parser
@@ -65,9 +66,9 @@ class LocalDataCollector(data_collector.DataCollector):
       An iterator of batched trajectory.Trajectory that are ready to be fed to
         training.
     """
-    sampled_irs = random.sample(self._ir_files, k=self._num_modules)
-    jobs = [(ir_file, policy_path, self._default_policy_size_map[ir_file])
-            for ir_file in sampled_irs]
+    sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
+    jobs = [(file_paths, policy_path, self._default_policy_size_map[file_paths])
+            for file_paths in sampled_file_paths]
     results = [self._pool.apply_async(self._runner, job) for job in jobs]
 
     def wait_for_termination():
@@ -84,16 +85,16 @@ class LocalDataCollector(data_collector.DataCollector):
         time.sleep(1)
 
     finished_data_collection, wait_seconds = wait_for_termination()
-    successful_tuples = [(ir, res)
-                         for (ir, res) in zip(sampled_irs, results)
+    successful_tuples = [(paths, res)
+                         for (paths, res) in zip(sampled_file_paths, results)
                          if res.ready() and res.successful()]
     logging.info('%d of %d modules finished with %d seconds (%d failures)',
                  finished_data_collection, self._num_modules, wait_seconds,
                  finished_data_collection - len(successful_tuples))
 
-    sequence_examples = [res.get()[0] for (ir, res) in successful_tuples]
+    sequence_examples = [res.get()[0] for (_, res) in successful_tuples]
     self._default_policy_size_map.update(
-        {ir: res.get()[1] for (ir, res) in successful_tuples})
+        {file_paths: res.get()[1] for (file_paths, res) in successful_tuples})
 
     return self._parser(sequence_examples)
 

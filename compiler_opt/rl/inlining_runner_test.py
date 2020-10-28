@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for compiler_opt.rl.inline_runner."""
+"""Tests for compiler_opt.rl.inlining_runner."""
 
 import string
 import subprocess
@@ -23,7 +23,7 @@ import tensorflow as tf
 
 from google.protobuf import text_format
 from compiler_opt.rl import constant
-from compiler_opt.rl import inline_runner
+from compiler_opt.rl import inlining_runner
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
@@ -68,8 +68,8 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _inline(input_ir_path, tf_policy_path, size_only):
-  del input_ir_path
+def _inlining(file_paths, tf_policy_path, size_only):
+  del file_paths
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
     native_size = _POLICY_NATIVE_SIZE
@@ -83,16 +83,18 @@ def _inline(input_ir_path, tf_policy_path, size_only):
     return sequence_example, native_size
 
 
-class InlineRunnerTest(tf.test.TestCase):
+class InliningRunnerTest(tf.test.TestCase):
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inline_runner.InlineRunner._run_inlining')
+              '.inlining_runner.InliningRunner._run_inlining')
   def test_policy(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inline
-    inliner = inline_runner.InlineRunner('', '', '')
+    mock_run_inlining.side_effect = _inlining
+    inliner = inlining_runner.InliningRunner('', '')
 
     example, default_size = inliner.collect_data(
-        ir_path='ir', tf_policy_path='policy_path', default_policy_size=None)
+        file_paths=('bc', 'cmd'),
+        tf_policy_path='policy_path',
+        default_policy_size=None)
     self.assertEqual(2, mock_run_inlining.call_count)
 
     expected_example = _get_sequence_example_with_delta_size(
@@ -102,13 +104,13 @@ class InlineRunnerTest(tf.test.TestCase):
     self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inline_runner.InlineRunner._run_inlining')
+              '.inlining_runner.InliningRunner._run_inlining')
   def test_default(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inline
-    inliner = inline_runner.InlineRunner('', '', '')
+    mock_run_inlining.side_effect = _inlining
+    inliner = inlining_runner.InliningRunner('', '')
 
     example, default_size = inliner.collect_data(
-        ir_path='ir', tf_policy_path='', default_policy_size=None)
+        file_paths=('bc', 'cmd'), tf_policy_path='', default_policy_size=None)
     self.assertEqual(2, mock_run_inlining.call_count)
 
     expected_example = _get_sequence_example_with_delta_size(
@@ -118,13 +120,13 @@ class InlineRunnerTest(tf.test.TestCase):
     self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inline_runner.InlineRunner._run_inlining')
+              '.inlining_runner.InliningRunner._run_inlining')
   def test_given_default_size(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inline
-    inliner = inline_runner.InlineRunner('', '', '')
+    mock_run_inlining.side_effect = _inlining
+    inliner = inlining_runner.InliningRunner('', '')
 
     example, default_size = inliner.collect_data(
-        ir_path='ir',
+        file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
         default_policy_size=_DEFAULT_NATIVE_SIZE)
     self.assertEqual(1, mock_run_inlining.call_count)
@@ -136,15 +138,17 @@ class InlineRunnerTest(tf.test.TestCase):
     self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inline_runner.InlineRunner._run_inlining')
+              '.inlining_runner.InliningRunner._run_inlining')
   def test_exception_handling(self, mock_run_inlining):
     mock_run_inlining.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')
-    inliner = inline_runner.InlineRunner('', '', '')
+    inliner = inlining_runner.InliningRunner('', '')
 
     with self.assertRaisesRegexp(subprocess.CalledProcessError, 'error'):
       _, _ = inliner.collect_data(
-          ir_path='ir', tf_policy_path='policy_path', default_policy_size=None)
+          file_paths=('bc', 'cmd'),
+          tf_policy_path='policy_path',
+          default_policy_size=None)
     self.assertEqual(1, mock_run_inlining.call_count)
 
 

@@ -29,7 +29,7 @@ from compiler_opt.rl import agent_creators
 from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
-from compiler_opt.rl import inline_runner
+from compiler_opt.rl import inlining_runner
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import trainer
@@ -38,8 +38,7 @@ flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_string('data_path', None,
                     'Path to CNS folder containing IR files.')
-flags.DEFINE_string('opt_path', 'opt', 'Path to opt binary.')
-flags.DEFINE_string('llc_path', 'llc', 'Path to llc binary.')
+flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
 flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
 flags.DEFINE_integer('num_workers', 50,
                      'Number of parallel data collection workers.')
@@ -86,15 +85,14 @@ def train_eval(agent_name='ppo',
         tau_non_trainable=None,
         sort_variables_by_name=False)
 
-  ir_files = [
-      os.path.join(FLAGS.data_path, name)
-      for name in os.listdir(FLAGS.data_path)
-  ]
+  with open(os.path.join(FLAGS.data_path, 'module_paths'), 'r') as f:
+    module_paths = [
+        os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
+    ]
+    file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
 
-  runner = inline_runner.InlineRunner(
-      opt_path=FLAGS.opt_path,
-      llc_path=FLAGS.llc_path,
-      llvm_size_path=FLAGS.llvm_size_path)
+  runner = inlining_runner.InliningRunner(
+      clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path)
 
   sequence_example_iterator_fn = (
       data_reader.create_sequence_example_iterator_fn(
@@ -106,7 +104,7 @@ def train_eval(agent_name='ppo',
           reward_shaping=reward_shaping))
 
   data_collector = local_data_collector.LocalDataCollector(
-      ir_files=ir_files,
+      file_paths=file_paths,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner.collect_data,

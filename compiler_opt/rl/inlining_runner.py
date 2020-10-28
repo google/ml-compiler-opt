@@ -13,10 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module for collect data of inlining-for-size.
-
-unit test at experimental/ml_compiler/unittests/inliner_test.py
-"""
+"""Module for collect data of inlining-for-size."""
 
 import io
 import os
@@ -28,32 +25,30 @@ import tensorflow as tf
 from google.protobuf import text_format
 
 
-class InlineRunner(object):
+class InliningRunner(object):
   """Class for collecting data for inlining-for-size.
 
   Usage:
-  inliner = InlineRunner(opt_path, llc_path, llvm_size_path)
+  inliner = InliningRunner(clang_path, llvm_size_path)
   serialized_sequence_example, default_policy_size = inliner.collect_data(
       ir_path, tf_policy_path, default_policy_size)
   """
 
-  def __init__(self, opt_path, llc_path, llvm_size_path):
-    """Initialization of InlineRunner class.
+  def __init__(self, clang_path, llvm_size_path):
+    """Initialization of InliningRunner class.
 
     Args:
-      opt_path: path to the opt binary.
-      llc_path: path to the llc binary.
+      clang_path: path to the clang binary.
       llvm_size_path: path to the llvm-size binary.
     """
-    self._opt_path = opt_path
-    self._llc_path = llc_path
+    self._clang_path = clang_path
     self._llvm_size_path = llvm_size_path
 
-  def collect_data(self, ir_path, tf_policy_path, default_policy_size):
+  def collect_data(self, file_paths, tf_policy_path, default_policy_size):
     """Collect data for the given IR file and policy.
 
     Args:
-      ir_path: path to the IR file.
+      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
       tf_policy_path: path to the inlining policy.
       default_policy_size: native size under default inlining, None if unknown.
 
@@ -68,7 +63,7 @@ class InlineRunner(object):
     try:
       if default_policy_size is None:
         _, default_policy_size = self._run_inlining(
-            ir_path, tf_policy_path='', size_only=True)
+            file_paths, tf_policy_path='', size_only=True)
 
       # Return empty example if the default policy size is 0 since it is a data
       # only module and we can do nothing about it.
@@ -77,7 +72,7 @@ class InlineRunner(object):
                 default_policy_size)
 
       sequence_example, native_size = self._run_inlining(
-          ir_path, tf_policy_path, size_only=False)
+          file_paths, tf_policy_path, size_only=False)
     except subprocess.CalledProcessError as e:
       raise e
 
@@ -89,11 +84,11 @@ class InlineRunner(object):
 
     return sequence_example.SerializeToString(), default_policy_size
 
-  def _run_inlining(self, input_ir_path, tf_policy_path, size_only):
+  def _run_inlining(self, file_paths, tf_policy_path, size_only):
     """Run inlining for the given IR file under the given policy.
 
     Args:
-      input_ir_path: path to IR file on local disk.
+      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
       tf_policy_path: path to TF policy direcoty on local disk.
       size_only: whether only return native size.
 
@@ -107,26 +102,21 @@ class InlineRunner(object):
     """
     working_dir = tempfile.mkdtemp()
 
-    output_ir_path = os.path.join(working_dir, 'output_ir')
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
+    input_ir_path, cmd_path = file_paths
+    with open(cmd_path) as f:
+      cmds = f.read().split('\0')
+
     try:
-      command_line = [
-          self._opt_path, '-enable-ml-inliner=development',
-          '-aa-pipeline=default',
-          '-passes=scc-oz-module-inliner,oz-module-optimizer', input_ir_path,
-          '-training-log', log_path, '-o', output_ir_path
+      command_line = [self._clang_path] + cmds + [
+          '-mllvm', '-enable-ml-inliner=development', input_ir_path, '-mllvm',
+          '-training-log=' + log_path, '-o', output_native_path
       ]
       if tf_policy_path:
         command_line.extend(
-            ['-ml-inliner-model-under-training', tf_policy_path])
-      subprocess.check_call(command_line)
-
-      command_line = [
-          self._llc_path, '-O2', '-filetype=obj', output_ir_path, '-o',
-          output_native_path
-      ]
+            ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
       subprocess.check_call(command_line)
 
       command_line = [self._llvm_size_path, output_native_path]

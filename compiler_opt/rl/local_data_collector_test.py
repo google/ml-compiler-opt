@@ -20,17 +20,17 @@ from unittest import mock
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt.rl import inline_runner
+from compiler_opt.rl import inlining_runner
 from compiler_opt.rl import local_data_collector
 
 
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
-    mock_inliner = mock.create_autospec(inline_runner.InlineRunner)
+    mock_inliner = mock.create_autospec(inlining_runner.InliningRunner)
 
-    def mock_collect_data(ir_path, tf_policy_dir, default_policy_size):
-      assert ir_path == 'a'
+    def mock_collect_data(file_paths, tf_policy_dir, default_policy_size):
+      assert file_paths == ('a', 'b')
       assert tf_policy_dir == 'policy'
       assert default_policy_size is None or default_policy_size == 1
       if default_policy_size is None:
@@ -51,7 +51,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       return _test_iterator_fn
 
     collector = local_data_collector.LocalDataCollector(
-        ir_files=['a'] * 100,
+        file_paths=[('a', 'b')] * 100,
         num_workers=4,
         num_modules=10,
         runner=mock_inliner.collect_data,
