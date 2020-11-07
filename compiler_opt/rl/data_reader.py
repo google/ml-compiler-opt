@@ -62,16 +62,13 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name):
 
 
 def create_parser_fn(
-    agent_name: str, config: config_lib.Config, extra_inlining_reward: float,
-    reward_shaping: bool) -> Callable[[str], trajectory.Trajectory]:
+    agent_name: str,
+    config: config_lib.Config) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
   Args:
     agent_name: str, name of the agent.
     config: An instance of `config.Config`.
-    extra_inlining_reward: Floating point scalar. Additional reward added when
-      the inlining decision is `1`, to promote inlining.
-    reward_shaping: bool, whether to apply sqrt reward shaping.
 
   Returns:
     A callable that takes scalar serialized proto Tensors and emits
@@ -106,12 +103,8 @@ def create_parser_fn(
       action = parsed_sequence[config.action_key.name]
       reward = -1 * parsed_sequence[config.reward_key.name]
       reward = tf.cast(reward, tf.float32)
-      reward = reward + tf.where(action == 1, float(extra_inlining_reward), 0.0)
       reward = tf.where(reward < _REWARD_FOR_TIME_OUT, _REWARD_FOR_TIME_OUT,
                         reward)
-      if reward_shaping:
-        reward = tf.where(reward > 0.0, tf.sqrt(reward), reward)
-        reward = tf.where(reward < 0.0, -tf.sqrt(-reward), reward)
 
       policy_info = _process_parsed_sequence_and_get_policy_info(
           parsed_sequence, agent_name)
@@ -130,8 +123,7 @@ def create_parser_fn(
 
 def create_sequence_example_iterator_fn(
     agent_name: str, config: config_lib.Config, batch_size: int,
-    train_sequence_length: int, extra_inlining_reward: float,
-    reward_shaping: bool
+    train_sequence_length: int
 ) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
   """Get a function that creates an iterator from serialized sequence examples.
 
@@ -140,9 +132,6 @@ def create_sequence_example_iterator_fn(
     config: An instance of `config.Config`.
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
-    extra_inlining_reward: Floating point scalar. Additional reward added when
-      the inlining decision is `1`, to promote inlining.
-    reward_shaping: bool, whether to apply sqrt reward shaping.
 
   Returns:
     A callable that takes a list of serialized sequence examples and returns
@@ -151,8 +140,7 @@ def create_sequence_example_iterator_fn(
   """
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, config, extra_inlining_reward,
-                               reward_shaping)
+  parser_fn = create_parser_fn(agent_name, config)
 
   def _sequence_example_iterator_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out

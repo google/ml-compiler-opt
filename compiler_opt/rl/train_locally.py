@@ -60,8 +60,6 @@ def train_eval(agent_name='ppo',
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1,
-               extra_inlining_reward=0,
-               reward_shaping=False,
                deploy_policy_name='saved_policy'):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
@@ -99,9 +97,7 @@ def train_eval(agent_name='ppo',
           agent_name=agent_name,
           config=config.CONFIG,
           batch_size=batch_size,
-          train_sequence_length=train_sequence_length,
-          extra_inlining_reward=extra_inlining_reward,
-          reward_shaping=reward_shaping))
+          train_sequence_length=train_sequence_length))
 
   data_collector = local_data_collector.LocalDataCollector(
       file_paths=file_paths,

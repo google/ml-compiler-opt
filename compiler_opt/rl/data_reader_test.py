@@ -60,9 +60,7 @@ class DataReaderTest(tf.test.TestCase):
         agent_name=self._agent_name,
         config=_TEST_CONFIG,
         batch_size=2,
-        train_sequence_length=3,
-        extra_inlining_reward=0,
-        reward_shaping=False)
+        train_sequence_length=3)
     data_iterator = iterator_fn(sequence_examples)
 
     experience = next(data_iterator)
@@ -89,9 +87,7 @@ class DataReaderTest(tf.test.TestCase):
         agent_name=self._agent_name,
         config=_TEST_CONFIG,
         batch_size=2,
-        train_sequence_length=3,
-        extra_inlining_reward=0,
-        reward_shaping=False)
+        train_sequence_length=3)
     data_iterator = iterator_fn(sequence_examples)
 
     experience = next(data_iterator)
@@ -99,43 +95,6 @@ class DataReaderTest(tf.test.TestCase):
     self.assertAllClose([[[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]],
                          [[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]]],
                         experience.policy_info['dist_params']['logits'])
-
-  def test_extra_inlining_reward(self):
-    example = _define_sequence_example(self._agent_name, inlining_decision=1)
-    sequence_examples = [example.SerializeToString() for _ in range(100)]
-
-    iterator_fn = data_reader.create_sequence_example_iterator_fn(
-        agent_name=self._agent_name,
-        config=_TEST_CONFIG,
-        batch_size=2,
-        train_sequence_length=3,
-        extra_inlining_reward=1,
-        reward_shaping=False)
-    data_iterator = iterator_fn(sequence_examples)
-
-    experience = next(data_iterator)
-    self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.action)
-    self.assertAllClose([[-1, -1, -1], [-1, -1, -1]],
-                        experience.reward)
-
-  def test_reward_shaping(self):
-    example = _define_sequence_example(self._agent_name, inlining_decision=1)
-    sequence_examples = [example.SerializeToString() for _ in range(100)]
-
-    iterator_fn = data_reader.create_sequence_example_iterator_fn(
-        agent_name=self._agent_name,
-        config=_TEST_CONFIG,
-        batch_size=2,
-        train_sequence_length=3,
-        extra_inlining_reward=0,
-        reward_shaping=True)
-    data_iterator = iterator_fn(sequence_examples)
-
-    experience = next(data_iterator)
-    self.assertAllClose(
-        [[-1.414213, -1.414213, -1.414213], [-1.414213, -1.414213, -1.414213]],
-        experience.reward)
-
 
 if __name__ == '__main__':
   tf.test.main()

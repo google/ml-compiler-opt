@@ -8,8 +8,6 @@ train_eval.num_policy_iterations=0
 train_eval.num_iterations=20000
 train_eval.batch_size=128
 train_eval.train_sequence_length=2
-train_eval.extra_inlining_reward=0
-train_eval.reward_shaping=False
 train_eval.deploy_policy_name='saved_policy'
 
 get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/vocab'
