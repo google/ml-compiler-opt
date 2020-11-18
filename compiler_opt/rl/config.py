@@ -46,7 +46,7 @@ CONFIG = Config(
         )),
     action_key=tf.TensorSpec(
         dtype=tf.int64, shape=(), name="inlining_decision"),
-    reward_key=tf.TensorSpec(dtype=tf.int64, shape=(), name="delta_size"),
+    reward_key=tf.TensorSpec(dtype=tf.float32, shape=(), name="reward"),
 )
 # pylint: enable=g-complex-comprehension
 

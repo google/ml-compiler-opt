@@ -26,7 +26,7 @@ _TEST_CONFIG = config.Config(
     feature_keys=(tf.TensorSpec(dtype=tf.int64, shape=(), name='feature_key'),),
     action_key=tf.TensorSpec(
         dtype=tf.int64, shape=(), name='inlining_decision'),
-    reward_key=tf.TensorSpec(dtype=tf.int64, shape=(), name='delta_size'),
+    reward_key=tf.TensorSpec(dtype=tf.float32, shape=(), name='reward'),
 )
 
 
@@ -37,8 +37,8 @@ def _define_sequence_example(agent_name, inlining_decision):
     ).int64_list.value.append(1)
     example.feature_lists.feature_list['inlining_decision'].feature.add(
     ).int64_list.value.append(inlining_decision)
-    example.feature_lists.feature_list['delta_size'].feature.add(
-    ).int64_list.value.append(2)
+    example.feature_lists.feature_list['reward'].feature.add(
+    ).float_list.value.append(2.3)
     if agent_name == 'ppo':
       example.feature_lists.feature_list[
           'CategoricalProjectionNetwork_logits'].feature.add(
@@ -73,8 +73,7 @@ class DataReaderTest(tf.test.TestCase):
     self.assertAllEqual([[0, 0, 0], [0, 0, 0]], experience.action)
     self.assertEmpty(experience.policy_info)
     self.assertAllEqual([2, 3], experience.next_step_type.shape)
-    self.assertAllClose([[-2, -2, -2], [-2, -2, -2]],
-                        experience.reward)
+    self.assertAllClose([[2.3, 2.3, 2.3], [2.3, 2.3, 2.3]], experience.reward)
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.discount)
 
   def test_ppo_policy_info(self):

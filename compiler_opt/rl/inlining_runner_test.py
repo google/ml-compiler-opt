@@ -32,7 +32,7 @@ _DEFAULT_NATIVE_SIZE = 10
 _POLICY_NATIVE_SIZE = 8
 
 
-def _get_sequence_example_with_delta_size(feature_value, delta_size):
+def _get_sequence_example_with_reward(feature_value, reward):
   sequence_example_text = string.Template("""
     feature_lists {
       feature_list {
@@ -43,14 +43,14 @@ def _get_sequence_example_with_delta_size(feature_value, delta_size):
         }
       }
       feature_list {
-        key: "delta_size"
+        key: "reward"
         value {
-          feature { int64_list { value: $delta_size } }
-          feature { int64_list { value: $delta_size } }
+          feature { float_list { value: $reward } }
+          feature { float_list { value: $reward } }
         }
       }
     }""").substitute(
-        feature_value=feature_value, delta_size=delta_size)
+        feature_value=feature_value, reward=reward)
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
@@ -97,8 +97,8 @@ class InliningRunnerTest(tf.test.TestCase):
         default_policy_size=None)
     self.assertEqual(2, mock_run_inlining.call_count)
 
-    expected_example = _get_sequence_example_with_delta_size(
-        _POLICY_FEATURE_VALUE, -1999)
+    expected_example = _get_sequence_example_with_reward(
+        _POLICY_FEATURE_VALUE, 0.1999999)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
     self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
@@ -113,7 +113,7 @@ class InliningRunnerTest(tf.test.TestCase):
         file_paths=('bc', 'cmd'), tf_policy_path='', default_policy_size=None)
     self.assertEqual(2, mock_run_inlining.call_count)
 
-    expected_example = _get_sequence_example_with_delta_size(
+    expected_example = _get_sequence_example_with_reward(
         _DEFAULT_FEATURE_VALUE, 0)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
@@ -131,8 +131,8 @@ class InliningRunnerTest(tf.test.TestCase):
         default_policy_size=_DEFAULT_NATIVE_SIZE)
     self.assertEqual(1, mock_run_inlining.call_count)
 
-    expected_example = _get_sequence_example_with_delta_size(
-        _POLICY_FEATURE_VALUE, -1999)
+    expected_example = _get_sequence_example_with_reward(
+        _POLICY_FEATURE_VALUE, 0.1999999)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
     self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)

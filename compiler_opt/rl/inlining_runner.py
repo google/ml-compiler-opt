@@ -157,17 +157,15 @@ class InliningRunner(object):
     Returns:
       The tf.SequenceExample proto after post-processing.
     """
-    total_trajectory_reward = int(
-        (tf_policy_size / default_policy_size - 1) * 10000)
+    reward = 1 - tf_policy_size / default_policy_size
 
     sequence_length = len(
         next(iter(
             sequence_example.feature_lists.feature_list.values())).feature)
 
-    delta_size_feature_list = sequence_example.feature_lists.feature_list[
-        'delta_size']
+    reward_list = sequence_example.feature_lists.feature_list['reward']
     for _ in range(sequence_length):
-      added_feature = delta_size_feature_list.feature.add()
-      added_feature.int64_list.value.append(total_trajectory_reward)
+      added_feature = reward_list.feature.add()
+      added_feature.float_list.value.append(reward)
 
     return sequence_example

@@ -101,8 +101,7 @@ def create_parser_fn(
       # perform a reward transformation on these cases.
       # TODO(yundi): make the transformed reward configurable.
       action = parsed_sequence[config.action_key.name]
-      reward = -1 * parsed_sequence[config.reward_key.name]
-      reward = tf.cast(reward, tf.float32)
+      reward = tf.cast(parsed_sequence[config.reward_key.name], tf.float32)
       reward = tf.where(reward < _REWARD_FOR_TIME_OUT, _REWARD_FOR_TIME_OUT,
                         reward)
 
