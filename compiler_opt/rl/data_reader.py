@@ -156,3 +156,79 @@ def create_sequence_example_iterator_fn(
     return iter(dataset.repeat())
 
   return _sequence_example_iterator_fn
+
+
+# TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
+# working.
+def create_file_iterator_fn(
+    agent_name: str, config: config_lib.Config, batch_size: int,
+    train_sequence_length: int,
+    input_dataset) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
+  """Get a function that creates an iterator from files.
+
+  Args:
+    agent_name: str, name of the agent.
+    config: An instance of `config.Config`.
+    batch_size: int, batch_size B.
+    train_sequence_length: int, trajectory sequence length T.
+    input_dataset: A tf.data.Dataset subclass object.
+
+  Returns:
+    A callable that takes file path(s) and returns iterator yielding
+      trajectory.Trajectory instances with shape [B, T, ...].
+  """
+  files_buffer_size = 100
+  num_readers = 10
+  num_map_threads = 8
+  shuffle_buffer_size = 1024
+  trajectory_shuffle_buffer_size = 1024
+
+  parser_fn = create_parser_fn(agent_name, config)
+
+  def _file_iterator_fn(data_path):
+    dataset = (
+        tf.data.Dataset.list_files(data_path).shuffle(
+            files_buffer_size).interleave(
+                input_dataset, cycle_length=num_readers, block_length=1)
+        # Due to a bug in collection, we sometimes get empty rows.
+        .filter(lambda string: tf.strings.length(string) > 0).apply(
+            tf.data.experimental.shuffle_and_repeat(shuffle_buffer_size)).map(
+                parser_fn, num_parallel_calls=num_map_threads)
+        # Only keep sequences of length 2 or more.
+        .filter(lambda traj: tf.size(traj.reward) > 2))
+
+    # TODO(yundi): window and subsample data.
+    # TODO(yundi): verify the shuffling is correct.
+    dataset = (
+        dataset.unbatch().batch(
+            train_sequence_length,
+            drop_remainder=True).shuffle(trajectory_shuffle_buffer_size).batch(
+                batch_size,
+                drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
+    return iter(dataset.repeat())
+
+  return _file_iterator_fn
+
+
+def create_tfrecord_iterator_fn(
+    agent_name: str, config: config_lib.Config, batch_size: int,
+    train_sequence_length: int
+) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
+  """Get a function that creates an iterator from tfrecord.
+
+  Args:
+    agent_name: str, name of the agent.
+    config: An instance of `config.Config`.
+    batch_size: int, batch_size B.
+    train_sequence_length: int, trajectory sequence length T.
+
+  Returns:
+    A callable that takes tfrecord path(s) and returns iterator yielding
+      trajectory.Trajectory instances with shape [B, T, ...].
+  """
+  return create_file_iterator_fn(
+      agent_name,
+      config,
+      batch_size,
+      train_sequence_length,
+      input_dataset=tf.data.TFRecordDataset)

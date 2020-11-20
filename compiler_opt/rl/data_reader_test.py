@@ -15,8 +15,10 @@
 
 """Tests for compiler_opt.rl.data_reader."""
 
-import tensorflow as tf
+import os
 
+from absl.testing import parameterized
+import tensorflow as tf
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.rl import config
@@ -46,22 +48,38 @@ def _define_sequence_example(agent_name, inlining_decision):
   return example
 
 
-class DataReaderTest(tf.test.TestCase):
+def _write_tmp_tfrecord(file_path, example, num_examples):
+  with tf.io.TFRecordWriter(file_path) as file_writer:
+    for _ in range(num_examples):
+      file_writer.write(example.SerializeToString())
+
+
+class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._agent_name = 'dqn'
     super(DataReaderTest, self).setUp()
 
-  def test_create_iterator_fn(self):
+  @parameterized.named_parameters(
+      ('SequenceExampleIteratorFn',
+       data_reader.create_sequence_example_iterator_fn),
+      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
+  def test_create_iterator_fn(self, test_fn):
     example = _define_sequence_example(self._agent_name, inlining_decision=0)
-    sequence_examples = [example.SerializeToString() for _ in range(100)]
 
-    iterator_fn = data_reader.create_sequence_example_iterator_fn(
+    data_source = None
+    if test_fn == data_reader.create_sequence_example_iterator_fn:
+      data_source = [example.SerializeToString() for _ in range(100)]
+    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
+      _write_tmp_tfrecord(data_source, example, 100)
+
+    iterator_fn = test_fn(
         agent_name=self._agent_name,
         config=_TEST_CONFIG,
         batch_size=2,
         train_sequence_length=3)
-    data_iterator = iterator_fn(sequence_examples)
+    data_iterator = iterator_fn(data_source)
 
     experience = next(data_iterator)
     self.assertIsInstance(experience, trajectory.Trajectory)
@@ -76,18 +94,28 @@ class DataReaderTest(tf.test.TestCase):
     self.assertAllClose([[2.3, 2.3, 2.3], [2.3, 2.3, 2.3]], experience.reward)
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.discount)
 
-  def test_ppo_policy_info(self):
+  @parameterized.named_parameters(
+      ('SequenceExampleIteratorFn',
+       data_reader.create_sequence_example_iterator_fn),
+      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
+  def test_ppo_policy_info(self, test_fn):
     self._agent_name = 'ppo'
 
     example = _define_sequence_example(self._agent_name, inlining_decision=0)
-    sequence_examples = [example.SerializeToString() for _ in range(100)]
 
-    iterator_fn = data_reader.create_sequence_example_iterator_fn(
+    data_source = None
+    if test_fn == data_reader.create_sequence_example_iterator_fn:
+      data_source = [example.SerializeToString() for _ in range(100)]
+    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
+      _write_tmp_tfrecord(data_source, example, 100)
+
+    iterator_fn = test_fn(
         agent_name=self._agent_name,
         config=_TEST_CONFIG,
         batch_size=2,
         train_sequence_length=3)
-    data_iterator = iterator_fn(sequence_examples)
+    data_iterator = iterator_fn(data_source)
 
     experience = next(data_iterator)
     self.assertAllEqual(['feature_key'], list(experience.observation.keys()))
