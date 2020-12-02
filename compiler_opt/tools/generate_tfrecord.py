@@ -75,7 +75,7 @@ def main(argv):
   ctx = multiprocessing.get_context()
   num_workers = FLAGS.num_workers
   if num_workers == -1:
-    num_workers = multiprocessing.cpu_count()
+    num_workers = ctx.cpu_count()
   pool = ctx.Pool(num_workers)
 
   index = 0
