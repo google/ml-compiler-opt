@@ -22,9 +22,6 @@ VENV_PATH=${TEST_TMP}/virtualenv
 virtualenv "${VENV_PATH}" -p python3
 source "${VENV_PATH}"/bin/activate
 
-# TODO(b/169775104): need to install gym before the bug is fixed.
-pip install tensorflow tf-agents gym
-
 PYTHONPATH="$PYTHONPATH":$(dirname "$0")
 
 for f in $(find . -name '*_test.py')
