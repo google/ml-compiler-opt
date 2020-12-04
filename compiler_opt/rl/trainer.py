@@ -22,7 +22,6 @@ from absl import logging
 import gin
 import tensorflow as tf
 
-from tf_agents.environments import trajectory_replay
 from tf_agents.utils import common as common_utils
 
 _INLINING_DEFAULT_KEY = 'inlining_default'
@@ -79,11 +78,7 @@ class Trainer(object):
     # Wrap training and trajectory replay in a tf.function to make it much
     # faster.
     self._agent.initialize()
-    self._trajectory_replay = trajectory_replay.TrajectoryReplay(
-        policy=self._agent.collect_policy)
     self._agent.train = common_utils.function(self._agent.train)
-    self._trajectory_replay.run = common_utils.function(
-        self._trajectory_replay.run)
 
     self._initialize_metrics()
 
@@ -99,81 +94,28 @@ class Trainer(object):
 
   def _initialize_metrics(self):
     """Initializes metrics."""
-    # Measures whether tf_agent.policy makes the same decisions as actions
-    # recorded in training data.
-    self._train_adherence = tf.keras.metrics.Accuracy()
-    self._train_adherence_0 = tf.keras.metrics.Accuracy()
-    self._train_adherence_1 = tf.keras.metrics.Accuracy()
-
-    # How often the policy makes the decision to inline.
     self._data_action_mean = tf.keras.metrics.Mean()
-    self._policy_action_mean = tf.keras.metrics.Mean()
-
-    # Average reward of each step in training data.
-    # An improved policy will have a higher mean.
-    self._data_reward_mean_ignoring_early_termination = tf.keras.metrics.Mean()
-    self._total_early_termination = tf.keras.metrics.Sum()
+    self._data_reward_mean = tf.keras.metrics.Mean()
     self._total_modules = tf.keras.metrics.Sum()
 
-  def _update_metrics(self, experience, replay_action):
+  def _update_metrics(self, experience):
     """Updates metrics and exports to Tensorboard."""
     is_action = ~experience.is_boundary()
 
-    self._train_adherence.update_state(
-        experience.observation[_INLINING_DEFAULT_KEY],
-        replay_action,
-        sample_weight=is_action)
-    self._train_adherence_0.update_state(
-        experience.observation[_INLINING_DEFAULT_KEY],
-        replay_action,
-        sample_weight=tf.logical_and(
-            is_action, experience.observation[_INLINING_DEFAULT_KEY] == 0))
-    self._train_adherence_1.update_state(
-        experience.observation[_INLINING_DEFAULT_KEY],
-        replay_action,
-        sample_weight=tf.logical_and(
-            is_action, experience.observation[_INLINING_DEFAULT_KEY] == 1))
-
     self._data_action_mean.update_state(
         experience.action, sample_weight=is_action)
-    self._policy_action_mean.update_state(
-        replay_action, sample_weight=is_action)
-
-    self._data_reward_mean_ignoring_early_termination.update_state(
-        experience.reward,
-        sample_weight=tf.logical_and(is_action, experience.reward >= -9999))
-    self._total_early_termination.update_state(
-        experience.reward < -9999, sample_weight=is_action)
+    self._data_reward_mean.update_state(
+        experience.reward, sample_weight=is_action)
     self._total_modules.update_state(experience.is_first())
 
     with tf.name_scope('Monitor/'):
-      tf.summary.scalar(
-          name='train_adherence',
-          data=self._train_adherence.result(),
-          step=self._global_step)
-      tf.summary.scalar(
-          name='train_adherence_to_default_not_inline',
-          data=self._train_adherence_0.result(),
-          step=self._global_step)
-      tf.summary.scalar(
-          name='train_adherence_to_default_inline',
-          data=self._train_adherence_1.result(),
-          step=self._global_step)
       tf.summary.scalar(
           name='data_action_mean',
           data=self._data_action_mean.result(),
           step=self._global_step)
       tf.summary.scalar(
-          name='policy_action_mean',
-          data=self._policy_action_mean.result(),
-          step=self._global_step)
-      tf.summary.scalar(
-          name='data_reward_mean_ignoring_early_termination',
-          data=self._data_reward_mean_ignoring_early_termination.result(),
-          step=self._global_step)
-      tf.summary.scalar(
-          name='total_early_termination',
-          data=self._total_early_termination.result(),
+          name='data_reward_mean',
+          data=self._data_reward_mean.result(),
           step=self._global_step)
       tf.summary.scalar(
           name='total_modules',
@@ -185,21 +127,15 @@ class Trainer(object):
 
   def _reset_metrics(self):
     """Reset all metrics."""
-    self._train_adherence.reset_states()
-    self._train_adherence_0.reset_states()
-    self._train_adherence_1.reset_states()
     self._data_action_mean.reset_states()
-    self._policy_action_mean.reset_states()
-    self._data_reward_mean_ignoring_early_termination.reset_states()
-    self._total_early_termination.reset_states()
+    self._data_reward_mean.reset_states()
     self._total_modules.reset_states()
 
   def _log_experiment(self, loss):
     """Log training info."""
     global_step_val = self._global_step.numpy()
     if global_step_val - self._last_log_step >= self._log_interval:
-      logging.info('step = %d, loss = %g, train_adherence = %g',
-                   global_step_val, loss, self._train_adherence.result())
+      logging.info('step = %d, loss = %g', global_step_val, loss)
       time_acc = time.time() - self._start_time
       steps_per_sec = (global_step_val - self._last_log_step) / time_acc
       logging.info('%.3f steps/sec', steps_per_sec)
@@ -219,9 +155,8 @@ class Trainer(object):
         lambda: tf.math.equal(self._global_step % self._summary_interval, 0)):
       for _ in range(num_iterations):
         experience = next(dataset_iter)
-        replay_action, _, _ = self._trajectory_replay.run(experience)
         loss = self._agent.train(experience)
 
-        self._update_metrics(experience, replay_action)
+        self._update_metrics(experience)
         self._log_experiment(loss.loss)
         self._save_checkpoint()

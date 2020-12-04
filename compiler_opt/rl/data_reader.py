@@ -22,8 +22,6 @@ from tf_agents.trajectories import trajectory
 
 from compiler_opt.rl import config as config_lib
 
-_REWARD_FOR_TIME_OUT = -10000.0
-
 
 # TODO(yundi): define enum type for agent_name.
 
@@ -102,8 +100,6 @@ def create_parser_fn(
       # TODO(yundi): make the transformed reward configurable.
       action = parsed_sequence[config.action_key.name]
       reward = tf.cast(parsed_sequence[config.reward_key.name], tf.float32)
-      reward = tf.where(reward < _REWARD_FOR_TIME_OUT, _REWARD_FOR_TIME_OUT,
-                        reward)
 
       policy_info = _process_parsed_sequence_and_get_policy_info(
           parsed_sequence, agent_name)
