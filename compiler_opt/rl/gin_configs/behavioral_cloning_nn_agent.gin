@@ -14,7 +14,7 @@ get_observation_processing_layer_creator.with_z_score_normalization = False
 create_agent.policy_network = @q_network.QNetwork
 
 QNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
-QNetwork.fc_layer_params=(20, 10)
+QNetwork.fc_layer_params=(40, 20)
 QNetwork.dropout_layer_params=(0.2, 0.2)
 QNetwork.activation_fn=@tf.keras.activations.relu
 
