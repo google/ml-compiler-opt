@@ -61,7 +61,8 @@ def train_eval(agent_name='ppo',
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1,
-               deploy_policy_name='saved_policy'):
+               deploy_policy_name='saved_policy',
+               use_stale_results=False):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
 
@@ -105,7 +106,8 @@ def train_eval(agent_name='ppo',
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner.collect_data,
-      parser=sequence_example_iterator_fn)
+      parser=sequence_example_iterator_fn,
+      use_stale_results=use_stale_results)
 
   for policy_iteration in range(num_policy_iterations):
     policy_path = os.path.join(root_dir, 'policy', str(policy_iteration))
@@ -119,6 +121,8 @@ def train_eval(agent_name='ppo',
 
   # Save final policy.
   saver.save(root_dir)
+  # Wait for all the workers to finish.
+  data_collector.close_pool()
 
 
 def main(_):
