@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Generate training data in tfrecord format."""
+"""Generate initial training data from the behavior of the current heuristic."""
 
 import functools
 import os
@@ -36,9 +36,9 @@ flags.DEFINE_enum(
     'inlining currently.')
 flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
 flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
-flags.DEFINE_integer('num_workers', -1,
-                     'Number of parallel workers for compilation. Set to '
-                     'multiprocessing.cpu_count() if set -1.')
+flags.DEFINE_integer(
+    'num_workers', None,
+    'Number of parallel workers for compilation. `None` for maximum available.')
 flags.DEFINE_float(
     'sampling_rate', 1,
     'Sampling rate of modules, 0.5 means 50% sampling rate that generates data '
@@ -73,10 +73,7 @@ def main(argv):
     file_paths = random.sample(file_paths, k=sampled_modules)
 
   ctx = multiprocessing.get_context()
-  num_workers = FLAGS.num_workers
-  if num_workers == -1:
-    num_workers = ctx.cpu_count()
-  pool = ctx.Pool(num_workers)
+  pool = ctx.Pool(FLAGS.num_workers)
 
   index = 0
   total_successful_examples = 0

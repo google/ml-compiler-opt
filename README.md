@@ -62,11 +62,14 @@ export OUTPUT_DIR=<directory where trained model will be dropped>
 
 Execute from the root of the git repository:
 
-#### Prepare training data in TFRecord format {.numbered}
+#### Prepare initial traning data {.numbered}
+
+This collects a trace of the current heuristic's behavior, which is then used to
+train an initial ("warmstart") model.
 
 ```shell
 PYTHONPATH=$PYTHONPATH:. python3 \
-  compiler_opt/tools/generate_tfrecord.py \
+  compiler_opt/tools/generate_default_trace.py \
   --data_path=$CORPUS \
   --output_path=$DEFAULT_TRACE \
   --compile_task=inlining \
@@ -102,8 +105,7 @@ rm -rf $OUTPUT_DIR && \
   --data_path=$CORPUS \
   --clang_path=$LLVM_DIR/bin/clang \
   --llvm_size_path=$LLVM_DIR/bin/llvm-size \
-  --num_workers=96 \
   --num_modules=100 \
   --gin_files=compiler_opt/rl/gin_configs/ppo_nn_agent.gin \
-  --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART\saved_policy\"
+  --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```

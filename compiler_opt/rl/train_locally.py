@@ -40,8 +40,9 @@ flags.DEFINE_string('data_path', None,
                     'Path to CNS folder containing IR files.')
 flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
 flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
-flags.DEFINE_integer('num_workers', 50,
-                     'Number of parallel data collection workers.')
+flags.DEFINE_integer(
+    'num_workers', None,
+    'Number of parallel data collection workers. `None` for max available')
 flags.DEFINE_integer('num_modules', 100,
                      'Number of modules to collect data for each iteration.')
 flags.DEFINE_multi_string('gin_files', [],

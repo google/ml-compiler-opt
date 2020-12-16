@@ -52,8 +52,6 @@ class LocalDataCollector(data_collector.DataCollector):
     self._parser = parser
 
     ctx = multiprocessing.get_context('spawn')
-    if num_workers == -1:
-      num_workers = ctx.cpu_count()
     self._pool = ctx.Pool(num_workers)
 
     self._default_policy_size_map = collections.defaultdict(lambda: None)
