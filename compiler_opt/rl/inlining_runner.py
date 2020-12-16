@@ -24,6 +24,12 @@ import tensorflow as tf
 
 from google.protobuf import text_format
 
+# TODO(mtrofin): maybe the deadline is a requirement for plugins (such as the
+# inliner) and the data collector expects and uses it to define its own? This
+# would serve as an extra hint to the developer of a new plugin to make sure
+# their long-running tasks have timeouts.
+_DEADLINE_IN_SECONDS = 60
+
 
 class InliningRunner(object):
   """Class for collecting data for inlining-for-size.
@@ -117,7 +123,8 @@ class InliningRunner(object):
       if tf_policy_path:
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
-      subprocess.check_call(command_line)
+      # This is the long-running task. It should have a way to terminate.
+      subprocess.check_call(command_line, timeout=_DEADLINE_IN_SECONDS)
 
       command_line = [self._llvm_size_path, output_native_path]
       output = subprocess.check_output(command_line).decode('utf-8')
@@ -129,15 +136,15 @@ class InliningRunner(object):
       native_size = int(tmp[0])
 
       if size_only:
-        tf.io.gfile.rmtree(working_dir)
         return None, native_size
 
       with io.open(log_path, 'r') as f:
         sequence_example = text_format.MergeLines(f, tf.train.SequenceExample())
 
-      tf.io.gfile.rmtree(working_dir)
     except (subprocess.CalledProcessError, tf.errors.OpError) as e:
       raise e
+    finally:
+      tf.io.gfile.rmtree(working_dir)
 
     return sequence_example, native_size
 

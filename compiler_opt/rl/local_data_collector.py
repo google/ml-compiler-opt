@@ -36,14 +36,29 @@ _DEADLINE_IN_SECONDS = 120
 # _DEADLINE_IN_SECONDS time.
 _WAIT_TERMINATION = ((0.98, 0), (0.95, 0.25), (0.9, 0.5), (0, 1))
 
+# How much work is allowed to be unfinished, relative to number of tasks
+# requested in a data collection session, before we stop accepting new work and
+# start waiting for it to drain.
+_UNFINISHED_WORK_RATIO = 0.5
+
+
+def default_overload_handler(total_unfinished_work):
+  logging.warn('Too much unfinished work: %d unfinished!',
+               total_unfinished_work)
+
 
 class LocalDataCollector(data_collector.DataCollector):
   """class for local data collection."""
 
-  def __init__(self, file_paths: List[Iterable[str]], num_workers: int,
-               num_modules: int, runner: Callable[[str, str, int], Tuple[str,
-                                                                         int]],
-               parser: Callable[[List[str]], Iterator[trajectory.Trajectory]]):
+  def __init__(self,
+               file_paths: List[Iterable[str]],
+               num_workers: int,
+               num_modules: int,
+               runner: Callable[[str, str, int], Tuple[str, int]],
+               parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
+               use_stale_results=False,
+               max_unfinished_tasks=None,
+               overload_handler=default_overload_handler):
     super(LocalDataCollector, self).__init__()
 
     self._file_paths = file_paths
@@ -51,10 +66,35 @@ class LocalDataCollector(data_collector.DataCollector):
     self._runner = runner
     self._parser = parser
 
-    ctx = multiprocessing.get_context('spawn')
-    self._pool = ctx.Pool(num_workers)
+    self._unfinished_work = []
+    self._pool = multiprocessing.get_context('spawn').Pool(num_workers)
+
+    self._max_unfinished_tasks = max_unfinished_tasks
+    if not self._max_unfinished_tasks:
+      self._max_unfinished_tasks = _UNFINISHED_WORK_RATIO * num_modules
+    self._use_stale_results = use_stale_results
 
     self._default_policy_size_map = collections.defaultdict(lambda: None)
+    self._overloaded_workers_handler = overload_handler
+
+  def close_pool(self):
+    if self._pool:
+      # Stop accepting new work
+      self._pool.close()
+      self._pool.join()
+      self._pool = None
+
+  def inject_unfinished_work_for_test(self, work):
+    self._unfinished_work = work
+
+  @property
+  def unfinished_work(self):
+    return self._unfinished_work
+
+  def _schedule_jobs(self, policy_path, sampled_file_paths):
+    jobs = [(file_paths, policy_path, self._default_policy_size_map[file_paths])
+            for file_paths in sampled_file_paths]
+    return [self._pool.apply_async(self._runner, job) for job in jobs]
 
   def collect_data(self, policy_path: str) -> Iterator[trajectory.Trajectory]:
     """Collect data for a given policy.
@@ -67,34 +107,59 @@ class LocalDataCollector(data_collector.DataCollector):
         training.
     """
     sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
-    jobs = [(file_paths, policy_path, self._default_policy_size_map[file_paths])
-            for file_paths in sampled_file_paths]
-    results = [self._pool.apply_async(self._runner, job) for job in jobs]
+    results = self._schedule_jobs(policy_path, sampled_file_paths)
 
     def wait_for_termination():
       wait_seconds = 0
       while True:
-        finished_data_collection = sum([x.ready() for x in results])
+        finished_work = sum(res.ready() for res in results)
+        unfinised_work = len(results) - finished_work
+        prev_unfinished_work = sum(
+            not res.ready() for _, res in self._unfinished_work)
+        total_unfinished_work = unfinised_work + prev_unfinished_work
         for (data_collection_threshold,
              wait_time_threshold) in _WAIT_TERMINATION:
-          if ((finished_data_collection >=
-               self._num_modules * data_collection_threshold) and
-              (wait_seconds >= _DEADLINE_IN_SECONDS * wait_time_threshold)):
-            return finished_data_collection, wait_seconds
+          if ((finished_work >= self._num_modules * data_collection_threshold)
+              and (wait_seconds >= _DEADLINE_IN_SECONDS * wait_time_threshold)):
+            if total_unfinished_work >= self._max_unfinished_tasks:
+              self._overloaded_workers_handler(total_unfinished_work)
+              break
+            else:
+              return wait_seconds
         wait_seconds += 1
         time.sleep(1)
 
-    finished_data_collection, wait_seconds = wait_for_termination()
-    successful_tuples = [(paths, res)
-                         for (paths, res) in zip(sampled_file_paths, results)
-                         if res.ready() and res.successful()]
-    logging.info('%d of %d modules finished with %d seconds (%d failures)',
-                 finished_data_collection, self._num_modules, wait_seconds,
-                 finished_data_collection - len(successful_tuples))
+    wait_seconds = wait_for_termination()
 
-    sequence_examples = [res.get()[0] for (_, res) in successful_tuples]
+    current_work = [
+        (paths, res) for paths, res in zip(sampled_file_paths, results)
+    ]
+    finished_work = [(paths, res) for paths, res in current_work if res.ready()]
+    unfinished_current_work = list(set(current_work) - set(finished_work))
+    successful_work = [
+        (paths, res) for paths, res in finished_work if res.successful()
+    ]
+    stale_results = [(paths, res)
+                     for paths, res in self._unfinished_work
+                     if res.ready() and res.successful()]
+    self._unfinished_work = unfinished_current_work + [
+        (paths, res) for paths, res in self._unfinished_work if not res.ready()
+    ]
+
+    logging.info(('%d of %d modules finished in %d seconds (%d failures).'
+                  ' Currently %d unfinished work'), len(finished_work),
+                 self._num_modules, wait_seconds,
+                 len(finished_work) - len(successful_work),
+                 len(self._unfinished_work))
+
+    if self._use_stale_results:
+      logging.info('Using %d stale results and %d fresh ones.',
+                   len(stale_results), len(successful_work))
+      successful_work += stale_results
+
+    sequence_examples = [res.get()[0] for (_, res) in successful_work]
     self._default_policy_size_map.update(
-        {file_paths: res.get()[1] for (file_paths, res) in successful_tuples})
+        {file_paths: res.get()[1] for (file_paths, res) in successful_work})
 
     return self._parser(sequence_examples)
 

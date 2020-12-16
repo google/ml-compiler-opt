@@ -15,6 +15,7 @@
 
 """Tests for compiler_opt.rl.local_data_collector."""
 
+import time
 from unittest import mock
 
 import tensorflow as tf
@@ -64,7 +65,63 @@ class LocalDataCollectorTest(tf.test.TestCase):
     data_iterator = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([4, 5, 6], data)
+    collector.close_pool()
 
+  def test_local_data_collector_task_management(self):
+
+    class OverloadHandler:
+
+      def __init__(self):
+        self.counts = []
+
+      def reset(self):
+        self.counts.clear()
+
+      def handler(self, count):
+        self.counts.append(count)
+
+    def long_running_collector(file_path, *_):
+      _, t = file_path.split('_')
+      # avoid lint warnings
+      time.sleep(int(t))
+      return file_path, file_path
+
+    def parser(data_list):
+      assert data_list
+
+    overload_handler = OverloadHandler()
+    # Set the max_unfinished_tasks so we may schedule first some very long
+    # running work that occupies some, but not all the worker processes of the
+    # pool. This ensures there are workers able to pick up the short-running
+    # work and clear it.
+    collector = local_data_collector.LocalDataCollector(
+        file_paths=['wait_0' for _ in range(0, 200)],
+        num_workers=4,
+        num_modules=4,
+        runner=long_running_collector,
+        parser=parser,
+        max_unfinished_tasks=2,
+        overload_handler=overload_handler.handler)
+
+    collector.collect_data(policy_path='policy')
+    self.assertLen(overload_handler.counts, 0)
+    while [r for _, r in collector._unfinished_work if not r.ready()]:
+      time.sleep(1)
+
+    collector.inject_unfinished_work_for_test([
+        ('policy', r) for r in collector._schedule_jobs(
+            'policy', ['wait_5', 'wait_5', 'wait_10'])
+    ])
+    collector.collect_data(policy_path='policy')
+    self.assertNotEmpty(overload_handler.counts)
+    # We set the overload threshold (_max_unfinished_tasks) at 2, so the
+    # overload handler should have seen a '3' after the short running tasks have
+    # cleared.
+    self.assertIn(3, overload_handler.counts)
+    # The really long running task would not have cleared yet.
+    self.assertLen(
+        [r for _, r in collector.unfinished_work if not r.ready()], 1)
+    collector.close_pool()
 
 if __name__ == '__main__':
   multiprocessing.handle_test_main(tf.test.main)
