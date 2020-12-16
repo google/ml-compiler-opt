@@ -49,8 +49,9 @@ flags.DEFINE_enum(
     'input_type', 'json', ['json', 'params'],
     'Input file type - json or params. The latter refers to lld params.')
 flags.DEFINE_string('output_dir', None, 'Output directory')
-flags.DEFINE_integer('num_workers', 10,
-                     'Number of parallel workers for objcopy')
+flags.DEFINE_integer(
+    'num_workers', None,
+    'Number of parallel workers for objcopy. `None` for maximum available.')
 flags.DEFINE_string('llvm_objcopy_path', 'llvm-objcopy', 'Path to llvm-objcopy')
 flags.DEFINE_string(
     'obj_base_dir', '',

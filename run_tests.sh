@@ -19,16 +19,19 @@ set -x
 TEST_TMP=$(mktemp -d)
 
 VENV_PATH=${TEST_TMP}/virtualenv
-virtualenv "${VENV_PATH}" -p python3
+virtualenv "${VENV_PATH}" -p python3 --system-site-packages
 source "${VENV_PATH}"/bin/activate
 
-PYTHONPATH="$PYTHONPATH":$(dirname "$0")
+# Download pre-requisite packages.
+pip install -r requirements.txt
 
-for f in $(find . -name '*_test.py')
+PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
+
+for file in $(find . -name '*_test.py')
 do
-    python "$f"
+  python "${file}"
 done
 
 deactivate
 
-rm -rf "$TEST_TMP"
+rm -rf "${TEST_TMP}"

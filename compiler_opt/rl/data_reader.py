@@ -93,10 +93,6 @@ def create_parser_fn(
           serialized_proto,
           context_features=context_features,
           sequence_features=sequence_features)
-      # Notice that the delta size is "post - pre" size; and we want to
-      # *minimize* this, so the reward should be the negative.
-      # Reward are set to be "negative infinite" for early termination cases. We
-      # perform a reward transformation on these cases.
       # TODO(yundi): make the transformed reward configurable.
       action = parsed_sequence[config.action_key.name]
       reward = tf.cast(parsed_sequence[config.reward_key.name], tf.float32)
