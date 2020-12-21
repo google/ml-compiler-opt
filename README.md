@@ -2,7 +2,10 @@
 
 This repository contains tools for ML-driven optimizations in LLVM.
 
-## Prerequisites {.numbered}
+For a quick start with corpus collection and training, please refer to the
+[demo](docs/demo/demo.md).
+
+## Prerequisites
 
 Currently, the assumption for the is:
 
@@ -34,21 +37,21 @@ sudo apt-get install virtualenv
 Note that the same tensorflow package is also needed for building the 'release'
 mode for LLVM.
 
-## Model training {.numbered}
+## Model training
 
 TODO: overview.
 
-### Preparation {.numbered}
+### Preparation
 
-#### Build LLVM {.numbered}
-
-TODO: how
-
-#### Extract IR files {.numbered}
+#### Build LLVM
 
 TODO: how
 
-#### Set up environment {.numbered}
+#### Extract IR files
+
+TODO: how
+
+#### Set up environment
 
 ```shell
 export CORPUS=<root directory with IR files>
@@ -58,11 +61,11 @@ export WARMSTART_OUTPUT_DIR=<directory where warmstart model will be dropped>
 export OUTPUT_DIR=<directory where trained model will be dropped>
 ```
 
-### Obtain a "warmstart" model {.numbered}
+### Obtain a "warmstart" model
 
 Execute from the root of the git repository:
 
-#### Prepare initial traning data {.numbered}
+#### Prepare initial traning data
 
 This collects a trace of the current heuristic's behavior, which is then used to
 train an initial ("warmstart") model.
@@ -78,7 +81,7 @@ PYTHONPATH=$PYTHONPATH:. python3 \
   --sampling_rate=0.2
 ```
 
-#### Train warmstart model {.numbered}
+#### Train warmstart model
 
 ```shell
 rm -rf $WARMSTART_OUTPUT_DIR && \
@@ -89,9 +92,9 @@ rm -rf $WARMSTART_OUTPUT_DIR && \
   --gin_files=compiler_opt/rl/gin_configs/behavioral_cloning_nn_agent.gin
 ```
 
-### Train an optimized policy model {.numbered}
+### Train an optimized policy model
 
-#### Train new policy {.numbered}
+#### Train new policy
 
 This will take a long time ~ half a day - on a 96 thread machine.
 

@@ -139,6 +139,18 @@ fx build
 
 Fuchsia build conveniently generates a size report. Let's copy it for reference.
 
+**Note** The `--args=clang_embed_bitcode=true` option above adds the compilation
+flag `-Xclang=-fembed-bitcode=all`. This can be seen in the compilation database.
+The effect of this is that the object files have the llvm bytecode produced by
+clang, before the optimization passes, and the clang command line, captured in
+the .llvmbc and .llvmcmd sections, respectivelly. This is the mechanism by which
+we extract our corpus.
+
+Naturally, the effect of this is that the object files, and the linked binaries,
+are larger. Fuchsia strips the final object; but, more importantly, the size
+report captures multiple dimensions, beside the final file size - including, for
+example, the size of the text section.
+
 ```shell
 cp out/default/elf_sizes.json /tmp/orig_sizes.json
 ```
