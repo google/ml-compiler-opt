@@ -207,7 +207,7 @@ rm -rf $WARMSTART_OUTPUT_DIR && \
   compiler_opt/rl/train_bc.py \
   --root_dir=$WARMSTART_OUTPUT_DIR \
   --data_path=$DEFAULT_TRACE \
-  --gin_files=compiler_opt/rl/gin_configs/behavioral_cloning_nn_agent.gin
+  --gin_files=compiler_opt/rl/inlining/gin_configs/behavioral_cloning_nn_agent.gin
 ```
 
 Starting from the warmstart model, train the optimized model - **this will take
@@ -222,7 +222,7 @@ rm -rf $OUTPUT_DIR && \
   --clang_path=$LLVM_INSTALLDIR/bin/clang \
   --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
   --num_modules=100 \
-  --gin_files=compiler_opt/rl/gin_configs/ppo_nn_agent.gin \
+  --gin_files=compiler_opt/rl/inlining/gin_configs/ppo_nn_agent.gin \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
 
