@@ -1,9 +1,27 @@
-# Infrastructure for ML - Driven Optimizations in LLVM
+# Infrastructure for MLGO --- a Machine Learning Guided Compiler Optimizations Feamework.
 
-This repository contains tools for ML-driven optimizations in LLVM.
+MLGO is a framework for integrating ML techniques systematically in LLVM. It
+replaces human-crafted optimization heuristics in LLVM with machine learned
+models. Our pioneering project is on the inlining-for-size optimization in LLVM.
 
-For a quick start with corpus collection and training, please refer to the
-[demo](docs/demo/demo.md).
+We currently use two different ML algorithms: Policy Gradient and Evolution
+Strategies, to train the inlining-for-size model, and achieve up to 7% size
+reduction, when compared to state of the art LLVM -Oz. The compiler components
+are available in the main LLVM repository. This repository contains the training
+infrastructure and related tools for MLGO.
+
+Currently we only support training inlining-for-size policy with Policy
+Gradient. We are working on:
+
+1.  releasing Evolution Strategies training;
+2.  more optimization problems other than inlining-for-size.
+
+Check out this [demo](docs/demo/demo.md) for an end-to-end demonstration of how
+to train your own inlining-for-size policy from the scratch with Policy
+Gradient.
+
+For more details about MLGO, please refer to our paper
+[MLGO: a Machine Learning Guided Compiler Optimizations Framework](https://arxiv.org/abs/2101.04808).
 
 ## Prerequisites
 
@@ -36,79 +54,3 @@ sudo apt-get install virtualenv
 
 Note that the same tensorflow package is also needed for building the 'release'
 mode for LLVM.
-
-## Model training
-
-TODO: overview.
-
-### Preparation
-
-#### Build LLVM
-
-TODO: how
-
-#### Extract IR files
-
-TODO: how
-
-#### Set up environment
-
-```shell
-export CORPUS=<root directory with IR files>
-export DEFAULT_TRACE=<path to where trace under default policy will be dropped>
-export LLVM_DIR=<directory where LLVM build is located - i.e. we can find $LLVM_DIR/bin/clang>
-export WARMSTART_OUTPUT_DIR=<directory where warmstart model will be dropped>
-export OUTPUT_DIR=<directory where trained model will be dropped>
-```
-
-### Obtain a "warmstart" model
-
-Execute from the root of the git repository:
-
-#### Prepare initial traning data
-
-This collects a trace of the current heuristic's behavior, which is then used to
-train an initial ("warmstart") model.
-
-```shell
-PYTHONPATH=$PYTHONPATH:. python3 \
-  compiler_opt/tools/generate_default_trace.py \
-  --data_path=$CORPUS \
-  --output_path=$DEFAULT_TRACE \
-  --compile_task=inlining \
-  --clang_path=$LLVM_DIR/bin/clang \
-  --llvm_size_path=$LLVM_DIR/bin/llvm-size \
-  --sampling_rate=0.2
-```
-
-#### Train warmstart model
-
-```shell
-rm -rf $WARMSTART_OUTPUT_DIR && \
-  PYTHONPATH=$PYTHONPATH:. python3 \
-  compiler_opt/rl/train_bc.py \
-  --root_dir=$WARMSTART_OUTPUT_DIR \
-  --data_path=$DEFAULT_TRACE \
-  --gin_files=compiler_opt/rl/gin_configs/behavioral_cloning_nn_agent.gin
-```
-
-### Train an optimized policy model
-
-#### Train new policy
-
-This will take a long time ~ half a day - on a 96 thread machine.
-
-Execute from the root of the git repository:
-
-```shell
-rm -rf $OUTPUT_DIR && \
-  PYTHONPATH=$PYTHONPATH:. python3 \
-  compiler_opt/rl/train_locally.py \
-  --root_dir=$OUTPUT_DIR \
-  --data_path=$CORPUS \
-  --clang_path=$LLVM_DIR/bin/clang \
-  --llvm_size_path=$LLVM_DIR/bin/llvm-size \
-  --num_modules=100 \
-  --gin_files=compiler_opt/rl/gin_configs/ppo_nn_agent.gin \
-  --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
-```
