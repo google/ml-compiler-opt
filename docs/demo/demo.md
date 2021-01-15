@@ -16,6 +16,12 @@ embedded in the compiler, and a user opts in to using it via a command line flag
 (`-mllvm -enable-ml-inliner=release`). Also the compiler has no runtime
 tensorflow dependencies.
 
+For corpus extraction, any project that is built with clang and uses a build
+system that produces a compilation database json file (like
+`clang -DCMAKE_EXPORT_COMPILE_COMMANDS`) would work. The larger the number of
+modules, the better (for training). For this demo, we're using the Fuchsia
+project.
+
 ## Preliminaries
 We assume all repositories are installed under `$HOME`, e.g. you should have
 (after the next step) a `~/fuchsia`, `~/ml-compiler-opt`, etc.
@@ -190,7 +196,7 @@ Collect traces from the default heuristic, to kick off the training process.
 ```shell
 rm -rf $DEFAULT_TRACE &&
   PYTHONPATH=$PYTHONPATH:. python3 \
-    compiler_opt/tools/generate_tfrecord.py \
+    compiler_opt/tools/generate_default_trace.py \
     --data_path=$CORPUS \
     --output_path=$DEFAULT_TRACE \
     --compile_task=inlining \
