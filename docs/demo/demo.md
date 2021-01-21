@@ -240,7 +240,7 @@ overwritting the model in `llvm/lib/Analysis/models/inliner`.
 ```shell
 cd $LLVM_SRCDIR
 rm -rf llvm/lib/Analysis/models/inliner/*
-cp -rf $OUTPUT/saved_policy/* llvm/lib/Analysis/models/inliner/
+cp -rf $OUTPUT_DIR/saved_policy/* llvm/lib/Analysis/models/inliner/
 ```
 
 Setup the release build:
