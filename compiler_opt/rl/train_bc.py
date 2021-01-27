@@ -23,7 +23,6 @@ from absl import logging
 import gin
 
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import policy_saver
@@ -43,7 +42,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name='behavioral_cloning',
+def train_eval(get_signature_spec_fn=None,
+               agent_name='behavioral_cloning',
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1):
@@ -52,7 +52,7 @@ def train_eval(agent_name='behavioral_cloning',
   root_dir = os.path.normpath(root_dir)
 
   # Initialize trainer and policy saver.
-  time_step_spec, action_spec = config.create_signature_specs(config.CONFIG)
+  time_step_spec, action_spec = get_signature_spec_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
@@ -66,7 +66,8 @@ def train_eval(agent_name='behavioral_cloning',
 
   tfrecord_iterator_fn = data_reader.create_tfrecord_iterator_fn(
       agent_name=agent_name,
-      config=config.CONFIG,
+      time_step_spec=time_step_spec,
+      action_spec=action_spec,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 

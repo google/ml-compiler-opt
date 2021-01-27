@@ -19,8 +19,7 @@ from typing import Callable, List, Iterator
 
 import tensorflow as tf
 from tf_agents.trajectories import trajectory
-
-from compiler_opt.rl import config as config_lib
+from tf_agents.typing import types
 
 
 # TODO(yundi): define enum type for agent_name.
@@ -60,13 +59,14 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name):
 
 
 def create_parser_fn(
-    agent_name: str,
-    config: config_lib.Config) -> Callable[[str], trajectory.Trajectory]:
+    agent_name: str, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
   Args:
     agent_name: str, name of the agent.
-    config: An instance of `config.Config`.
+    time_step_spec: time step spec of the optimization problem.
+    action_spec: action spec of the optimization problem.
 
   Returns:
     A callable that takes scalar serialized proto Tensors and emits
@@ -81,10 +81,16 @@ def create_parser_fn(
     context_features = {}
     # pylint: disable=g-complex-comprehension
     sequence_features = dict(
-        (key.name,
-         tf.io.FixedLenSequenceFeature(shape=key.shape, dtype=key.dtype))
-        for key in (config.feature_keys +
-                    (config.action_key, config.reward_key)))
+        (tensor_spec.name,
+         tf.io.FixedLenSequenceFeature(
+             shape=tensor_spec.shape, dtype=tensor_spec.dtype))
+        for tensor_spec in time_step_spec.observation.values())
+    sequence_features[action_spec.name] = tf.io.FixedLenSequenceFeature(
+        shape=action_spec.shape, dtype=action_spec.dtype)
+    sequence_features[
+        time_step_spec.reward.name] = tf.io.FixedLenSequenceFeature(
+            shape=time_step_spec.reward.shape,
+            dtype=time_step_spec.reward.dtype)
     sequence_features.update(_POLICY_INFO_PARSING_DICT[agent_name])
 
     # pylint: enable=g-complex-comprehension
@@ -94,14 +100,14 @@ def create_parser_fn(
           context_features=context_features,
           sequence_features=sequence_features)
       # TODO(yundi): make the transformed reward configurable.
-      action = parsed_sequence[config.action_key.name]
-      reward = tf.cast(parsed_sequence[config.reward_key.name], tf.float32)
+      action = parsed_sequence[action_spec.name]
+      reward = tf.cast(parsed_sequence[time_step_spec.reward.name], tf.float32)
 
       policy_info = _process_parsed_sequence_and_get_policy_info(
           parsed_sequence, agent_name)
 
-      del parsed_sequence[config.reward_key.name]
-      del parsed_sequence[config.action_key.name]
+      del parsed_sequence[time_step_spec.reward.name]
+      del parsed_sequence[action_spec.name]
       full_trajectory = trajectory.from_episode(
           observation=parsed_sequence,
           action=action,
@@ -113,14 +119,15 @@ def create_parser_fn(
 
 
 def create_sequence_example_iterator_fn(
-    agent_name: str, config: config_lib.Config, batch_size: int,
-    train_sequence_length: int
+    agent_name: str, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
 ) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
   """Get a function that creates an iterator from serialized sequence examples.
 
   Args:
     agent_name: str, name of the agent.
-    config: An instance of `config.Config`.
+    time_step_spec: time step spec of the optimization problem.
+    action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
 
@@ -131,7 +138,7 @@ def create_sequence_example_iterator_fn(
   """
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, config)
+  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
 
   def _sequence_example_iterator_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
@@ -153,14 +160,15 @@ def create_sequence_example_iterator_fn(
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
 def create_file_iterator_fn(
-    agent_name: str, config: config_lib.Config, batch_size: int,
-    train_sequence_length: int,
+    agent_name: str, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int,
     input_dataset) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
   """Get a function that creates an iterator from files.
 
   Args:
     agent_name: str, name of the agent.
-    config: An instance of `config.Config`.
+    time_step_spec: time step spec of the optimization problem.
+    action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
     input_dataset: A tf.data.Dataset subclass object.
@@ -175,7 +183,7 @@ def create_file_iterator_fn(
   shuffle_buffer_size = 1024
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, config)
+  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
 
   def _file_iterator_fn(data_path):
     dataset = (
@@ -203,14 +211,15 @@ def create_file_iterator_fn(
 
 
 def create_tfrecord_iterator_fn(
-    agent_name: str, config: config_lib.Config, batch_size: int,
-    train_sequence_length: int
+    agent_name: str, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
 ) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
   """Get a function that creates an iterator from tfrecord.
 
   Args:
     agent_name: str, name of the agent.
-    config: An instance of `config.Config`.
+    time_step_spec: time step spec of the optimization problem.
+    action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
 
@@ -220,7 +229,8 @@ def create_tfrecord_iterator_fn(
   """
   return create_file_iterator_fn(
       agent_name,
-      config,
+      time_step_spec,
+      action_spec,
       batch_size,
       train_sequence_length,
       input_dataset=tf.data.TFRecordDataset)

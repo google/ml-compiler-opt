@@ -26,7 +26,6 @@ from tf_agents.policies import policy_loader
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import inlining_runner
@@ -55,7 +54,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name='ppo',
+def train_eval(get_signature_spec_fn=None,
+               agent_name='ppo',
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_iterations=100,
@@ -67,7 +67,7 @@ def train_eval(agent_name='ppo',
   root_dir = FLAGS.root_dir
 
   # Initialize trainer and policy saver.
-  time_step_spec, action_spec = config.create_signature_specs(config.CONFIG)
+  time_step_spec, action_spec = get_signature_spec_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
@@ -97,7 +97,8 @@ def train_eval(agent_name='ppo',
   sequence_example_iterator_fn = (
       data_reader.create_sequence_example_iterator_fn(
           agent_name=agent_name,
-          config=config.CONFIG,
+          time_step_spec=time_step_spec,
+          action_spec=action_spec,
           batch_size=batch_size,
           train_sequence_length=train_sequence_length))
 

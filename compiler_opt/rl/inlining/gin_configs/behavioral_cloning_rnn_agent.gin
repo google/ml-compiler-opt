@@ -1,8 +1,10 @@
 import gin.tf.external_configurables
 import compiler_opt.rl.gin_external_configurables
+import compiler_opt.rl.inlining.config
 import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
 import tf_agents.networks.q_rnn_network
 
+train_eval.get_signature_spec_fn=@config.get_inlining_signature_spec
 train_eval.agent_name='behavioral_cloning'
 train_eval.num_iterations=100000
 train_eval.batch_size=512

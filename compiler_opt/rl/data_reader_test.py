@@ -19,17 +19,11 @@ import os
 
 from absl.testing import parameterized
 import tensorflow as tf
+from tf_agents.specs import tensor_spec
+from tf_agents.trajectories import time_step
 from tf_agents.trajectories import trajectory
 
-from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
-
-_TEST_CONFIG = config.Config(
-    feature_keys=(tf.TensorSpec(dtype=tf.int64, shape=(), name='feature_key'),),
-    action_key=tf.TensorSpec(
-        dtype=tf.int64, shape=(), name='inlining_decision'),
-    reward_key=tf.TensorSpec(dtype=tf.float32, shape=(), name='reward'),
-)
 
 
 def _define_sequence_example(agent_name, inlining_decision):
@@ -58,6 +52,19 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._agent_name = 'dqn'
+    observation_spec = {
+        'feature_key':
+            tf.TensorSpec(dtype=tf.int64, shape=(), name='feature_key')
+    }
+    reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
+    self._time_step_spec = time_step.time_step_spec(observation_spec,
+                                                    reward_spec)
+    self._action_spec = tensor_spec.BoundedTensorSpec(
+        dtype=tf.int64,
+        shape=(),
+        minimum=0,
+        maximum=1,
+        name='inlining_decision')
     super(DataReaderTest, self).setUp()
 
   @parameterized.named_parameters(
@@ -76,7 +83,8 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
     iterator_fn = test_fn(
         agent_name=self._agent_name,
-        config=_TEST_CONFIG,
+        time_step_spec=self._time_step_spec,
+        action_spec=self._action_spec,
         batch_size=2,
         train_sequence_length=3)
     data_iterator = iterator_fn(data_source)
@@ -112,7 +120,8 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
     iterator_fn = test_fn(
         agent_name=self._agent_name,
-        config=_TEST_CONFIG,
+        time_step_spec=self._time_step_spec,
+        action_spec=self._action_spec,
         batch_size=2,
         train_sequence_length=3)
     data_iterator = iterator_fn(data_source)
