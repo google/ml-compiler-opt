@@ -116,7 +116,7 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 # install the tf pip package for the AOT ("release" scenario).
 python3 -m pip install --upgrade pip
-sudo -u buildbot python3 -m pip install --user tensorflow==2.4.0rc1
+sudo -u buildbot python3 -m pip install --user tensorflow==2.4.1
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
