@@ -23,13 +23,13 @@ virtualenv "${VENV_PATH}" -p python3 --system-site-packages
 source "${VENV_PATH}"/bin/activate
 
 # Download pre-requisite packages.
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
 
 for file in $(find . -name '*_test.py')
 do
-  python "${file}"
+  python3 "${file}"
 done
 
 deactivate
