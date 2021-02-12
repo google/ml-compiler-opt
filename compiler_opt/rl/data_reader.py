@@ -15,44 +15,67 @@
 
 """util function to create training data iterator."""
 
-from typing import Callable, List, Iterator
+from typing import Callable, Iterator, List
 
 import tensorflow as tf
+from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import trajectory
 from tf_agents.typing import types
 
 
 # TODO(yundi): define enum type for agent_name.
 
-_POLICY_INFO_PARSING_DICT = {
-    'ppo': {
-        'CategoricalProjectionNetwork_logits':
-            tf.io.FixedLenSequenceFeature(shape=(2), dtype=tf.float32)
-    },
-    'dqn': {},
-    'behavioral_cloning': {},
-    'actor_behavioral_cloning': {}
-}
+
+def _get_policy_info_parsing_dict(agent_name, action_spec):
+  """Function to get parsing dict for policy info."""
+  if agent_name == 'ppo':
+    if tensor_spec.is_discrete(action_spec):
+      return {
+          'CategoricalProjectionNetwork_logits':
+              tf.io.FixedLenSequenceFeature(
+                  shape=(action_spec.maximum - action_spec.minimum + 1),
+                  dtype=tf.float32)
+      }
+    else:
+      return {
+          'NormalProjectionNetwork_scale':
+              tf.io.FixedLenSequenceFeature(shape=(), dtype=tf.float32),
+          'NormalProjectionNetwork_loc':
+              tf.io.FixedLenSequenceFeature(shape=(), dtype=tf.float32)
+      }
+  return {}
 
 
-def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name):
+def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
+                                                 action_spec):
   """Function to process parsed_sequence and to return policy_info.
 
   Args:
     parsed_sequence: A dict from feature_name to feature_value parsed from TF
       SequenceExample.
     agent_name: str, name of the agent.
+    action_spec: action spec of the optimization problem.
 
   Returns:
     policy_info: A nested policy_info for given agent.
   """
   if agent_name == 'ppo':
-    policy_info = {
-        'dist_params': {
-            'logits': parsed_sequence['CategoricalProjectionNetwork_logits']
-        }
-    }
-    del parsed_sequence['CategoricalProjectionNetwork_logits']
+    if tensor_spec.is_discrete(action_spec):
+      policy_info = {
+          'dist_params': {
+              'logits': parsed_sequence['CategoricalProjectionNetwork_logits']
+          }
+      }
+      del parsed_sequence['CategoricalProjectionNetwork_logits']
+    else:
+      policy_info = {
+          'dist_params': {
+              'scale': parsed_sequence['NormalProjectionNetwork_scale'],
+              'loc': parsed_sequence['NormalProjectionNetwork_loc']
+          }
+      }
+      del parsed_sequence['NormalProjectionNetwork_scale']
+      del parsed_sequence['NormalProjectionNetwork_loc']
     return policy_info
   else:
     return ()
@@ -91,7 +114,8 @@ def create_parser_fn(
         time_step_spec.reward.name] = tf.io.FixedLenSequenceFeature(
             shape=time_step_spec.reward.shape,
             dtype=time_step_spec.reward.dtype)
-    sequence_features.update(_POLICY_INFO_PARSING_DICT[agent_name])
+    sequence_features.update(
+        _get_policy_info_parsing_dict(agent_name, action_spec))
 
     # pylint: enable=g-complex-comprehension
     with tf.name_scope('parse'):
@@ -104,7 +128,7 @@ def create_parser_fn(
       reward = tf.cast(parsed_sequence[time_step_spec.reward.name], tf.float32)
 
       policy_info = _process_parsed_sequence_and_get_policy_info(
-          parsed_sequence, agent_name)
+          parsed_sequence, agent_name, action_spec)
 
       del parsed_sequence[time_step_spec.reward.name]
       del parsed_sequence[action_spec.name]

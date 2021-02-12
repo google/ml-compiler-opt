@@ -26,19 +26,31 @@ from tf_agents.trajectories import trajectory
 from compiler_opt.rl import data_reader
 
 
-def _define_sequence_example(agent_name, inlining_decision):
+def _define_sequence_example(agent_name, is_action_discrete):
   example = tf.train.SequenceExample()
   for _ in range(10):
     example.feature_lists.feature_list['feature_key'].feature.add(
     ).int64_list.value.append(1)
-    example.feature_lists.feature_list['inlining_decision'].feature.add(
-    ).int64_list.value.append(inlining_decision)
+    if is_action_discrete:
+      example.feature_lists.feature_list['inlining_decision'].feature.add(
+      ).int64_list.value.append(0)
+    else:
+      example.feature_lists.feature_list['live_interval_weight'].feature.add(
+      ).float_list.value.append(1.23)
     example.feature_lists.feature_list['reward'].feature.add(
     ).float_list.value.append(2.3)
     if agent_name == 'ppo':
-      example.feature_lists.feature_list[
-          'CategoricalProjectionNetwork_logits'].feature.add(
-          ).float_list.value.extend([1.2, 3.4])
+      if is_action_discrete:
+        example.feature_lists.feature_list[
+            'CategoricalProjectionNetwork_logits'].feature.add(
+            ).float_list.value.extend([1.2, 3.4])
+      else:
+        example.feature_lists.feature_list[
+            'NormalProjectionNetwork_scale'].feature.add(
+            ).float_list.value.extend([1.2])
+        example.feature_lists.feature_list[
+            'NormalProjectionNetwork_loc'].feature.add(
+            ).float_list.value.extend([3.4])
   return example
 
 
@@ -59,12 +71,18 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
     self._time_step_spec = time_step.time_step_spec(observation_spec,
                                                     reward_spec)
-    self._action_spec = tensor_spec.BoundedTensorSpec(
+    self._discrete_action_spec = tensor_spec.BoundedTensorSpec(
         dtype=tf.int64,
         shape=(),
         minimum=0,
         maximum=1,
         name='inlining_decision')
+    self._continuous_action_spec = tensor_spec.BoundedTensorSpec(
+        dtype=tf.float32,
+        shape=(),
+        name='live_interval_weight',
+        minimum=-100,
+        maximum=20)
     super(DataReaderTest, self).setUp()
 
   @parameterized.named_parameters(
@@ -72,7 +90,8 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
        data_reader.create_sequence_example_iterator_fn),
       ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
   def test_create_iterator_fn(self, test_fn):
-    example = _define_sequence_example(self._agent_name, inlining_decision=0)
+    example = _define_sequence_example(
+        self._agent_name, is_action_discrete=True)
 
     data_source = None
     if test_fn == data_reader.create_sequence_example_iterator_fn:
@@ -84,7 +103,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     iterator_fn = test_fn(
         agent_name=self._agent_name,
         time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec,
+        action_spec=self._discrete_action_spec,
         batch_size=2,
         train_sequence_length=3)
     data_iterator = iterator_fn(data_source)
@@ -106,10 +125,11 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
       ('SequenceExampleIteratorFn',
        data_reader.create_sequence_example_iterator_fn),
       ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
-  def test_ppo_policy_info(self, test_fn):
+  def test_ppo_policy_info_discrete(self, test_fn):
     self._agent_name = 'ppo'
 
-    example = _define_sequence_example(self._agent_name, inlining_decision=0)
+    example = _define_sequence_example(
+        self._agent_name, is_action_discrete=True)
 
     data_source = None
     if test_fn == data_reader.create_sequence_example_iterator_fn:
@@ -121,7 +141,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     iterator_fn = test_fn(
         agent_name=self._agent_name,
         time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec,
+        action_spec=self._discrete_action_spec,
         batch_size=2,
         train_sequence_length=3)
     data_iterator = iterator_fn(data_source)
@@ -131,6 +151,41 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([[[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]],
                          [[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]]],
                         experience.policy_info['dist_params']['logits'])
+
+  @parameterized.named_parameters(
+      ('SequenceExampleIteratorFn',
+       data_reader.create_sequence_example_iterator_fn),
+      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
+  def test_ppo_policy_info_continuous(self, test_fn):
+    self._agent_name = 'ppo'
+
+    example = _define_sequence_example(
+        self._agent_name, is_action_discrete=False)
+
+    data_source = None
+    if test_fn == data_reader.create_sequence_example_iterator_fn:
+      data_source = [example.SerializeToString() for _ in range(100)]
+    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
+      _write_tmp_tfrecord(data_source, example, 100)
+
+    iterator_fn = test_fn(
+        agent_name=self._agent_name,
+        time_step_spec=self._time_step_spec,
+        action_spec=self._continuous_action_spec,
+        batch_size=2,
+        train_sequence_length=3)
+    data_iterator = iterator_fn(data_source)
+
+    experience = next(data_iterator)
+    self.assertAllEqual(['feature_key'], list(experience.observation.keys()))
+    self.assertAllClose([[1.23, 1.23, 1.23], [1.23, 1.23, 1.23]],
+                        experience.action)
+    self.assertAllClose([[1.2, 1.2, 1.2], [1.2, 1.2, 1.2]],
+                        experience.policy_info['dist_params']['scale'])
+    self.assertAllClose([[3.4, 3.4, 3.4], [3.4, 3.4, 3.4]],
+                        experience.policy_info['dist_params']['loc'])
+
 
 if __name__ == '__main__':
   tf.test.main()
