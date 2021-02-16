@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Training config."""
+"""Inlining Training config."""
 
 import gin
 import tensorflow as tf
@@ -27,22 +27,22 @@ def get_inlining_signature_spec():
   """Returns (time_step_spec, action_spec) for LLVM inlining."""
   observation_spec = dict(
       (key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
-          "caller_basic_block_count",
-          "caller_conditionally_executed_blocks",
-          "caller_users",
-          "callee_basic_block_count",
-          "callee_conditionally_executed_blocks",
-          "callee_users",
-          "nr_ctant_params",
-          "node_count",
-          "edge_count",
-          "callsite_height",
-          "cost_estimate",
+          'caller_basic_block_count',
+          'caller_conditionally_executed_blocks',
+          'caller_users',
+          'callee_basic_block_count',
+          'callee_conditionally_executed_blocks',
+          'callee_users',
+          'nr_ctant_params',
+          'node_count',
+          'edge_count',
+          'callsite_height',
+          'cost_estimate',
           # inlining_default is not used as feature in training.
-          "inlining_default"))
-  reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name="reward")
+          'inlining_default'))
+  reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(
-      dtype=tf.int64, shape=(), name="inlining_decision", minimum=0, maximum=1)
+      dtype=tf.int64, shape=(), name='inlining_decision', minimum=0, maximum=1)
 
   return time_step_spec, action_spec

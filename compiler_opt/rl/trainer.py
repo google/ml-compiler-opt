@@ -96,7 +96,7 @@ class Trainer(object):
     """Initializes metrics."""
     self._data_action_mean = tf.keras.metrics.Mean()
     self._data_reward_mean = tf.keras.metrics.Mean()
-    self._total_modules = tf.keras.metrics.Sum()
+    self._num_trajectories = tf.keras.metrics.Sum()
 
   def _update_metrics(self, experience):
     """Updates metrics and exports to Tensorboard."""
@@ -106,7 +106,7 @@ class Trainer(object):
         experience.action, sample_weight=is_action)
     self._data_reward_mean.update_state(
         experience.reward, sample_weight=is_action)
-    self._total_modules.update_state(experience.is_first())
+    self._num_trajectories.update_state(experience.is_first())
 
     with tf.name_scope('Monitor/'):
       tf.summary.scalar(
@@ -118,8 +118,8 @@ class Trainer(object):
           data=self._data_reward_mean.result(),
           step=self._global_step)
       tf.summary.scalar(
-          name='total_modules',
-          data=self._total_modules.result(),
+          name='num_trajectories',
+          data=self._num_trajectories.result(),
           step=self._global_step)
 
     tf.summary.histogram(
@@ -129,7 +129,7 @@ class Trainer(object):
     """Reset all metrics."""
     self._data_action_mean.reset_states()
     self._data_reward_mean.reset_states()
-    self._total_modules.reset_states()
+    self._num_trajectories.reset_states()
 
   def _log_experiment(self, loss):
     """Log training info."""
