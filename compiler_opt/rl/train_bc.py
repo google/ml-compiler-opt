@@ -30,8 +30,10 @@ from compiler_opt.rl import trainer
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('data_path', '',
-                    'Path to TFRecord file(s) containing training data.')
+flags.DEFINE_string(
+    'data_path', None,
+    'Path to TFRecord file(s) containing training data. Skip training and dump'
+    'an untrained model with random weights (for testing purpose) if set None.')
 flags.DEFINE_multi_string('gin_files', [],
                           'List of paths to gin configuration files.')
 flags.DEFINE_multi_string(
@@ -72,8 +74,9 @@ def train_eval(get_signature_spec_fn=None,
       train_sequence_length=train_sequence_length)
 
   # Train.
-  dataset_iter = tfrecord_iterator_fn(FLAGS.data_path)
-  llvm_trainer.train(dataset_iter, num_iterations)
+  if FLAGS.data_path:
+    dataset_iter = tfrecord_iterator_fn(FLAGS.data_path)
+    llvm_trainer.train(dataset_iter, num_iterations)
 
   # Save final policy.
   saver.save(root_dir)
@@ -88,6 +91,4 @@ def main(_):
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('root_dir')
-  flags.mark_flag_as_required('data_path')
   app.run(main)
