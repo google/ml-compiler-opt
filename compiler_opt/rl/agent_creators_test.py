@@ -27,7 +27,6 @@ from tf_agents.networks import q_network
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 
-from compiler_opt.rl import actor_behavioral_cloning_agent
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import constant
 
@@ -59,19 +58,6 @@ class AgentCreatorsTest(tf.test.TestCase):
         action_spec=self._action_spec)
     self.assertIsInstance(tf_agent,
                           behavioral_cloning_agent.BehavioralCloningAgent)
-
-  def test_create_actor_behavioral_cloning_agent(self):
-    gin.bind_parameter('create_agent.policy_network',
-                       actor_distribution_network.ActorDistributionNetwork)
-    gin.bind_parameter('BehavioralCloningAgent.optimizer',
-                       tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_creators.create_agent(
-        agent_name='actor_behavioral_cloning',
-        time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec)
-    self.assertIsInstance(tf_agent,
-                          behavioral_cloning_agent.BehavioralCloningAgent)
-    self.assertIsInstance(tf_agent, actor_behavioral_cloning_agent.ActorBCAgent)
 
   def test_create_dqn_agent(self):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)

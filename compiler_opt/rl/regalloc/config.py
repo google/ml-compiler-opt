@@ -33,7 +33,8 @@ def get_regalloc_signature_spec():
   observation_spec.update(
       dict((key, tf.TensorSpec(dtype=tf.float32, shape=(), name=key))
            for key in ('weighed_reads', 'weighed_writes', 'weighed_indvars',
-                       'hint_weights')))
+                       'hint_weights', 'start_bb_freq', 'end_bb_freq',
+                       'hottest_bb_freq', 'weighed_read_writes')))
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(

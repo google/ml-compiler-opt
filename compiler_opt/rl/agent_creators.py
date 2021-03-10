@@ -22,26 +22,8 @@ from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
 
-from compiler_opt.rl import actor_behavioral_cloning_agent
 from compiler_opt.rl import constant_value_network
 from compiler_opt.rl import feature_ops
-
-
-def _create_actor_behavioral_cloning_agent(time_step_spec, action_spec,
-                                           policy_network):
-  """Creates a actor behavioral_cloning_agent."""
-  layers = tf.nest.map_structure(
-      feature_ops.get_observation_processing_layer_creator(),
-      time_step_spec.observation)
-
-  network = policy_network(
-      time_step_spec.observation,
-      action_spec,
-      preprocessing_layers=layers,
-      name='ActorDistributionNetwork')
-
-  return actor_behavioral_cloning_agent.ActorBCAgent(
-      time_step_spec, action_spec, cloning_network=network, num_outer_dims=2)
 
 
 def _create_behavioral_cloning_agent(time_step_spec, action_spec,
@@ -122,9 +104,6 @@ def create_agent(agent_name=None,
   if agent_name == 'behavioral_cloning':
     return _create_behavioral_cloning_agent(time_step_spec, action_spec,
                                             policy_network)
-  elif agent_name == 'actor_behavioral_cloning':
-    return _create_actor_behavioral_cloning_agent(time_step_spec, action_spec,
-                                                  policy_network)
   elif agent_name == 'dqn':
     return _create_dqn_agent(time_step_spec, action_spec, policy_network)
   elif agent_name == 'ppo':
