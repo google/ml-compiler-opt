@@ -18,7 +18,7 @@
 import collections
 import random
 import time
-from typing import Callable, Iterator, List, Tuple, Iterable
+from typing import Callable, Iterator, List, Tuple, Iterable, Dict
 
 from absl import logging
 from tf_agents.system import system_multiprocessing as multiprocessing
@@ -96,7 +96,9 @@ class LocalDataCollector(data_collector.DataCollector):
             for file_paths in sampled_file_paths]
     return [self._pool.apply_async(self._runner, job) for job in jobs]
 
-  def collect_data(self, policy_path: str) -> Iterator[trajectory.Trajectory]:
+  def collect_data(
+      self, policy_path: str
+  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, float]]:
     """Collect data for a given policy.
 
     Args:
@@ -105,6 +107,9 @@ class LocalDataCollector(data_collector.DataCollector):
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
         training.
+      A dict of extra monitoring information, e.g., how many modules succeeded.
+      They will be reported using `tf.scalar.summary` by the trainer so these
+      information is viewable in Tensorboard.
     """
     sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
     results = self._schedule_jobs(policy_path, sampled_file_paths)
@@ -161,7 +166,9 @@ class LocalDataCollector(data_collector.DataCollector):
     self._default_policy_size_map.update(
         {file_paths: res.get()[1] for (file_paths, res) in successful_work})
 
-    return self._parser(sequence_examples)
+    monitor_dict = {'success_modules': len(sequence_examples)}
+
+    return self._parser(sequence_examples), monitor_dict
 
   def on_dataset_consumed(self,
                           dataset_iterator: Iterator[trajectory.Trajectory]):

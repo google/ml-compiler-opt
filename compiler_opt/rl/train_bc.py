@@ -76,7 +76,8 @@ def train_eval(get_signature_spec_fn=None,
   # Train.
   if FLAGS.data_path:
     dataset_iter = tfrecord_iterator_fn(FLAGS.data_path)
-    llvm_trainer.train(dataset_iter, num_iterations)
+    monitor_dict = {}
+    llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
   # Save final policy.
   saver.save(root_dir)

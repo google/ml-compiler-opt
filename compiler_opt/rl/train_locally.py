@@ -114,9 +114,9 @@ def train_eval(get_signature_spec_fn=None,
     policy_path = os.path.join(root_dir, 'policy', str(policy_iteration))
     saver.save(policy_path)
 
-    dataset_iter = data_collector.collect_data(
+    dataset_iter, monitor_dict = data_collector.collect_data(
         policy_path=os.path.join(policy_path, deploy_policy_name))
-    llvm_trainer.train(dataset_iter, num_iterations)
+    llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
     data_collector.on_dataset_consumed(dataset_iter)
 

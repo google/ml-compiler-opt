@@ -98,7 +98,7 @@ class Trainer(object):
     self._data_reward_mean = tf.keras.metrics.Mean()
     self._num_trajectories = tf.keras.metrics.Sum()
 
-  def _update_metrics(self, experience):
+  def _update_metrics(self, experience, monitor_dict):
     """Updates metrics and exports to Tensorboard."""
     is_action = ~experience.is_boundary()
 
@@ -121,6 +121,8 @@ class Trainer(object):
           name='num_trajectories',
           data=self._num_trajectories.result(),
           step=self._global_step)
+      for key, value in monitor_dict.items():
+        tf.summary.scalar(name=key, data=value, step=self._global_step)
 
     tf.summary.histogram(
         name='reward', data=experience.reward, step=self._global_step)
@@ -148,7 +150,7 @@ class Trainer(object):
       self._checkpointer.save(global_step=self._global_step)
       self._last_checkpoint_step = self._global_step.numpy()
 
-  def train(self, dataset_iter, num_iterations):
+  def train(self, dataset_iter, monitor_dict, num_iterations):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
     with tf.summary.record_if(
@@ -157,6 +159,6 @@ class Trainer(object):
         experience = next(dataset_iter)
         loss = self._agent.train(experience)
 
-        self._update_metrics(experience)
+        self._update_metrics(experience, monitor_dict)
         self._log_experiment(loss.loss)
         self._save_checkpoint()

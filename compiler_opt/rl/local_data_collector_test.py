@@ -58,13 +58,18 @@ class LocalDataCollectorTest(tf.test.TestCase):
         runner=mock_inliner.collect_data,
         parser=create_test_iterator_fn())
 
-    data_iterator = collector.collect_data(policy_path='policy')
+    data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([1, 2, 3], data)
+    expected_monitor_dict = {'success_modules': 10}
+    self.assertEqual(expected_monitor_dict, monitor_dict)
 
-    data_iterator = collector.collect_data(policy_path='policy')
+    data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([4, 5, 6], data)
+    expected_monitor_dict = {'success_modules': 10}
+    self.assertEqual(expected_monitor_dict, monitor_dict)
+
     collector.close_pool()
 
   def test_local_data_collector_task_management(self):

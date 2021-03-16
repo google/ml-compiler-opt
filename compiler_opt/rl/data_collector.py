@@ -16,7 +16,7 @@
 """Data collection module."""
 
 import abc
-from typing import Iterator
+from typing import Iterator, Tuple, Dict
 from tf_agents.trajectories import trajectory
 
 
@@ -24,7 +24,9 @@ class DataCollector(metaclass=abc.ABCMeta):
   """Abstract class for data collection."""
 
   @abc.abstractmethod
-  def collect_data(self, policy_path: str) -> Iterator[trajectory.Trajectory]:
+  def collect_data(
+      self, policy_path: str
+  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, float]]:
     """Collect data for a given policy.
 
     Args:
@@ -33,6 +35,9 @@ class DataCollector(metaclass=abc.ABCMeta):
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
         training.
+      A dict of extra monitoring information, e.g., how many modules succeeded.
+      They will be reported using `tf.scalar.summary` by the trainer so these
+      information is viewable in Tensorboard.
     """
 
   @abc.abstractmethod

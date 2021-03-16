@@ -15,8 +15,8 @@
 
 """Tests for compiler_opt.rl.trainer."""
 
+from absl.testing.absltest import mock
 import tensorflow as tf
-
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.networks import q_rnn_network
 from tf_agents.specs import tensor_spec
@@ -94,8 +94,16 @@ class TrainerTest(tf.test.TestCase):
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
-    test_trainer.train(dataset_iter, num_iterations=10)
-    self.assertEqual(10, test_trainer._global_step.numpy())
+    monitor_dict = {'test': 1}
+
+    with mock.patch.object(
+        tf.summary, 'scalar', autospec=True) as mock_scalar_summary:
+      test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
+      self.assertEqual(
+          10,
+          sum(1 for c in mock_scalar_summary.mock_calls
+              if c[2]['name'] == 'test'))
+      self.assertEqual(10, test_trainer._global_step.numpy())
 
   def test_training_with_multiple_times(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
@@ -109,11 +117,12 @@ class TrainerTest(tf.test.TestCase):
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
-    test_trainer.train(dataset_iter, num_iterations=10)
+    monitor_dict = {'test': 1}
+    test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
     self.assertEqual(10, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=6, sequence_length=4)
-    test_trainer.train(dataset_iter, num_iterations=10)
+    test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
     self.assertEqual(20, test_trainer._global_step.numpy())
 
   def test_inference(self):
