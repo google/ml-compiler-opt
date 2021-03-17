@@ -166,7 +166,7 @@ class LocalDataCollector(data_collector.DataCollector):
     self._default_policy_size_map.update(
         {file_paths: res.get()[1] for (file_paths, res) in successful_work})
 
-    monitor_dict = {'success_modules': len(sequence_examples)}
+    monitor_dict = {'success_modules': len(finished_work)}
 
     return self._parser(sequence_examples), monitor_dict
 
