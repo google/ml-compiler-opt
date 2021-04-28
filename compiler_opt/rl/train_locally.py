@@ -110,8 +110,11 @@ def train_eval(get_signature_spec_fn=None,
       parser=sequence_example_iterator_fn,
       use_stale_results=use_stale_results)
 
-  for policy_iteration in range(num_policy_iterations):
-    policy_path = os.path.join(root_dir, 'policy', str(policy_iteration))
+  # Repeat for num_policy_iterations iterations.
+  while (llvm_trainer.global_step_numpy() <
+         num_policy_iterations * num_iterations):
+    policy_path = os.path.join(root_dir, 'policy',
+                               str(llvm_trainer.global_step_numpy()))
     saver.save(policy_path)
 
     dataset_iter, monitor_dict = data_collector.collect_data(

@@ -150,6 +150,9 @@ class Trainer(object):
       self._checkpointer.save(global_step=self._global_step)
       self._last_checkpoint_step = self._global_step.numpy()
 
+  def global_step_numpy(self):
+    return self._global_step.numpy()
+
   def train(self, dataset_iter, monitor_dict, num_iterations):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
