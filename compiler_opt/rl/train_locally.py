@@ -22,7 +22,6 @@ from absl import app
 from absl import flags
 from absl import logging
 import gin
-from tf_agents.policies import policy_loader
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
@@ -70,20 +69,15 @@ def train_eval(get_signature_spec_fn=None,
   time_step_spec, action_spec = get_signature_spec_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec)
-  llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
+  llvm_trainer = trainer.Trainer(
+      root_dir=root_dir,
+      agent=tf_agent,
+      warmstart_policy_dir=warmstart_policy_dir)
   policy_dict = {
       'saved_policy': tf_agent.policy,
       'saved_collect_policy': tf_agent.collect_policy,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
-
-  if warmstart_policy_dir:
-    warmstart_policy = policy_loader.load(warmstart_policy_dir)
-    tf_agent.policy.update(
-        policy=warmstart_policy,
-        tau=1.0,
-        tau_non_trainable=None,
-        sort_variables_by_name=False)
 
   with open(os.path.join(FLAGS.data_path, 'module_paths'), 'r') as f:
     module_paths = [

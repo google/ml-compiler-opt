@@ -21,6 +21,7 @@ from absl import logging
 
 import gin
 import tensorflow as tf
+from tf_agents.policies import policy_loader
 
 from tf_agents.utils import common as common_utils
 
@@ -45,6 +46,7 @@ class Trainer(object):
       self,
       root_dir,
       agent,
+      warmstart_policy_dir=None,
       # Params for summaries and logging
       checkpoint_interval=10000,
       log_interval=100,
@@ -55,6 +57,7 @@ class Trainer(object):
     Args:
       root_dir: str, the root directory to host all required sub-directories.
       agent: a tf_agents.agents.TFAgent object.
+      warmstart_policy_dir: the directory to warmstart the policy if given.
       checkpoint_interval: int, the training step interval for saving
         checkpoint.
       log_interval: int, the training step interval for logging.
@@ -81,6 +84,15 @@ class Trainer(object):
     self._agent.train = common_utils.function(self._agent.train)
 
     self._initialize_metrics()
+
+    # Load warmstart policy before restoring from checkpoint.
+    if warmstart_policy_dir:
+      warmstart_policy = policy_loader.load(warmstart_policy_dir)
+      self._agent.policy.update(
+          policy=warmstart_policy,
+          tau=1.0,
+          tau_non_trainable=None,
+          sort_variables_by_name=False)
 
     self._checkpointer = common_utils.Checkpointer(
         ckpt_dir=self._root_dir,
