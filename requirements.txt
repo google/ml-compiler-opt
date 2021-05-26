@@ -1,5 +1,5 @@
-tensorflow>=2.4.1
-tf-agents>=0.7.1
-gym>=0.18.0
-gin>=0.1.6
-absl-py
+tensorflow==2.4.1
+tf-agents==0.7.1
+gym==0.18.0
+gin==0.1.6
+absl-py==0.11.0

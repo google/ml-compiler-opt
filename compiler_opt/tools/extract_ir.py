@@ -41,7 +41,6 @@ from absl import app
 from absl import flags
 from absl import logging
 
-
 flags.DEFINE_string(
     'input', None,
     'Input file - either compile_commands.json or a linker parameter list')
@@ -98,9 +97,9 @@ class TrainingIRExtractor:
     """Set up a TrainingIRExtractor.
 
     Args:
-      obj_relative_path: relative path to the input object file. It will be
-        also used to construct the absolute path of the output IR and cmd
-        files, by appending it to output_base_dir.
+      obj_relative_path: relative path to the input object file. It will be also
+        used to construct the absolute path of the output IR and cmd files, by
+        appending it to output_base_dir.
       output_base_dir: the directory under which the output will be produced.
       obj_base_dir: the base directory for all the input object files.
     """
@@ -262,9 +261,7 @@ def main(argv):
     logging.error('Unknown input type: %s', FLAGS.input_type)
 
   pool = multiprocessing.Pool(FLAGS.num_workers)
-  relative_output_paths = [
-      pool.apply(extract_artifacts, (obj,)) for obj in objs
-  ]
+  relative_output_paths = pool.map(extract_artifacts, objs)
 
   # Write all Non-None relative paths to FLAGS.output_dir/module_paths.
   with open(os.path.join(FLAGS.output_dir, 'module_paths'), 'w') as f:
