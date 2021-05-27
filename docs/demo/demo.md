@@ -145,7 +145,9 @@ fx build
 
 Fuchsia build conveniently generates a size report. Let's copy it for reference.
 
-**Note** The `--args=clang_embed_bitcode=true` option above adds the compilation
+**Note** 
+The `clang_prefix` is the absolute path of $LLVM_INSTALLDIR/bin(replace it by yours).
+The `--args=clang_embed_bitcode=true` option above adds the compilation
 flag `-Xclang=-fembed-bitcode=all`. This can be seen in the compilation database.
 The effect of this is that the object files have the llvm bytecode produced by
 clang, before the optimization passes, and the clang command line, captured in
