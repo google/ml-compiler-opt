@@ -42,6 +42,7 @@ def _build_quantile_map(quantile_file_dir):
 
 @gin.configurable
 def get_observation_processing_layer_creator(quantile_file_dir,
+                                             with_sqrt=False,
                                              with_z_score_normalization=False,
                                              eps=1e-8):
   """Wrapper for observation_processing_layer."""
@@ -67,7 +68,9 @@ def get_observation_processing_layer_creator(quantile_file_dir,
         x = tf.cast(
             tf.raw_ops.Bucketize(input=expanded_obs, boundaries=quantile),
             tf.float32) / len(quantile)
-        features = [x, tf.sqrt(x), x * x]
+        features = [x, x * x]
+        if with_sqrt:
+          features.append(np.sqrt(x))
         if with_z_score_normalization:
           y = tf.cast(expanded_obs, tf.float32)
           y = (y - mean) / (std + eps)

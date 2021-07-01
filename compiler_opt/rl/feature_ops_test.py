@@ -18,10 +18,17 @@
 import os
 
 from absl.testing import parameterized
+import numpy as np
 import tensorflow as tf
 
 from compiler_opt.rl import constant
 from compiler_opt.rl import feature_ops
+
+_WITH_Z_SCORE_SQRT_PRODUCT_VALUES = [('with_sqrt_with_z_score', True, True),
+                                     ('with_sqrt_without_z_score', True, False),
+                                     ('without_sqrt_with_z_score', False, True),
+                                     ('without_sqrt_without_z_score', False,
+                                      False)]
 
 
 class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
@@ -50,12 +57,11 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     # std
     self.assertAllClose(14.988885, std)
 
-  @parameterized.named_parameters(('with_z_score', True),
-                                  ('without_z_score', False))
-  def test_create_observation_processing_layer(self, with_z_score):
+  @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
+  def test_create_observation_processing_layer(self, with_z_score, with_sqrt):
     observation_processing_layer = (
         feature_ops.get_observation_processing_layer_creator(
-            self._quantile_file_dir, with_z_score))
+            self._quantile_file_dir, with_sqrt, with_z_score))
 
     obs_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='edge_count')
     processing_layer = observation_processing_layer(obs_spec)
@@ -65,24 +71,28 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     outputs = self.evaluate(outputs)
 
-    if with_z_score:
-      self.assertAllEqual([2, 1, 4], outputs.shape)
-      self.assertAllClose([[[0.333333, 0.57735, 0.111111, -0.555968]],
-                           [[0.777778, 0.881917, 0.604938, -0.155671]]],
-                          outputs)
-    else:
-      self.assertAllEqual([2, 1, 3], outputs.shape)
-      self.assertAllClose(
-          [[[0.333333, 0.57735, 0.111111]], [[0.777778, 0.881917, 0.604938]]],
-          outputs)
+    expected_shape = [2, 1, 2]
+    expected = np.array([[[0.333333, 0.111111]], [[0.777778, 0.604938]]])
 
-  @parameterized.named_parameters(('with_z_score', True),
-                                  ('without_z_score', False))
+    if with_sqrt:
+      expected_shape[2] += 1
+      expected = np.concatenate([expected, [[[0.57735]], [[0.881917]]]],
+                                axis=-1)
+
+    if with_z_score:
+      expected_shape[2] += 1
+      expected = np.concatenate([expected, [[[-0.555968]], [[-0.155671]]]],
+                                axis=-1)
+
+    self.assertAllEqual(expected_shape, outputs.shape)
+    self.assertAllClose(expected.tolist(), outputs)
+
+  @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
   def test_create_observation_processing_layer_for_dummy_features(
-      self, with_z_score):
+      self, with_z_score, with_sqrt):
     observation_processing_layer = (
         feature_ops.get_observation_processing_layer_creator(
-            self._quantile_file_dir, with_z_score))
+            self._quantile_file_dir, with_sqrt, with_z_score))
 
     obs_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='dummy_feature')
     processing_layer = observation_processing_layer(obs_spec)

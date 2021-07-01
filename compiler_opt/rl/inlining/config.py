@@ -27,6 +27,7 @@ def get_inlining_signature_spec():
   """Returns (time_step_spec, action_spec) for LLVM inlining."""
   observation_spec = dict(
       (key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
+          # Base features
           'caller_basic_block_count',
           'caller_conditionally_executed_blocks',
           'caller_users',
@@ -38,6 +39,33 @@ def get_inlining_signature_spec():
           'edge_count',
           'callsite_height',
           'cost_estimate',
+
+          # Expanded cost features
+          'sroa_savings',
+          'sroa_losses',
+          'load_elimination',
+          'call_penalty',
+          'call_argument_setup',
+          'load_relative_intrinsic',
+          'lowered_call_arg_setup',
+          'indirect_call_penalty',
+          'jump_table_penalty',
+          'case_cluster_penalty',
+          'switch_penalty',
+          'unsimplified_common_instructions',
+          'num_loops',
+          'dead_blocks',
+          'simplified_instructions',
+          'constant_args',
+          'constant_offset_ptr_args',
+          'callsite_cost',
+          'cold_cc_penalty',
+          'last_call_to_static_bonus',
+          'is_multiple_blocks',
+          'nested_inlines',
+          'nested_inline_cost_estimate',
+          'threshold',
+
           # inlining_default is not used as feature in training.
           'inlining_default'))
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')

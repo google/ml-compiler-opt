@@ -9,19 +9,20 @@ train_eval.get_signature_spec_fn=@config.get_inlining_signature_spec
 train_eval.agent_name='ppo'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
-train_eval.num_iterations=200
+train_eval.num_iterations=300
 train_eval.batch_size=128
 train_eval.train_sequence_length=16
 train_eval.deploy_policy_name='saved_collect_policy'
 train_eval.use_stale_results=False
 
 get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
+get_observation_processing_layer_creator.with_sqrt = False
 get_observation_processing_layer_creator.with_z_score_normalization = False
 
 create_agent.policy_network = @actor_distribution_network.ActorDistributionNetwork
 
 ActorDistributionNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
-ActorDistributionNetwork.fc_layer_params=(40, 20)
+ActorDistributionNetwork.fc_layer_params=(40, 40, 20)
 ActorDistributionNetwork.dropout_layer_params=None
 ActorDistributionNetwork.activation_fn=@tf.keras.activations.relu
 
