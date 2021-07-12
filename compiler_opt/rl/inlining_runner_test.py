@@ -111,7 +111,9 @@ class InliningRunnerTest(tf.test.TestCase):
 
     example, default_size = inliner.collect_data(
         file_paths=('bc', 'cmd'), tf_policy_path='', default_policy_size=None)
-    self.assertEqual(2, mock_run_inlining.call_count)
+    # One call when we ask for the default policy, because it can provide both
+    # trace and default size.
+    self.assertEqual(1, mock_run_inlining.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _DEFAULT_FEATURE_VALUE, 0)

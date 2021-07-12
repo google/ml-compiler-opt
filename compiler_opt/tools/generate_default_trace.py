@@ -17,8 +17,8 @@
 
 import functools
 import os
+import queue
 import random
-import time
 
 from absl import app
 from absl import flags
@@ -46,13 +46,34 @@ flags.DEFINE_float(
 
 FLAGS = flags.FLAGS
 
-_BATCH_SIZE = 1000
+
+def worker(runner, work_queue: queue.Queue, results_queue: queue.Queue):
+  """What each worker process does.
+
+  Each worker picks a workitem from the work_queue, process it, and deposits
+  a result on the results_queue, in either success or failure cases.
+  The results_queue items are tuples (workitem, result). On failure, the result
+  is None.
+
+  Args:
+    runner: the data collector.
+    work_queue: the queue of unprocessed work items.
+    results_queue: the queue where results are deposited.
+  """
+  while True:
+    try:
+      module_triple = work_queue.get_nowait()
+    except queue.Empty:
+      return
+    try:
+      record = runner.collect_data(module_triple, '', None)
+      results_queue.put((module_triple, record))
+    except:  # pylint: disable=bare-except
+      logging.error('Failed to compile %s.', module_triple)
+      results_queue.put((module_triple, None))
 
 
-def main(argv):
-  if len(argv) > 1:
-    raise app.UsageError('Too many command-line arguments.')
-
+def main(_):
   # Initialize runner and file_suffix according to compile_task.
   if FLAGS.compile_task == 'inlining':
     runner = inlining_runner.InliningRunner(
@@ -63,52 +84,60 @@ def main(argv):
     module_paths = [
         os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
     ]
-    file_paths = [
-        tuple([p + suffix for suffix in file_suffix]) for p in module_paths
-    ]
 
   # Sampling if needed.
   if FLAGS.sampling_rate < 1:
-    sampled_modules = int(len(file_paths) * FLAGS.sampling_rate)
-    file_paths = random.sample(file_paths, k=sampled_modules)
+    sampled_modules = int(len(module_paths) * FLAGS.sampling_rate)
+    module_paths = random.sample(module_paths, k=sampled_modules)
 
-  ctx = multiprocessing.get_context()
-  pool = ctx.Pool(FLAGS.num_workers)
+  # sort files by size, to process the large files upfront, hopefully while
+  # other smaller files are processed in parallel
+  sizes_and_paths = [(os.path.getsize(p + '.bc'), p) for p in module_paths]
+  sizes_and_paths.sort(reverse=True)
+  sorted_module_paths = [p for _, p in sizes_and_paths]
+  file_paths = [
+      tuple([p + suffix for suffix in file_suffix]) for p in sorted_module_paths
+  ]
 
-  index = 0
-  total_successful_examples = 0
+  worker_count = (
+      min(os.cpu_count(), FLAGS.num_workers)
+      if FLAGS.num_workers else os.cpu_count())
   with tf.io.TFRecordWriter(FLAGS.output_path) as file_writer:
-    while index < len(file_paths):
-      # Shard data collection and sink to tfrecord periodically to avoid OOM.
-      next_index = min(index + _BATCH_SIZE, len(file_paths))
-      sharded_file_paths = file_paths[index:next_index]
-      index = next_index
+    ctx = multiprocessing.get_context()
+    m = ctx.Manager()
+    results_queue = m.Queue()
+    work_queue = m.Queue()
+    for path in file_paths:
+      work_queue.put(path)
+    processes = [
+        ctx.Process(
+            target=functools.partial(worker, runner, work_queue, results_queue))
+        for _ in range(0, worker_count)
+    ]
 
-      results = [
-          pool.apply_async(runner.collect_data, (path, '', None))
-          for path in sharded_file_paths
-      ]
+    for p in processes:
+      p.start()
 
-      # Wait till all jobs finish.
-      waiting_time = 0
-      while True:
-        if sum([not r.ready() for r in results]) == 0:
-          break
-        logging.info('%d/%d: %d of %d modules finished in %d seconds.', index,
-                     len(file_paths), sum([r.ready() for r in results]),
-                     len(sharded_file_paths), waiting_time)
-        time.sleep(1)
-        waiting_time += 1
+    total_successful_examples = 0
+    total_work = len(file_paths)
+    total_failed_examples = 0
+    for _ in range(0, total_work):
+      _, record = results_queue.get()
+      if record:
+        total_successful_examples += 1
+        file_writer.write(record[0])
+      else:
+        total_failed_examples += 1
 
-      # Write successful examples to tfrecord.
-      successful_count = len(
-          [file_writer.write(r.get()[0]) for r in results if r.successful()])
-      logging.info('%d/%d: %d of %d modules succeeded.', index, len(file_paths),
-                   successful_count, len(sharded_file_paths))
-      total_successful_examples += successful_count
+      logging.log_every_n_seconds(logging.INFO,
+                                  '%d success, %d failed out of %d', 10,
+                                  total_successful_examples,
+                                  total_failed_examples, total_work)
 
-  logging.info('%d of %d modules succeeded in total.',
-               total_successful_examples, len(file_paths))
+    print('%d of %d modules succeeded.' %
+          (total_successful_examples, len(file_paths)))
+    for p in processes:
+      p.join()
 
 
 if __name__ == '__main__':

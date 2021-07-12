@@ -58,7 +58,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(14.988885, std)
 
   @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
-  def test_create_observation_processing_layer(self, with_z_score, with_sqrt):
+  def test_create_observation_processing_layer(self, with_sqrt, with_z_score):
     observation_processing_layer = (
         feature_ops.get_observation_processing_layer_creator(
             self._quantile_file_dir, with_sqrt, with_z_score))
@@ -89,7 +89,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
   def test_create_observation_processing_layer_for_dummy_features(
-      self, with_z_score, with_sqrt):
+      self, with_sqrt, with_z_score):
     observation_processing_layer = (
         feature_ops.get_observation_processing_layer_creator(
             self._quantile_file_dir, with_sqrt, with_z_score))

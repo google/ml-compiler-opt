@@ -68,8 +68,8 @@ class InliningRunner(object):
     """
     try:
       if default_policy_size is None:
-        _, default_policy_size = self._run_inlining(
-            file_paths, tf_policy_path='', size_only=True)
+        default_sequence_example, default_policy_size = self._run_inlining(
+            file_paths, tf_policy_path='', size_only=bool(tf_policy_path))
 
       # Return empty example if the default policy size is 0 since it is a data
       # only module and we can do nothing about it.
@@ -77,8 +77,12 @@ class InliningRunner(object):
         return (tf.train.SequenceExample().SerializeToString(),
                 default_policy_size)
 
-      sequence_example, native_size = self._run_inlining(
-          file_paths, tf_policy_path, size_only=False)
+      if tf_policy_path:
+        sequence_example, native_size = self._run_inlining(
+            file_paths, tf_policy_path, size_only=False)
+      else:
+        (sequence_example, native_size) = (default_sequence_example,
+                                           default_policy_size)
     except subprocess.CalledProcessError as e:
       raise e
 
