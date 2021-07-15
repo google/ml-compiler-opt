@@ -114,9 +114,11 @@ fi
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.gold" 20
 update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt \
+  || on_error "failed to get python requirements file"
 # install the tf pip package for the AOT ("release" scenario).
 python3 -m pip install --upgrade pip
-sudo -u buildbot python3 -m pip install --user tensorflow==2.4.1
+sudo -u buildbot python3 -m pip install --user -r requirements.txt
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
@@ -131,9 +133,9 @@ fi
 # install the tf C API library ("development" scenario).
 mkdir /tmp/tensorflow
 export TENSORFLOW_API_PATH=/tmp/tensorflow
-wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz \
+wget --quiet 	https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.5.0.tar.gz \
   || on_error "failed to download tensorflow C library"
-tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
+tar xfz libtensorflow-cpu-linux-x86_64-2.5.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
 
 if [ -f "${TENSORFLOW_API_PATH}/lib/libtensorflow.so" ]
 then
