@@ -131,6 +131,7 @@ else
 fi
 
 # install the tf C API library ("development" scenario).
+rm -rf /tmp/tensorflow
 mkdir /tmp/tensorflow
 export TENSORFLOW_API_PATH=/tmp/tensorflow
 wget --quiet 	https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.5.0.tar.gz \
