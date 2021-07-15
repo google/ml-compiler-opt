@@ -117,7 +117,7 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt \
   || on_error "failed to get python requirements file"
 # install the tf pip package for the AOT ("release" scenario).
-python3 -m pip install --upgrade pip
+sudo -u buildbot python3 -m pip install --upgrade pip
 sudo -u buildbot python3 -m pip install --user -r requirements.txt
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
