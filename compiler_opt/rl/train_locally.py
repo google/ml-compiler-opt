@@ -38,6 +38,7 @@ flags.DEFINE_string('data_path', None,
                     'Path to CNS folder containing IR files.')
 flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
 flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
+flags.DEFINE_string('launcher_path', None, 'Path to launcher binary.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -86,7 +87,8 @@ def train_eval(get_signature_spec_fn=None,
     file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
 
   runner = inlining_runner.InliningRunner(
-      clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path)
+      clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path,
+      launcher_path=FLAGS.launcher_path)
 
   sequence_example_iterator_fn = (
       data_reader.create_sequence_example_iterator_fn(

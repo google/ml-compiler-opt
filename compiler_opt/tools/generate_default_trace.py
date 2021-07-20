@@ -36,6 +36,7 @@ flags.DEFINE_enum(
     'inlining currently.')
 flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
 flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
+flags.DEFINE_string('launcher_path', None, 'Path to launcher binary.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel workers for compilation. `None` for maximum available.')
@@ -77,7 +78,8 @@ def main(_):
   # Initialize runner and file_suffix according to compile_task.
   if FLAGS.compile_task == 'inlining':
     runner = inlining_runner.InliningRunner(
-        clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path)
+        clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path,
+        launcher_path=FLAGS.launcher_path)
     file_suffix = ['.bc', '.cmd']
 
   with open(os.path.join(FLAGS.data_path, 'module_paths'), 'r') as f:

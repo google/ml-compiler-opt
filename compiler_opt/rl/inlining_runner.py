@@ -22,6 +22,7 @@ import tempfile
 
 import tensorflow as tf
 
+from google.protobuf import message
 from google.protobuf import text_format
 
 # TODO(mtrofin): maybe the deadline is a requirement for plugins (such as the
@@ -40,15 +41,17 @@ class InliningRunner(object):
       ir_path, tf_policy_path, default_policy_size)
   """
 
-  def __init__(self, clang_path, llvm_size_path):
+  def __init__(self, clang_path, llvm_size_path, launcher_path=None):
     """Initialization of InliningRunner class.
 
     Args:
       clang_path: path to the clang binary.
       llvm_size_path: path to the llvm-size binary.
+      launcher_path: path to the launcher binary.
     """
     self._clang_path = clang_path
     self._llvm_size_path = llvm_size_path
+    self._launcher_path = launcher_path
 
   def collect_data(self, file_paths, tf_policy_path, default_policy_size):
     """Collect data for the given IR file and policy.
@@ -120,10 +123,13 @@ class InliningRunner(object):
       cmds = f.read().split('\0')
 
     try:
-      command_line = [self._clang_path] + cmds + [
+      command_line = []
+      if self._launcher_path:
+        command_line.append(self._launcher_path)
+      command_line.extend([self._clang_path] + cmds + [
           '-mllvm', '-enable-ml-inliner=development', input_ir_path, '-mllvm',
           '-training-log=' + log_path, '-o', output_native_path
-      ]
+      ])
       if tf_policy_path:
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
@@ -142,8 +148,15 @@ class InliningRunner(object):
       if size_only:
         return None, native_size
 
-      with io.open(log_path, 'r') as f:
-        sequence_example = text_format.MergeLines(f, tf.train.SequenceExample())
+      # Temporarily try and support text protobuf. We don't want to penalize the
+      # binary case, so we try it first.
+      try:
+        sequence_example = tf.train.SequenceExample()
+        with io.open(log_path, 'rb') as f:
+          sequence_example.ParseFromString(f.read())
+      except message.DecodeError:
+        with io.open(log_path, 'r') as f:
+          sequence_example = text_format.MergeLines(f, sequence_example)
 
     except (subprocess.CalledProcessError, tf.errors.OpError) as e:
       raise e

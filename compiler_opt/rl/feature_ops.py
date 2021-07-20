@@ -70,7 +70,7 @@ def get_observation_processing_layer_creator(quantile_file_dir,
             tf.float32) / len(quantile)
         features = [x, x * x]
         if with_sqrt:
-          features.append(np.sqrt(x))
+          features.append(tf.sqrt(x))
         if with_z_score_normalization:
           y = tf.cast(expanded_obs, tf.float32)
           y = (y - mean) / (std + eps)
