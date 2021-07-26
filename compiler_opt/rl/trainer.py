@@ -120,7 +120,7 @@ class Trainer(object):
         experience.reward, sample_weight=is_action)
     self._num_trajectories.update_state(experience.is_first())
 
-    with tf.name_scope('Monitor/'):
+    with tf.name_scope('default/'):
       tf.summary.scalar(
           name='data_action_mean',
           data=self._data_action_mean.result(),
@@ -133,8 +133,11 @@ class Trainer(object):
           name='num_trajectories',
           data=self._num_trajectories.result(),
           step=self._global_step)
-      for key, value in monitor_dict.items():
-        tf.summary.scalar(name=key, data=value, step=self._global_step)
+
+    for name_scope, d in monitor_dict.items():
+      with tf.name_scope(name_scope + '/'):
+        for key, value in d.items():
+          tf.summary.scalar(name=key, data=value, step=self._global_step)
 
     tf.summary.histogram(
         name='reward', data=experience.reward, step=self._global_step)

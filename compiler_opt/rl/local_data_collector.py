@@ -98,7 +98,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def collect_data(
       self, policy_path: str
-  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, float]]:
+  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
@@ -166,7 +166,8 @@ class LocalDataCollector(data_collector.DataCollector):
     self._default_policy_size_map.update(
         {file_paths: res.get()[1] for (file_paths, res) in successful_work})
 
-    monitor_dict = {'success_modules': len(finished_work)}
+    monitor_dict = {}
+    monitor_dict['default'] = {'success_modules': len(finished_work)}
 
     return self._parser(sequence_examples), monitor_dict
 

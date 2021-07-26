@@ -94,7 +94,7 @@ class TrainerTest(tf.test.TestCase):
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
-    monitor_dict = {'test': 1}
+    monitor_dict = {'default': {'test': 1}}
 
     with mock.patch.object(
         tf.summary, 'scalar', autospec=True) as mock_scalar_summary:
@@ -117,7 +117,7 @@ class TrainerTest(tf.test.TestCase):
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
-    monitor_dict = {'test': 1}
+    monitor_dict = {'default': {'test': 1}}
     test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
     self.assertEqual(10, test_trainer._global_step.numpy())
 

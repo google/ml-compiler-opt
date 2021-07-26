@@ -61,13 +61,13 @@ class LocalDataCollectorTest(tf.test.TestCase):
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([1, 2, 3], data)
-    expected_monitor_dict = {'success_modules': 10}
+    expected_monitor_dict = {'default': {'success_modules': 10}}
     self.assertEqual(expected_monitor_dict, monitor_dict)
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([4, 5, 6], data)
-    expected_monitor_dict = {'success_modules': 10}
+    expected_monitor_dict = {'default': {'success_modules': 10}}
     self.assertEqual(expected_monitor_dict, monitor_dict)
 
     collector.close_pool()
