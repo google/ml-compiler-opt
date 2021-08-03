@@ -266,7 +266,12 @@ DESTDIR=${LLVM_INSTALLDIR_RELEASE} ninja install-distribution-stripped
 cp ${FUCHSIA_SRCDIR}/prebuilt/third_party/clang/linux-x64/lib/runtime.json ${LLVM_INSTALLDIR_RELEASE}/lib/runtime.json
 ```
 
-**NOTE**: The only flag specific to MLGO is `TENSORFLOW_AOT_PATH`, which
+**NOTE 1**: If you are using LLVM-at-head instead of an exact repro, there is an
+additional flag `-DLLVM_INLINER_MODEL_PATH=` that you need to set to the path to
+your model. If you set the flag to `download`, then the latest compatible model
+release from github will be downloaded.
+
+**NOTE 2**: The only flag specific to MLGO is `TENSORFLOW_AOT_PATH`, which
 replaces `TENSORFLOW_C_LIB_PATH` used earlier.
 
 ```shell

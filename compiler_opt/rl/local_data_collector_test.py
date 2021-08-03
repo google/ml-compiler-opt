@@ -109,7 +109,6 @@ class LocalDataCollectorTest(tf.test.TestCase):
         overload_handler=overload_handler.handler)
 
     collector.collect_data(policy_path='policy')
-    self.assertLen(overload_handler.counts, 0)
     while [r for _, r in collector._unfinished_work if not r.ready()]:
       time.sleep(1)
 

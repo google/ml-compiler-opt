@@ -16,6 +16,8 @@
 """Data collection module."""
 
 import abc
+import time
+
 from typing import Iterator, Tuple, Dict
 from tf_agents.trajectories import trajectory
 
@@ -48,3 +50,61 @@ class DataCollector(metaclass=abc.ABCMeta):
     Args:
       dataset_iterator: the dataset_iterator that has been consumed.
     """
+
+
+class EarlyExitChecker:
+  """Class which checks if it is ok to early-exit from data collection."""
+
+  def __init__(self, deadline, thresholds, num_modules):
+    """Initialize the early exit checker.
+
+    Args:
+      deadline: The deadline for data collection, in seconds.
+      thresholds: Early exit thresholds, e.g. [(0.8, 0.5)] means early exit is
+        allowable if 80% of data has been collected and we've waited 50% of the
+        maximum waiting time.
+      num_modules: How many total modules we are waiting for.
+    """
+    self._deadline = deadline
+    self._thresholds = thresholds
+    self._num_modules = num_modules
+    self._start_time = time.time()
+    self._waited_time = 0
+
+  def _should_exit(self, collected: int):
+    """Checks whether we should exit early.
+
+    If collected is negative, _should_exit will always return false.
+
+    Args:
+      collected: The amount data we have collected.
+
+    Returns:
+      True if we should exit, otherwise False.
+    """
+    if collected < 0:
+      return False
+
+    self._waited_time = round(time.time() - self._start_time)
+    for (data_threshold, deadline_threshold) in self._thresholds:
+      if ((collected >= self._num_modules * data_threshold) and
+          (self._waited_time >= self._deadline * deadline_threshold)):
+        return True
+    return False
+
+  def wait(self, get_num_finished_work):
+    """Waits until the deadline has expired or an early exit is possible.
+
+    Args:
+      get_num_finished_work: a callable object which returns the amount of
+      finished work.
+
+    Returns:
+      The amount of time waited.
+    """
+    while not self._should_exit(get_num_finished_work()):
+      time.sleep(1)
+    return self.waited_time()
+
+  def waited_time(self):
+    return self._waited_time

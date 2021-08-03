@@ -17,7 +17,6 @@
 
 import collections
 import random
-import time
 from typing import Callable, Iterator, List, Tuple, Iterable, Dict
 
 from absl import logging
@@ -115,24 +114,23 @@ class LocalDataCollector(data_collector.DataCollector):
     results = self._schedule_jobs(policy_path, sampled_file_paths)
 
     def wait_for_termination():
-      wait_seconds = 0
-      while True:
+      early_exit = data_collector.EarlyExitChecker(_DEADLINE_IN_SECONDS,
+                                                   _WAIT_TERMINATION,
+                                                   self._num_modules)
+
+      def get_num_finished_work():
         finished_work = sum(res.ready() for res in results)
-        unfinised_work = len(results) - finished_work
+        unfinished_work = len(results) - finished_work
         prev_unfinished_work = sum(
             not res.ready() for _, res in self._unfinished_work)
-        total_unfinished_work = unfinised_work + prev_unfinished_work
-        for (data_collection_threshold,
-             wait_time_threshold) in _WAIT_TERMINATION:
-          if ((finished_work >= self._num_modules * data_collection_threshold)
-              and (wait_seconds >= _DEADLINE_IN_SECONDS * wait_time_threshold)):
-            if total_unfinished_work >= self._max_unfinished_tasks:
-              self._overloaded_workers_handler(total_unfinished_work)
-              break
-            else:
-              return wait_seconds
-        wait_seconds += 1
-        time.sleep(1)
+        # Handle overworked workers
+        total_unfinished_work = unfinished_work + prev_unfinished_work
+        if total_unfinished_work >= self._max_unfinished_tasks:
+          self._overloaded_workers_handler(total_unfinished_work)
+          return -1
+        return finished_work
+
+      return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
 

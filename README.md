@@ -23,6 +23,28 @@ Gradient.
 For more details about MLGO, please refer to our paper
 [MLGO: a Machine Learning Guided Compiler Optimizations Framework](https://arxiv.org/abs/2101.04808).
 
+## Pretrained models
+
+We occasionally release pretrained models that may be used as-is with LLVM.
+Models are released as github releases, and are named as
+[task]-[major-version].[minor-version].The versions are semantic: the major
+version corresponds to breaking changes on the LLVM/compiler side, and the minor
+version corresponds to model updates that are independent of the compiler.
+
+When building LLVM, there is a flag `-DLLVM_INLINER_MODEL_PATH` which you may
+set to the path to your inlining model. If the path is set to `download`, then
+cmake will download the most recent (compatible) model from github to use. Other
+values for the flag could be:
+
+```sh
+# Model is in /tmp/model, i.e. there is a file /tmp/model/saved_model.pb along
+# with the rest of the tensorflow saved_model files produced from training.
+-DLLVM_INLINER_MODEL_PATH=/tmp/model
+
+# Download the most recent compatible model
+-DLLVM_INLINER_MODEL_PATH=download
+```
+
 ## Prerequisites
 
 Currently, the assumption for the is:
