@@ -52,13 +52,7 @@ class RegAllocProbProjectionNetwork(
 
 @gin.configurable
 class RegAllocNetwork(network.DistributionNetwork):
-  """Creates an actor producing either Normal or Categorical distribution.
-
-  Note: By default, this network uses `NormalProjectionNetwork` for continuous
-  projection which by default uses `tanh_squash_to_spec` to normalize its
-  output. Due to the nature of the `tanh` function, values near the spec bounds
-  cannot be returned.
-  """
+  """Creates the actor network for register allocation policy training."""
 
   def __init__(
       self,
@@ -74,8 +68,8 @@ class RegAllocNetwork(network.DistributionNetwork):
       kernel_initializer: Optional[tf.keras.initializers.Initializer] = None,
       batch_squash: bool = True,
       dtype: tf.DType = tf.float32,
-      name: Text = 'ActorDistributionNetwork'):
-    """Creates an instance of `ActorDistributionNetwork`.
+      name: Text = 'RegAllocNetwork'):
+    """Creates an instance of `RegAllocNetwork`.
 
     Args:
       input_tensor_spec: A nest of `tensor_spec.TensorSpec` representing the

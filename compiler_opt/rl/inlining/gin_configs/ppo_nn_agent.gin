@@ -13,7 +13,15 @@ train_eval.num_iterations=300
 train_eval.batch_size=128
 train_eval.train_sequence_length=16
 train_eval.deploy_policy_name='saved_collect_policy'
+
+#######################################
+# Turn on if using train_locally.py
 train_eval.use_stale_results=False
+
+# Turn on if using train_with_rpc.py
+# train_eval.moving_average_decay_rate=1
+# train_eval.additional_compilation_flags=()
+#######################################
 
 get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
 get_observation_processing_layer_creator.with_sqrt = False
