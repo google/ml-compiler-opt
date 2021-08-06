@@ -37,8 +37,8 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
     super(FeatureUtilsTest, self).setUp()
 
-  def test_build_quantile_map_from_config(self):
-    quantile_map = feature_ops._build_quantile_map(self._quantile_file_dir)
+  def test_build_quantile_map(self):
+    quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
 
     self.assertLen(quantile_map, 1)
 
@@ -57,19 +57,25 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     # std
     self.assertAllClose(14.988885, std)
 
+  def test_discard_fn(self):
+    # obs in shape of [2, 1].
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = feature_ops.discard_fn(obs)
+
+    expected = np.array([[[0]], [[0]]])
+
+    self.assertAllEqual([2, 1, 1], output.shape)
+    self.assertAllClose(expected.tolist(), output)
+
   @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
-  def test_create_observation_processing_layer(self, with_sqrt, with_z_score):
-    observation_processing_layer = (
-        feature_ops.get_observation_processing_layer_creator(
-            self._quantile_file_dir, with_sqrt, with_z_score))
+  def test_normalize_fn(self, with_sqrt, with_z_score):
+    quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
+    quantile, mean, std = quantile_map['edge_count']
+    normalize_fn = feature_ops.get_normalize_fn(quantile, mean, std, with_sqrt,
+                                                with_z_score)
 
-    obs_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='edge_count')
-    processing_layer = observation_processing_layer(obs_spec)
-
-    inputs = tf.constant(value=[[2.0], [8.0]])
-    outputs = processing_layer(inputs)
-
-    outputs = self.evaluate(outputs)
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = normalize_fn(obs)
 
     expected_shape = [2, 1, 2]
     expected = np.array([[[0.333333, 0.111111]], [[0.777778, 0.604938]]])
@@ -84,26 +90,8 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
       expected = np.concatenate([expected, [[[-0.555968]], [[-0.155671]]]],
                                 axis=-1)
 
-    self.assertAllEqual(expected_shape, outputs.shape)
-    self.assertAllClose(expected.tolist(), outputs)
-
-  @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
-  def test_create_observation_processing_layer_for_dummy_features(
-      self, with_sqrt, with_z_score):
-    observation_processing_layer = (
-        feature_ops.get_observation_processing_layer_creator(
-            self._quantile_file_dir, with_sqrt, with_z_score))
-
-    obs_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='dummy_feature')
-    processing_layer = observation_processing_layer(obs_spec)
-
-    inputs = tf.constant(value=[[2.0], [8.0]])
-    outputs = processing_layer(inputs)
-
-    outputs = self.evaluate(outputs)
-
-    self.assertAllEqual([2, 1, 1], outputs.shape)
-    self.assertAllClose([[[0]], [[0]]], outputs)
+    self.assertAllEqual(expected_shape, output.shape)
+    self.assertAllClose(expected, output)
 
 
 if __name__ == '__main__':

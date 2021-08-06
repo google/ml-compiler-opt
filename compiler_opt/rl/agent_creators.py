@@ -15,23 +15,26 @@
 
 """util function to create a tf_agent."""
 
+from typing import Callable
+
 import gin
 import tensorflow as tf
-
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
+from tf_agents.typing import types
 
 from compiler_opt.rl import constant_value_network
-from compiler_opt.rl import feature_ops
 
 
-def _create_behavioral_cloning_agent(time_step_spec, action_spec,
-                                     policy_network):
+def _create_behavioral_cloning_agent(
+    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
+    preprocessing_layer_creator: Callable[[types.TensorSpec],
+                                          tf.keras.layers.Layer],
+    policy_network: types.Network):
   """Creates a behavioral_cloning_agent."""
-  layers = tf.nest.map_structure(
-      feature_ops.get_observation_processing_layer_creator(),
-      time_step_spec.observation)
+  layers = tf.nest.map_structure(preprocessing_layer_creator,
+                                 time_step_spec.observation)
 
   network = policy_network(
       time_step_spec.observation,
@@ -43,11 +46,14 @@ def _create_behavioral_cloning_agent(time_step_spec, action_spec,
       time_step_spec, action_spec, cloning_network=network, num_outer_dims=2)
 
 
-def _create_dqn_agent(time_step_spec, action_spec, policy_network):
+def _create_dqn_agent(
+    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
+    preprocessing_layer_creator: Callable[[types.TensorSpec],
+                                          tf.keras.layers.Layer],
+    policy_network: types.Network):
   """Creates a dqn_agent."""
-  layers = tf.nest.map_structure(
-      feature_ops.get_observation_processing_layer_creator(),
-      time_step_spec.observation)
+  layers = tf.nest.map_structure(preprocessing_layer_creator,
+                                 time_step_spec.observation)
 
   network = policy_network(
       time_step_spec.observation,
@@ -58,11 +64,14 @@ def _create_dqn_agent(time_step_spec, action_spec, policy_network):
   return dqn_agent.DqnAgent(time_step_spec, action_spec, q_network=network)
 
 
-def _create_ppo_agent(time_step_spec, action_spec, policy_network):
+def _create_ppo_agent(
+    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
+    preprocessing_layer_creator: Callable[[types.TensorSpec],
+                                          tf.keras.layers.Layer],
+    policy_network: types.Network):
   """Creates a ppo_agent."""
-  layers = tf.nest.map_structure(
-      feature_ops.get_observation_processing_layer_creator(),
-      time_step_spec.observation)
+  layers = tf.nest.map_structure(preprocessing_layer_creator,
+                                 time_step_spec.observation)
 
   actor_network = policy_network(
       time_step_spec.observation,
@@ -81,16 +90,19 @@ def _create_ppo_agent(time_step_spec, action_spec, policy_network):
 
 
 @gin.configurable
-def create_agent(agent_name=None,
-                 time_step_spec=None,
-                 action_spec=None,
-                 policy_network=None):
+def create_agent(agent_name: str, time_step_spec: types.NestedTensorSpec,
+                 action_spec: types.NestedTensorSpec,
+                 preprocessing_layer_creator: Callable[[types.TensorSpec],
+                                                       tf.keras.layers.Layer],
+                 policy_network: types.Network):
   """Creates a tf_agents.agents.TFAgent object.
 
   Args:
     agent_name: str, name of the agent to create.
     time_step_spec: A `TimeStep` spec of the expected time_steps.
     action_spec: A nest of BoundedTensorSpec representing the actions.
+    preprocessing_layer_creator: A callable returns feature processing layer
+      given observation_spec.
     policy_network: A tf_agents.networks.Network class.
 
   Returns:
@@ -103,10 +115,13 @@ def create_agent(agent_name=None,
   assert agent_name is not None
   if agent_name == 'behavioral_cloning':
     return _create_behavioral_cloning_agent(time_step_spec, action_spec,
+                                            preprocessing_layer_creator,
                                             policy_network)
   elif agent_name == 'dqn':
-    return _create_dqn_agent(time_step_spec, action_spec, policy_network)
+    return _create_dqn_agent(time_step_spec, action_spec,
+                             preprocessing_layer_creator, policy_network)
   elif agent_name == 'ppo':
-    return _create_ppo_agent(time_step_spec, action_spec, policy_network)
+    return _create_ppo_agent(time_step_spec, action_spec,
+                             preprocessing_layer_creator, policy_network)
   else:
     raise ValueError('Unknown agent: {}'.format(agent_name))

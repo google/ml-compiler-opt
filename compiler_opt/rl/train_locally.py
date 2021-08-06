@@ -55,6 +55,7 @@ FLAGS = flags.FLAGS
 
 @gin.configurable
 def train_eval(get_signature_spec_fn=None,
+               get_preprocessing_layer_creator_fn=None,
                agent_name='ppo',
                warmstart_policy_dir=None,
                num_policy_iterations=0,
@@ -68,8 +69,10 @@ def train_eval(get_signature_spec_fn=None,
 
   # Initialize trainer and policy saver.
   time_step_spec, action_spec = get_signature_spec_fn()
+  preprocessing_layer_creator = get_preprocessing_layer_creator_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
-                                         action_spec)
+                                         action_spec,
+                                         preprocessing_layer_creator)
   llvm_trainer = trainer.Trainer(
       root_dir=root_dir,
       agent=tf_agent,

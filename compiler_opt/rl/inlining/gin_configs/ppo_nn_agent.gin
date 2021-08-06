@@ -6,6 +6,7 @@ import tf_agents.agents.ppo.ppo_agent
 import tf_agents.networks.actor_distribution_network
 
 train_eval.get_signature_spec_fn=@config.get_inlining_signature_spec
+train_eval.get_preprocessing_layer_creator_fn=@config.get_observation_processing_layer_creator
 train_eval.agent_name='ppo'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000

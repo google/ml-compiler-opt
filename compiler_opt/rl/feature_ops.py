@@ -18,13 +18,11 @@
 import os
 import re
 
-import gin
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tf_agents.networks import expand_dims_layer
 
 
-def _build_quantile_map(quantile_file_dir):
+def build_quantile_map(quantile_file_dir):
   """build feature quantile map by reading from files in quantile_file_dir."""
   quantile_map = {}
   pattern = os.path.join(quantile_file_dir, '(.*).buckets')
@@ -35,55 +33,54 @@ def _build_quantile_map(quantile_file_dir):
     feature_name = m.group(1)
     with tf.io.gfile.GFile(quantile_file_path, 'r') as quantile_file:
       raw_quantiles = [float(x) for x in quantile_file]
-    quantile_map[feature_name] = (raw_quantiles, np.mean(raw_quantiles),
-                                  np.std(raw_quantiles))
+    first_non_zero = 0
+    for x in raw_quantiles:
+      if x > 0:
+        first_non_zero = x
+        break
+    log_transformed_quantile = [
+        np.log(x + first_non_zero) for x in raw_quantiles
+    ]
+    quantile_map[feature_name] = (raw_quantiles,
+                                  np.mean(raw_quantiles),
+                                  np.std(raw_quantiles),
+                                  np.mean(log_transformed_quantile),
+                                  np.std(log_transformed_quantile),
+                                  first_non_zero)
+
   return quantile_map
 
 
-@gin.configurable
-def get_observation_processing_layer_creator(quantile_file_dir,
-                                             with_sqrt=False,
-                                             with_z_score_normalization=False,
-                                             eps=1e-8):
-  """Wrapper for observation_processing_layer."""
-  quantile_map = _build_quantile_map(quantile_file_dir)
-  expand_dims_op = expand_dims_layer.ExpandDims(-1)
+def discard_fn(obs):
+  """discard the input feature by setting it to 0."""
+  return tf.zeros(shape=obs.shape + [0], dtype=tf.float32)
 
-  def observation_processing_layer(obs_spec):
-    """Creates the layer to process observation given obs_spec."""
-    if obs_spec.name not in quantile_map:
 
-      # Return empty will cause tf.keras.layers.Concatenate to fail.
-      def discard_feature(obs):
-        expanded_obs = expand_dims_op(obs)
-        return tf.zeros_like(expanded_obs, dtype=tf.float32)
+def identity_fn(obs):
+  """Return the same value with expanding the last dimension."""
+  return tf.cast(tf.expand_dims(obs, -1), tf.float32)
 
-      func = discard_feature
 
-    else:
-      quantile, mean, std = quantile_map[obs_spec.name]
+def get_normalize_fn(quantile,
+                     mean,
+                     std,
+                     with_sqrt,
+                     with_z_score_normalization,
+                     eps=1e-8):
+  """Return a normalization function to normalize the input feature."""
 
-      def normalization(obs):
-        # TODO(yundi): a temporary hard-coded solution for making test pass and
-        # submit regalloc code. Will have a big refactor in follow-up cls soon.
-        if obs_spec.name == 'progress':
-          obs = expand_dims_op(obs)
-          obs = tf.tile(obs, [1, 33])
-        expanded_obs = expand_dims_op(obs)
-        x = tf.cast(
-            tf.raw_ops.Bucketize(input=expanded_obs, boundaries=quantile),
-            tf.float32) / len(quantile)
-        features = [x, x * x]
-        if with_sqrt:
-          features.append(tf.sqrt(x))
-        if with_z_score_normalization:
-          y = tf.cast(expanded_obs, tf.float32)
-          y = (y - mean) / (std + eps)
-          features.append(y)
-        return tf.concat(features, axis=-1)
+  def normalize(obs):
+    obs = tf.expand_dims(obs, -1)
+    x = tf.cast(
+        tf.raw_ops.Bucketize(input=obs, boundaries=quantile),
+        tf.float32) / len(quantile)
+    features = [x, x * x]
+    if with_sqrt:
+      features.append(tf.sqrt(x))
+    if with_z_score_normalization:
+      y = tf.cast(obs, tf.float32)
+      y = (y - mean) / (std + eps)
+      features.append(y)
+    return tf.concat(features, axis=-1)
 
-      func = normalization
-
-    return tf.keras.layers.Lambda(func)
-
-  return observation_processing_layer
+  return normalize
