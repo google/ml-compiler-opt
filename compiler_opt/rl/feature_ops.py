@@ -33,32 +33,14 @@ def build_quantile_map(quantile_file_dir):
     feature_name = m.group(1)
     with tf.io.gfile.GFile(quantile_file_path, 'r') as quantile_file:
       raw_quantiles = [float(x) for x in quantile_file]
-    first_non_zero = 0
-    for x in raw_quantiles:
-      if x > 0:
-        first_non_zero = x
-        break
-    log_transformed_quantile = [
-        np.log(x + first_non_zero) for x in raw_quantiles
-    ]
-    quantile_map[feature_name] = (raw_quantiles,
-                                  np.mean(raw_quantiles),
-                                  np.std(raw_quantiles),
-                                  np.mean(log_transformed_quantile),
-                                  np.std(log_transformed_quantile),
-                                  first_non_zero)
-
+    quantile_map[feature_name] = (raw_quantiles, np.mean(raw_quantiles),
+                                  np.std(raw_quantiles))
   return quantile_map
 
 
 def discard_fn(obs):
   """discard the input feature by setting it to 0."""
-  return tf.zeros(shape=obs.shape + [0], dtype=tf.float32)
-
-
-def identity_fn(obs):
-  """Return the same value with expanding the last dimension."""
-  return tf.cast(tf.expand_dims(obs, -1), tf.float32)
+  return tf.zeros(shape=obs.shape + [1], dtype=tf.float32)
 
 
 def get_normalize_fn(quantile,
