@@ -30,6 +30,7 @@ from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused
 from compiler_opt.rl import inlining_runner
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
+from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import trainer
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
@@ -63,6 +64,7 @@ def train_eval(get_signature_spec_fn=None,
                batch_size=64,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
+               use_random_network_distillation=False,
                use_stale_results=False):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
@@ -73,9 +75,17 @@ def train_eval(get_signature_spec_fn=None,
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec,
                                          preprocessing_layer_creator)
+  # create the random network distillation object
+  random_network_distillation = None
+  if use_random_network_distillation:
+    random_network_distillation = random_net_distillation.RandomNetworkDistillation(
+        time_step_spec=time_step_spec,
+        preprocessing_layer_creator=preprocessing_layer_creator)
+
   llvm_trainer = trainer.Trainer(
       root_dir=root_dir,
       agent=tf_agent,
+      random_network_distillation=random_network_distillation,
       warmstart_policy_dir=warmstart_policy_dir)
   policy_dict = {
       'saved_policy': tf_agent.policy,

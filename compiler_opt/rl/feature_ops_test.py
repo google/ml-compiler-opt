@@ -62,10 +62,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     obs = tf.constant(value=[[2.0], [8.0]])
     output = feature_ops.discard_fn(obs)
 
-    expected = np.array([[[0]], [[0]]])
-
-    self.assertAllEqual([2, 1, 1], output.shape)
-    self.assertAllClose(expected.tolist(), output)
+    self.assertAllEqual([2, 1, 0], output.shape)
 
   @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
   def test_normalize_fn(self, with_sqrt, with_z_score):

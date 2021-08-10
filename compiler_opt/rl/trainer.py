@@ -46,6 +46,7 @@ class Trainer(object):
       self,
       root_dir,
       agent,
+      random_network_distillation=None,
       warmstart_policy_dir=None,
       # Params for summaries and logging
       checkpoint_interval=10000,
@@ -57,6 +58,7 @@ class Trainer(object):
     Args:
       root_dir: str, the root directory to host all required sub-directories.
       agent: a tf_agents.agents.TFAgent object.
+      random_network_distillation: a random_net_distillation.RND object.
       warmstart_policy_dir: the directory to warmstart the policy if given.
       checkpoint_interval: int, the training step interval for saving
         checkpoint.
@@ -67,6 +69,7 @@ class Trainer(object):
     """
     self._root_dir = root_dir
     self._agent = agent
+    self._random_network_distillation = random_network_distillation
     self._checkpoint_interval = checkpoint_interval
     self._log_interval = log_interval
     self._summary_interval = summary_interval
@@ -82,6 +85,9 @@ class Trainer(object):
     # faster.
     self._agent.initialize()
     self._agent.train = common_utils.function(self._agent.train)
+    if self._random_network_distillation:
+      self._random_network_distillation.train = common_utils.function(
+          self._random_network_distillation.train)
 
     self._initialize_metrics()
 
@@ -175,6 +181,11 @@ class Trainer(object):
         lambda: tf.math.equal(self._global_step % self._summary_interval, 0)):
       for _ in range(num_iterations):
         experience = next(dataset_iter)
+
+        # random network distillation for intrinsic reward generation
+        if self._random_network_distillation:
+          experience = self._random_network_distillation.train(experience)
+
         loss = self._agent.train(experience)
 
         self._update_metrics(experience, monitor_dict)

@@ -14,6 +14,7 @@ train_eval.num_iterations=300
 train_eval.batch_size=128
 train_eval.train_sequence_length=16
 train_eval.deploy_policy_name='saved_collect_policy'
+train_eval.use_random_network_distillation=True
 
 #######################################
 # Turn on if using train_locally.py
@@ -23,6 +24,12 @@ train_eval.use_stale_results=False
 # train_eval.moving_average_decay_rate=1
 # train_eval.additional_compilation_flags=()
 #######################################
+
+# RandomNetworkDistillation configs
+RandomNetworkDistillation.learning_rate = 1e-4
+RandomNetworkDistillation.update_frequency = 2
+RandomNetworkDistillation.fc_layer_params = [32, 128]
+RandomNetworkDistillation.scale = 1
 
 get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
 get_observation_processing_layer_creator.with_sqrt = False
