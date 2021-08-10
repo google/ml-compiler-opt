@@ -106,7 +106,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
         runner=long_running_collector,
         parser=parser,
         max_unfinished_tasks=2,
-        overload_handler=overload_handler.handler)
+        overload_handler=overload_handler.handler)  # pytype: disable=wrong-arg-types
 
     collector.collect_data(policy_path='policy')
     while [r for _, r in collector._unfinished_work if not r.ready()]:
