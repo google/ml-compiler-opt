@@ -69,14 +69,19 @@ class RandomNetworkDistillation():
     self._update_frequency = update_frequency
     self._scale = scale
 
-  def _get_normalized_intrinsic_reward(self, observation):
-    """Compute the normalized intrisic reward.
+    self._global_step = tf.compat.v1.train.get_or_create_global_step()
+    self._normalized_intrinsic_reward_mean = tf.keras.metrics.Mean()
+    self._intrinsic_reward_mean = tf.keras.metrics.Mean()
+    self._external_reward_mean = tf.keras.metrics.Mean()
+
+  def _get_intrinsic_reward(self, observation):
+    """Compute the intrisic reward.
 
     Args:
       observation: raw observation in observation_spec format
 
     Returns:
-      normalized_ir: the normalized intrinsic reward
+      intrinsic_reward: the intrinsic reward
     """
     with tf.GradientTape() as tape:
       # make the predict network parameters trainable
@@ -93,6 +98,13 @@ class RandomNetworkDistillation():
                              feature_predict[::self._update_frequency]),
               axis=-1))
 
+      # log the predictor loss
+      with tf.name_scope('Losses/'):
+        tf.summary.scalar(
+            name='random_net_predictor_loss',
+            data=emb_loss,
+            step=self._global_step)
+
       # compute the gradient and optimize the predictor function
       pred_grad = tape.gradient(emb_loss, self._predict_net.trainable_variables)
       self._predict_net_optimizer.apply_gradients(
@@ -103,12 +115,53 @@ class RandomNetworkDistillation():
     intrinsic_reward = tf.reduce_sum(
         tf.math.square(feature_target - feature_predict), axis=-1)[:, 1:]
 
-    # directly use the streaming tensor normalizer
-    normalized_ir = self._intrinsic_reward_normalizer.normalize(
-        intrinsic_reward, clip_value=0, center_mean=False) * self._scale
-    self._intrinsic_reward_normalizer.update(intrinsic_reward)
+    return intrinsic_reward
 
-    return normalized_ir
+  def _update_metrics(self, experience, intrinsic_reward,
+                      normalized_intrinsic_reward):
+    """Updates metrics and exports to Tensorboard.
+
+    Args:
+      experience: the experience trajectory in shape of `[batch_size,
+        time_steps]`.
+      intrinsic_reward: the intrinsic reward in shape of `[batch_size,
+        time_steps - 1]` (intrinsic_reward is based on the 'next-state'
+        trajectory).
+      normalized_intrinsic_reward: the scaled normalized intrinsic reward in
+        shape of `[batch_size, time_steps - 1]`.
+    """
+    is_action = ~experience.is_boundary()
+    # normalized_intrinsic_reward will assign for the first time_steps - 1
+    # length trajectory states. The sample_weight is also based on the first
+    # time_steps - 1 length trajectory.
+    self._normalized_intrinsic_reward_mean.update_state(
+        normalized_intrinsic_reward, sample_weight=is_action[:, :-1])
+    self._intrinsic_reward_mean.update_state(
+        intrinsic_reward, sample_weight=is_action[:, :-1])
+    self._external_reward_mean.update_state(
+        experience.reward, sample_weight=is_action)
+    with tf.name_scope('random_network_distillation/'):
+      tf.summary.scalar(
+          name='data_normalized_intrinsic_reward_mean',
+          data=self._normalized_intrinsic_reward_mean.result(),
+          step=self._global_step)
+      tf.summary.scalar(
+          name='data_intrinsic_reward_mean',
+          data=self._intrinsic_reward_mean.result(),
+          step=self._global_step)
+      tf.summary.scalar(
+          name='data_external_reward_mean',
+          data=self._external_reward_mean.result(),
+          step=self._global_step)
+
+    tf.summary.histogram(
+        name='external_reward', data=experience.reward, step=self._global_step)
+    tf.summary.histogram(
+        name='intrinsic_reward', data=intrinsic_reward, step=self._global_step)
+    tf.summary.histogram(
+        name='normalized_intrinsic_reward',
+        data=normalized_intrinsic_reward,
+        step=self._global_step)
 
   def train(self, experience):
     """Train the predictor on the batched next state trajectory.
@@ -122,15 +175,23 @@ class RandomNetworkDistillation():
       addition of external reward + intrinsic reward).
     """
     # compute intrinsic reward for length - 1 horizon
-    normalized_ir = self._get_normalized_intrinsic_reward(
+    intrinsic_reward = self._get_intrinsic_reward(
         experience.observation)
+
+    normalized_intrinsic_reward = self._intrinsic_reward_normalizer.normalize(
+        intrinsic_reward, clip_value=0, center_mean=False) * self._scale
+    self._intrinsic_reward_normalizer.update(intrinsic_reward)
+
+    # update the log
+    self._update_metrics(experience, intrinsic_reward,
+                         normalized_intrinsic_reward)
 
     batch_size = experience.reward.shape[0]
     # assign the last time step reward = 0 (no intrinsic reward)
-    normalized_ir = tf.concat(
-        [normalized_ir, tf.zeros([batch_size, 1])], axis=1)
+    normalized_intrinsic_reward = tf.concat(
+        [normalized_intrinsic_reward, tf.zeros([batch_size, 1])], axis=1)
 
     # reconstruct the reward: external + intrinsic
-    reconstructed_reward = experience.reward + normalized_ir
+    reconstructed_reward = experience.reward + normalized_intrinsic_reward
 
     return experience.replace(reward=reconstructed_reward)

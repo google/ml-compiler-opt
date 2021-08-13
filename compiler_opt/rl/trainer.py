@@ -149,9 +149,7 @@ class Trainer(object):
         name='reward', data=experience.reward, step=self._global_step)
 
   def _reset_metrics(self):
-    """Reset all metrics."""
-    self._data_action_mean.reset_states()
-    self._data_reward_mean.reset_states()
+    """Reset num_trajectories."""
     self._num_trajectories.reset_states()
 
   def _log_experiment(self, loss):
