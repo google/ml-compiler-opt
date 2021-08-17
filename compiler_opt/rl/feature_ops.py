@@ -18,11 +18,14 @@
 import os
 import re
 
+from typing import List, Callable, Optional
+
 import numpy as np
 import tensorflow.compat.v2 as tf
+from tf_agents.typing import types
 
 
-def build_quantile_map(quantile_file_dir):
+def build_quantile_map(quantile_file_dir: str):
   """build feature quantile map by reading from files in quantile_file_dir."""
   quantile_map = {}
   pattern = os.path.join(quantile_file_dir, '(.*).buckets')
@@ -33,25 +36,36 @@ def build_quantile_map(quantile_file_dir):
     feature_name = m.group(1)
     with tf.io.gfile.GFile(quantile_file_path, 'r') as quantile_file:
       raw_quantiles = [float(x) for x in quantile_file]
-    quantile_map[feature_name] = (raw_quantiles, np.mean(raw_quantiles),
-                                  np.std(raw_quantiles))
+    quantile_map[feature_name] = raw_quantiles
+
   return quantile_map
 
 
-def discard_fn(obs):
+def discard_fn(obs: types.Float):
   """discard the input feature by setting it to 0."""
   return tf.zeros(shape=obs.shape + [0], dtype=tf.float32)
 
 
-def get_normalize_fn(quantile,
-                     mean,
-                     std,
-                     with_sqrt,
-                     with_z_score_normalization,
-                     eps=1e-8):
+def identity_fn(obs: types.Float):
+  """Return the same value with expanding the last dimension."""
+  return tf.cast(tf.expand_dims(obs, -1), tf.float32)
+
+
+def get_normalize_fn(quantile: List[float],
+                     with_sqrt: bool,
+                     with_z_score_normalization: bool,
+                     eps: float = 1e-8,
+                     preprocessing_fn: Optional[Callable[[types.Tensor],
+                                                         types.Float]] = None):
   """Return a normalization function to normalize the input feature."""
 
-  def normalize(obs):
+  if not preprocessing_fn:
+    preprocessing_fn = lambda x: x
+  processed_quantile = [preprocessing_fn(x) for x in quantile]
+  mean = np.mean(processed_quantile)
+  std = np.std(processed_quantile)
+
+  def normalize(obs: types.Float):
     obs = tf.expand_dims(obs, -1)
     x = tf.cast(
         tf.raw_ops.Bucketize(input=obs, boundaries=quantile),
@@ -60,7 +74,7 @@ def get_normalize_fn(quantile,
     if with_sqrt:
       features.append(tf.sqrt(x))
     if with_z_score_normalization:
-      y = tf.cast(obs, tf.float32)
+      y = preprocessing_fn(tf.cast(obs, tf.float32))
       y = (y - mean) / (std + eps)
       features.append(y)
     return tf.concat(features, axis=-1)

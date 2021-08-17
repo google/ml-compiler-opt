@@ -90,9 +90,9 @@ def get_observation_processing_layer_creator(quantile_file_dir,
     if obs_spec.name == 'inlining_default':
       return tf.keras.layers.Lambda(feature_ops.discard_fn)
 
-    quantile, mean, std = quantile_map[obs_spec.name]
+    quantile = quantile_map[obs_spec.name]
     return tf.keras.layers.Lambda(
-        feature_ops.get_normalize_fn(quantile, mean, std, with_sqrt,
+        feature_ops.get_normalize_fn(quantile, with_sqrt,
                                      with_z_score_normalization, eps))
 
   return observation_processing_layer

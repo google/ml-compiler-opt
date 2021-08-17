@@ -68,8 +68,6 @@ def get_regalloc_signature_spec():
   return time_step_spec, action_spec
 
 
-# TODO(yundi): temporary feature preprocessings, will be addressed in a
-# follow-up cl.
 @gin.configurable
 def get_observation_processing_layer_creator(quantile_file_dir,
                                              with_sqrt=True,
@@ -80,24 +78,60 @@ def get_observation_processing_layer_creator(quantile_file_dir,
 
   def observation_processing_layer(obs_spec):
     """Creates the layer to process observation given obs_spec."""
-    quantile, mean, std = quantile_map[obs_spec.name]
+    if obs_spec.name in ('mask', 'nr_urgent'):
+      return tf.keras.layers.Lambda(feature_ops.discard_fn)
+
+    if obs_spec.name in ('is_hint', 'is_local', 'is_free'):
+      return tf.keras.layers.Lambda(feature_ops.identity_fn)
+
+    if obs_spec.name in ('max_stage', 'min_stage'):
+      return tf.keras.layers.Embedding(7, 4)
+
+    quantile = quantile_map[obs_spec.name]
+
+    first_non_zero = 0
+    for x in quantile:
+      if x > 0:
+        first_non_zero = x
+        break
+
+    normalize_fn = feature_ops.get_normalize_fn(quantile, with_sqrt,
+                                                with_z_score_normalization, eps)
+    log_normalize_fn = feature_ops.get_normalize_fn(
+        quantile,
+        with_sqrt,
+        with_z_score_normalization,
+        eps,
+        preprocessing_fn=lambda x: tf.math.log(x + first_non_zero))
+
+    if obs_spec.name in ['nr_rematerializable', 'nr_broken_hints']:
+      return tf.keras.layers.Lambda(normalize_fn)
+
+    if obs_spec.name in ('liverange_size', 'nr_defs_and_uses'
+                        ) or obs_spec.name.endswith('by_max'):
+      return tf.keras.layers.Lambda(log_normalize_fn)
+
+    if obs_spec.name == 'use_def_density':
+
+      def use_def_density_processing_fn(obs):
+        features = [tf.where(tf.math.is_inf(tf.expand_dims(obs, -1)), 1.0, 0.0)]
+        obs = tf.where(tf.math.is_inf(obs), 1.0, obs)
+        features.append(log_normalize_fn(obs))
+        return tf.concat(features, axis=-1)
+
+      return tf.keras.layers.Lambda(use_def_density_processing_fn)
 
     if obs_spec.name == 'progress':
 
-      def processing_fn(obs):
+      def progress_processing_fn(obs):
         obs = tf.expand_dims(obs, -1)
         obs = tf.tile(obs, [1, get_num_registers()])
-        normalize_fn = feature_ops.get_normalize_fn(quantile, mean, std,
-                                                    with_sqrt,
-                                                    with_z_score_normalization,
-                                                    eps)
         obs = normalize_fn(obs)
         return obs
 
-      return tf.keras.layers.Lambda(processing_fn)
+      return tf.keras.layers.Lambda(progress_processing_fn)
 
-    return tf.keras.layers.Lambda(
-        feature_ops.get_normalize_fn(quantile, mean, std, with_sqrt,
-                                     with_z_score_normalization, eps))
+    # Make sure all features have a preprocessing function.
+    raise KeyError('Missing preprocessing function for some feature.')
 
   return observation_processing_layer

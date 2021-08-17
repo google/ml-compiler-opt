@@ -24,11 +24,16 @@ import tensorflow as tf
 from compiler_opt.rl import constant
 from compiler_opt.rl import feature_ops
 
-_WITH_Z_SCORE_SQRT_PRODUCT_VALUES = [('with_sqrt_with_z_score', True, True),
-                                     ('with_sqrt_without_z_score', True, False),
-                                     ('without_sqrt_with_z_score', False, True),
-                                     ('without_sqrt_without_z_score', False,
-                                      False)]
+
+def _get_sqrt_z_score_preprocessing_fn_cross_product():
+  testcases = []
+  for sqrt in [True, False]:
+    for z_score in [True, False]:
+      for preprocessing_fn in [None, lambda x: x * x]:
+        test_name = ('sqrt_%s_zscore_%s_preprocessfn_%s' %
+                     (sqrt, z_score, preprocessing_fn))
+        testcases.append((test_name, sqrt, z_score, preprocessing_fn))
+  return testcases
 
 
 class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
@@ -44,18 +49,12 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertIn('edge_count', quantile_map)
 
-    quantile, mean, std = quantile_map['edge_count']
+    quantile = quantile_map['edge_count']
 
     # quantile
     self.assertLen(quantile, 9)
     self.assertEqual(2, quantile[0])
     self.assertEqual(8, quantile[6])
-
-    # mean
-    self.assertAllClose(10.333333, mean)
-
-    # std
-    self.assertAllClose(14.988885, std)
 
   def test_discard_fn(self):
     # obs in shape of [2, 1].
@@ -64,12 +63,24 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllEqual([2, 1, 0], output.shape)
 
-  @parameterized.named_parameters(*_WITH_Z_SCORE_SQRT_PRODUCT_VALUES)
-  def test_normalize_fn(self, with_sqrt, with_z_score):
+  def test_identity_fn(self):
+    # obs in shape of [2, 1].
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = feature_ops.identity_fn(obs)
+
+    expected = np.array([[[2.0]], [[8.0]]])
+
+    self.assertAllEqual([2, 1, 1], output.shape)
+    self.assertAllClose(expected.tolist(), output)
+
+  @parameterized.named_parameters(
+      *_get_sqrt_z_score_preprocessing_fn_cross_product())
+  def test_normalize_fn_sqrt_z_normalization(self, with_sqrt, with_z_score,
+                                             preprocessing_fn):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
-    quantile, mean, std = quantile_map['edge_count']
-    normalize_fn = feature_ops.get_normalize_fn(quantile, mean, std, with_sqrt,
-                                                with_z_score)
+    quantile = quantile_map['edge_count']
+    normalize_fn = feature_ops.get_normalize_fn(
+        quantile, with_sqrt, with_z_score, preprocessing_fn=preprocessing_fn)
 
     obs = tf.constant(value=[[2.0], [8.0]])
     output = normalize_fn(obs)
@@ -84,8 +95,12 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     if with_z_score:
       expected_shape[2] += 1
-      expected = np.concatenate([expected, [[[-0.555968]], [[-0.155671]]]],
-                                axis=-1)
+      if preprocessing_fn:
+        expected = np.concatenate([expected, [[[-0.406244]], [[-0.33180502]]]],
+                                  axis=-1)
+      else:
+        expected = np.concatenate([expected, [[[-0.555968]], [[-0.155671]]]],
+                                  axis=-1)
 
     self.assertAllEqual(expected_shape, output.shape)
     self.assertAllClose(expected, output)
