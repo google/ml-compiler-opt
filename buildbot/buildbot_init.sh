@@ -171,6 +171,4 @@ sudo -u buildbot buildbot-worker start $BOT_DIR
 
 sleep 30
 cat $BOT_DIR/twistd.log
-grep "Worker is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
-
-echo "Started build worker ${WORKER_NAME} successfully."
+grep "worker is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
