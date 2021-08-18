@@ -27,7 +27,7 @@ function on_error {
   # shutdown now
 }
 
-MASTER_PORT=${MASTER_PORT:-9994}
+SERVER_PORT=${SERVER_PORT:-9994}
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
@@ -42,19 +42,6 @@ if lsb_release -a | grep "buster" ; then
 TF_API_DEP_PACKAGES="python3 python3-pip"
 ADMIN_PACKAGES="tmux"
 
-  # buildbot from "buster" does not work with llvm master.
-  cat <<EOF >/etc/apt/sources.list.d/stretch.list
-deb http://deb.debian.org/debian/ stretch main
-deb-src http://deb.debian.org/debian/ stretch main
-deb http://security.debian.org/ stretch/updates main
-deb-src http://security.debian.org/ stretch/updates main
-deb http://deb.debian.org/debian/ stretch-updates main
-deb-src http://deb.debian.org/debian/ stretch-updates main
-EOF
-
-  cat <<EOF >/etc/apt/apt.conf.d/99stretch
-APT::Default-Release "buster";
-EOF
 
 fi
 
@@ -66,11 +53,17 @@ fi
 
     (
       set -ex
+      apt-get -qq -y update || exit 1
+      apt-get install -qq -y gnupg || exit 1
+
+      apt-key adv --recv-keys --keyserver keyserver.ubuntu.com FEEA9169307EA071 || exit 1
+      apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 871920D1991BC93C || exit 1
+
       dpkg --add-architecture i386
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
       dpkg --configure -a
       apt-get clean
-      apt-get -qq -y update
+      apt-get -qq -y update || exit 1
 
       # Logs consume a lot of storage space.
       apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
@@ -79,6 +72,7 @@ fi
         $BUSTER_PACKAGES \
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
+        buildbot-worker \
         g++ \
         cmake \
         ccache \
@@ -104,8 +98,6 @@ fi
         wget \
         zlib1g-dev
 
-      apt-get install -qq -y -t stretch buildbot-slave=0.8.12-1
-      apt-mark hold buildbot-slave
     ) && exit 0
   done
   exit 1
@@ -145,9 +137,6 @@ else
   on_error "TENSORFLOW_API_PATH not found"
 fi
 
-# continue with getting the build worker up.
-systemctl set-property buildslave.service TasksMax=100000
-
 chown buildbot:buildbot $BOT_DIR
 chown buildbot:buildbot $TENSORFLOW_API_PATH
 
@@ -155,13 +144,17 @@ rm -f /b/buildbot.tac
 
 WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
+SERVICE_NAME=buildbot-worker@b.service
 
+systemctl set-property $SERVICE_NAME TasksMax=100000
+
+systemctl stop $SERVICE_NAME || true
+while pkill buildbot-worker; do sleep 5; done;
+
+rm -rf ${BOT_DIR}/buildbot.tac ${BOT_DIR}/twistd.log
 echo "Starting build worker ${WORKER_NAME}"
-buildslave create-slave -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$MASTER_PORT \
+buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
    "${WORKER_NAME}" "${WORKER_PASSWORD}"
-
-systemctl stop buildslave.service
-while pkill buildslave; do sleep 5; done;
 
 echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
@@ -176,21 +169,14 @@ echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
   lscpu
 } > $BOT_DIR/info/host
 
-cat <<EOF >/etc/default/buildslave
-SLAVE_ENABLED[1]=1
-SLAVE_NAME[1]="default"
-SLAVE_USER[1]="buildbot"
-SLAVE_BASEDIR[1]="$BOT_DIR"
-SLAVE_OPTIONS[1]=""
-SLAVE_PREFIXCMD[1]=""
-EOF
 
 chown -R buildbot:buildbot $BOT_DIR
 systemctl daemon-reload
-systemctl start buildslave.service
+systemctl start $SERVICE_NAME
+systemctl status $SERVICE_NAME
 
 sleep 30
 cat $BOT_DIR/twistd.log
-grep "slave is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
+grep "Worker is ready" $BOT_DIR/twistd.log || on_error "build worker not ready"
 
 echo "Started build worker ${WORKER_NAME} successfully."
