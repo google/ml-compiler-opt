@@ -69,7 +69,6 @@ fi
         $BUSTER_PACKAGES \
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
-        buildbot-worker \
         g++ \
         cmake \
         ccache \
@@ -108,6 +107,8 @@ wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requi
 # install the tf pip package for the AOT ("release" scenario).
 sudo -u buildbot python3 -m pip install --upgrade pip
 sudo -u buildbot python3 -m pip install --user -r requirements.txt
+sudo -u buildbot python3 -m pip install buildbot-worker
+
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
@@ -144,14 +145,11 @@ WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 SERVICE_NAME=buildbot-worker@b.service
 [[ -d /var/lib/buildbot/workers/b ]] || ln -s $BOT_DIR /var/lib/buildbot/workers/b
 
-systemctl set-property $SERVICE_NAME TasksMax=100000
-
-systemctl stop $SERVICE_NAME || true
 while pkill buildbot-worker; do sleep 5; done;
 
 rm -rf ${BOT_DIR}/buildbot.tac ${BOT_DIR}/twistd.log
 echo "Starting build worker ${WORKER_NAME}"
-buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
+sudo -u buildbot buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
    "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
 echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
@@ -169,9 +167,7 @@ echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
 
 chown -R buildbot:buildbot $BOT_DIR
-systemctl daemon-reload
-systemctl start $SERVICE_NAME
-systemctl status $SERVICE_NAME
+sudo -u buildbot buildbot-worker start $BOT_DIR
 
 sleep 30
 cat $BOT_DIR/twistd.log
