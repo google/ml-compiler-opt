@@ -142,6 +142,7 @@ rm -f /b/buildbot.tac
 WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 SERVICE_NAME=buildbot-worker@b.service
+[[ -d /var/lib/buildbot/workers/b ]] || ln -s $BOT_DIR /var/lib/buildbot/workers/b
 
 systemctl set-property $SERVICE_NAME TasksMax=100000
 
