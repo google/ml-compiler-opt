@@ -60,7 +60,7 @@ fi
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
       dpkg --configure -a
       apt-get clean
-      apt-get -qq -y update || exit 1
+      apt-get -qq -y update
 
       # Logs consume a lot of storage space.
       apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
