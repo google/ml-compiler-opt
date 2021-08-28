@@ -1,4 +1,4 @@
-tensorflow==2.5.0
+tensorflow==2.6.0
 tf-agents==0.7.1
 gym==0.18.0
 gin==0.1.6
