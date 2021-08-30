@@ -131,7 +131,7 @@ mkdir /tmp/tensorflow
 export TENSORFLOW_API_PATH=/tmp/tensorflow
 wget --quiet 	https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz \
   || on_error "failed to download tensorflow C library"
-tar xfz libtensorflow-cpu-linux-x86_64-2.5.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
+tar xfz libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
 
 if [ -f "${TENSORFLOW_API_PATH}/lib/libtensorflow.so" ]
 then
