@@ -51,6 +51,17 @@ class RegAllocProbProjectionNetwork(
 
 
 @gin.configurable
+class RegAllocRNDEncodingNetwork(RegAllocEncodingNetwork):
+
+  def __init__(self, **kwargs):
+    pooling_layer = tf.keras.layers.GlobalMaxPool1D(data_format='channels_last')
+    super(RegAllocRNDEncodingNetwork, self).__init__(**kwargs)
+    # add a pooling layer at the end to to convert B x T x 33 x dim to
+    # B x T x dim.
+    self._postprocessing_layers.append(pooling_layer)
+
+
+@gin.configurable
 class RegAllocNetwork(network.DistributionNetwork):
   """Creates the actor network for register allocation policy training."""
 

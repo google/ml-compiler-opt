@@ -86,27 +86,27 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     super(DataReaderTest, self).setUp()
 
   @parameterized.named_parameters(
-      ('SequenceExampleIteratorFn',
-       data_reader.create_sequence_example_iterator_fn),
-      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
-  def test_create_iterator_fn(self, test_fn):
+      ('SequenceExampleDatasetFn',
+       data_reader.create_sequence_example_dataset_fn),
+      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
+  def test_create_dataset_fn(self, test_fn):
     example = _define_sequence_example(
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_iterator_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
-    iterator_fn = test_fn(
+    dataset_fn = test_fn(
         agent_name=self._agent_name,
         time_step_spec=self._time_step_spec,
         action_spec=self._discrete_action_spec,
         batch_size=2,
         train_sequence_length=3)
-    data_iterator = iterator_fn(data_source)
+    data_iterator = iter(dataset_fn(data_source).repeat())
 
     experience = next(data_iterator)
     self.assertIsInstance(experience, trajectory.Trajectory)
@@ -122,9 +122,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.discount)
 
   @parameterized.named_parameters(
-      ('SequenceExampleIteratorFn',
-       data_reader.create_sequence_example_iterator_fn),
-      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
+      ('SequenceExampleDatasetFn',
+       data_reader.create_sequence_example_dataset_fn),
+      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
   def test_ppo_policy_info_discrete(self, test_fn):
     self._agent_name = 'ppo'
 
@@ -132,19 +132,19 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_iterator_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
-    iterator_fn = test_fn(
+    dataset_fn = test_fn(
         agent_name=self._agent_name,
         time_step_spec=self._time_step_spec,
         action_spec=self._discrete_action_spec,
         batch_size=2,
         train_sequence_length=3)
-    data_iterator = iterator_fn(data_source)
+    data_iterator = iter(dataset_fn(data_source).repeat())
 
     experience = next(data_iterator)
     self.assertAllEqual(['feature_key'], list(experience.observation.keys()))
@@ -153,9 +153,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
                         experience.policy_info['dist_params']['logits'])
 
   @parameterized.named_parameters(
-      ('SequenceExampleIteratorFn',
-       data_reader.create_sequence_example_iterator_fn),
-      ('TFRecordIteratorFn', data_reader.create_tfrecord_iterator_fn))
+      ('SequenceExampleDatasetFn',
+       data_reader.create_sequence_example_dataset_fn),
+      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
   def test_ppo_policy_info_continuous(self, test_fn):
     self._agent_name = 'ppo'
 
@@ -163,19 +163,19 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=False)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_iterator_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_iterator_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
-    iterator_fn = test_fn(
+    dataset_fn = test_fn(
         agent_name=self._agent_name,
         time_step_spec=self._time_step_spec,
         action_spec=self._continuous_action_spec,
         batch_size=2,
         train_sequence_length=3)
-    data_iterator = iterator_fn(data_source)
+    data_iterator = iter(dataset_fn(data_source).repeat())
 
     experience = next(data_iterator)
     self.assertAllEqual(['feature_key'], list(experience.observation.keys()))

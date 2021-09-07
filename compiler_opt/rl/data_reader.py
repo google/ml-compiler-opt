@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""util function to create training data iterator."""
+"""util function to create training datasets."""
 
-from typing import Callable, Iterator, List
+from typing import Callable, List
 
 import tensorflow as tf
 from tf_agents.specs import tensor_spec
@@ -142,11 +142,11 @@ def create_parser_fn(
   return _parser_fn
 
 
-def create_sequence_example_iterator_fn(
+def create_sequence_example_dataset_fn(
     agent_name: str, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
-) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
-  """Get a function that creates an iterator from serialized sequence examples.
+) -> Callable[[List[str]], tf.data.Dataset]:
+  """Get a function that creates a dataset from serialized sequence examples.
 
   Args:
     agent_name: str, name of the agent.
@@ -157,14 +157,14 @@ def create_sequence_example_iterator_fn(
 
   Returns:
     A callable that takes a list of serialized sequence examples and returns
-      iterator yielding batched trajectory.Trajectory instances with shape
-      [B, T, ...].
+      a `tf.data.Dataset`.  Treating this dataset as an iterator yields batched
+      `trajectory.Trajectory` instances with shape `[B, T, ...]`.
   """
   trajectory_shuffle_buffer_size = 1024
 
   parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
 
-  def _sequence_example_iterator_fn(sequence_examples):
+  def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
     # here.
     dataset = tf.data.Dataset.from_tensor_slices(sequence_examples).filter(
@@ -176,18 +176,18 @@ def create_sequence_example_iterator_fn(
             drop_remainder=True).shuffle(trajectory_shuffle_buffer_size).batch(
                 batch_size,
                 drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
-    return iter(dataset.repeat())
+    return dataset
 
-  return _sequence_example_iterator_fn
+  return _sequence_example_dataset_fn
 
 
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
-def create_file_iterator_fn(
+def create_file_dataset_fn(
     agent_name: str, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int,
-    input_dataset) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
-  """Get a function that creates an iterator from files.
+    input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
+  """Get a function that creates an dataset from files.
 
   Args:
     agent_name: str, name of the agent.
@@ -198,8 +198,9 @@ def create_file_iterator_fn(
     input_dataset: A tf.data.Dataset subclass object.
 
   Returns:
-    A callable that takes file path(s) and returns iterator yielding
-      trajectory.Trajectory instances with shape [B, T, ...].
+    A callable that takes file path(s) and returns a `tf.data.Dataset`.
+      Iterating over this dataset yields `trajectory.Trajectory` instances with
+      shape `[B, T, ...]`.
   """
   files_buffer_size = 100
   num_readers = 10
@@ -209,7 +210,7 @@ def create_file_iterator_fn(
 
   parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
 
-  def _file_iterator_fn(data_path):
+  def _file_dataset_fn(data_path):
     dataset = (
         tf.data.Dataset.list_files(data_path).shuffle(
             files_buffer_size).interleave(
@@ -229,16 +230,16 @@ def create_file_iterator_fn(
             drop_remainder=True).shuffle(trajectory_shuffle_buffer_size).batch(
                 batch_size,
                 drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
-    return iter(dataset.repeat())
+    return dataset
 
-  return _file_iterator_fn
+  return _file_dataset_fn
 
 
-def create_tfrecord_iterator_fn(
+def create_tfrecord_dataset_fn(
     agent_name: str, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
-) -> Callable[[List[str]], Iterator[trajectory.Trajectory]]:
-  """Get a function that creates an iterator from tfrecord.
+) -> Callable[[List[str]], tf.data.Dataset]:
+  """Get a function that creates an dataset from tfrecord.
 
   Args:
     agent_name: str, name of the agent.
@@ -248,10 +249,11 @@ def create_tfrecord_iterator_fn(
     train_sequence_length: int, trajectory sequence length T.
 
   Returns:
-    A callable that takes tfrecord path(s) and returns iterator yielding
-      trajectory.Trajectory instances with shape [B, T, ...].
+    A callable that takes tfrecord path(s) and returns a `tf.data.Dataset`.
+      Iterating over this dataset yields `trajectory.Trajectory` instances with
+      shape `[B, T, ...]`.
   """
-  return create_file_iterator_fn(
+  return create_file_dataset_fn(
       agent_name,
       time_step_spec,
       action_spec,

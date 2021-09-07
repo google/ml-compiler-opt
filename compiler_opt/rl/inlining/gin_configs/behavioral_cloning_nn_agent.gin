@@ -4,16 +4,15 @@ import compiler_opt.rl.inlining.config
 import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
 import tf_agents.networks.q_network
 
-train_eval.get_signature_spec_fn=@config.get_inlining_signature_spec
-train_eval.get_preprocessing_layer_creator_fn=@config.get_observation_processing_layer_creator
 train_eval.agent_name='behavioral_cloning'
+train_eval.problem_type='inlining'
 train_eval.num_iterations=100000
 train_eval.batch_size=64
 train_eval.train_sequence_length=1
 
-get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
-get_observation_processing_layer_creator.with_sqrt = False
-get_observation_processing_layer_creator.with_z_score_normalization = False
+inlining.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
+inlining.config.get_observation_processing_layer_creator.with_sqrt = False
+inlining.config.get_observation_processing_layer_creator.with_z_score_normalization = False
 
 create_agent.policy_network = @q_network.QNetwork
 

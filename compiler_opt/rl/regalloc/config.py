@@ -30,6 +30,7 @@ def get_num_registers():
 @gin.configurable()
 def get_regalloc_signature_spec():
   """Returns (time_step_spec, action_spec) for LLVM register allocation."""
+  # LINT.IfChange
   num_registers = get_num_registers()
 
   observation_spec = dict(
@@ -66,10 +67,11 @@ def get_regalloc_signature_spec():
       maximum=num_registers - 1)
 
   return time_step_spec, action_spec
+  # LINT.ThenChange(mlgo/compiler_opt/rl/google/regalloc/sparse_bucket_config.pbtxt)
 
 
 @gin.configurable
-def get_observation_processing_layer_creator(quantile_file_dir,
+def get_observation_processing_layer_creator(quantile_file_dir=None,
                                              with_sqrt=True,
                                              with_z_score_normalization=True,
                                              eps=1e-8):

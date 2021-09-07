@@ -23,6 +23,7 @@ from absl import logging
 import gin
 
 from compiler_opt.rl import agent_creators
+from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import policy_saver
@@ -44,9 +45,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(get_signature_spec_fn=None,
-               get_preprocessing_layer_creator_fn=None,
-               agent_name='behavioral_cloning',
+def train_eval(agent_name='behavioral_cloning',
+               problem_type=None,
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1):
@@ -54,9 +54,12 @@ def train_eval(get_signature_spec_fn=None,
   root_dir = os.path.expanduser(FLAGS.root_dir)
   root_dir = os.path.normpath(root_dir)
 
+  time_step_spec, action_spec = config.get_signature_spec(
+      problem_type)
+  preprocessing_layer_creator = config.get_preprocessing_layer_creator(
+      problem_type)
+
   # Initialize trainer and policy saver.
-  time_step_spec, action_spec = get_signature_spec_fn()
-  preprocessing_layer_creator = get_preprocessing_layer_creator_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec,
                                          preprocessing_layer_creator)
@@ -69,7 +72,7 @@ def train_eval(get_signature_spec_fn=None,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  tfrecord_iterator_fn = data_reader.create_tfrecord_iterator_fn(
+  tfrecord_dataset_fn = data_reader.create_tfrecord_dataset_fn(
       agent_name=agent_name,
       time_step_spec=time_step_spec,
       action_spec=action_spec,
@@ -78,7 +81,7 @@ def train_eval(get_signature_spec_fn=None,
 
   # Train.
   if FLAGS.data_path:
-    dataset_iter = tfrecord_iterator_fn(FLAGS.data_path)
+    dataset_iter = iter(tfrecord_dataset_fn(FLAGS.data_path).repeat())
     monitor_dict = {}
     llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 

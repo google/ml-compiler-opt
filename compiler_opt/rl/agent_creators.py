@@ -15,10 +15,12 @@
 
 """util function to create a tf_agent."""
 
-from typing import Callable
+from typing import Callable, Text
 
 import gin
 import tensorflow as tf
+import tf_agents as tfa
+
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
@@ -29,17 +31,14 @@ from compiler_opt.rl import constant_value_network
 
 def _create_behavioral_cloning_agent(
     time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
-    preprocessing_layer_creator: Callable[[types.TensorSpec],
-                                          tf.keras.layers.Layer],
-    policy_network: types.Network):
+    preprocessing_layers: types.NestedLayer,
+    policy_network: types.Network) -> tfa.agents.TFAgent:
   """Creates a behavioral_cloning_agent."""
-  layers = tf.nest.map_structure(preprocessing_layer_creator,
-                                 time_step_spec.observation)
 
   network = policy_network(
       time_step_spec.observation,
       action_spec,
-      preprocessing_layers=layers,
+      preprocessing_layers=preprocessing_layers,
       name='QNetwork')
 
   return behavioral_cloning_agent.BehavioralCloningAgent(
@@ -48,17 +47,13 @@ def _create_behavioral_cloning_agent(
 
 def _create_dqn_agent(
     time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
-    preprocessing_layer_creator: Callable[[types.TensorSpec],
-                                          tf.keras.layers.Layer],
-    policy_network: types.Network):
+    preprocessing_layers: types.NestedLayer,
+    policy_network: types.Network) -> tfa.agents.TFAgent:
   """Creates a dqn_agent."""
-  layers = tf.nest.map_structure(preprocessing_layer_creator,
-                                 time_step_spec.observation)
-
   network = policy_network(
       time_step_spec.observation,
       action_spec,
-      preprocessing_layers=layers,
+      preprocessing_layers=preprocessing_layers,
       name='QNetwork')
 
   return dqn_agent.DqnAgent(time_step_spec, action_spec, q_network=network)
@@ -66,17 +61,14 @@ def _create_dqn_agent(
 
 def _create_ppo_agent(
     time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
-    preprocessing_layer_creator: Callable[[types.TensorSpec],
-                                          tf.keras.layers.Layer],
-    policy_network: types.Network):
+    preprocessing_layers: types.NestedLayer,
+    policy_network: types.Network) -> tfa.agents.TFAgent:
   """Creates a ppo_agent."""
-  layers = tf.nest.map_structure(preprocessing_layer_creator,
-                                 time_step_spec.observation)
 
   actor_network = policy_network(
       time_step_spec.observation,
       action_spec,
-      preprocessing_layers=layers,
+      preprocessing_layers=preprocessing_layers,
       name='ActorDistributionNetwork')
 
   critic_network = constant_value_network.ConstantValueNetwork(
@@ -90,12 +82,14 @@ def _create_ppo_agent(
 
 
 @gin.configurable
-def create_agent(agent_name: str, time_step_spec: types.NestedTensorSpec,
-                 action_spec: types.NestedTensorSpec,
-                 preprocessing_layer_creator: Callable[[types.TensorSpec],
-                                                       tf.keras.layers.Layer],
-                 policy_network: types.Network):
-  """Creates a tf_agents.agents.TFAgent object.
+def create_agent(
+    agent_name: Text,
+    time_step_spec: types.NestedTensorSpec,
+    action_spec: types.NestedTensorSpec,
+    preprocessing_layer_creator: Callable[[types.TensorSpec],
+                                          tf.keras.layers.Layer],
+    policy_network: types.Network):
+  """Creates a tfa.agents.TFAgent object.
 
   Args:
     agent_name: str, name of the agent to create.
@@ -106,22 +100,26 @@ def create_agent(agent_name: str, time_step_spec: types.NestedTensorSpec,
     policy_network: A tf_agents.networks.Network class.
 
   Returns:
-    tf_agent: A tf_agents.agents.TFAgent object.
+    tf_agent: A tfa.agents.TFAgent object.
 
   Raises:
     ValueError: If `agent_name` is not in supported list.
   """
   assert policy_network is not None
   assert agent_name is not None
+
+  preprocessing_layers = tf.nest.map_structure(
+      preprocessing_layer_creator, time_step_spec.observation)
+
   if agent_name == 'behavioral_cloning':
     return _create_behavioral_cloning_agent(time_step_spec, action_spec,
-                                            preprocessing_layer_creator,
+                                            preprocessing_layers,
                                             policy_network)
   elif agent_name == 'dqn':
     return _create_dqn_agent(time_step_spec, action_spec,
-                             preprocessing_layer_creator, policy_network)
+                             preprocessing_layers, policy_network)
   elif agent_name == 'ppo':
     return _create_ppo_agent(time_step_spec, action_spec,
-                             preprocessing_layer_creator, policy_network)
+                             preprocessing_layers, policy_network)
   else:
     raise ValueError('Unknown agent: {}'.format(agent_name))

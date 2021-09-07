@@ -16,7 +16,6 @@
 """Random Network Distillation Implementation."""
 import gin
 import tensorflow as tf
-from tf_agents.networks import encoding_network
 from tf_agents.utils import tensor_normalizer
 
 
@@ -27,6 +26,7 @@ class RandomNetworkDistillation():
   def __init__(self,
                time_step_spec=None,
                preprocessing_layer_creator=None,
+               encoding_network=None,
                learning_rate=1e-4,
                update_frequency=4,
                fc_layer_params=(32,),
@@ -37,6 +37,7 @@ class RandomNetworkDistillation():
       time_step_spec: the time step spec for raw observation
       preprocessing_layer_creator: A callable returns feature processing layer
         given observation_spec.
+      encoding_network: A tf_agents.networks.Network class.
       learning_rate: the learning rate for optimizer.
       update_frequency: the update frequency for the predictor network.
       fc_layer_params: list of fully_connected parameters, where each item is
@@ -47,14 +48,14 @@ class RandomNetworkDistillation():
     feature_extractor_layer = tf.nest.map_structure(preprocessing_layer_creator,
                                                     time_step_spec.observation)
 
-    self._target_net = encoding_network.EncodingNetwork(
+    self._target_net = encoding_network(
         input_tensor_spec=time_step_spec.observation,
         preprocessing_layers=feature_extractor_layer,
         preprocessing_combiner=tf.keras.layers.Concatenate(),
         fc_layer_params=fc_layer_params,
         name='ObsNormalizationNetwork')
 
-    self._predict_net = encoding_network.EncodingNetwork(
+    self._predict_net = encoding_network(
         input_tensor_spec=time_step_spec.observation,
         preprocessing_layers=feature_extractor_layer,
         preprocessing_combiner=tf.keras.layers.Concatenate(),

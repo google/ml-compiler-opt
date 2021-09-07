@@ -146,7 +146,7 @@ class InliningRunnerTest(tf.test.TestCase):
         returncode=1, cmd='error')
     inliner = inlining_runner.InliningRunner('', '')
 
-    with self.assertRaisesRegexp(subprocess.CalledProcessError, 'error'):
+    with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _, _ = inliner.collect_data(
           file_paths=('bc', 'cmd'),
           tf_policy_path='policy_path',

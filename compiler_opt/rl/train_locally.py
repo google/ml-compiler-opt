@@ -25,6 +25,7 @@ import gin
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
+from compiler_opt.rl import config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import inlining_runner
@@ -55,9 +56,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(get_signature_spec_fn=None,
-               get_preprocessing_layer_creator_fn=None,
-               agent_name='ppo',
+def train_eval(agent_name='ppo',
+               problem_type=None,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_iterations=100,
@@ -69,24 +69,29 @@ def train_eval(get_signature_spec_fn=None,
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
 
+  time_step_spec, action_spec = config.get_signature_spec(
+      problem_type)
+  preprocessing_layer_creator = config.get_preprocessing_layer_creator(
+      problem_type)
+
   # Initialize trainer and policy saver.
-  time_step_spec, action_spec = get_signature_spec_fn()
-  preprocessing_layer_creator = get_preprocessing_layer_creator_fn()
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
                                          action_spec,
                                          preprocessing_layer_creator)
   # create the random network distillation object
   random_network_distillation = None
   if use_random_network_distillation:
-    random_network_distillation = random_net_distillation.RandomNetworkDistillation(
-        time_step_spec=time_step_spec,
-        preprocessing_layer_creator=preprocessing_layer_creator)
+    random_network_distillation = (
+        random_net_distillation.RandomNetworkDistillation(
+            time_step_spec=time_step_spec,
+            preprocessing_layer_creator=preprocessing_layer_creator))
 
   llvm_trainer = trainer.Trainer(
       root_dir=root_dir,
       agent=tf_agent,
       random_network_distillation=random_network_distillation,
       warmstart_policy_dir=warmstart_policy_dir)
+
   policy_dict = {
       'saved_policy': tf_agent.policy,
       'saved_collect_policy': tf_agent.collect_policy,
@@ -103,13 +108,15 @@ def train_eval(get_signature_spec_fn=None,
       clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path,
       launcher_path=FLAGS.launcher_path)
 
+  dataset_fn = data_reader.create_sequence_example_dataset_fn(
+      agent_name=agent_name,
+      time_step_spec=time_step_spec,
+      action_spec=action_spec,
+      batch_size=batch_size,
+      train_sequence_length=train_sequence_length)
+
   sequence_example_iterator_fn = (
-      data_reader.create_sequence_example_iterator_fn(
-          agent_name=agent_name,
-          time_step_spec=time_step_spec,
-          action_spec=action_spec,
-          batch_size=batch_size,
-          train_sequence_length=train_sequence_length))
+      lambda seq_ex: iter(dataset_fn(seq_ex).repeat()))
 
   data_collector = local_data_collector.LocalDataCollector(
       file_paths=file_paths,

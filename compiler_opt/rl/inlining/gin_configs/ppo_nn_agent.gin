@@ -4,17 +4,17 @@ import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.inlining.config
 import tf_agents.agents.ppo.ppo_agent
 import tf_agents.networks.actor_distribution_network
+import tf_agents.networks.encoding_network
 
-train_eval.get_signature_spec_fn=@config.get_inlining_signature_spec
-train_eval.get_preprocessing_layer_creator_fn=@config.get_observation_processing_layer_creator
 train_eval.agent_name='ppo'
+train_eval.problem_type = 'inlining'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
 train_eval.num_iterations=300
 train_eval.batch_size=128
 train_eval.train_sequence_length=16
 train_eval.deploy_policy_name='saved_collect_policy'
-train_eval.use_random_network_distillation=True
+train_eval.use_random_network_distillation=False
 
 #######################################
 # Turn on if using train_locally.py
@@ -26,14 +26,15 @@ train_eval.use_stale_results=False
 #######################################
 
 # RandomNetworkDistillation configs
+RandomNetworkDistillation.encoding_network = @encoding_network.EncodingNetwork
 RandomNetworkDistillation.learning_rate = 1e-4
 RandomNetworkDistillation.update_frequency = 2
 RandomNetworkDistillation.fc_layer_params = [32, 128]
 RandomNetworkDistillation.scale = 1
 
-get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
-get_observation_processing_layer_creator.with_sqrt = False
-get_observation_processing_layer_creator.with_z_score_normalization = False
+inlining.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
+inlining.config.get_observation_processing_layer_creator.with_sqrt = False
+inlining.config.get_observation_processing_layer_creator.with_z_score_normalization = False
 
 create_agent.policy_network = @actor_distribution_network.ActorDistributionNetwork
 
