@@ -41,6 +41,7 @@ def get_inlining_signature_spec():
           'edge_count',
           'callsite_height',
           'cost_estimate',
+          'progress',
 
           # Expanded cost features
           'sroa_savings',
