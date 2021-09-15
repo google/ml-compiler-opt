@@ -30,7 +30,8 @@ class RandomNetworkDistillation():
                learning_rate=1e-4,
                update_frequency=4,
                fc_layer_params=(32,),
-               scale=1):
+               initial_intrinsic_reward_scale=1.0,
+               half_decay_steps=10000):
     """Initilization for RandomNetworkDistillation class.
 
     Args:
@@ -42,7 +43,8 @@ class RandomNetworkDistillation():
       update_frequency: the update frequency for the predictor network.
       fc_layer_params: list of fully_connected parameters, where each item is
         the number of units in the layer.
-      scale: the scale of intrinsic reward.
+      initial_intrinsic_reward_scale: the scale of the initial intrinsic reward.
+      half_decay_steps: the steps for intrinsic reward scale to decay by half.
     """
 
     feature_extractor_layer = tf.nest.map_structure(preprocessing_layer_creator,
@@ -68,7 +70,11 @@ class RandomNetworkDistillation():
         tensor_normalizer.StreamingTensorNormalizer(
             tf.TensorSpec([], tf.float32)))
     self._update_frequency = update_frequency
-    self._scale = scale
+    self._decay_scale = tf.keras.optimizers.schedules.ExponentialDecay(
+        initial_intrinsic_reward_scale,
+        decay_steps=half_decay_steps,
+        decay_rate=0.5,
+        staircase=False)
 
     self._global_step = tf.compat.v1.train.get_or_create_global_step()
     self._normalized_intrinsic_reward_mean = tf.keras.metrics.Mean()
@@ -154,6 +160,10 @@ class RandomNetworkDistillation():
           name='data_external_reward_mean',
           data=self._external_reward_mean.result(),
           step=self._global_step)
+      tf.summary.scalar(
+          name='intrinsic_reward_scale',
+          data=self._decay_scale(self._global_step),
+          step=self._global_step)
 
     tf.summary.histogram(
         name='external_reward', data=experience.reward, step=self._global_step)
@@ -180,7 +190,8 @@ class RandomNetworkDistillation():
         experience.observation)
 
     normalized_intrinsic_reward = self._intrinsic_reward_normalizer.normalize(
-        intrinsic_reward, clip_value=0, center_mean=False) * self._scale
+        intrinsic_reward, clip_value=0,
+        center_mean=False) * self._decay_scale(self._global_step)
     self._intrinsic_reward_normalizer.update(intrinsic_reward)
 
     # update the log
