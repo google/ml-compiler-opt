@@ -27,7 +27,7 @@ function on_error {
   # shutdown now
 }
 
-SERVER_PORT=${SERVER_PORT:-9994}
+SERVER_PORT=${SERVER_PORT:-9990}
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
