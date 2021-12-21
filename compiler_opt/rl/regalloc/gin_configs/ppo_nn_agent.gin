@@ -1,4 +1,5 @@
 import gin.tf.external_configurables
+import compiler_opt.rl.constant
 import compiler_opt.rl.constant_value_network
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.regalloc.config
@@ -6,7 +7,7 @@ import compiler_opt.rl.regalloc_network
 import tf_agents.agents.ppo.ppo_agent
 import tf_agents.networks.actor_distribution_network
 
-train_eval.agent_name='ppo'
+train_eval.agent_name=%constant.AgentName.PPO
 train_eval.problem_type='regalloc'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000

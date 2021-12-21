@@ -15,5 +15,16 @@
 
 """Constants for policy training."""
 
+import enum
+import gin
+
 BASE_DIR = 'compiler_opt/rl'
 BASE_MODULE_DIR = 'compiler_opt.rl'
+
+
+@gin.constants_from_enum
+class AgentName(enum.Enum):
+  """Class that enumerates different types of agent names."""
+  BEHAVIORAL_CLONE = 0
+  DQN = 1
+  PPO = 2

@@ -23,6 +23,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 from tf_agents.trajectories import trajectory
 
+from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 
 
@@ -39,7 +40,7 @@ def _define_sequence_example(agent_name, is_action_discrete):
       ).float_list.value.append(1.23)
     example.feature_lists.feature_list['reward'].feature.add(
     ).float_list.value.append(2.3)
-    if agent_name == 'ppo':
+    if agent_name == constant.AgentName.PPO:
       if is_action_discrete:
         example.feature_lists.feature_list[
             'CategoricalProjectionNetwork_logits'].feature.add(
@@ -63,7 +64,7 @@ def _write_tmp_tfrecord(file_path, example, num_examples):
 class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    self._agent_name = 'dqn'
+    self._agent_name = constant.AgentName.DQN
     observation_spec = {
         'feature_key':
             tf.TensorSpec(dtype=tf.int64, shape=(), name='feature_key')
@@ -126,7 +127,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
        data_reader.create_sequence_example_dataset_fn),
       ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
   def test_ppo_policy_info_discrete(self, test_fn):
-    self._agent_name = 'ppo'
+    self._agent_name = constant.AgentName.PPO
 
     example = _define_sequence_example(
         self._agent_name, is_action_discrete=True)
@@ -157,7 +158,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
        data_reader.create_sequence_example_dataset_fn),
       ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
   def test_ppo_policy_info_continuous(self, test_fn):
-    self._agent_name = 'ppo'
+    self._agent_name = constant.AgentName.PPO
 
     example = _define_sequence_example(
         self._agent_name, is_action_discrete=False)

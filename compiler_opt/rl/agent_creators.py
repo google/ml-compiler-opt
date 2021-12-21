@@ -15,7 +15,7 @@
 
 """util function to create a tf_agent."""
 
-from typing import Callable, Text
+from typing import Callable
 
 import gin
 import tensorflow as tf
@@ -26,6 +26,7 @@ from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
 from tf_agents.typing import types
 
+from compiler_opt.rl import constant
 from compiler_opt.rl import constant_value_network
 
 
@@ -83,7 +84,7 @@ def _create_ppo_agent(
 
 @gin.configurable
 def create_agent(
-    agent_name: Text,
+    agent_name: constant.AgentName,
     time_step_spec: types.NestedTensorSpec,
     action_spec: types.NestedTensorSpec,
     preprocessing_layer_creator: Callable[[types.TensorSpec],
@@ -92,7 +93,7 @@ def create_agent(
   """Creates a tfa.agents.TFAgent object.
 
   Args:
-    agent_name: str, name of the agent to create.
+    agent_name: AgentName, enum type of the agent to create.
     time_step_spec: A `TimeStep` spec of the expected time_steps.
     action_spec: A nest of BoundedTensorSpec representing the actions.
     preprocessing_layer_creator: A callable returns feature processing layer
@@ -111,14 +112,14 @@ def create_agent(
   preprocessing_layers = tf.nest.map_structure(
       preprocessing_layer_creator, time_step_spec.observation)
 
-  if agent_name == 'behavioral_cloning':
+  if agent_name == constant.AgentName.BEHAVIORAL_CLONE:
     return _create_behavioral_cloning_agent(time_step_spec, action_spec,
                                             preprocessing_layers,
                                             policy_network)
-  elif agent_name == 'dqn':
+  elif agent_name == constant.AgentName.DQN:
     return _create_dqn_agent(time_step_spec, action_spec,
                              preprocessing_layers, policy_network)
-  elif agent_name == 'ppo':
+  elif agent_name == constant.AgentName.PPO:
     return _create_ppo_agent(time_step_spec, action_spec,
                              preprocessing_layers, policy_network)
   else:

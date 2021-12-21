@@ -22,13 +22,12 @@ from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import trajectory
 from tf_agents.typing import types
 
-
-# TODO(yundi): define enum type for agent_name.
+from compiler_opt.rl import constant
 
 
 def _get_policy_info_parsing_dict(agent_name, action_spec):
   """Function to get parsing dict for policy info."""
-  if agent_name == 'ppo':
+  if agent_name == constant.AgentName.PPO:
     if tensor_spec.is_discrete(action_spec):
       return {
           'CategoricalProjectionNetwork_logits':
@@ -53,13 +52,13 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
   Args:
     parsed_sequence: A dict from feature_name to feature_value parsed from TF
       SequenceExample.
-    agent_name: str, name of the agent.
+    agent_name: AgentName, enum type of the agent.
     action_spec: action spec of the optimization problem.
 
   Returns:
     policy_info: A nested policy_info for given agent.
   """
-  if agent_name == 'ppo':
+  if agent_name == constant.AgentName.PPO:
     if tensor_spec.is_discrete(action_spec):
       policy_info = {
           'dist_params': {
@@ -82,12 +81,12 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
 
 
 def create_parser_fn(
-    agent_name: str, time_step_spec: types.NestedSpec,
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
   Args:
-    agent_name: str, name of the agent.
+    agent_name: AgentName, enum type of the agent.
     time_step_spec: time step spec of the optimization problem.
     action_spec: action spec of the optimization problem.
 
@@ -143,13 +142,13 @@ def create_parser_fn(
 
 
 def create_sequence_example_dataset_fn(
-    agent_name: str, time_step_spec: types.NestedSpec,
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
 ) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   Args:
-    agent_name: str, name of the agent.
+    agent_name: AgentName, enum type of the agent.
     time_step_spec: time step spec of the optimization problem.
     action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
@@ -184,13 +183,13 @@ def create_sequence_example_dataset_fn(
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
 def create_file_dataset_fn(
-    agent_name: str, time_step_spec: types.NestedSpec,
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int,
     input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from files.
 
   Args:
-    agent_name: str, name of the agent.
+    agent_name: AgentName, enum type of the agent.
     time_step_spec: time step spec of the optimization problem.
     action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
@@ -236,13 +235,13 @@ def create_file_dataset_fn(
 
 
 def create_tfrecord_dataset_fn(
-    agent_name: str, time_step_spec: types.NestedSpec,
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
 ) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
   Args:
-    agent_name: str, name of the agent.
+    agent_name: AgentName, enum type of the agent.
     time_step_spec: time step spec of the optimization problem.
     action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.

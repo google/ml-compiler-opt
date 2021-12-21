@@ -26,6 +26,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import config
+from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import inlining_runner
@@ -56,7 +57,7 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name='ppo',
+def train_eval(agent_name=constant.AgentName.PPO,
                problem_type=None,
                warmstart_policy_dir=None,
                num_policy_iterations=0,

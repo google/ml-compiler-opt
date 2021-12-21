@@ -1,11 +1,12 @@
 import gin.tf.external_configurables
+import compiler_opt.rl.constant
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.regalloc.config
 import compiler_opt.rl.regalloc_network
 import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
 import tf_agents.networks.actor_distribution_network
 
-train_eval.agent_name='behavioral_cloning'
+train_eval.agent_name=%constant.AgentName.BEHAVIORAL_CLONE
 train_eval.problem_type='regalloc'
 train_eval.num_iterations=10000
 train_eval.batch_size=64

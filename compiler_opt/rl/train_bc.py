@@ -24,6 +24,7 @@ import gin
 
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import config
+from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import policy_saver
@@ -45,7 +46,7 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name='behavioral_cloning',
+def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
                problem_type=None,
                num_iterations=100,
                batch_size=64,

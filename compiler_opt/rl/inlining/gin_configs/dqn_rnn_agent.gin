@@ -1,10 +1,11 @@
 import gin.tf.external_configurables
+import compiler_opt.rl.constant
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.inlining.config
 import tf_agents.agents.dqn.dqn_agent
 import tf_agents.networks.q_rnn_network
 
-train_eval.agent_name='dqn'
+train_eval.agent_name=%constant.AgentName.DQN
 train_eval.problem_type='inlining'
 train_eval.num_iterations=100000
 train_eval.batch_size=128
