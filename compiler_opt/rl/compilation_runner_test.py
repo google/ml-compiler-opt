@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for compiler_opt.rl.inlining_runner."""
+"""Tests for compiler_opt.rl.compilation_runner."""
 
 import string
 import subprocess
@@ -22,14 +22,14 @@ from unittest import mock
 import tensorflow as tf
 
 from google.protobuf import text_format
+from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
-from compiler_opt.rl import inlining_runner
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
 
-_DEFAULT_NATIVE_SIZE = 10
-_POLICY_NATIVE_SIZE = 8
+_DEFAULT_REWARD = 10
+_POLICY_REWARD = 8
 
 
 def _get_sequence_example_with_reward(feature_value, reward):
@@ -68,90 +68,89 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _inlining(file_paths, tf_policy_path, size_only):
+def _mock_compile_fn(file_paths, tf_policy_path, reward_only):
   del file_paths
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
-    native_size = _POLICY_NATIVE_SIZE
+    native_size = _POLICY_REWARD
   else:
     sequence_example = _get_sequence_example(_DEFAULT_FEATURE_VALUE)
-    native_size = _DEFAULT_NATIVE_SIZE
+    native_size = _DEFAULT_REWARD
 
-  if size_only:
+  if reward_only:
     return None, native_size
   else:
     return sequence_example, native_size
 
 
-class InliningRunnerTest(tf.test.TestCase):
+class CompilationRunnerTest(tf.test.TestCase):
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inlining_runner.InliningRunner._run_inlining')
-  def test_policy(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inlining
-    inliner = inlining_runner.InliningRunner('', '')
-
-    example, default_size = inliner.collect_data(
+              '.compilation_runner.CompilationRunner._compile_fn')
+  def test_policy(self, mock_compile_fn):
+    mock_compile_fn.side_effect = _mock_compile_fn
+    runner = compilation_runner.CompilationRunner('', '')
+    example, default_reward = runner.collect_data(
         file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
-        default_policy_size=None)
-    self.assertEqual(2, mock_run_inlining.call_count)
+        default_reward=None)
+    self.assertEqual(2, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _POLICY_FEATURE_VALUE, 0.1999999)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
+    self.assertEqual(_DEFAULT_REWARD, default_reward)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inlining_runner.InliningRunner._run_inlining')
-  def test_default(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inlining
-    inliner = inlining_runner.InliningRunner('', '')
+              '.compilation_runner.CompilationRunner._compile_fn')
+  def test_default(self, mock_compile_fn):
+    mock_compile_fn.side_effect = _mock_compile_fn
+    runner = compilation_runner.CompilationRunner('', '')
 
-    example, default_size = inliner.collect_data(
-        file_paths=('bc', 'cmd'), tf_policy_path='', default_policy_size=None)
+    example, default_reward = runner.collect_data(
+        file_paths=('bc', 'cmd'), tf_policy_path='', default_reward=None)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
-    self.assertEqual(1, mock_run_inlining.call_count)
+    self.assertEqual(1, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _DEFAULT_FEATURE_VALUE, 0)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
+    self.assertEqual(_DEFAULT_REWARD, default_reward)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inlining_runner.InliningRunner._run_inlining')
-  def test_given_default_size(self, mock_run_inlining):
-    mock_run_inlining.side_effect = _inlining
-    inliner = inlining_runner.InliningRunner('', '')
+              '.compilation_runner.CompilationRunner._compile_fn')
+  def test_given_default_size(self, mock_compile_fn):
+    mock_compile_fn.side_effect = _mock_compile_fn
+    runner = compilation_runner.CompilationRunner('', '')
 
-    example, default_size = inliner.collect_data(
+    example, default_reward = runner.collect_data(
         file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
-        default_policy_size=_DEFAULT_NATIVE_SIZE)
-    self.assertEqual(1, mock_run_inlining.call_count)
+        default_reward=_DEFAULT_REWARD)
+    self.assertEqual(1, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _POLICY_FEATURE_VALUE, 0.1999999)
     self.assertProtoEquals(expected_example,
                            tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_NATIVE_SIZE, default_size)
+    self.assertEqual(_DEFAULT_REWARD, default_reward)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.inlining_runner.InliningRunner._run_inlining')
-  def test_exception_handling(self, mock_run_inlining):
-    mock_run_inlining.side_effect = subprocess.CalledProcessError(
+              '.compilation_runner.CompilationRunner._compile_fn')
+  def test_exception_handling(self, mock_compile_fn):
+    mock_compile_fn.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')
-    inliner = inlining_runner.InliningRunner('', '')
+    runner = compilation_runner.CompilationRunner('', '')
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
-      _, _ = inliner.collect_data(
+      _, _ = runner.collect_data(
           file_paths=('bc', 'cmd'),
           tf_policy_path='policy_path',
-          default_policy_size=None)
-    self.assertEqual(1, mock_run_inlining.call_count)
+          default_reward=None)
+    self.assertEqual(1, mock_compile_fn.call_count)
 
 
 if __name__ == '__main__':

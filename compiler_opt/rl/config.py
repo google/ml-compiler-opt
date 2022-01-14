@@ -20,11 +20,17 @@ from typing import Callable, Text, Tuple
 import tensorflow as tf
 import tf_agents as tfa
 
+from compiler_opt.rl import compilation_runner
+
 from compiler_opt.rl.inlining import config as inlining_config
+from compiler_opt.rl.inlining import inlining_runner
 from compiler_opt.rl.regalloc import config as regalloc_config
 
 
 types = tfa.typing.types
+
+# TODO(b/214316645): get rid of the if-else statement by defining a class for
+# each problem type instead.
 
 
 def get_signature_spec(
@@ -47,5 +53,19 @@ def get_preprocessing_layer_creator(
     return inlining_config.get_observation_processing_layer_creator()
   elif problem_type == 'regalloc':
     return regalloc_config.get_observation_processing_layer_creator()
+  else:
+    raise ValueError('Unknown problem_type: {}'.format(problem_type))
+
+
+def get_compilation_runner(
+    problem_type: str, clang_path: str, llvm_size_path: str,
+    launcher_path: str) -> compilation_runner.CompilationRunner:
+  """Gets the compile function for the given problem type."""
+  if problem_type == 'inlining':
+    return inlining_runner.InliningRunner(clang_path, llvm_size_path,
+                                          launcher_path)
+  elif problem_type == 'regalloc':
+    # TODO(yundi): add in the next cl.
+    raise ValueError('RegAlloc Compile Function not Supported.')
   else:
     raise ValueError('Unknown problem_type: {}'.format(problem_type))

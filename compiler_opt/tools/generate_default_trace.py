@@ -26,7 +26,7 @@ from absl import logging
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt.rl import inlining_runner
+from compiler_opt.rl.inlining import inlining_runner
 
 flags.DEFINE_string('data_path', None, 'Path to folder containing IR files.')
 flags.DEFINE_string('output_path', None, 'Path to the output tfrecord file.')

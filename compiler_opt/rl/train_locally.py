@@ -29,7 +29,6 @@ from compiler_opt.rl import config
 from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
-from compiler_opt.rl import inlining_runner
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import random_net_distillation
@@ -105,9 +104,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
     ]
     file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
 
-  runner = inlining_runner.InliningRunner(
-      clang_path=FLAGS.clang_path, llvm_size_path=FLAGS.llvm_size_path,
-      launcher_path=FLAGS.launcher_path)
+  runner = config.get_compilation_runner(problem_type, FLAGS.clang_path,
+                                         FLAGS.llvm_size_path,
+                                         FLAGS.launcher_path)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,

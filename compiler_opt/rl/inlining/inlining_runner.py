@@ -20,10 +20,13 @@ import os
 import subprocess
 import tempfile
 
+from typing import Tuple
+
 import tensorflow as tf
 
 from google.protobuf import message
 from google.protobuf import text_format
+from compiler_opt.rl import compilation_runner
 
 # TODO(mtrofin): maybe the deadline is a requirement for plugins (such as the
 # inliner) and the data collector expects and uses it to define its own? This
@@ -32,13 +35,13 @@ from google.protobuf import text_format
 _DEADLINE_IN_SECONDS = 60
 
 
-class InliningRunner(object):
+class InliningRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for inlining-for-size.
 
   Usage:
   inliner = InliningRunner(clang_path, llvm_size_path)
-  serialized_sequence_example, default_policy_size = inliner.collect_data(
-      ir_path, tf_policy_path, default_policy_size)
+  serialized_sequence_example, default_reward = inliner.collect_data(
+      ir_path, tf_policy_path, default_reward)
   """
 
   def __init__(self, clang_path, llvm_size_path, launcher_path=None):
@@ -49,61 +52,19 @@ class InliningRunner(object):
       llvm_size_path: path to the llvm-size binary.
       launcher_path: path to the launcher binary.
     """
-    self._clang_path = clang_path
-    self._llvm_size_path = llvm_size_path
-    self._launcher_path = launcher_path
+    super().__init__(
+        clang_path=clang_path,
+        llvm_size_path=llvm_size_path,
+        launcher_path=launcher_path)
 
-  def collect_data(self, file_paths, tf_policy_path, default_policy_size):
-    """Collect data for the given IR file and policy.
-
-    Args:
-      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
-      tf_policy_path: path to the inlining policy.
-      default_policy_size: native size under default inlining, None if unknown.
-
-    Returns:
-      A tuple containing:
-        sequence_example: A serialized tf.SequenceExample proto.
-        default_policy_size: Native size under default inlining policy.
-
-    Raises:
-      subprocess.CalledProcessError if process fails.
-    """
-    try:
-      if default_policy_size is None:
-        default_sequence_example, default_policy_size = self._run_inlining(
-            file_paths, tf_policy_path='', size_only=bool(tf_policy_path))
-
-      # Return empty example if the default policy size is 0 since it is a data
-      # only module and we can do nothing about it.
-      if default_policy_size == 0:
-        return (tf.train.SequenceExample().SerializeToString(),
-                default_policy_size)
-
-      if tf_policy_path:
-        sequence_example, native_size = self._run_inlining(
-            file_paths, tf_policy_path, size_only=False)
-      else:
-        (sequence_example, native_size) = (default_sequence_example,
-                                           default_policy_size)
-    except subprocess.CalledProcessError as e:
-      raise e
-
-    if not sequence_example.HasField('feature_lists'):
-      return tf.train.SequenceExample().SerializeToString(), default_policy_size
-
-    sequence_example = self._postprocessing_sequence_example(
-        sequence_example, default_policy_size, native_size)
-
-    return sequence_example.SerializeToString(), default_policy_size
-
-  def _run_inlining(self, file_paths, tf_policy_path, size_only):
+  def _compile_fn(self, file_paths: Tuple[str, str], tf_policy_path: str,
+                  reward_only: bool) -> Tuple[tf.train.SequenceExample, float]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
       file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
       tf_policy_path: path to TF policy direcoty on local disk.
-      size_only: whether only return native size.
+      reward_only: whether only return native size.
 
     Returns:
       A tuple containing:
@@ -145,13 +106,13 @@ class InliningRunner(object):
       tmp = tmp[1].split('\t')
       native_size = int(tmp[0])
 
-      if size_only:
+      if reward_only:
         return None, native_size
 
       # Temporarily try and support text protobuf. We don't want to penalize the
       # binary case, so we try it first.
+      sequence_example = tf.train.SequenceExample()
       try:
-        sequence_example = tf.train.SequenceExample()
         with io.open(log_path, 'rb') as f:
           sequence_example.ParseFromString(f.read())
       except message.DecodeError:
@@ -164,32 +125,3 @@ class InliningRunner(object):
       tf.io.gfile.rmtree(working_dir)
 
     return sequence_example, native_size
-
-  def _postprocessing_sequence_example(self, sequence_example,
-                                       default_policy_size, tf_policy_size):
-    """Post-processing of the trace (sequence_example).
-
-    It computes the ratio of the native size shrinkage of the TF policy inlining
-    compared with the default inlining, and uses this ratio as the whole
-    trajectory reward to overwrite the original reward after each action.
-
-    Args:
-      sequence_example: A tf.SequenceExample proto describing inlining trace.
-      default_policy_size: The native size under default inlining.
-      tf_policy_size: The native size under the TF policy inlining.
-
-    Returns:
-      The tf.SequenceExample proto after post-processing.
-    """
-    reward = 1 - tf_policy_size / default_policy_size
-
-    sequence_length = len(
-        next(iter(
-            sequence_example.feature_lists.feature_list.values())).feature)
-
-    reward_list = sequence_example.feature_lists.feature_list['reward']
-    for _ in range(sequence_length):
-      added_feature = reward_list.feature.add()
-      added_feature.float_list.value.append(reward)
-
-    return sequence_example
