@@ -17,7 +17,7 @@
 
 import collections
 import random
-from typing import Callable, Iterator, List, Tuple, Iterable, Dict
+from typing import Callable, Dict, Iterable, Iterator, List, Tuple
 
 from absl import logging
 from tf_agents.system import system_multiprocessing as multiprocessing
@@ -25,15 +25,6 @@ from tf_agents.trajectories import trajectory
 
 from compiler_opt.rl import data_collector
 
-# Deadline for data collection.
-_DEADLINE_IN_SECONDS = 120
-
-# We don't wait for all data collection to finish --- it continues if either of
-# the wait_termination_conditions is met.
-# (0.8, 0.5) means it won't wait for more data collection to finish if 80% of
-# the data collection have finished and it has waited 50% of
-# _DEADLINE_IN_SECONDS time.
-_WAIT_TERMINATION = ((0.98, 0), (0.95, 0.25), (0.9, 0.5), (0, 1))
 
 # How much work is allowed to be unfinished, relative to number of tasks
 # requested in a data collection session, before we stop accepting new work and
@@ -108,15 +99,14 @@ class LocalDataCollector(data_collector.DataCollector):
         training.
       A dict of extra monitoring information, e.g., how many modules succeeded.
       They will be reported using `tf.scalar.summary` by the trainer so these
-      information is viewable in Tensorboard.
+      information is viewable in TensorBoard.
     """
     sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
     results = self._schedule_jobs(policy_path, sampled_file_paths)
 
     def wait_for_termination():
-      early_exit = data_collector.EarlyExitChecker(_DEADLINE_IN_SECONDS,
-                                                   _WAIT_TERMINATION,
-                                                   self._num_modules)
+      early_exit = data_collector.EarlyExitChecker(
+          num_modules=self._num_modules)
 
       def get_num_finished_work():
         finished_work = sum(res.ready() for res in results)

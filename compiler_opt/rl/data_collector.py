@@ -21,6 +21,16 @@ import time
 from typing import Iterator, Tuple, Dict
 from tf_agents.trajectories import trajectory
 
+# Deadline for data collection.
+DEADLINE_IN_SECONDS = 30
+
+# We don't wait for all data collection to finish --- it continues if either of
+# the wait_termination_conditions is met.
+# (0.8, 0.5) means it won't wait for more data collection to finish if 80% of
+# the data collection have finished and it has waited 50% of
+# _DEADLINE_IN_SECONDS time.
+WAIT_TERMINATION = ((0.9, 0), (0.8, 0.5), (0, 1))
+
 
 class DataCollector(metaclass=abc.ABCMeta):
   """Abstract class for data collection."""
@@ -39,7 +49,7 @@ class DataCollector(metaclass=abc.ABCMeta):
         training.
       A dict of extra monitoring information, e.g., how many modules succeeded.
       They will be reported using `tf.scalar.summary` by the trainer so these
-      information is viewable in Tensorboard.
+      information is viewable in TensorBoard.
     """
 
   @abc.abstractmethod
@@ -55,19 +65,22 @@ class DataCollector(metaclass=abc.ABCMeta):
 class EarlyExitChecker:
   """Class which checks if it is ok to early-exit from data collection."""
 
-  def __init__(self, deadline, thresholds, num_modules):
-    """Initialize the early exit checker.
+  def __init__(self,
+               num_modules: int,
+               deadline: float = DEADLINE_IN_SECONDS,
+               thresholds: Tuple[Tuple[float, float], ...] = WAIT_TERMINATION):
+    """Initializes the early exit checker.
 
     Args:
+      num_modules: How many total modules we are waiting for.
       deadline: The deadline for data collection, in seconds.
       thresholds: Early exit thresholds, e.g. [(0.8, 0.5)] means early exit is
         allowable if 80% of data has been collected and we've waited 50% of the
         maximum waiting time.
-      num_modules: How many total modules we are waiting for.
     """
+    self._num_modules = num_modules
     self._deadline = deadline
     self._thresholds = thresholds
-    self._num_modules = num_modules
     self._start_time = time.time()
     self._waited_time = 0
 

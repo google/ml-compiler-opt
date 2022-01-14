@@ -38,8 +38,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     def create_test_iterator_fn():
       def _test_iterator_fn(data_list):
-        assert data_list in ([1] * 10, [2] * 10)
-        if data_list == [1] * 10:
+        assert data_list in ([1] * 9, [2] * 9)
+        if data_list == [1] * 9:
           return iter(tf.data.Dataset.from_tensor_slices([1, 2, 3]))
         else:
           return iter(tf.data.Dataset.from_tensor_slices([4, 5, 6]))
@@ -49,20 +49,20 @@ class LocalDataCollectorTest(tf.test.TestCase):
     collector = local_data_collector.LocalDataCollector(
         file_paths=[('a', 'b')] * 100,
         num_workers=4,
-        num_modules=10,
+        num_modules=9,
         runner=mock_compilation_runner,
         parser=create_test_iterator_fn())
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([1, 2, 3], data)
-    expected_monitor_dict = {'default': {'success_modules': 10}}
+    expected_monitor_dict = {'default': {'success_modules': 9}}
     self.assertEqual(expected_monitor_dict, monitor_dict)
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([4, 5, 6], data)
-    expected_monitor_dict = {'default': {'success_modules': 10}}
+    expected_monitor_dict = {'default': {'success_modules': 9}}
     self.assertEqual(expected_monitor_dict, monitor_dict)
 
     collector.close_pool()
