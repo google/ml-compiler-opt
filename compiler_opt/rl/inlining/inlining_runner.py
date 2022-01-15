@@ -15,7 +15,6 @@
 
 """Module for collect data of inlining-for-size."""
 
-import io
 import os
 import subprocess
 import tempfile
@@ -24,8 +23,6 @@ from typing import Tuple
 
 import tensorflow as tf
 
-from google.protobuf import message
-from google.protobuf import text_format
 from compiler_opt.rl import compilation_runner
 
 # TODO(mtrofin): maybe the deadline is a requirement for plugins (such as the
@@ -112,12 +109,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
       # Temporarily try and support text protobuf. We don't want to penalize the
       # binary case, so we try it first.
       sequence_example = tf.train.SequenceExample()
-      try:
-        with io.open(log_path, 'rb') as f:
-          sequence_example.ParseFromString(f.read())
-      except message.DecodeError:
-        with io.open(log_path, 'r') as f:
-          sequence_example = text_format.MergeLines(f, sequence_example)
+      sequence_example.ParseFromString(f.read())
 
     except (subprocess.CalledProcessError, tf.errors.OpError) as e:
       raise e
