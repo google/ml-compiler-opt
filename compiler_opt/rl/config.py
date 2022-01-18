@@ -58,12 +58,13 @@ def get_preprocessing_layer_creator(
 
 
 def get_compilation_runner(
-    problem_type: str, clang_path: str, llvm_size_path: str,
-    launcher_path: str) -> compilation_runner.CompilationRunner:
+    problem_type: str, clang_path: str, llvm_size_path: str, launcher_path: str,
+    moving_average_decay_rate: float) -> compilation_runner.CompilationRunner:
   """Gets the compile function for the given problem type."""
   if problem_type == 'inlining':
     return inlining_runner.InliningRunner(clang_path, llvm_size_path,
-                                          launcher_path)
+                                          launcher_path,
+                                          moving_average_decay_rate)
   elif problem_type == 'regalloc':
     # TODO(yundi): add in the next cl.
     raise ValueError('RegAlloc Compile Function not Supported.')

@@ -36,23 +36,13 @@ class InliningRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for inlining-for-size.
 
   Usage:
-  inliner = InliningRunner(clang_path, llvm_size_path)
-  serialized_sequence_example, default_reward = inliner.collect_data(
-      ir_path, tf_policy_path, default_reward)
+  inliner = InliningRunner(
+                clang_path, llvm_size_path, launcher_path,
+                moving_average_decay_rate)
+  serialized_sequence_example, default_reward, moving_average_reward,
+  policy_reward = inliner.collect_data(
+      ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
-
-  def __init__(self, clang_path, llvm_size_path, launcher_path=None):
-    """Initialization of InliningRunner class.
-
-    Args:
-      clang_path: path to the clang binary.
-      llvm_size_path: path to the llvm-size binary.
-      launcher_path: path to the launcher binary.
-    """
-    super().__init__(
-        clang_path=clang_path,
-        llvm_size_path=llvm_size_path,
-        launcher_path=launcher_path)
 
   def _compile_fn(self, file_paths: Tuple[str, str], tf_policy_path: str,
                   reward_only: bool) -> Tuple[tf.train.SequenceExample, float]:

@@ -27,14 +27,16 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
 
-    def mock_compilation_runner(file_paths, tf_policy_dir, default_policy_size):
+    def mock_collect_data(file_paths, tf_policy_dir, default_policy_size,
+                          moving_average_size):
+      del moving_average_size
       assert file_paths == ('a', 'b')
       assert tf_policy_dir == 'policy'
       assert default_policy_size is None or default_policy_size == 1
       if default_policy_size is None:
-        return 1, 1
+        return 1, 1, 2, 3
       else:
-        return 2, 1
+        return 2, 1, 2, 3
 
     def create_test_iterator_fn():
       def _test_iterator_fn(data_list):
@@ -47,10 +49,10 @@ class LocalDataCollectorTest(tf.test.TestCase):
       return _test_iterator_fn
 
     collector = local_data_collector.LocalDataCollector(
-        file_paths=[('a', 'b')] * 100,
+        file_paths=tuple([('a', 'b')] * 100),
         num_workers=4,
         num_modules=9,
-        runner=mock_compilation_runner,
+        runner=mock_collect_data,
         parser=create_test_iterator_fn())
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
@@ -83,8 +85,9 @@ class LocalDataCollectorTest(tf.test.TestCase):
     def long_running_collector(file_path, *_):
       _, t = file_path.split('_')
       # avoid lint warnings
-      time.sleep(int(t))
-      return file_path, file_path
+      t = int(t)
+      time.sleep(t)
+      return file_path, t, t, t
 
     def parser(data_list):
       assert data_list
