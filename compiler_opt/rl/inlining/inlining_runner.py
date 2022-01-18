@@ -15,6 +15,7 @@
 
 """Module for collect data of inlining-for-size."""
 
+import io
 import os
 import subprocess
 import tempfile
@@ -70,6 +71,8 @@ class InliningRunner(compilation_runner.CompilationRunner):
     with open(cmd_path) as f:
       cmds = f.read().split('\0')
 
+    sequence_example = tf.train.SequenceExample()
+    native_size = 0
     try:
       command_line = []
       if self._launcher_path:
@@ -96,10 +99,8 @@ class InliningRunner(compilation_runner.CompilationRunner):
       if reward_only:
         return None, native_size
 
-      # Temporarily try and support text protobuf. We don't want to penalize the
-      # binary case, so we try it first.
-      sequence_example = tf.train.SequenceExample()
-      sequence_example.ParseFromString(f.read())
+      with io.open(log_path, 'rb') as f:
+        sequence_example.ParseFromString(f.read())
 
     except (subprocess.CalledProcessError, tf.errors.OpError) as e:
       raise e
