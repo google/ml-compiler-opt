@@ -17,8 +17,9 @@
 
 import abc
 import time
+from typing import Dict, Iterator, Tuple, Sequence
 
-from typing import Iterator, Tuple, Dict
+import numpy as np
 from tf_agents.trajectories import trajectory
 
 # Deadline for data collection.
@@ -30,6 +31,21 @@ DEADLINE_IN_SECONDS = 30
 # the data collection have finished and it has waited 50% of
 # _DEADLINE_IN_SECONDS time.
 WAIT_TERMINATION = ((0.9, 0), (0.8, 0.5), (0, 1))
+
+DELTA = 0.01
+
+REWARD_QUANTILE_MONITOR = (0.1, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, 50,
+                           60, 70, 80, 90, 95, 99, 99.5, 99.9)
+
+
+def build_distribution_monitor(data: Sequence[float]) -> Dict[str, float]:
+  quantiles = np.percentile(
+      data, REWARD_QUANTILE_MONITOR, interpolation='lower')
+  monitor_dict = {
+      f'p_{x}': y for (x, y) in zip(REWARD_QUANTILE_MONITOR, quantiles)
+  }
+  monitor_dict['mean'] = np.mean(data)
+  return monitor_dict
 
 
 class DataCollector(metaclass=abc.ABCMeta):

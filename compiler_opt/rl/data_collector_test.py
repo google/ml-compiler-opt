@@ -24,6 +24,11 @@ from compiler_opt.rl import data_collector
 
 class DataCollectorTest(absltest.TestCase):
 
+  def test_build_distribution_monitor(self):
+    data = [3, 2, 1]
+    monitor_dict = data_collector.build_distribution_monitor(data)
+    self.assertDictContainsSubset({'mean': 2, 'p_0.1': 1}, monitor_dict)
+
   @mock.patch('time.time')
   def test_early_exit(self, mock_time):
     mock_time.return_value = 0

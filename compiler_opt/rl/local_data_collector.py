@@ -165,6 +165,13 @@ class LocalDataCollector(data_collector.DataCollector):
 
     monitor_dict = {}
     monitor_dict['default'] = {'success_modules': len(finished_work)}
+    rewards = [
+        1 - (res.get()[3] + data_collector.DELTA) /
+        (res.get()[1] + data_collector.DELTA) for (_, res) in successful_work
+    ]
+    monitor_dict[
+        'reward_distribution'] = data_collector.build_distribution_monitor(
+            rewards)
 
     return self._parser(sequence_examples), monitor_dict
 
