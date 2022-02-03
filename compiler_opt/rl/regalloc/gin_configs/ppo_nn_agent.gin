@@ -11,8 +11,8 @@ train_eval.agent_name=%constant.AgentName.PPO
 train_eval.problem_type='regalloc'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
-train_eval.num_iterations=300
-train_eval.batch_size=128
+train_eval.num_iterations=200
+train_eval.batch_size=256
 train_eval.train_sequence_length=16
 train_eval.deploy_policy_name='saved_collect_policy'
 train_eval.moving_average_decay_rate=0.8
@@ -35,8 +35,8 @@ RandomNetworkDistillation.initial_intrinsic_reward_scale = 1.0
 RandomNetworkDistillation.half_decay_steps = 10000
 
 regalloc.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/regalloc/vocab'
-regalloc.config.get_observation_processing_layer_creator.with_sqrt = True
-regalloc.config.get_observation_processing_layer_creator.with_z_score_normalization = True
+regalloc.config.get_observation_processing_layer_creator.with_sqrt = False
+regalloc.config.get_observation_processing_layer_creator.with_z_score_normalization = False
 
 create_agent.policy_network = @regalloc_network.RegAllocNetwork
 
@@ -47,15 +47,15 @@ RegAllocNetwork.activation_fn=@tf.keras.activations.relu
 
 ConstantValueNetwork.constant_output_val=0
 
-tf.train.AdamOptimizer.learning_rate = 0.00003
+tf.train.AdamOptimizer.learning_rate = 0.0003
 tf.train.AdamOptimizer.epsilon = 0.0003125
 
 PPOAgent.optimizer = @tf.train.AdamOptimizer()
 PPOAgent.importance_ratio_clipping = 0.2
 PPOAgent.lambda_value = 0.0
 PPOAgent.discount_factor = 0.0
-PPOAgent.entropy_regularization = 0.003
-PPOAgent.policy_l2_reg = 0.000001
+PPOAgent.entropy_regularization = 0.005
+PPOAgent.policy_l2_reg = 0.00001
 PPOAgent.value_function_l2_reg = 0.0
 PPOAgent.shared_vars_l2_reg = 0.0
 PPOAgent.value_pred_loss_coef = 0.0
