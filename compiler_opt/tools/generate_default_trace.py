@@ -67,7 +67,7 @@ def worker(runner, work_queue: queue.Queue, results_queue: queue.Queue):
     except queue.Empty:
       return
     try:
-      record = runner.collect_data(module_triple, '', None)
+      record = runner.collect_data(module_triple, '', None, None)
       results_queue.put((module_triple, record))
     except:  # pylint: disable=bare-except
       logging.error('Failed to compile %s.', module_triple)
