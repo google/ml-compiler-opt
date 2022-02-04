@@ -26,7 +26,6 @@ import tensorflow as tf
 # Activation function.
 config.external_configurable(tf.keras.activations.relu,
                              'tf.keras.activations.relu')
-config.external_configurable(tf.nn.relu6, 'tf.nn.relu6')
 
 # Layers
 config.external_configurable(tf.keras.layers.Add, 'tf.keras.layers.Add')
