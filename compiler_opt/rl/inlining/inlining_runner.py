@@ -20,7 +20,7 @@ import os
 import subprocess
 import tempfile
 
-from typing import Tuple
+from typing import Tuple, Dict
 
 import tensorflow as tf
 
@@ -31,6 +31,8 @@ from compiler_opt.rl import compilation_runner
 # would serve as an extra hint to the developer of a new plugin to make sure
 # their long-running tasks have timeouts.
 _DEADLINE_IN_SECONDS = 60
+
+_DEFAULT_IDENTIFIER = 'default'
 
 
 class InliningRunner(compilation_runner.CompilationRunner):
@@ -45,8 +47,9 @@ class InliningRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  def _compile_fn(self, file_paths: Tuple[str, str], tf_policy_path: str,
-                  reward_only: bool) -> Tuple[tf.train.SequenceExample, float]:
+  def _compile_fn(
+      self, file_paths: Tuple[str, str], tf_policy_path: str,
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
@@ -55,8 +58,9 @@ class InliningRunner(compilation_runner.CompilationRunner):
       reward_only: whether only return native size.
 
     Returns:
-      A tuple containing:
-        sequence_example: A tf.SequenceExample proto describing inlining trace.
+      A dict mapping from example identifier to tuple containing:
+        sequence_example: A tf.SequenceExample proto describing compilation
+        trace, None if reward_only == True.
         native_size: Native size of the final native code.
 
     Raises:
@@ -68,8 +72,6 @@ class InliningRunner(compilation_runner.CompilationRunner):
     output_native_path = os.path.join(working_dir, 'native')
 
     input_ir_path, cmd_path = file_paths
-    with open(cmd_path) as f:
-      cmds = f.read().split('\0')
 
     sequence_example = tf.train.SequenceExample()
     native_size = 0
@@ -77,10 +79,13 @@ class InliningRunner(compilation_runner.CompilationRunner):
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] + cmds + [
-          '-mllvm', '-enable-ml-inliner=development', input_ir_path, '-mllvm',
-          '-training-log=' + log_path, '-o', output_native_path
-      ])
+      command_line.extend([self._clang_path] +
+                          compilation_runner.get_command_line_for_bundle(
+                              cmd_path, input_ir_path) + [
+                                  '-mllvm', '-enable-ml-inliner=development',
+                                  '-mllvm', '-training-log=' +
+                                  log_path, '-o', output_native_path
+                              ])
       if tf_policy_path:
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
@@ -96,15 +101,21 @@ class InliningRunner(compilation_runner.CompilationRunner):
       tmp = tmp[1].split('\t')
       native_size = int(tmp[0])
 
+      if native_size == 0:
+        return {}
+
       if reward_only:
-        return None, native_size
+        return {_DEFAULT_IDENTIFIER: (None, native_size)}
 
       with io.open(log_path, 'rb') as f:
         sequence_example.ParseFromString(f.read())
+
+      if not sequence_example.HasField('feature_lists'):
+        return {}
 
     except (subprocess.CalledProcessError, tf.errors.OpError) as e:
       raise e
     finally:
       tf.io.gfile.rmtree(working_dir)
 
-    return sequence_example, native_size
+    return {_DEFAULT_IDENTIFIER: (sequence_example, native_size)}

@@ -32,8 +32,6 @@ DEADLINE_IN_SECONDS = 30
 # _DEADLINE_IN_SECONDS time.
 WAIT_TERMINATION = ((0.9, 0), (0.8, 0.5), (0, 1))
 
-DELTA = 0.01
-
 REWARD_QUANTILE_MONITOR = (0.1, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, 50,
                            60, 70, 80, 90, 95, 99, 99.5, 99.9)
 

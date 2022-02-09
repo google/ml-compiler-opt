@@ -21,6 +21,9 @@ import gin
 BASE_DIR = 'compiler_opt/rl'
 BASE_MODULE_DIR = 'compiler_opt.rl'
 
+# Delta to add when computing reward.
+DELTA = 0.01
+
 
 @gin.constants_from_enum
 class AgentName(enum.Enum):

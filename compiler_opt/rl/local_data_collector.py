@@ -16,13 +16,15 @@
 """Module for collecting data locally."""
 
 import collections
+import itertools
 import random
-from typing import Callable, Dict, Iterator, List, Tuple, Optional
+from typing import Callable, Dict, Iterator, List, Optional, Tuple
 
 from absl import logging
 from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.trajectories import trajectory
 
+from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
 
 
@@ -40,17 +42,16 @@ def default_overload_handler(total_unfinished_work):
 class LocalDataCollector(data_collector.DataCollector):
   """class for local data collection."""
 
-  def __init__(
-      self,
-      file_paths: Tuple[Tuple[str, ...], ...],
-      num_workers: int,
-      num_modules: int,
-      runner: Callable[[Tuple[str, ...], str, Optional[float], Optional[float]],
-                       Tuple[str, float, float, float]],
-      parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
-      use_stale_results: bool = False,
-      max_unfinished_tasks: Optional[int] = None,
-      overload_handler: Callable[[int], None] = default_overload_handler):
+  def __init__(self,
+               file_paths: Tuple[Tuple[str, ...], ...],
+               num_workers: int,
+               num_modules: int,
+               runner: compilation_runner.CompilationRunner,
+               parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
+               use_stale_results: bool = False,
+               max_unfinished_tasks: Optional[int] = None,
+               overload_handler: Callable[[int],
+                                          None] = default_overload_handler):
     super(LocalDataCollector, self).__init__()
 
     self._file_paths = file_paths
@@ -66,8 +67,7 @@ class LocalDataCollector(data_collector.DataCollector):
       self._max_unfinished_tasks = _UNFINISHED_WORK_RATIO * num_modules
     self._use_stale_results = use_stale_results
 
-    self._default_policy_size_map = collections.defaultdict(lambda: None)
-    self._moving_average_size_map = collections.defaultdict(lambda: None)
+    self._reward_stat_map = collections.defaultdict(lambda: None)
     self._overloaded_workers_handler = overload_handler
 
   def close_pool(self):
@@ -85,10 +85,11 @@ class LocalDataCollector(data_collector.DataCollector):
     return self._unfinished_work
 
   def _schedule_jobs(self, policy_path, sampled_file_paths):
-    jobs = [(file_paths, policy_path, self._default_policy_size_map[file_paths],
-             self._moving_average_size_map[file_paths])
+    jobs = [(file_paths, policy_path, self._reward_stat_map[file_paths])
             for file_paths in sampled_file_paths]
-    return [self._pool.apply_async(self._runner, job) for job in jobs]
+    return [
+        self._pool.apply_async(self._runner.collect_data, job) for job in jobs
+    ]
 
   def collect_data(
       self, policy_path: str
@@ -154,21 +155,17 @@ class LocalDataCollector(data_collector.DataCollector):
                    len(stale_results), len(successful_work))
       successful_work += stale_results
 
-    successful_work = [
-        (paths, res) for paths, res in successful_work if res.get()[0]
-    ]
-    sequence_examples = [res.get()[0] for (_, res) in successful_work]
-    self._default_policy_size_map.update(
+    sequence_examples = list(
+        itertools.chain.from_iterable(
+            [res.get()[0] for (_, res) in successful_work]))
+    self._reward_stat_map.update(
         {file_paths: res.get()[1] for (file_paths, res) in successful_work})
-    self._moving_average_size_map.update(
-        {file_paths: res.get()[2] for (file_paths, res) in successful_work})
 
     monitor_dict = {}
     monitor_dict['default'] = {'success_modules': len(finished_work)}
-    rewards = [
-        1 - (res.get()[3] + data_collector.DELTA) /
-        (res.get()[1] + data_collector.DELTA) for (_, res) in successful_work
-    ]
+    rewards = list(
+        itertools.chain.from_iterable(
+            [res.get()[2] for (_, res) in successful_work]))
     monitor_dict[
         'reward_distribution'] = data_collector.build_distribution_monitor(
             rewards)

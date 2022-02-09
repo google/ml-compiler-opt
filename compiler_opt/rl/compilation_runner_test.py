@@ -80,12 +80,19 @@ def _mock_compile_fn(file_paths, tf_policy_path, reward_only):
     native_size = _DEFAULT_REWARD
 
   if reward_only:
-    return None, native_size
+    return {'default': (None, native_size)}
   else:
-    return sequence_example, native_size
+    return {'default': (sequence_example, native_size)}
 
 
 class CompilationRunnerTest(tf.test.TestCase):
+
+  def assertListProtoEqual(self, a, b):
+    self.assertEqual(len(a), len(b))
+    a.sort()
+    b.sort()
+    for (x, y) in zip(a, b):
+      self.assertProtoEquals(x, y)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner._compile_fn')
@@ -93,22 +100,27 @@ class CompilationRunnerTest(tf.test.TestCase):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner('', '', '',
                                                   _MOVING_AVERAGE_DECAY_RATE)
-    example, default_reward, moving_average_reward, policy_reward = runner.collect_data(
+    example, reward_stat, rewards = runner.collect_data(
         file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
-        default_reward=None,
-        moving_average_reward=None)
+        reward_stat=None)
     self.assertEqual(2, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _POLICY_FEATURE_VALUE, 0.1999999)
-    self.assertProtoEquals(expected_example,
-                           tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_REWARD, default_reward)
-    self.assertEqual(
-        _DEFAULT_REWARD * _MOVING_AVERAGE_DECAY_RATE + _POLICY_REWARD *
-        (1 - _MOVING_AVERAGE_DECAY_RATE), moving_average_reward)
-    self.assertEqual(_POLICY_REWARD, policy_reward)
+    self.assertListProtoEqual(
+        [expected_example],
+        [tf.train.SequenceExample.FromString(x) for x in example])
+    self.assertCountEqual(
+        {
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=_DEFAULT_REWARD,
+                    moving_average_reward=_DEFAULT_REWARD *
+                    _MOVING_AVERAGE_DECAY_RATE + _POLICY_REWARD *
+                    (1 - _MOVING_AVERAGE_DECAY_RATE))
+        }, reward_stat)
+    self.assertAllClose([0.1998002], rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner._compile_fn')
@@ -117,22 +129,25 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner('', '', '',
                                                   _MOVING_AVERAGE_DECAY_RATE)
 
-    example, default_reward, moving_average_reward, policy_reward = runner.collect_data(
-        file_paths=('bc', 'cmd'),
-        tf_policy_path='',
-        default_reward=None,
-        moving_average_reward=None)
+    example, reward_stat, rewards = runner.collect_data(
+        file_paths=('bc', 'cmd'), tf_policy_path='', reward_stat=None)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
     self.assertEqual(1, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _DEFAULT_FEATURE_VALUE, 0)
-    self.assertProtoEquals(expected_example,
-                           tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_REWARD, default_reward)
-    self.assertEqual(_DEFAULT_REWARD, moving_average_reward)
-    self.assertEqual(_DEFAULT_REWARD, policy_reward)
+    self.assertListProtoEqual(
+        [expected_example],
+        [tf.train.SequenceExample.FromString(x) for x in example])
+    self.assertCountEqual(
+        {
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=_DEFAULT_REWARD,
+                    moving_average_reward=_DEFAULT_REWARD)
+        }, reward_stat)
+    self.assertAllClose([0], rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner._compile_fn')
@@ -141,22 +156,30 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner('', '', '',
                                                   _MOVING_AVERAGE_DECAY_RATE)
 
-    example, default_reward, moving_average_reward, policy_reward = runner.collect_data(
+    example, reward_stat, rewards = runner.collect_data(
         file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
-        default_reward=_DEFAULT_REWARD,
-        moving_average_reward=7)
+        reward_stat={
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=_DEFAULT_REWARD, moving_average_reward=7)
+        })
     self.assertEqual(1, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
         _POLICY_FEATURE_VALUE, 1 - _POLICY_REWARD / 7)
-    self.assertProtoEquals(expected_example,
-                           tf.train.SequenceExample.FromString(example))
-    self.assertEqual(_DEFAULT_REWARD, default_reward)
-    self.assertEqual(
-        7 * _MOVING_AVERAGE_DECAY_RATE + _POLICY_REWARD *
-        (1 - _MOVING_AVERAGE_DECAY_RATE), moving_average_reward)
-    self.assertEqual(_POLICY_REWARD, policy_reward)
+    self.assertListProtoEqual(
+        [expected_example],
+        [tf.train.SequenceExample.FromString(x) for x in example])
+    self.assertCountEqual(
+        {
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=_DEFAULT_REWARD,
+                    moving_average_reward=7 * _MOVING_AVERAGE_DECAY_RATE +
+                    _POLICY_REWARD * (1 - _MOVING_AVERAGE_DECAY_RATE))
+        }, reward_stat)
+    self.assertAllClose([0.199800], rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner._compile_fn')
@@ -167,13 +190,27 @@ class CompilationRunnerTest(tf.test.TestCase):
                                                   _MOVING_AVERAGE_DECAY_RATE)
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
-      _, _, _, _ = runner.collect_data(
+      _, _, _ = runner.collect_data(
           file_paths=('bc', 'cmd'),
           tf_policy_path='policy_path',
-          default_reward=None,
-          moving_average_reward=None)
+          reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
 
+  def test_command_line_file(self):
+    data = ['-cc1', '-foo', '-bar=baz']
+    argfile = self.create_tempfile(content='\0'.join(data))
+    self.assertEqual(
+        compilation_runner.get_command_line_for_bundle(argfile.full_path,
+                                                       'my_file.bc'),
+        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
+    self.assertEqual(
+        compilation_runner.get_command_line_for_bundle(argfile.full_path,
+                                                       'my_file.bc',
+                                                       'the_index.bc'),
+        [
+            '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
+            '-fthinlto-index=the_index.bc'
+        ])
 
 if __name__ == '__main__':
   tf.test.main()

@@ -124,7 +124,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       file_paths=file_paths,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
-      runner=runner.collect_data,
+      runner=runner,
       parser=sequence_example_iterator_fn,
       use_stale_results=use_stale_results)
 

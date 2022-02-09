@@ -17,26 +17,43 @@
 
 import time
 
+from unittest import mock
+
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import local_data_collector
 
 
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
+    mock_compilation_runner = mock.create_autospec(
+        compilation_runner.CompilationRunner)
 
-    def mock_collect_data(file_paths, tf_policy_dir, default_policy_size,
-                          moving_average_size):
-      del moving_average_size
+    def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
       assert file_paths == ('a', 'b')
       assert tf_policy_dir == 'policy'
-      assert default_policy_size is None or default_policy_size == 1
-      if default_policy_size is None:
-        return 1, 1, 2, 3
+      assert reward_stat is None or reward_stat == {
+          'default':
+              compilation_runner.RewardStat(
+                  default_reward=1, moving_average_reward=2)
+      }
+      if reward_stat is None:
+        return [1], {
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=1, moving_average_reward=2)
+        }, [1.2]
       else:
-        return 2, 1, 2, 3
+        return [2], {
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=1, moving_average_reward=3)
+        }, [3.4]
+
+    mock_compilation_runner.collect_data = mock_collect_data
 
     def create_test_iterator_fn():
       def _test_iterator_fn(data_list):
@@ -52,7 +69,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
         file_paths=tuple([('a', 'b')] * 100),
         num_workers=4,
         num_modules=9,
-        runner=mock_collect_data,
+        runner=mock_compilation_runner,
         parser=create_test_iterator_fn())
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
@@ -82,12 +99,17 @@ class LocalDataCollectorTest(tf.test.TestCase):
       def handler(self, count):
         self.counts.append(count)
 
-    def long_running_collector(file_path, *_):
+    mock_compilation_runner = mock.create_autospec(
+        compilation_runner.CompilationRunner)
+
+    def mock_collect_data(file_path, *_):
       _, t = file_path.split('_')
       # avoid lint warnings
       t = int(t)
       time.sleep(t)
-      return file_path, t, t, t
+      return file_path, {}, [float(t)]
+
+    mock_compilation_runner.collect_data = mock_collect_data
 
     def parser(data_list):
       assert data_list
@@ -101,7 +123,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
         file_paths=['wait_0' for _ in range(0, 200)],
         num_workers=4,
         num_modules=4,
-        runner=long_running_collector,
+        runner=mock_compilation_runner,
         parser=parser,
         max_unfinished_tasks=2,
         overload_handler=overload_handler.handler)  # pytype: disable=wrong-arg-types

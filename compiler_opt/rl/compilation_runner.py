@@ -15,30 +15,39 @@
 
 """Module for running compilation and collect training data."""
 
+import dataclasses
 import subprocess
-from typing import Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 import tensorflow as tf
 
+from compiler_opt.rl import constant
+
+
+@dataclasses.dataclass
+class RewardStat:
+  default_reward: float
+  moving_average_reward: float
+
 
 def _postprocessing_sequence_example(
-    sequence_example: tf.train.SequenceExample, default_reward: float,
+    sequence_example: tf.train.SequenceExample, moving_average_reward: float,
     policy_reward: float) -> tf.train.SequenceExample:
   """Post-processing of the trace (sequence_example).
 
   It computes the reward ratio change of the TF policy compared with the
-  default policy, and uses this ratio as the whole trajectory reward to
+  moving average reward, and uses this ratio as the whole trajectory reward to
   overwrite the original reward after each action.
 
   Args:
     sequence_example: A tf.SequenceExample proto describing compilation trace.
-    default_reward: The reward under default policy.
+    moving_average_reward: The moving average reward.
     policy_reward: The reward under the TF policy.
 
   Returns:
     The tf.SequenceExample proto after post-processing.
   """
-  reward = 1 - policy_reward / default_reward
+  reward = 1 - policy_reward / moving_average_reward
 
   sequence_length = len(
       next(iter(sequence_example.feature_lists.feature_list.values())).feature)
@@ -49,6 +58,14 @@ def _postprocessing_sequence_example(
     added_feature.float_list.value.append(reward)
 
   return sequence_example
+
+
+def get_command_line_for_bundle(cmd_file: str,
+                                ir_file: str,
+                                thinlto: Optional[str] = None) -> List[str]:
+  with open(cmd_file) as f:
+    return f.read().split('\0') + ['-x', 'ir'] + [ir_file] + (
+        ['-fthinlto-index=' + thinlto] if thinlto else [])
 
 
 class CompilationRunner:
@@ -74,63 +91,67 @@ class CompilationRunner:
 
   def collect_data(
       self, file_paths: Tuple[str, ...], tf_policy_path: str,
-      default_reward: Optional[float], moving_average_reward: Optional[float]
-  ) -> Tuple[str, float, float, float]:
+      reward_stat: Optional[Dict[str, RewardStat]]
+  ) -> Tuple[List[str], Dict[str, RewardStat], List[float]]:
     """Collect data for the given IR file and policy.
 
     Args:
       file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
       tf_policy_path: path to the tensorflow policy.
-      default_reward: reward under default policy, None if unknown.
-      moving_average_reward: moving average reward during training, None if
-                             unknown.
+      reward_stat: reward stat of this module, None if unknown.
 
     Returns:
       A tuple containing:
-        sequence_example: A serialized tf.SequenceExample proto.
-        default_reward: reward under default policy.
-        moving_average_reward: updated moving average reward.
-        policy_reward: reward under the ml policy.
+        sequence_example: A list of serialized tf.SequenceExample proto.
+        reward_stat: Updated reward stat of this module.
+        rewards: rewards under the current ml policy.
 
     Raises:
       subprocess.CalledProcessError if process fails.
+      ValueError if example under default policy and ml policy does not match.
     """
     try:
-      if default_reward is None:
-        default_sequence_example, default_reward = self._compile_fn(
+      if reward_stat is None:
+        default_result = self._compile_fn(
             file_paths, tf_policy_path='', reward_only=bool(tf_policy_path))
-        moving_average_reward = default_reward
-
-      # Return empty example if the default policy size is 0 since it is a data
-      # only module and we can do nothing about it.
-      if default_reward == 0:
-        return '', 0, 0, 0
+        reward_stat = {
+            k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
+        }
 
       if tf_policy_path:
-        sequence_example, policy_reward = self._compile_fn(
+        policy_result = self._compile_fn(
             file_paths, tf_policy_path, reward_only=False)
       else:
-        (sequence_example, policy_reward) = (default_sequence_example,
-                                             default_reward)
+        policy_result = default_result
 
     except subprocess.CalledProcessError as e:
       raise e
 
-    if not sequence_example.HasField('feature_lists'):
-      return '', 0, 0, 0
+    sequence_example_list = []
+    rewards = []
+    for k, v in policy_result.items():
+      sequence_example = v[0]
+      policy_reward = v[1]
+      if k not in reward_stat:
+        raise ValueError(
+            'Example %s does not exist under default policy for module %s' %
+            (k, file_paths[0]))
+      default_reward = reward_stat[k].default_reward
+      moving_average_reward = reward_stat[k].moving_average_reward
+      sequence_example = _postprocessing_sequence_example(
+          sequence_example, moving_average_reward, policy_reward)
+      sequence_example_list.append(sequence_example.SerializeToString())
+      reward_stat[k].moving_average_reward = (
+          moving_average_reward * self._moving_average_decay_rate +
+          policy_reward * (1 - self._moving_average_decay_rate))
+      rewards.append(1 - (policy_reward + constant.DELTA) /
+                     (default_reward + constant.DELTA))
 
-    sequence_example = _postprocessing_sequence_example(sequence_example,
-                                                        moving_average_reward,
-                                                        policy_reward)
-    moving_average_reward = (
-        moving_average_reward * self._moving_average_decay_rate +
-        policy_reward * (1 - self._moving_average_decay_rate))
+    return (sequence_example_list, reward_stat, rewards)
 
-    return (sequence_example.SerializeToString(), default_reward,
-            moving_average_reward, policy_reward)
-
-  def _compile_fn(self, file_paths: Tuple[str, ...], tf_policy_path: str,
-                  reward_only: bool) -> Tuple[tf.train.SequenceExample, float]:
+  def _compile_fn(
+      self, file_paths: Tuple[str, ...], tf_policy_path: str,
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
@@ -139,9 +160,9 @@ class CompilationRunner:
       reward_only: whether only return reward.
 
     Returns:
-      A tuple containing:
+      A dict mapping from example identifier to tuple containing:
         sequence_example: A tf.SequenceExample proto describing compilation
-        trace.
+        trace, None if reward_only == True.
         reward: reward under the policy.
 
     Raises:
