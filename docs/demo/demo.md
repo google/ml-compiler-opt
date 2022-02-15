@@ -185,12 +185,11 @@ python3 compiler_opt/tools/extract_ir.py \
   --output_dir=$CORPUS
 ```
 
-### Train a new model
+### Collect Trace and Generate Vocab
 
 ```shell
 export DEFAULT_TRACE=$HOME/default_trace
-export WARMSTART_OUTPUT_DIR=$HOME/warmstart
-export OUTPUT_DIR=$HOME/model
+export DEFAULT_VOCAB=compiler_opt/rl/inlining/vocab
 ```
 
 Collect traces from the default heuristic, to kick off the training process.
@@ -205,6 +204,28 @@ rm -rf $DEFAULT_TRACE &&
     --clang_path=$LLVM_INSTALLDIR/bin/clang \
     --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
     --sampling_rate=0.2
+```
+
+Generate vocab for the generated trace.
+This is an optional step and should be triggered if the
+set of features or the distribution of features
+in the trace changes.
+
+```shell
+rm -rf $DEFAULT_VOCAB &&
+  PYTHONPATH=$PYTHONPATH:. python3 \
+    compiler_opt/tools/sparse_bucket_generator.py \
+    --input=$DEFAULT_TRACE \
+    --output_dir=$DEFAULT_VOCAB \
+    --sampling_fraction=1.0 \
+    --parallelism=10
+```
+
+### Train a new model
+
+```shell
+export WARMSTART_OUTPUT_DIR=$HOME/warmstart
+export OUTPUT_DIR=$HOME/model
 ```
 
 Train a behavioral cloning model based on the above trace, that mimics default inlining behavior. This is the 'warmstart' model.
