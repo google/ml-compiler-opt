@@ -216,10 +216,16 @@ rm -rf $DEFAULT_VOCAB &&
   PYTHONPATH=$PYTHONPATH:. python3 \
     compiler_opt/tools/sparse_bucket_generator.py \
     --input=$DEFAULT_TRACE \
-    --output_dir=$DEFAULT_VOCAB \
-    --sampling_fraction=1.0 \
-    --parallelism=10
+    --output_dir=$DEFAULT_VOCAB
 ```
+
+**Note**
+The `sparse_bucket_generator.py` tool optionally accepts two more additional
+flags `--sampling_fraction` and `--parallelism`.
+`sampling_fraction` downsamples input features and `parallelism` controls the
+degree of parallelism.
+These flags can be tuned to reduce memory footprint and improve execution speed
+of the vocab generator.
 
 ### Train a new model
 
