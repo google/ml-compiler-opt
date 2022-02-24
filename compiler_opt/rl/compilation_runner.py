@@ -16,6 +16,7 @@
 """Module for running compilation and collect training data."""
 
 import dataclasses
+import json
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
@@ -28,6 +29,14 @@ from compiler_opt.rl import constant
 class RewardStat:
   default_reward: float
   moving_average_reward: float
+
+
+class DataClassJSONEncoder(json.JSONEncoder):
+
+  def default(self, o):
+    if dataclasses.is_dataclass(o):
+      return dataclasses.asdict(o)
+    return super().default(o)
 
 
 def _postprocessing_sequence_example(

@@ -15,8 +15,8 @@
 
 """Tests for compiler_opt.rl.local_data_collector."""
 
+import collections
 import time
-
 from unittest import mock
 
 import tensorflow as tf
@@ -70,7 +70,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
         num_workers=4,
         num_modules=9,
         runner=mock_compilation_runner,
-        parser=create_test_iterator_fn())
+        parser=create_test_iterator_fn(),
+        reward_stat_map=collections.defaultdict(lambda: None))
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
@@ -125,6 +126,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
         num_modules=4,
         runner=mock_compilation_runner,
         parser=parser,
+        reward_stat_map=collections.defaultdict(lambda: None),
         max_unfinished_tasks=2,
         overload_handler=overload_handler.handler)  # pytype: disable=wrong-arg-types
 

@@ -15,7 +15,6 @@
 
 """Module for collecting data locally."""
 
-import collections
 import itertools
 import random
 from typing import Callable, Dict, Iterator, List, Optional, Tuple
@@ -42,22 +41,25 @@ def default_overload_handler(total_unfinished_work):
 class LocalDataCollector(data_collector.DataCollector):
   """class for local data collection."""
 
-  def __init__(self,
-               file_paths: Tuple[Tuple[str, ...], ...],
-               num_workers: int,
-               num_modules: int,
-               runner: compilation_runner.CompilationRunner,
-               parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
-               use_stale_results: bool = False,
-               max_unfinished_tasks: Optional[int] = None,
-               overload_handler: Callable[[int],
-                                          None] = default_overload_handler):
+  def __init__(
+      self,
+      file_paths: Tuple[Tuple[str, ...], ...],
+      num_workers: int,
+      num_modules: int,
+      runner: compilation_runner.CompilationRunner,
+      parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
+      reward_stat_map: Dict[str, Optional[Dict[str,
+                                               compilation_runner.RewardStat]]],
+      use_stale_results: bool = False,
+      max_unfinished_tasks: Optional[int] = None,
+      overload_handler: Callable[[int], None] = default_overload_handler):
     super(LocalDataCollector, self).__init__()
 
     self._file_paths = file_paths
     self._num_modules = num_modules
     self._runner = runner
     self._parser = parser
+    self._reward_stat_map = reward_stat_map
 
     self._unfinished_work = []
     self._pool = multiprocessing.get_context('spawn').Pool(num_workers)
@@ -67,7 +69,6 @@ class LocalDataCollector(data_collector.DataCollector):
       self._max_unfinished_tasks = _UNFINISHED_WORK_RATIO * num_modules
     self._use_stale_results = use_stale_results
 
-    self._reward_stat_map = collections.defaultdict(lambda: None)
     self._overloaded_workers_handler = overload_handler
 
   def close_pool(self):
@@ -85,7 +86,8 @@ class LocalDataCollector(data_collector.DataCollector):
     return self._unfinished_work
 
   def _schedule_jobs(self, policy_path, sampled_file_paths):
-    jobs = [(file_paths, policy_path, self._reward_stat_map[file_paths])
+    jobs = [(file_paths, policy_path,
+             self._reward_stat_map['-'.join(file_paths)])
             for file_paths in sampled_file_paths]
     return [
         self._pool.apply_async(self._runner.collect_data, job) for job in jobs
@@ -158,8 +160,10 @@ class LocalDataCollector(data_collector.DataCollector):
     sequence_examples = list(
         itertools.chain.from_iterable(
             [res.get()[0] for (_, res) in successful_work]))
-    self._reward_stat_map.update(
-        {file_paths: res.get()[1] for (file_paths, res) in successful_work})
+    self._reward_stat_map.update({
+        '-'.join(file_paths): res.get()[1]
+        for (file_paths, res) in successful_work
+    })
 
     monitor_dict = {}
     monitor_dict['default'] = {'success_modules': len(finished_work)}

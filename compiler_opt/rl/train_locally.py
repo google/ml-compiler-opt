@@ -15,16 +15,20 @@
 
 r"""Train and Eval LLVM Inliner decision rule with local_data_collector."""
 
+import collections
 import functools
+import json
 import os
 
 from absl import app
 from absl import flags
 from absl import logging
 import gin
+import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
+from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import config
 from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
@@ -120,17 +124,38 @@ def train_eval(agent_name=constant.AgentName.PPO,
   sequence_example_iterator_fn = (
       lambda seq_ex: iter(dataset_fn(seq_ex).repeat()))
 
+  reward_stat_map = collections.defaultdict(lambda: None)
+  reward_stat_map_path = os.path.join(root_dir, 'reward_stat_map')
+
+  # Reload reward_stat_map if exists.
+  # reward_stat_map of defaultdict(str, {str: RewardStat})
+  if tf.io.gfile.exists(reward_stat_map_path):
+    with tf.io.gfile.GFile(reward_stat_map_path, 'r') as f:
+      data = json.load(f)
+    for k, v in data.items():
+      if v:
+        reward_stat_map[k] = {
+            sub_k: compilation_runner.RewardStat(**sub_v)
+            for sub_k, sub_v in v.items()
+        }
+    logging.info('Loaded Reward Stat Map from disk, containing %d modules',
+                 len(reward_stat_map))
+
   data_collector = local_data_collector.LocalDataCollector(
       file_paths=file_paths,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner,
       parser=sequence_example_iterator_fn,
+      reward_stat_map=reward_stat_map,
       use_stale_results=use_stale_results)
 
   # Repeat for num_policy_iterations iterations.
   while (llvm_trainer.global_step_numpy() <
          num_policy_iterations * num_iterations):
+    with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
+      json.dump(reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
+
     policy_path = os.path.join(root_dir, 'policy',
                                str(llvm_trainer.global_step_numpy()))
     saver.save(policy_path)
