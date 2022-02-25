@@ -19,6 +19,7 @@ import collections
 import functools
 import json
 import os
+import time
 
 from absl import app
 from absl import flags
@@ -69,8 +70,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
-               moving_average_decay_rate=1,
-               use_stale_results=False):
+               moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
 
@@ -147,12 +147,15 @@ def train_eval(agent_name=constant.AgentName.PPO,
       num_modules=FLAGS.num_modules,
       runner=runner,
       parser=sequence_example_iterator_fn,
-      reward_stat_map=reward_stat_map,
-      use_stale_results=use_stale_results)
+      reward_stat_map=reward_stat_map)
 
   # Repeat for num_policy_iterations iterations.
+  t1 = time.time()
   while (llvm_trainer.global_step_numpy() <
          num_policy_iterations * num_iterations):
+    t2 = time.time()
+    logging.info('Last iteration took: %f', t2 - t1)
+    t1 = t2
     with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
       json.dump(reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
 

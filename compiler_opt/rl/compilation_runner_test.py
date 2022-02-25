@@ -70,8 +70,10 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _mock_compile_fn(file_paths, tf_policy_path, reward_only):
+def _mock_compile_fn(file_paths, tf_policy_path, reward_only,
+                     cancellation_manager):  # pylint: disable=unused-argument
   del file_paths
+  del cancellation_manager
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
     native_size = _POLICY_REWARD
@@ -211,6 +213,16 @@ class CompilationRunnerTest(tf.test.TestCase):
             '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
             '-fthinlto-index=the_index.bc'
         ])
+
+  def test_start_subprocess_output(self):
+    ct = compilation_runner.WorkerCancellationManager()
+    output = compilation_runner.start_cancellable_process(
+        ['ls', '-l'], timeout=100, cancellation_manager=ct, want_output=True)
+    if output:
+      output_str = output.decode('utf-8')
+    else:
+      self.fail('output should have been non-empty')
+    self.assertNotEmpty(output_str)
 
 if __name__ == '__main__':
   tf.test.main()

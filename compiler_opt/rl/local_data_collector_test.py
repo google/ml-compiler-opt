@@ -16,13 +16,16 @@
 """Tests for compiler_opt.rl.local_data_collector."""
 
 import collections
-import time
+
+import multiprocessing as mp
+import subprocess
 from unittest import mock
 
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 
 
@@ -32,7 +35,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
     mock_compilation_runner = mock.create_autospec(
         compilation_runner.CompilationRunner)
 
-    def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
+    def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
       assert file_paths == ('a', 'b')
       assert tf_policy_dir == 'policy'
       assert reward_stat is None or reward_stat == {
@@ -88,66 +91,66 @@ class LocalDataCollectorTest(tf.test.TestCase):
     collector.close_pool()
 
   def test_local_data_collector_task_management(self):
+    killed = mp.Manager().Value('i', value=0)
+    timedout = mp.Manager().Value('i', value=0)
+    living = mp.Manager().Value('i', value=0)
 
-    class OverloadHandler:
+    class Sleeper(compilation_runner.CompilationRunner):
 
-      def __init__(self):
-        self.counts = []
+      def __init__(self, killed, timedout, living):
+        self._killed = killed
+        self._timedout = timedout
+        self._living = living
+        self._lock = mp.Manager().Lock()
 
-      def reset(self):
-        self.counts.clear()
+      def collect_data(self, file_paths, tf_policy_path, reward_only,
+                       cancellation_token):
+        cancellation_manager = self._get_cancellation_manager(
+            cancellation_token)
+        try:
+          compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
+                                                       cancellation_manager)
+        except compilation_runner.ProcessKilledError as e:
+          with self._lock:
+            self._killed.value += 1
+          raise e
+        except subprocess.TimeoutExpired as e:
+          with self._lock:
+            self._timedout.value += 1
+          raise e
+        with self._lock:
+          self._living.value += 1
+        return [1], {}, [2.3]
 
-      def handler(self, count):
-        self.counts.append(count)
+    mock_compilation_runner = Sleeper(killed, timedout, living)
 
-    mock_compilation_runner = mock.create_autospec(
-        compilation_runner.CompilationRunner)
+    def parser(_):
+      pass
 
-    def mock_collect_data(file_path, *_):
-      _, t = file_path.split('_')
-      # avoid lint warnings
-      t = int(t)
-      time.sleep(t)
-      return file_path, {}, [float(t)]
+    class QuickExiter(data_collector.EarlyExitChecker):
 
-    mock_compilation_runner.collect_data = mock_collect_data
+      def __init__(self, num_modules):
+        data_collector.EarlyExitChecker.__init__(self, num_modules=num_modules)
 
-    def parser(data_list):
-      assert data_list
+      def wait(self, _):
+        return False
 
-    overload_handler = OverloadHandler()
-    # Set the max_unfinished_tasks so we may schedule first some very long
-    # running work that occupies some, but not all the worker processes of the
-    # pool. This ensures there are workers able to pick up the short-running
-    # work and clear it.
     collector = local_data_collector.LocalDataCollector(
-        file_paths=['wait_0' for _ in range(0, 200)],
+        file_paths=tuple([('a', 'b')] * 200),
         num_workers=4,
         num_modules=4,
         runner=mock_compilation_runner,
         parser=parser,
         reward_stat_map=collections.defaultdict(lambda: None),
-        max_unfinished_tasks=2,
-        overload_handler=overload_handler.handler)  # pytype: disable=wrong-arg-types
-
+        exit_checker_ctor=QuickExiter)
     collector.collect_data(policy_path='policy')
-    while [r for _, r in collector._unfinished_work if not r.ready()]:
-      time.sleep(1)
-
-    collector.inject_unfinished_work_for_test([
-        ('policy', r) for r in collector._schedule_jobs(
-            'policy', ['wait_5', 'wait_5', 'wait_10'])
-    ])
-    collector.collect_data(policy_path='policy')
-    self.assertNotEmpty(overload_handler.counts)
-    # We set the overload threshold (_max_unfinished_tasks) at 2, so the
-    # overload handler should have seen a '3' after the short running tasks have
-    # cleared.
-    self.assertIn(3, overload_handler.counts)
-    # The really long running task would not have cleared yet.
-    self.assertLen(
-        [r for _, r in collector.unfinished_work if not r.ready()], 1)
+    # close the pool first, so we are forced to wait for the workers to process
+    # their cancellation.
     collector.close_pool()
+    self.assertEqual(killed.value, 4)
+    self.assertEqual(living.value, 0)
+    self.assertEqual(timedout.value, 0)
+
 
 if __name__ == '__main__':
   multiprocessing.handle_test_main(tf.test.main)

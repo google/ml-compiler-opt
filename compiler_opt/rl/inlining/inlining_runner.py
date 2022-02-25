@@ -17,10 +17,9 @@
 
 import io
 import os
-import subprocess
 import tempfile
 
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import tensorflow as tf
 
@@ -48,14 +47,18 @@ class InliningRunner(compilation_runner.CompilationRunner):
   """
 
   def _compile_fn(
-      self, file_paths: Tuple[str, str], tf_policy_path: str,
-      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      self, file_paths: Tuple[str, str], tf_policy_path: str, reward_only: bool,
+      cancellation_manager: Optional[
+          compilation_runner.WorkerCancellationManager]
+  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
       file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return native size.
+      cancellation_manager: handler for early termination by killing any running
+      processes
 
     Returns:
       A dict mapping from example identifier to tuple containing:
@@ -64,7 +67,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
         native_size: Native size of the final native code.
 
     Raises:
-      subprocess.CalledProcessError if process fails.
+      subprocess.CalledProcessError: if process fails.
+      compilation_runner.ProcessKilledError: (which it must pass through) on
+      cancelled work.
+      RuntimeError: if llvm-size produces unexpected output.
     """
     working_dir = tempfile.mkdtemp()
 
@@ -89,12 +95,19 @@ class InliningRunner(compilation_runner.CompilationRunner):
       if tf_policy_path:
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
-      # This is the long-running task. It should have a way to terminate.
-      subprocess.check_call(command_line, timeout=_DEADLINE_IN_SECONDS)
-
+      compilation_runner.start_cancellable_process(command_line,
+                                                   _DEADLINE_IN_SECONDS,
+                                                   cancellation_manager)
       command_line = [self._llvm_size_path, output_native_path]
-      output = subprocess.check_output(command_line).decode('utf-8')
-
+      output_bytes = compilation_runner.start_cancellable_process(
+          command_line,
+          timeout=_DEADLINE_IN_SECONDS,
+          cancellation_manager=cancellation_manager,
+          want_output=True)
+      if not output_bytes:
+        raise RuntimeError('Empty llvm-size output: %s' %
+                           ' '.join(command_line))
+      output = output_bytes.decode('utf-8')
       tmp = output.split('\n')
       if len(tmp) != 3:
         raise RuntimeError('Wrong llvm-size output %s' % output)
@@ -113,8 +126,6 @@ class InliningRunner(compilation_runner.CompilationRunner):
       if not sequence_example.HasField('feature_lists'):
         return {}
 
-    except (subprocess.CalledProcessError, tf.errors.OpError) as e:
-      raise e
     finally:
       tf.io.gfile.rmtree(working_dir)
 
