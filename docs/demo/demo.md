@@ -71,6 +71,37 @@ cipd install fuchsia/sysroot/linux-arm64 latest -root ${SYSROOT_DIR}/linux-arm64
 cipd install fuchsia/sysroot/linux-amd64 latest -root ${SYSROOT_DIR}/linux-x64
 ```
 
+## Set up the correct package versions
+
+We need to make sure the git revision of llvm is one that works with the version
+of the Fuchsia tree. Note that Fuchsia frequently updates their llvm dependency,
+which should mean you could try working at HEAD for both, but the method here is
+safe.
+
+*Optionally, you can get Fuchsia to the version we used we wrote this guide:*
+
+```
+cd ${FUCHSIA_SRCDIR}
+jiri update -gc ~/ml-compiler-opt/docs/demo/fuchsia.xml
+```
+
+Either way - i.e. you can skip the step above to be at Fuchsia HEAD - to get the
+git hash at which we know this version of Fuchsia will build, do:
+
+```
+cd ${FUCHSIA_SRCDIR}
+jiri package 'fuchsia/third_party/clang/${platform}'
+```
+
+The output will contain a `git_revision` line, for example `fa4c3f70ff0768a270b0620dc6d158ed1205ec4e`. Copy that hash and then (using the
+example):
+
+```
+cd ${LLVM_SRCDIR}
+git checkout fa4c3f70ff0768a270b0620dc6d158ed1205ec4e
+```
+
+
 ## ML Training
 
 This is this repository.
@@ -97,8 +128,6 @@ tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH
 
 ## Build LLVM
 
-*(For exact repro, use hash fa4c3f70ff0768a270b0620dc6d158ed1205ec4e)*
-
 Build LLVM with both 'release' and 'development' ML modes, and additional
 Fuchsia-specific settings:
 
@@ -119,7 +148,8 @@ cmake -G Ninja \
 
 ninja distribution
 DESTDIR=${LLVM_INSTALLDIR} ninja install-distribution-stripped
-cp ${FUCHSIA_SRCDIR}/prebuilt/third_party/clang/linux-x64/lib/runtime.json ${LLVM_INSTALLDIR}/lib/runtime.json
+cd ${FUCHSIA_SRCDIR}
+python scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
 ```
 
 **NOTE 1**: The only flag specific to MLGO is `TENSORFLOW_C_LIB_PATH`.
@@ -131,17 +161,17 @@ the new pass manager)
 
 ## Build Fuchsia
 
-*The `jiri update` step is for exact repro.*
-
 ```shell
 cd ${FUCHSIA_SRCDIR}
-jiri update ~/ml-compiler-opt/docs/demo/fuchsia.xml
 fx set core.x64 \
   --args='clang_prefix="/usr/local/google/home/mtrofin/llvm-install/bin"' \
   --args=clang_embed_bitcode=true \
-  --args='optimize="size"'
+  --args='optimize="size"' \
+  --args='clang_ml_inliner=false'
 fx build
 ```
+We set `clang_ml_inliner` to false here because by default it is set to true,
+but that wouldn't yet work since we don't have a model to embed.
 
 Fuchsia build conveniently generates a size report. Let's copy it for reference.
 
