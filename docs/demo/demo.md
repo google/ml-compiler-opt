@@ -208,7 +208,7 @@ This produces a `compile_commands.json` compilation database, akin cmake's.
 export CORPUS=$HOME/corpus
 cd ~/ml-compiler-opt
 python3 compiler_opt/tools/extract_ir.py \
-  --cmd_filter="^-Oz$" \
+  --cmd_filter="^-O2|-Os|-Oz$" \
   --input=$FUCHSIA_SRCDIR/out/default/compile_commands.json \
   --input_type=json \
   --llvm_objcopy_path=$LLVM_INSTALLDIR/bin/llvm-objcopy \
