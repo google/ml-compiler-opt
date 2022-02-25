@@ -125,9 +125,9 @@ def main(_):
     total_failed_examples = 0
     for _ in range(0, total_work):
       _, record = results_queue.get()
-      if record:
+      if record and len(record[0]) > 0:
         total_successful_examples += 1
-        file_writer.write(record[0])
+        file_writer.write(record[0][0])
       else:
         total_failed_examples += 1
 
