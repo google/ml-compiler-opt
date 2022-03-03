@@ -19,6 +19,9 @@ import functools
 import os
 import queue
 import random
+# see https://bugs.python.org/issue33315 - we do need these types, but must
+# currently use them as string annotations
+from typing import List, Tuple, Optional  # pylint:disable=unused-import
 
 from absl import app
 from absl import flags
@@ -26,6 +29,7 @@ from absl import logging
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+from compiler_opt.rl import compilation_runner
 from compiler_opt.rl.inlining import inlining_runner
 
 flags.DEFINE_string('data_path', None, 'Path to folder containing IR files.')
@@ -48,7 +52,9 @@ flags.DEFINE_float(
 FLAGS = flags.FLAGS
 
 
-def worker(runner, work_queue: queue.Queue, results_queue: queue.Queue):
+def worker(runner: compilation_runner.CompilationRunner,
+           work_queue: 'queue.Queue[Tuple[str, ...]]',
+           results_queue: 'queue.Queue[Optional[List[str]]]'):
   """What each worker process does.
 
   Each worker picks a workitem from the work_queue, process it, and deposits
@@ -67,11 +73,11 @@ def worker(runner, work_queue: queue.Queue, results_queue: queue.Queue):
     except queue.Empty:
       return
     try:
-      record = runner.collect_data(module_triple, '', None)
-      results_queue.put((module_triple, record))
+      (records, _, _) = runner.collect_data(module_triple, '', None)
+      results_queue.put(records)
     except:  # pylint: disable=bare-except
       logging.error('Failed to compile %s.', module_triple)
-      results_queue.put((module_triple, None))
+      results_queue.put(None)
 
 
 def main(_):
@@ -97,7 +103,7 @@ def main(_):
   sizes_and_paths = [(os.path.getsize(p + '.bc'), p) for p in module_paths]
   sizes_and_paths.sort(reverse=True)
   sorted_module_paths = [p for _, p in sizes_and_paths]
-  file_paths = [
+  module_specs = [
       tuple([p + suffix for suffix in file_suffix]) for p in sorted_module_paths
   ]
 
@@ -107,10 +113,10 @@ def main(_):
   with tf.io.TFRecordWriter(FLAGS.output_path) as file_writer:
     ctx = multiprocessing.get_context()
     m = ctx.Manager()
-    results_queue = m.Queue()
-    work_queue = m.Queue()
-    for path in file_paths:
-      work_queue.put(path)
+    results_queue: 'queue.Queue[Optional[List[str]]]' = m.Queue()
+    work_queue: 'queue.Queue[Tuple[str, ...]]' = m.Queue()
+    for module_spec in module_specs:
+      work_queue.put(module_spec)
     processes = [
         ctx.Process(
             target=functools.partial(worker, runner, work_queue, results_queue))
@@ -121,13 +127,14 @@ def main(_):
       p.start()
 
     total_successful_examples = 0
-    total_work = len(file_paths)
+    total_work = len(module_specs)
     total_failed_examples = 0
     for _ in range(0, total_work):
-      _, record = results_queue.get()
-      if record and len(record[0]) > 0:
+      records = results_queue.get()
+      if records:
         total_successful_examples += 1
-        file_writer.write(record[0][0])
+        for r in records:
+          file_writer.write(r)
       else:
         total_failed_examples += 1
 
@@ -137,7 +144,7 @@ def main(_):
                                   total_failed_examples, total_work)
 
     print('%d of %d modules succeeded.' %
-          (total_successful_examples, len(file_paths)))
+          (total_successful_examples, len(module_specs)))
     for p in processes:
       p.join()
 

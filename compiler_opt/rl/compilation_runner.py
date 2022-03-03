@@ -98,6 +98,16 @@ class ProcessCancellationToken:
     self._event.wait()
 
 
+def kill_process_ignore_exceptions(p: subprocess.Popen):
+  # kill the process and ignore exceptions. Exceptions would be thrown if the
+  # process has already been killed/finished (which is inherently in a race
+  # condition with us killing it)
+  try:
+    p.kill()
+  finally:
+    return  # pylint: disable=lost-exception
+
+
 class WorkerCancellationManager:
   """A thread-safe object that can be used to signal cancellation.
 
@@ -113,28 +123,20 @@ class WorkerCancellationManager:
     self._done = False
     self._lock = threading.Lock()
 
-  def _kill(self, p: subprocess.Popen):
-    # kill the process and ignore any exceptions due to e.g. this being in a
-    # race condition with the process terminating.
-    try:
-      p.kill()
-    finally:
-      return  # pylint: disable=lost-exception
-
   def register_process(self, p: subprocess.Popen):
     """Register a process for potential cancellation."""
     with self._lock:
       if not self._done:
         self._processes.add(p)
         return
-    self._kill(p)
+    kill_process_ignore_exceptions(p)
 
   def signal(self):
     """Cancel any pending work."""
     with self._lock:
       self._done = True
     for p in self._processes:
-      self._kill(p)
+      kill_process_ignore_exceptions(p)
 
   def unregister_process(self, p: subprocess.Popen):
     with self._lock:
@@ -144,7 +146,7 @@ class WorkerCancellationManager:
 
 def start_cancellable_process(
     cmdline: List[str],
-    timeout: int,
+    timeout: float,
     cancellation_manager: Optional[WorkerCancellationManager],
     want_output: bool = False) -> Optional[bytes]:
   """Start a cancellable process.
@@ -167,9 +169,14 @@ def start_cancellable_process(
   if cancellation_manager:
     cancellation_manager.register_process(p)
 
-  retcode = p.wait(timeout=timeout)
-  if cancellation_manager:
-    cancellation_manager.unregister_process(p)
+  try:
+    retcode = p.wait(timeout=timeout)
+  except subprocess.TimeoutExpired as e:
+    kill_process_ignore_exceptions(p)
+    raise e
+  finally:
+    if cancellation_manager:
+      cancellation_manager.unregister_process(p)
   if retcode != 0:
     raise ProcessKilledError(
     ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)

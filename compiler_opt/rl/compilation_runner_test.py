@@ -15,10 +15,13 @@
 
 """Tests for compiler_opt.rl.compilation_runner."""
 
+import os
 import string
 import subprocess
+import time
 from unittest import mock
 
+from absl import flags
 import tensorflow as tf
 
 from google.protobuf import text_format
@@ -223,6 +226,18 @@ class CompilationRunnerTest(tf.test.TestCase):
     else:
       self.fail('output should have been non-empty')
     self.assertNotEmpty(output_str)
+
+  def test_timeout_kills_process(self):
+    sentinel_file = os.path.join(flags.FLAGS.test_tmpdir,
+                                 'test_timeout_kills_test_file')
+    if os.path.exists(sentinel_file):
+      os.remove(sentinel_file)
+    with self.assertRaises(subprocess.TimeoutExpired):
+      compilation_runner.start_cancellable_process(
+          ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file],
+          timeout=0.5, cancellation_manager=None)
+    time.sleep(2)
+    self.assertFalse(os.path.exists(sentinel_file))
 
 if __name__ == '__main__':
   tf.test.main()
