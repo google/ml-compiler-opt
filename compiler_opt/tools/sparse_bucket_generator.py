@@ -26,6 +26,7 @@ from typing import Callable, Dict, List
 
 from absl import app
 from absl import flags
+from absl import logging
 
 import numpy as np
 import tensorflow as tf
@@ -126,12 +127,21 @@ def _generate_vocab(feature_values_arrays, feature_name):
 
 def main(_) -> None:
   """Generate num_buckets quantiles for each feature."""
+  tf.io.gfile.makedirs(FLAGS.output_dir)
   dataset = tf.data.Dataset.list_files(FLAGS.input)
   dataset = tf.data.TFRecordDataset(dataset)
 
   sequence_features = {}
-  for raw_example in dataset.take(1):
-    sequence_features = _get_feature_info(raw_example)
+  for raw_example in dataset:
+    try:
+      sequence_features = _get_feature_info(raw_example)
+      logging.info('Found valid sequence_features dict: %s', sequence_features)
+      break
+    except Exception:  # pylint: disable=broad-except
+      # modules with no inlining done have empty feature values and
+      # raise an IndexError.
+      # continue until an inlined module with non-empty feature values is found.
+      continue
 
   parser_fn = create_tfrecord_parser_fn(sequence_features)
   dataset = dataset.map(parser_fn, num_parallel_calls=tf.data.AUTOTUNE)
