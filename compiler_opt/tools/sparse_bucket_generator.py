@@ -132,16 +132,23 @@ def main(_) -> None:
   dataset = tf.data.TFRecordDataset(dataset)
 
   sequence_features = {}
+  # TODO(b/222775595): need to fix this after update to logic for handling
+  # empty examples during trace generation.
   for raw_example in dataset:
     try:
       sequence_features = _get_feature_info(raw_example)
       logging.info('Found valid sequence_features dict: %s', sequence_features)
       break
-    except Exception:  # pylint: disable=broad-except
+    except IndexError:
       # modules with no inlining done have empty feature values and
       # raise an IndexError.
       # continue until an inlined module with non-empty feature values is found.
+      logging.warn('Found module that was not inlined and has empty feature '
+                   'values.')
       continue
+  if not sequence_features:
+    raise ValueError('No inlined module with non-empty sequence_features '
+                     'values found.')
 
   parser_fn = create_tfrecord_parser_fn(sequence_features)
   dataset = dataset.map(parser_fn, num_parallel_calls=tf.data.AUTOTUNE)
