@@ -149,7 +149,7 @@ cmake -G Ninja \
 ninja distribution
 DESTDIR=${LLVM_INSTALLDIR} ninja install-distribution-stripped
 cd ${FUCHSIA_SRCDIR}
-python scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
+python3 scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
 ```
 
 **NOTE 1**: The only flag specific to MLGO is `TENSORFLOW_C_LIB_PATH`.
@@ -320,7 +320,11 @@ cmake -G Ninja \
 export LLVM_INSTALLDIR_RELEASE=$LLVM_INSTALLDIR-release
 ninja distribution
 DESTDIR=${LLVM_INSTALLDIR_RELEASE} ninja install-distribution-stripped
-cp ${FUCHSIA_SRCDIR}/prebuilt/third_party/clang/linux-x64/lib/runtime.json ${LLVM_INSTALLDIR_RELEASE}/lib/runtime.json
+cd ${FUCHSIA_SRCDIR}
+python3 scripts/clang/generate_runtimes.py \
+  --clang-prefix=$LLVM_INSTALLDIR_RELEASE \
+  --sdk-dir=$IDK_DIR \
+  --build-id-dir=$LLVM_INSTALLDIR_RELEASE/lib/.build-id > $LLVM_INSTALLDIR_RELEASE/lib/runtime.json
 ```
 
 **NOTE 1**: If you are using LLVM-at-head instead of an exact repro, there is an
