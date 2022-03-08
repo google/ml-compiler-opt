@@ -164,7 +164,7 @@ the new pass manager)
 ```shell
 cd ${FUCHSIA_SRCDIR}
 fx set core.x64 \
-  --args='clang_prefix="/usr/local/google/home/mtrofin/llvm-install/bin"' \
+  --args='clang_prefix="${LLVM_INSTALLDIR}/bin"' \
   --args=clang_embed_bitcode=true \
   --args='optimize="size"' \
   --args='clang_ml_inliner=false'
@@ -334,7 +334,7 @@ replaces `TENSORFLOW_C_LIB_PATH` used earlier.
 ```shell
 cd ${FUCHSIA_SRCDIR}
 fx set core.x64 \
-  --args='clang_prefix="/usr/local/google/home/mtrofin/llvm-install-release/bin"' \
+  --args='clang_prefix="${LLVM_INSTALLDIR_RELEASE}/bin"' \
   --args='optimize="size"' \
   --args=clang_ml_inliner=true
 fx build
