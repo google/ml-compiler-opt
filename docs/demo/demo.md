@@ -291,6 +291,27 @@ rm -rf $OUTPUT_DIR && \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
 
+### Evaluate trained model on a corpus (Optional)
+
+Optionally, if you are interested in seeing how the trained policy (`$OUTPUT_DIR/saved_policy`)
+performs on a given corpus (take the training corpus `$CORPUS` as an example),
+the following command line generates a csv-format report with 4 columns:
+module_name, identifier (`default` in inlining case), size under heuristic,
+size under the trained policy.
+
+```shell
+export OUTPUT_PERFORMANCE_PATH=$HOME/performance_report && \
+PYTHONPATH=$PYTHONPATH:. && \
+python3 compiler_opt/tools/generate_default_trace.py \
+  --data_path=$CORPUS \
+  --policy_path=$OUTPUT_DIR/saved_policy \
+  --output_performance_path=$OUTPUT_PERFORMANCE_PATH \
+  --compile_task=inlining \
+  --clang_path=$LLVM_INSTALLDIR/bin/clang \
+  --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
+  --sampling_rate=0.2
+```
+
 ## Deploying and using the new policy
 
 We need to build the 'release' mode of the compiler. Currently, that means
