@@ -291,13 +291,13 @@ rm -rf $OUTPUT_DIR && \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
 
-### Evaluate trained model on a corpus (Optional)
+### Evaluate trained policy on a corpus (Optional)
 
 Optionally, if you are interested in seeing how the trained policy (`$OUTPUT_DIR/saved_policy`)
 performs on a given corpus (take the training corpus `$CORPUS` as an example),
 the following command line generates a csv-format report with 4 columns:
 module_name, identifier (`default` in inlining case), size under heuristic,
-size under the trained policy.
+size under the trained policy at `$OUTPUT_PERFORMANCE_PATH`.
 
 ```shell
 export OUTPUT_PERFORMANCE_PATH=$HOME/performance_report && \
