@@ -90,7 +90,8 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
       (records, reward_stat, _) = runner.collect_data(module_triple,
                                                       policy_path, None)
       results_queue.put((module_triple[0], records, reward_stat))
-    except (subprocess.CalledProcessError, RuntimeError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            RuntimeError):
       logging.error('Failed to compile %s.', module_triple)
       results_queue.put(None)
 
