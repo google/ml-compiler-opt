@@ -114,7 +114,7 @@ chown buildbot requirements.txt
 # install the tf pip package for the AOT ("release" scenario).
 sudo -u buildbot python3 -m pip install --upgrade pip
 sudo -u buildbot python3 -m pip install --user -r requirements.txt
-python3 -m pip install buildbot-worker
+python3 -m pip install buildbot-worker==2.9.0
 
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
