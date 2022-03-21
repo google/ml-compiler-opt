@@ -106,14 +106,14 @@ userdel buildbot
 groupadd buildbot
 useradd buildbot -g buildbot -m -d /var/lib/buildbot
 
-wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt \
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt -P /tmp \
   || on_error "failed to get python requirements file"
 
-chown buildbot requirements.txt
+chown buildbot /tmp/requirements.txt
 
 # install the tf pip package for the AOT ("release" scenario).
 sudo -u buildbot python3 -m pip install --upgrade pip
-sudo -u buildbot python3 -m pip install --user -r requirements.txt
+sudo -u buildbot python3 -m pip install --user -r /tmp/requirements.txt
 python3 -m pip install buildbot-worker==2.9.0
 
 TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
