@@ -107,7 +107,11 @@ def train_eval(agent_name=constant.AgentName.PPO,
     module_paths = [
         os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
     ]
-    file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
+    if problem_type in ('inlining',):
+      file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
+    else:
+      file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
+                    for path in module_paths]
 
   runner = config.get_compilation_runner(problem_type, FLAGS.clang_path,
                                          FLAGS.llvm_size_path,

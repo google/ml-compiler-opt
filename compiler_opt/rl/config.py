@@ -25,6 +25,7 @@ from compiler_opt.rl import compilation_runner
 from compiler_opt.rl.inlining import config as inlining_config
 from compiler_opt.rl.inlining import inlining_runner
 from compiler_opt.rl.regalloc import config as regalloc_config
+from compiler_opt.rl.regalloc import regalloc_runner
 
 
 types = tfa.typing.types
@@ -66,7 +67,8 @@ def get_compilation_runner(
                                           launcher_path,
                                           moving_average_decay_rate)
   elif problem_type == 'regalloc':
-    # TODO(yundi): add in the next cl.
-    raise ValueError('RegAlloc Compile Function not Supported.')
+    return regalloc_runner.RegAllocRunner(clang_path, llvm_size_path,
+                                          launcher_path,
+                                          moving_average_decay_rate)
   else:
     raise ValueError('Unknown problem_type: {}'.format(problem_type))

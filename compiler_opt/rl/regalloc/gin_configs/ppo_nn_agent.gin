@@ -19,9 +19,6 @@ train_eval.moving_average_decay_rate=0.8
 train_eval.use_random_network_distillation=False
 
 #######################################
-# Turn on if using train_locally.py
-train_eval.use_stale_results=False
-
 # Turn on if using train_with_rpc.py
 # train_eval.additional_compilation_flags=()
 #######################################
