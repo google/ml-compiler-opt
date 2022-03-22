@@ -33,6 +33,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl.inlining import inlining_runner
+from compiler_opt.rl.regalloc import regalloc_runner
 
 _DATA_PATH = flags.DEFINE_string('data_path', None,
                                  'Path to folder containing IR files.')
@@ -44,9 +45,9 @@ _OUTPUT_PERFORMANCE_PATH = flags.DEFINE_string(
     'output_performance_path', None,
     'Path to the output performance file if not None.')
 _COMPILE_TASK = flags.DEFINE_enum(
-    'compile_task', 'inlining', ['inlining'],
+    'compile_task', 'inlining', ['inlining', 'regalloc'],
     'compile task to generate tfrecord with, only support '
-    'inlining currently.')
+    'inlining and regalloc currently.')
 _CLANG_PATH = flags.DEFINE_string('clang_path', 'clang',
                                   'Path to clang binary.')
 _LLVM_SIZE_PATH = flags.DEFINE_string('llvm_size_path', 'llvm-size',
@@ -99,12 +100,19 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
 def main(_):
   # Initialize runner and file_suffix according to compile_task.
   if _COMPILE_TASK.value == 'inlining':
-    runner = inlining_runner.InliningRunner(
-        clang_path=_CLANG_PATH.value,
-        llvm_size_path=_LLVM_SIZE_PATH.value,
-        launcher_path=_LAUNCHER_PATH.value,
-        moving_average_decay_rate=0)
-    file_suffix = ['.bc', '.cmd']
+    runner_object = inlining_runner.InliningRunner
+    file_suffix = ('.bc', '.cmd')
+  elif _COMPILE_TASK.value == 'regalloc':
+    runner_object = regalloc_runner.RegAllocRunner
+    file_suffix = ('.bc', '.cmd', '.thinlto.bc')
+  else:
+    raise ValueError('Wrong compile_task flag: %s' % _COMPILE_TASK.value)
+
+  runner = runner_object(
+      clang_path=_CLANG_PATH.value,
+      llvm_size_path=_LLVM_SIZE_PATH.value,
+      launcher_path=_LAUNCHER_PATH.value,
+      moving_average_decay_rate=0)
 
   with open(os.path.join(_DATA_PATH.value, 'module_paths'), 'r') as f:
     module_paths = [
