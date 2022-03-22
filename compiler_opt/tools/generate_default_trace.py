@@ -105,8 +105,9 @@ def main(_):
   elif _COMPILE_TASK.value == 'regalloc':
     runner_object = regalloc_runner.RegAllocRunner
     file_suffix = ('.bc', '.cmd', '.thinlto.bc')
-  else:
-    raise ValueError('Wrong compile_task flag: %s' % _COMPILE_TASK.value)
+
+  # runner_object and file_suffix should be set with the branches above.
+  assert runner_object and file_suffix
 
   runner = runner_object(
       clang_path=_CLANG_PATH.value,
