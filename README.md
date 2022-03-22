@@ -2,19 +2,17 @@
 
 MLGO is a framework for integrating ML techniques systematically in LLVM. It
 replaces human-crafted optimization heuristics in LLVM with machine learned
-models. Our pioneering project is on the inlining-for-size optimization in LLVM.
+models. The MLGO framework currently supports two optimizations: 1)
+inlining-for-size([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2020-April/140763.html));
+2)
+register-allocation-for-performance([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2021-November/153639.html)).
+The compiler components are both available in the main LLVM repository. This
+repository contains the training infrastructure and related tools for MLGO.
 
 We currently use two different ML algorithms: Policy Gradient and Evolution
-Strategies, to train the inlining-for-size model, and achieve up to 7% size
-reduction, when compared to state of the art LLVM -Oz. The compiler components
-are available in the main LLVM repository. This repository contains the training
-infrastructure and related tools for MLGO.
-
-Currently we only support training inlining-for-size policy with Policy
-Gradient. We are working on:
-
-1.  releasing Evolution Strategies training;
-2.  more optimization problems other than inlining-for-size.
+Strategies to train policies. Currently, this repository only support Policy
+Gradient training. The release of Evolution Strategies training is on our
+roadmap.
 
 Check out this [demo](docs/demo/demo.md) for an end-to-end demonstration of how
 to train your own inlining-for-size policy from the scratch with Policy
