@@ -2,10 +2,11 @@
 
 MLGO is a framework for integrating ML techniques systematically in LLVM. It
 replaces human-crafted optimization heuristics in LLVM with machine learned
-models. The MLGO framework currently supports two optimizations: 1)
-inlining-for-size([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2020-April/140763.html));
-2)
-register-allocation-for-performance([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2021-November/153639.html)).
+models. The MLGO framework currently supports two optimizations:
+
+1.  inlining-for-size([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2020-April/140763.html));
+2.  register-allocation-for-performance([LLVM RFC](https://lists.llvm.org/pipermail/llvm-dev/2021-November/153639.html))
+
 The compiler components are both available in the main LLVM repository. This
 repository contains the training infrastructure and related tools for MLGO.
 
