@@ -29,32 +29,60 @@ from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 
 
+def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
+  assert file_paths == ('a', 'b')
+  assert tf_policy_dir == 'policy'
+  assert reward_stat is None or reward_stat == {
+      'default':
+          compilation_runner.RewardStat(
+              default_reward=1, moving_average_reward=2)
+  }
+  if reward_stat is None:
+    return [1], {
+        'default':
+            compilation_runner.RewardStat(
+                default_reward=1, moving_average_reward=2)
+    }, [1.2]
+  else:
+    return [2], {
+        'default':
+            compilation_runner.RewardStat(
+                default_reward=1, moving_average_reward=3)
+    }, [3.4]
+
+
+class Sleeper(compilation_runner.CompilationRunner):
+
+  def __init__(self, killed, timedout, living):
+    self._killed = killed
+    self._timedout = timedout
+    self._living = living
+    self._lock = mp.Manager().Lock()
+
+  def collect_data(self, file_paths, tf_policy_path, reward_only,
+                   cancellation_token):
+    cancellation_manager = self._get_cancellation_manager(cancellation_token)
+    try:
+      compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
+                                                   cancellation_manager)
+    except compilation_runner.ProcessKilledError as e:
+      with self._lock:
+        self._killed.value += 1
+      raise e
+    except subprocess.TimeoutExpired as e:
+      with self._lock:
+        self._timedout.value += 1
+      raise e
+    with self._lock:
+      self._living.value += 1
+    return [1], {}, [2.3]
+
+
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
     mock_compilation_runner = mock.create_autospec(
         compilation_runner.CompilationRunner)
-
-    def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
-      assert file_paths == ('a', 'b')
-      assert tf_policy_dir == 'policy'
-      assert reward_stat is None or reward_stat == {
-          'default':
-              compilation_runner.RewardStat(
-                  default_reward=1, moving_average_reward=2)
-      }
-      if reward_stat is None:
-        return [1], {
-            'default':
-                compilation_runner.RewardStat(
-                    default_reward=1, moving_average_reward=2)
-        }, [1.2]
-      else:
-        return [2], {
-            'default':
-                compilation_runner.RewardStat(
-                    default_reward=1, moving_average_reward=3)
-        }, [3.4]
 
     mock_compilation_runner.collect_data = mock_collect_data
 
@@ -94,33 +122,6 @@ class LocalDataCollectorTest(tf.test.TestCase):
     killed = mp.Manager().Value('i', value=0)
     timedout = mp.Manager().Value('i', value=0)
     living = mp.Manager().Value('i', value=0)
-
-    class Sleeper(compilation_runner.CompilationRunner):
-
-      def __init__(self, killed, timedout, living):
-        self._killed = killed
-        self._timedout = timedout
-        self._living = living
-        self._lock = mp.Manager().Lock()
-
-      def collect_data(self, file_paths, tf_policy_path, reward_only,
-                       cancellation_token):
-        cancellation_manager = self._get_cancellation_manager(
-            cancellation_token)
-        try:
-          compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
-                                                       cancellation_manager)
-        except compilation_runner.ProcessKilledError as e:
-          with self._lock:
-            self._killed.value += 1
-          raise e
-        except subprocess.TimeoutExpired as e:
-          with self._lock:
-            self._timedout.value += 1
-          raise e
-        with self._lock:
-          self._living.value += 1
-        return [1], {}, [2.3]
 
     mock_compilation_runner = Sleeper(killed, timedout, living)
 
