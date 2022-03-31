@@ -30,19 +30,19 @@ from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import trainer
 
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string(
-    'data_path', None,
+_ROOT_DIR = flags.DEFINE_string(
+    'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+    'Root directory for writing logs/summaries/checkpoints.')
+_DATA_PATH = flags.DEFINE_multi_string(
+    'data_path', [],
     'Path to TFRecord file(s) containing training data. Skip training and dump'
-    'an untrained model with random weights (for testing purpose) if set None.')
-flags.DEFINE_multi_string('gin_files', [],
-                          'List of paths to gin configuration files.')
-flags.DEFINE_multi_string(
+    'an untrained model with random weights (for testing purpose) if unspecified.'
+)
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
-FLAGS = flags.FLAGS
 
 
 @gin.configurable
@@ -52,7 +52,7 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
                batch_size=64,
                train_sequence_length=1):
   """Train for LLVM inliner."""
-  root_dir = os.path.expanduser(FLAGS.root_dir)
+  root_dir = os.path.expanduser(_ROOT_DIR.value)
   root_dir = os.path.normpath(root_dir)
 
   time_step_spec, action_spec = config.get_signature_spec(
@@ -81,8 +81,8 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
       train_sequence_length=train_sequence_length)
 
   # Train.
-  if FLAGS.data_path:
-    dataset_iter = iter(tfrecord_dataset_fn(FLAGS.data_path).repeat())
+  if _DATA_PATH.value:
+    dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
     monitor_dict = {}
     llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
@@ -92,7 +92,7 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=False)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
   train_eval()
