@@ -112,7 +112,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertEqual(2, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
-        _POLICY_FEATURE_VALUE, 0.1999999)
+        _POLICY_FEATURE_VALUE, 0.1998)
     self.assertListProtoEqual(
         [expected_example],
         [tf.train.SequenceExample.FromString(x) for x in example])
@@ -172,7 +172,8 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertEqual(1, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
-        _POLICY_FEATURE_VALUE, 1 - _POLICY_REWARD / 7)
+        _POLICY_FEATURE_VALUE,
+        1 - (_POLICY_REWARD + constant.DELTA) / (7 + constant.DELTA))
     self.assertListProtoEqual(
         [expected_example],
         [tf.train.SequenceExample.FromString(x) for x in example])

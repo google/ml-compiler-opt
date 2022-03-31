@@ -28,6 +28,12 @@ import tensorflow as tf
 from compiler_opt.rl import constant
 
 
+def _calculate_reward(policy: float, baseline: float) -> float:
+  # This assumption allows us to imply baseline + constant.DELTA > 0.
+  assert baseline >= 0
+  return 1 - (policy + constant.DELTA) / (baseline + constant.DELTA)
+
+
 @dataclasses.dataclass
 class RewardStat:
   default_reward: float
@@ -42,25 +48,18 @@ class DataClassJSONEncoder(json.JSONEncoder):
     return super().default(o)
 
 
-def _postprocessing_sequence_example(
-    sequence_example: tf.train.SequenceExample, moving_average_reward: float,
-    policy_reward: float) -> tf.train.SequenceExample:
-  """Post-processing of the trace (sequence_example).
+def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
+                                 reward: float) -> tf.train.SequenceExample:
+  """Overwrite the reward in the trace (sequence_example) with the given one.
 
-  It computes the reward ratio change of the TF policy compared with the
-  moving average reward, and uses this ratio as the whole trajectory reward to
-  overwrite the original reward after each action.
 
   Args:
     sequence_example: A tf.SequenceExample proto describing compilation trace.
-    moving_average_reward: The moving average reward.
-    policy_reward: The reward under the TF policy.
+    reward: The reward to overwrite with.
 
   Returns:
     The tf.SequenceExample proto after post-processing.
   """
-  reward = 1 - policy_reward / moving_average_reward
-
   sequence_length = len(
       next(iter(sequence_example.feature_lists.feature_list.values())).feature)
 
@@ -305,14 +304,16 @@ class CompilationRunner:
             (k, file_paths[0]))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
-      sequence_example = _postprocessing_sequence_example(
-          sequence_example, moving_average_reward, policy_reward)
+      sequence_example = _overwrite_trajectory_reward(
+          sequence_example=sequence_example,
+          reward=_calculate_reward(
+              policy=policy_reward, baseline=moving_average_reward))
       sequence_example_list.append(sequence_example.SerializeToString())
       reward_stat[k].moving_average_reward = (
           moving_average_reward * self._moving_average_decay_rate +
           policy_reward * (1 - self._moving_average_decay_rate))
-      rewards.append(1 - (policy_reward + constant.DELTA) /
-                     (default_reward + constant.DELTA))
+      rewards.append(
+          _calculate_reward(policy=policy_reward, baseline=default_reward))
 
     return (sequence_example_list, reward_stat, rewards)
 
@@ -327,7 +328,7 @@ class CompilationRunner:
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
       cancellation_manager: a WorkerCancellationManager to handle early
-      termination
+        termination
 
     Returns:
       A dict mapping from example identifier to tuple containing:
