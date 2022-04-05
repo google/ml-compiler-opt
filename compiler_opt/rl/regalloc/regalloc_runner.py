@@ -87,21 +87,6 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
                                   log_path, '-o', output_native_path
                               ])
 
-      # post processing on command lines.
-      command_line = [
-          x for x in command_line if (not x.startswith('-fthinlto-index') and
-                                      not x.startswith('-fprofile-sample-use='))
-      ]
-
-      index = None
-      for idx, x in enumerate(command_line):
-        if x.startswith('-split-dwarf-output'):
-          index = idx
-          break
-      if index:
-        # remove `-split-dwarf-output` and its subsequent flag.
-        del command_line[index:index + 2]
-
       if tf_policy_path:
         command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
       compilation_runner.start_cancellable_process(command_line,

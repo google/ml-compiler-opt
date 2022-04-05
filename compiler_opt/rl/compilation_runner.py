@@ -79,9 +79,39 @@ def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
 def get_command_line_for_bundle(cmd_file: str,
                                 ir_file: str,
                                 thinlto: Optional[str] = None) -> List[str]:
+  """Cleans up base command line.
+
+  Remove certain unnecessary flags, and add the .bc file to compile and, if
+  given, the thinlto index.
+
+  Args:
+    cmd_file: Path to a .cmd file (from corpus).
+    ir_file: The path to the ir file to compile.
+    thinlto: The path to the thinlto index, or None.
+
+  Returns:
+    The argument list to pass to the compiler process.
+  """
+  cmdline = []
+  flags_to_remove = [
+      '-split-dwarf-file', '-split-dwarf-output', '-fthinlto-index',
+      '-fprofile-sample-use'
+  ]
+
   with open(cmd_file) as f:
-    return f.read().split('\0') + ['-x', 'ir'] + [ir_file] + (
-        ['-fthinlto-index=' + thinlto] if thinlto else [])
+    option_iterator = iter(f.read().split('\0'))
+    option = next(option_iterator, None)
+    while option:
+      if any([option.startswith(flag) for flag in flags_to_remove]):
+        if '=' not in option:
+          next(option_iterator, None)
+      else:
+        cmdline.append(option)
+      option = next(option_iterator, None)
+  cmdline.extend(['-x', 'ir', ir_file])
+  if thinlto:
+    cmdline.append('-fthinlto-index=' + thinlto)
+  return cmdline
 
 
 class ProcessKilledError(Exception):
