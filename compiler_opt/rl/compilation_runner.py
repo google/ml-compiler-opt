@@ -23,9 +23,14 @@ import subprocess
 import threading
 from typing import Dict, List, Optional, Tuple
 
+from absl import flags
 import tensorflow as tf
 
 from compiler_opt.rl import constant
+
+_COMPILATION_TIMEOUT = flags.DEFINE_integer(
+    'compilation_timeout', 60,
+    'Max duration (in seconds) after which we cancel any compilation job.')
 
 
 def _calculate_reward(policy: float, baseline: float) -> float:
@@ -219,6 +224,7 @@ class CompilationRunner:
     self._llvm_size_path = llvm_size_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
+    self._compilation_timeout = _COMPILATION_TIMEOUT.value
 
   def _get_cancellation_manager(
       self, cancellation_token: Optional[ProcessCancellationToken]

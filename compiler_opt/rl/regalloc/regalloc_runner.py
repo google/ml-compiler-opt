@@ -26,12 +26,6 @@ import tensorflow as tf
 from google.protobuf import struct_pb2
 from compiler_opt.rl import compilation_runner
 
-# TODO(mtrofin): maybe the deadline is a requirement for plugins (such as the
-# inliner) and the data collector expects and uses it to define its own? This
-# would serve as an extra hint to the developer of a new plugin to make sure
-# their long-running tasks have timeouts.
-_DEADLINE_IN_SECONDS = 60
-
 
 class RegAllocRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for regalloc-for-performance.
@@ -111,7 +105,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       if tf_policy_path:
         command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
       compilation_runner.start_cancellable_process(command_line,
-                                                   _DEADLINE_IN_SECONDS,
+                                                   self._compilation_timeout,
                                                    cancellation_manager)
 
       sequence_example = struct_pb2.Struct()

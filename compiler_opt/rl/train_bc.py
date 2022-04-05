@@ -21,6 +21,7 @@ from absl import app
 from absl import flags
 from absl import logging
 import gin
+# <Internal> Using XM - flags.  # pylint: disable=unused-import
 
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import config
