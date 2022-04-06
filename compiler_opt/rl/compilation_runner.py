@@ -138,6 +138,7 @@ def kill_process_ignore_exceptions(p: subprocess.Popen):
   # condition with us killing it)
   try:
     p.kill()
+    p.wait()
   finally:
     return  # pylint: disable=lost-exception
 
