@@ -13,24 +13,22 @@
 # limitations under the License.
 
 #!/bin/bash
-set -e
-set -x
 
 TEST_TMP=$(mktemp -d)
-
+TF_CPP_MIN_LOG_LEVEL=3
 VENV_PATH=${TEST_TMP}/virtualenv
 virtualenv "${VENV_PATH}" -p python3 --system-site-packages
 source "${VENV_PATH}"/bin/activate
 
 # Download pre-requisite packages.
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt -q
+
+# Get the test harness package.
+pip3 install pytest
 
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
 
-for file in $(find . -name '*_test.py')
-do
-  python3 "${file}"
-done
+python3 -m pytest
 
 deactivate
 
