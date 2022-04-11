@@ -146,9 +146,9 @@ class LocalDataCollector(data_collector.DataCollector):
 
     sequence_examples = list(
         itertools.chain.from_iterable(
-            [res.get()[0] for (_, res) in successful_work]))
+            [res.get().sequence_examples for (_, res) in successful_work]))
     self._reward_stat_map.update({
-        '-'.join(file_paths): res.get()[1]
+        '-'.join(file_paths): res.get().reward_stats
         for (file_paths, res) in successful_work
     })
 
@@ -156,7 +156,7 @@ class LocalDataCollector(data_collector.DataCollector):
     monitor_dict['default'] = {'success_modules': len(successful_work)}
     rewards = list(
         itertools.chain.from_iterable(
-            [res.get()[2] for (_, res) in successful_work]))
+            [res.get().rewards for (_, res) in successful_work]))
     monitor_dict[
         'reward_distribution'] = data_collector.build_distribution_monitor(
             rewards)

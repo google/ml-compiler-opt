@@ -20,6 +20,7 @@ import functools
 import os
 import queue
 import random
+import re
 import subprocess
 # see https://bugs.python.org/issue33315 - we do need these types, but must
 # currently use them as string annotations
@@ -61,6 +62,12 @@ _SAMPLING_RATE = flags.DEFINE_float(
     'sampling_rate', 1,
     'Sampling rate of modules, 0.5 means 50% sampling rate that generates data '
     'for half modules.')
+_MODULE_FILTER = flags.DEFINE_string(
+    'module_filter', None,
+    'Regex for module names to include, do not provide one to include all')
+_KEY_FILTER = flags.DEFINE_string(
+    'key_filter', None,
+    'Regex for key names to include, do not provide one to include all')
 
 ResultsQueueEntry = Optional[Tuple[str, List[str],
                                    Dict[str, compilation_runner.RewardStat]]]
@@ -82,15 +89,31 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
     work_queue: the queue of unprocessed work items.
     results_queue: the queue where results are deposited.
   """
+  m = re.compile(_KEY_FILTER.value) if _KEY_FILTER.value else None
+
   while True:
     try:
       module_triple = work_queue.get_nowait()
     except queue.Empty:
       return
     try:
-      (records, reward_stat, _) = runner.collect_data(module_triple,
-                                                      policy_path, None)
-      results_queue.put((module_triple[0], records, reward_stat))
+      data = runner.collect_data(
+          file_paths=module_triple,
+          tf_policy_path=policy_path,
+          reward_stat=None)
+      if not m:
+        results_queue.put(
+            (module_triple[0], data.sequence_examples, data.reward_stats))
+        continue
+      new_reward_stats = {}
+      new_sequence_examples = []
+      for k, sequence_example in zip(data.keys, data.sequence_examples):
+        if not m.match(k):
+          continue
+        new_reward_stats[k] = data.reward_stats[k]
+        new_sequence_examples.append(sequence_example)
+      results_queue.put(
+          (module_triple[0], new_sequence_examples, new_reward_stats))
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             RuntimeError):
       logging.error('Failed to compile %s.', module_triple)
@@ -119,6 +142,10 @@ def main(_):
     module_paths = [
         os.path.join(_DATA_PATH.value, name.rstrip('\n')) for name in f
     ]
+
+  if _MODULE_FILTER.value:
+    m = re.compile(_MODULE_FILTER.value)
+    module_paths = [mp for mp in module_paths if m.match(mp)]
 
   # Sampling if needed.
   if _SAMPLING_RATE.value < 1:

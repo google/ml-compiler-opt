@@ -38,17 +38,25 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
               default_reward=1, moving_average_reward=2)
   }
   if reward_stat is None:
-    return [1], {
-        'default':
-            compilation_runner.RewardStat(
-                default_reward=1, moving_average_reward=2)
-    }, [1.2]
+    return compilation_runner.CompilationResult(
+        sequence_examples=['1'],
+        reward_stats={
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=1, moving_average_reward=2)
+        },
+        rewards=[1.2],
+        keys=['default'])
   else:
-    return [2], {
-        'default':
-            compilation_runner.RewardStat(
-                default_reward=1, moving_average_reward=3)
-    }, [3.4]
+    return compilation_runner.CompilationResult(
+        sequence_examples=['2'],
+        reward_stats={
+            'default':
+                compilation_runner.RewardStat(
+                    default_reward=1, moving_average_reward=3)
+        },
+        rewards=[3.4],
+        keys=['default'])
 
 
 class Sleeper(compilation_runner.CompilationRunner):
@@ -75,7 +83,8 @@ class Sleeper(compilation_runner.CompilationRunner):
       raise e
     with self._lock:
       self._living.value += 1
-    return [1], {}, [2.3]
+    return compilation_runner.CompilationResult(
+        sequence_examples=[], reward_stats={}, rewards=[], keys=[])
 
 
 class LocalDataCollectorTest(tf.test.TestCase):
@@ -88,8 +97,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     def create_test_iterator_fn():
       def _test_iterator_fn(data_list):
-        assert data_list in ([1] * 9, [2] * 9)
-        if data_list == [1] * 9:
+        assert data_list in (['1'] * 9, ['2'] * 9)
+        if data_list == ['1'] * 9:
           return iter(tf.data.Dataset.from_tensor_slices([1, 2, 3]))
         else:
           return iter(tf.data.Dataset.from_tensor_slices([4, 5, 6]))

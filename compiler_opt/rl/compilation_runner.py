@@ -222,6 +222,31 @@ def start_cancellable_process(
       return ret
 
 
+@dataclasses.dataclass(frozen=True)
+class CompilationResult:
+  """Result of a call to CompilationRunner.collect_data.
+
+  sequence_examples: a list of tf.train.SequenceExample serialized protos.
+  reward_stats: a dictionary from keys (e.g. function names) to a RewardStat.
+  rewards: a list of reward values.
+  keys: a list of keys.
+
+  The object must observe the following invariants:
+  1) The entries of sequence_examples, rewards, and keys correspond to eachoter
+  at the same index.
+
+  2) The keys in reward stats are those in the keys field.
+  """
+  sequence_examples: List[str]
+  reward_stats: Dict[str, RewardStat]
+  rewards: List[float]
+  keys: List[str]
+
+  def __post_init__(self):
+    assert len(self.sequence_examples) == len(self.rewards) == len(self.keys)
+    assert set(self.keys) == set(self.reward_stats.keys())
+
+
 class CompilationRunner:
   """Base class for collecting compilation data."""
 
@@ -288,7 +313,7 @@ class CompilationRunner:
       tf_policy_path: str,
       reward_stat: Optional[Dict[str, RewardStat]],
       cancellation_token: Optional[ProcessCancellationToken] = None
-  ) -> Tuple[List[str], Dict[str, RewardStat], List[float]]:
+  ) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
@@ -299,10 +324,9 @@ class CompilationRunner:
       signaled early termination
 
     Returns:
-      A tuple containing:
-        sequence_example: A list of serialized tf.SequenceExample proto.
-        reward_stat: Updated reward stat of this module.
-        rewards: rewards under the current ml policy.
+      A CompilationResult. In particular:
+        reward_stat is the updated reward stat of this module;
+        rewards is rewards under the current ml policy.
 
     Raises:
       subprocess.CalledProcessError if process fails.
@@ -332,6 +356,7 @@ class CompilationRunner:
 
     sequence_example_list = []
     rewards = []
+    keys = []
     for k, v in policy_result.items():
       sequence_example = v[0]
       policy_reward = v[1]
@@ -351,8 +376,13 @@ class CompilationRunner:
           policy_reward * (1 - self._moving_average_decay_rate))
       rewards.append(
           _calculate_reward(policy=policy_reward, baseline=default_reward))
+      keys.append(k)
 
-    return (sequence_example_list, reward_stat, rewards)
+    return CompilationResult(
+        sequence_examples=sequence_example_list,
+        reward_stats=reward_stat,
+        rewards=rewards,
+        keys=keys)
 
   def _compile_fn(
       self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
