@@ -75,7 +75,8 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
 
 def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
            work_queue: 'queue.Queue[Tuple[str, ...]]',
-           results_queue: 'queue.Queue[Optional[List[str]]]'):
+           results_queue: 'queue.Queue[Optional[List[str]]]',
+           key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
 
   The worker picks a workitem from the work_queue, process it, and deposits
@@ -88,8 +89,9 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
     policy_path: the policy_path to generate trace with.
     work_queue: the queue of unprocessed work items.
     results_queue: the queue where results are deposited.
+    key_filter: regex filter for key names to include, or None to include all.
   """
-  m = re.compile(_KEY_FILTER.value) if _KEY_FILTER.value else None
+  m = re.compile(key_filter) if key_filter else None
 
   while True:
     try:
@@ -184,9 +186,9 @@ def main(_):
       # pylint:disable=g-complex-comprehension
       processes = [
           ctx.Process(
-              target=functools.partial(worker, runner, _POLICY_PATH.value,
-                                       work_queue, results_queue))
-          for _ in range(0, worker_count)
+              target=functools.partial(
+                  worker, runner, _POLICY_PATH.value, work_queue, results_queue,
+                  _KEY_FILTER.value)) for _ in range(0, worker_count)
       ]
       # pylint:enable=g-complex-comprehension
 
@@ -196,6 +198,7 @@ def main(_):
       total_successful_examples = 0
       total_work = len(module_specs)
       total_failed_examples = 0
+      total_training_examples = 0
       for _ in range(total_work):
         logging.log_every_n_seconds(logging.INFO,
                                     '%d success, %d failed out of %d', 10,
@@ -210,6 +213,7 @@ def main(_):
         total_successful_examples += 1
         module_name, records, reward_stat = results
         if tfrecord_writer:
+          total_training_examples += len(records)
           for r in records:
             tfrecord_writer.write(r)
         if performance_writer:
@@ -218,8 +222,9 @@ def main(_):
                                      (module_name, key, value.default_reward,
                                       value.moving_average_reward))
 
-      print('%d of %d modules succeeded.' %
-            (total_successful_examples, len(module_specs)))
+      print('%d of %d modules succeeded, and %d trainining examples written' %
+            (total_successful_examples, len(module_specs),
+             total_training_examples))
       for p in processes:
         p.join()
 
