@@ -224,6 +224,9 @@ export DEFAULT_VOCAB=compiler_opt/rl/inlining/vocab
 
 Collect traces from the default heuristic, to kick off the training process.
 
+**NOTE** the double and single quotes for the `--gin-bindings` - this is because
+the last value must appear, syntactically, as a python string.
+
 ```shell
 rm -rf $DEFAULT_TRACE &&
   PYTHONPATH=$PYTHONPATH:. python3 \
@@ -231,8 +234,8 @@ rm -rf $DEFAULT_TRACE &&
     --data_path=$CORPUS \
     --output_path=$DEFAULT_TRACE \
     --compile_task=inlining \
-    --clang_path=$LLVM_INSTALLDIR/bin/clang \
-    --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
+    --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
+    --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
     --sampling_rate=0.2
 ```
 
@@ -284,8 +287,8 @@ rm -rf $OUTPUT_DIR && \
   compiler_opt/rl/train_locally.py \
   --root_dir=$OUTPUT_DIR \
   --data_path=$CORPUS \
-  --clang_path=$LLVM_INSTALLDIR/bin/clang \
-  --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
+  --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
+  --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
   --num_modules=100 \
   --gin_files=compiler_opt/rl/inlining/gin_configs/ppo_nn_agent.gin \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
@@ -307,8 +310,8 @@ python3 compiler_opt/tools/generate_default_trace.py \
   --policy_path=$OUTPUT_DIR/saved_policy \
   --output_performance_path=$OUTPUT_PERFORMANCE_PATH \
   --compile_task=inlining \
-  --clang_path=$LLVM_INSTALLDIR/bin/clang \
-  --llvm_size_path=$LLVM_INSTALLDIR/bin/llvm-size \
+  --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
+  --gin_bindings=llvm_size_path"'=$LLVM_INSTALLDIR/bin/llvm-size'" \
   --sampling_rate=0.2
 ```
 

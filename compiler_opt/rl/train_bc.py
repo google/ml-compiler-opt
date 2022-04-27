@@ -21,14 +21,14 @@ from absl import app
 from absl import flags
 from absl import logging
 import gin
-# <Internal> Using XM - flags.  # pylint: disable=unused-import
 
+# <Internal> Using XM - flags.  # pylint: disable=unused-import
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import config
 from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import policy_saver
+from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
 _ROOT_DIR = flags.DEFINE_string(
@@ -48,18 +48,15 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
 
 @gin.configurable
 def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
-               problem_type=None,
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1):
   """Train for LLVM inliner."""
   root_dir = os.path.expanduser(_ROOT_DIR.value)
   root_dir = os.path.normpath(root_dir)
-
-  time_step_spec, action_spec = config.get_signature_spec(
-      problem_type)
-  preprocessing_layer_creator = config.get_preprocessing_layer_creator(
-      problem_type)
+  problem_config = registry.get_configuration()
+  time_step_spec, action_spec = problem_config.get_signature_spec()
+  preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,

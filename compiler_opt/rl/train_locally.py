@@ -30,22 +30,20 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
-from compiler_opt.rl import config
 from compiler_opt.rl import constant
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
+from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import random_net_distillation
+from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_string('data_path', None,
                     'Path to CNS folder containing IR files.')
-flags.DEFINE_string('clang_path', 'clang', 'Path to clang binary.')
-flags.DEFINE_string('llvm_size_path', 'llvm-size', 'Path to llvm_size binary.')
-flags.DEFINE_string('launcher_path', None, 'Path to launcher binary.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -62,7 +60,6 @@ FLAGS = flags.FLAGS
 
 @gin.configurable
 def train_eval(agent_name=constant.AgentName.PPO,
-               problem_type=None,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_iterations=100,
@@ -73,11 +70,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
                moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
-
-  time_step_spec, action_spec = config.get_signature_spec(
-      problem_type)
-  preprocessing_layer_creator = config.get_preprocessing_layer_creator(
-      problem_type)
+  problem_config = registry.get_configuration()
+  time_step_spec, action_spec = problem_config.get_signature_spec()
+  preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
   tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
@@ -107,16 +102,15 @@ def train_eval(agent_name=constant.AgentName.PPO,
     module_paths = [
         os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
     ]
-    if problem_type in ('inlining',):
+
+    if not problem_configuration.is_thinlto(module_paths):
       file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
     else:
       file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
                     for path in module_paths]
 
-  runner = config.get_compilation_runner(problem_type, FLAGS.clang_path,
-                                         FLAGS.llvm_size_path,
-                                         FLAGS.launcher_path,
-                                         moving_average_decay_rate)
+  runner = problem_config.get_runner(
+      moving_average_decay_rate=moving_average_decay_rate)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,

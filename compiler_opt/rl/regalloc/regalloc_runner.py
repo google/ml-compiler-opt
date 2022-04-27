@@ -21,19 +21,20 @@ import os
 import tempfile
 from typing import Dict, Optional, Tuple
 
+import gin
 import tensorflow as tf
 
 from google.protobuf import struct_pb2
 from compiler_opt.rl import compilation_runner
 
 
+@gin.configurable(module='runners')
 class RegAllocRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for regalloc-for-performance.
 
   Usage:
   runner = RegAllocRunner(
-               clang_path, llvm_size_path, launcher_path,
-               moving_average_decay_rate)
+               clang_path, launcher_path, moving_average_decay_rate)
   serialized_sequence_example, default_reward, moving_average_reward,
   policy_reward = inliner.collect_data(
       ir_path, tf_policy_path, default_reward, moving_average_reward)

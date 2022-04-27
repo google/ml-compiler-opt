@@ -103,8 +103,8 @@ class CompilationRunnerTest(tf.test.TestCase):
               '.compilation_runner.CompilationRunner._compile_fn')
   def test_policy(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
-    runner = compilation_runner.CompilationRunner('', '', '',
-                                                  _MOVING_AVERAGE_DECAY_RATE)
+    runner = compilation_runner.CompilationRunner(
+        moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
         file_paths=('bc', 'cmd'),
         tf_policy_path='policy_path',
@@ -131,8 +131,8 @@ class CompilationRunnerTest(tf.test.TestCase):
               '.compilation_runner.CompilationRunner._compile_fn')
   def test_default(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
-    runner = compilation_runner.CompilationRunner('', '', '',
-                                                  _MOVING_AVERAGE_DECAY_RATE)
+    runner = compilation_runner.CompilationRunner(
+        moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
         file_paths=('bc', 'cmd'), tf_policy_path='', reward_stat=None)
@@ -158,8 +158,8 @@ class CompilationRunnerTest(tf.test.TestCase):
               '.compilation_runner.CompilationRunner._compile_fn')
   def test_given_default_size(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
-    runner = compilation_runner.CompilationRunner('', '', '',
-                                                  _MOVING_AVERAGE_DECAY_RATE)
+    runner = compilation_runner.CompilationRunner(
+        moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
         file_paths=('bc', 'cmd'),
@@ -192,8 +192,8 @@ class CompilationRunnerTest(tf.test.TestCase):
   def test_exception_handling(self, mock_compile_fn):
     mock_compile_fn.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')
-    runner = compilation_runner.CompilationRunner('', '', '',
-                                                  _MOVING_AVERAGE_DECAY_RATE)
+    runner = compilation_runner.CompilationRunner(
+        moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(

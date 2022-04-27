@@ -22,19 +22,21 @@ import queue
 import random
 import re
 import subprocess
-# see https://bugs.python.org/issue33315 - we do need these types, but must
-# currently use them as string annotations
 from typing import Dict, List, Optional, Tuple  # pylint:disable=unused-import
 
 from absl import app
 from absl import flags
 from absl import logging
+import gin
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
-from compiler_opt.rl.inlining import inlining_runner
-from compiler_opt.rl.regalloc import regalloc_runner
+from compiler_opt.rl import problem_configuration
+from compiler_opt.rl import registry
+
+# see https://bugs.python.org/issue33315 - we do need these types, but must
+# currently use them as string annotations
 
 _DATA_PATH = flags.DEFINE_string('data_path', None,
                                  'Path to folder containing IR files.')
@@ -45,16 +47,6 @@ _OUTPUT_PATH = flags.DEFINE_string(
 _OUTPUT_PERFORMANCE_PATH = flags.DEFINE_string(
     'output_performance_path', None,
     'Path to the output performance file if not None.')
-_COMPILE_TASK = flags.DEFINE_enum(
-    'compile_task', 'inlining', ['inlining', 'regalloc'],
-    'compile task to generate tfrecord with, only support '
-    'inlining and regalloc currently.')
-_CLANG_PATH = flags.DEFINE_string('clang_path', 'clang',
-                                  'Path to clang binary.')
-_LLVM_SIZE_PATH = flags.DEFINE_string('llvm_size_path', 'llvm-size',
-                                      'Path to llvm_size binary.')
-_LAUNCHER_PATH = flags.DEFINE_string('launcher_path', None,
-                                     'Path to launcher binary.')
 _NUM_WORKERS = flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel workers for compilation. `None` for maximum available.')
@@ -68,6 +60,12 @@ _MODULE_FILTER = flags.DEFINE_string(
 _KEY_FILTER = flags.DEFINE_string(
     'key_filter', None,
     'Regex for key names to include, do not provide one to include all')
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
+    'gin_bindings', [],
+    'Gin bindings to override the values set in the config files.')
+
 
 ResultsQueueEntry = Optional[Tuple[str, List[str],
                                    Dict[str, compilation_runner.RewardStat]]]
@@ -123,28 +121,22 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
 
 
 def main(_):
-  # Initialize runner and file_suffix according to compile_task.
-  if _COMPILE_TASK.value == 'inlining':
-    runner_object = inlining_runner.InliningRunner
-    file_suffix = ('.bc', '.cmd')
-  elif _COMPILE_TASK.value == 'regalloc':
-    runner_object = regalloc_runner.RegAllocRunner
-    file_suffix = ('.bc', '.cmd', '.thinlto.bc')
 
-  # runner_object and file_suffix should be set with the branches above.
-  assert runner_object and file_suffix
+  gin.parse_config_files_and_bindings(
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
+  logging.info(gin.config_str())
 
-  runner = runner_object(
-      clang_path=_CLANG_PATH.value,
-      llvm_size_path=_LLVM_SIZE_PATH.value,
-      launcher_path=_LAUNCHER_PATH.value,
-      moving_average_decay_rate=0)
+  problem_config = registry.get_configuration()
+  runner = problem_config.get_runner(moving_average_decay_rate=0)
+  assert runner
 
   with open(os.path.join(_DATA_PATH.value, 'module_paths'), 'r') as f:
     module_paths = [
         os.path.join(_DATA_PATH.value, name.rstrip('\n')) for name in f
     ]
-
+  is_thinlto = problem_configuration.is_thinlto(module_paths)
+  file_suffix = ('.bc', '.cmd', '.thinlto.bc') if is_thinlto else ('.bc',
+                                                                   '.cmd')
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
     module_paths = [mp for mp in module_paths if m.match(mp)]

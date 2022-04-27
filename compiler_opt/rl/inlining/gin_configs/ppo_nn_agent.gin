@@ -7,8 +7,9 @@ import tf_agents.agents.ppo.ppo_agent
 import tf_agents.networks.actor_distribution_network
 import tf_agents.networks.encoding_network
 
+include 'compiler_opt/rl/inlining/gin_configs/common.gin'
+
 train_eval.agent_name=%constant.AgentName.PPO
-train_eval.problem_type = 'inlining'
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
 train_eval.num_iterations=300

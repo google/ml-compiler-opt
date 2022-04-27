@@ -1,0 +1,9 @@
+config_registry.get_configuration.implementation=@configs.InliningConfig
+
+launcher_path=None
+llvm_size_path=None
+clang_path=None
+
+runners.InliningRunner.llvm_size_path=%llvm_size_path
+runners.InliningRunner.clang_path=%clang_path
+runners.InliningRunner.launcher_path=%launcher_path

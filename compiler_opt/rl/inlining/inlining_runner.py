@@ -18,9 +18,9 @@
 import io
 import os
 import tempfile
+from typing import Dict, Optional, Tuple
 
-from typing import Tuple, Dict, Optional
-
+import gin
 import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
@@ -28,6 +28,7 @@ from compiler_opt.rl import compilation_runner
 _DEFAULT_IDENTIFIER = 'default'
 
 
+@gin.configurable(module='runners')
 class InliningRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for inlining-for-size.
 
@@ -39,6 +40,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
   policy_reward = inliner.collect_data(
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
+
+  def __init__(self, llvm_size_path: str, *args, **kwargs):
+    super(InliningRunner, self).__init__(*args, **kwargs)
+    self._llvm_size_path = llvm_size_path
 
   def _compile_fn(
       self, file_paths: Tuple[str, str], tf_policy_path: str, reward_only: bool,

@@ -132,7 +132,7 @@ class ProcessCancellationToken:
     self._event.wait()
 
 
-def kill_process_ignore_exceptions(p: subprocess.Popen):
+def kill_process_ignore_exceptions(p: subprocess.Popen[bytes]):
   # kill the process and ignore exceptions. Exceptions would be thrown if the
   # process has already been killed/finished (which is inherently in a race
   # condition with us killing it)
@@ -158,7 +158,7 @@ class WorkerCancellationManager:
     self._done = False
     self._lock = threading.Lock()
 
-  def register_process(self, p: subprocess.Popen):
+  def register_process(self, p: subprocess.Popen[bytes]):
     """Register a process for potential cancellation."""
     with self._lock:
       if not self._done:
@@ -173,7 +173,7 @@ class WorkerCancellationManager:
     for p in self._processes:
       kill_process_ignore_exceptions(p)
 
-  def unregister_process(self, p: subprocess.Popen):
+  def unregister_process(self, p: subprocess.Popen[bytes]):
     with self._lock:
       if not self._done:
         self._processes.remove(p)
@@ -264,20 +264,17 @@ class CompilationRunner:
     return CompilationRunner._POOL
 
   def __init__(self,
-               clang_path: str,
-               llvm_size_path: str,
+               clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
                moving_average_decay_rate: float = 1):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
-      llvm_size_path: path to the llvm-size binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
     """
     self._clang_path = clang_path
-    self._llvm_size_path = llvm_size_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
     self._compilation_timeout = _COMPILATION_TIMEOUT.value
