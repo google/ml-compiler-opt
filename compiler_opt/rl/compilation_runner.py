@@ -132,7 +132,7 @@ class ProcessCancellationToken:
     self._event.wait()
 
 
-def kill_process_ignore_exceptions(p: subprocess.Popen[bytes]):
+def kill_process_ignore_exceptions(p: 'subprocess.Popen[bytes]'):
   # kill the process and ignore exceptions. Exceptions would be thrown if the
   # process has already been killed/finished (which is inherently in a race
   # condition with us killing it)
@@ -158,7 +158,7 @@ class WorkerCancellationManager:
     self._done = False
     self._lock = threading.Lock()
 
-  def register_process(self, p: subprocess.Popen[bytes]):
+  def register_process(self, p: 'subprocess.Popen[bytes]'):
     """Register a process for potential cancellation."""
     with self._lock:
       if not self._done:
@@ -173,7 +173,7 @@ class WorkerCancellationManager:
     for p in self._processes:
       kill_process_ignore_exceptions(p)
 
-  def unregister_process(self, p: subprocess.Popen[bytes]):
+  def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
       if not self._done:
         self._processes.remove(p)
