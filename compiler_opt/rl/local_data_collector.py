@@ -145,15 +145,22 @@ class LocalDataCollector(data_collector.DataCollector):
                  len(finished_work), self._num_modules, wait_seconds, failures)
 
     sequence_examples = list(
-        itertools.chain.from_iterable(
-            [res.get().sequence_examples for (_, res) in successful_work]))
+        itertools.chain.from_iterable([
+            res.get().serialized_sequence_examples
+            for (_, res) in successful_work
+        ]))
+    total_trajectory_length = sum(
+        [res.get().length for (_, res) in successful_work])
     self._reward_stat_map.update({
         '-'.join(file_paths): res.get().reward_stats
         for (file_paths, res) in successful_work
     })
 
     monitor_dict = {}
-    monitor_dict['default'] = {'success_modules': len(successful_work)}
+    monitor_dict['default'] = {
+        'success_modules': len(successful_work),
+        'total_trajectory_length': total_trajectory_length,
+    }
     rewards = list(
         itertools.chain.from_iterable(
             [res.get().rewards for (_, res) in successful_work]))

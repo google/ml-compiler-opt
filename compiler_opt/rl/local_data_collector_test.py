@@ -18,6 +18,7 @@
 import collections
 
 import multiprocessing as mp
+import string
 import subprocess
 from unittest import mock
 
@@ -26,7 +27,22 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
+from google.protobuf import text_format
 from compiler_opt.rl import local_data_collector
+
+
+def _get_sequence_example(feature_value):
+  sequence_example_text = string.Template("""
+    feature_lists {
+      feature_list {
+        key: "feature_0"
+        value {
+          feature { int64_list { value: $feature_value } }
+          feature { int64_list { value: $feature_value } }
+        }
+      }
+    }""").substitute(feature_value=feature_value)
+  return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
 def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
@@ -39,7 +55,7 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
   }
   if reward_stat is None:
     return compilation_runner.CompilationResult(
-        sequence_examples=['1'],
+        sequence_examples=[_get_sequence_example(feature_value=1)],
         reward_stats={
             'default':
                 compilation_runner.RewardStat(
@@ -49,7 +65,7 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
         keys=['default'])
   else:
     return compilation_runner.CompilationResult(
-        sequence_examples=['2'],
+        sequence_examples=[_get_sequence_example(feature_value=2)],
         reward_stats={
             'default':
                 compilation_runner.RewardStat(
@@ -97,8 +113,12 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     def create_test_iterator_fn():
       def _test_iterator_fn(data_list):
-        assert data_list in (['1'] * 9, ['2'] * 9)
-        if data_list == ['1'] * 9:
+        assert data_list in (
+            [_get_sequence_example(feature_value=1).SerializeToString()] * 9,
+            [_get_sequence_example(feature_value=2).SerializeToString()] * 9)
+        if data_list == [
+            _get_sequence_example(feature_value=1).SerializeToString()
+        ] * 9:
           return iter(tf.data.Dataset.from_tensor_slices([1, 2, 3]))
         else:
           return iter(tf.data.Dataset.from_tensor_slices([4, 5, 6]))
@@ -116,13 +136,23 @@ class LocalDataCollectorTest(tf.test.TestCase):
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([1, 2, 3], data)
-    expected_monitor_dict_subset = {'default': {'success_modules': 9}}
+    expected_monitor_dict_subset = {
+        'default': {
+            'success_modules': 9,
+            'total_trajectory_length': 18,
+        }
+    }
     self.assertDictContainsSubset(expected_monitor_dict_subset, monitor_dict)
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
     self.assertEqual([4, 5, 6], data)
-    expected_monitor_dict_subset = {'default': {'success_modules': 9}}
+    expected_monitor_dict_subset = {
+        'default': {
+            'success_modules': 9,
+            'total_trajectory_length': 18,
+        }
+    }
     self.assertDictContainsSubset(expected_monitor_dict_subset, monitor_dict)
 
     collector.close_pool()

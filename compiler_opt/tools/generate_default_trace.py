@@ -102,12 +102,13 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
           tf_policy_path=policy_path,
           reward_stat=None)
       if not m:
-        results_queue.put(
-            (module_triple[0], data.sequence_examples, data.reward_stats))
+        results_queue.put((module_triple[0], data.serialized_sequence_examples,
+                           data.reward_stats))
         continue
       new_reward_stats = {}
       new_sequence_examples = []
-      for k, sequence_example in zip(data.keys, data.sequence_examples):
+      for k, sequence_example in zip(data.keys,
+                                     data.serialized_sequence_examples):
         if not m.match(k):
           continue
         new_reward_stats[k] = data.reward_stats[k]

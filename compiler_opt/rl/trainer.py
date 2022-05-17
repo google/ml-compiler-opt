@@ -178,7 +178,16 @@ class Trainer(object):
     with tf.summary.record_if(
         lambda: tf.math.equal(self._global_step % self._summary_interval, 0)):
       for _ in range(num_iterations):
-        experience = next(dataset_iter)
+        # When the data is not enough to fill in a batch, next(dataset_iter)
+        # will throw StopIteration exception, logging a warning message instead
+        # of killing the training when it happens.
+        try:
+          experience = next(dataset_iter)
+        except StopIteration:
+          logging.warning(
+              'Warning: skip training because do not have enough data to fill in a batch, consider increase data or reduce batch size.'
+          )
+          break
 
         # random network distillation for intrinsic reward generation
         if self._random_network_distillation:

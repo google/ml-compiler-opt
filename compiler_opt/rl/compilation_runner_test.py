@@ -114,8 +114,10 @@ class CompilationRunnerTest(tf.test.TestCase):
     expected_example = _get_sequence_example_with_reward(
         _POLICY_FEATURE_VALUE, 0.1998)
     self.assertListProtoEqual([expected_example], [
-        tf.train.SequenceExample.FromString(x) for x in data.sequence_examples
+        tf.train.SequenceExample.FromString(x)
+        for x in data.serialized_sequence_examples
     ])
+    self.assertEqual(2, data.length)
     self.assertCountEqual(
         {
             'default':
@@ -143,8 +145,10 @@ class CompilationRunnerTest(tf.test.TestCase):
     expected_example = _get_sequence_example_with_reward(
         _DEFAULT_FEATURE_VALUE, 0)
     self.assertListProtoEqual([expected_example], [
-        tf.train.SequenceExample.FromString(x) for x in data.sequence_examples
+        tf.train.SequenceExample.FromString(x)
+        for x in data.serialized_sequence_examples
     ])
+    self.assertEqual(2, data.length)
     self.assertCountEqual(
         {
             'default':
@@ -175,8 +179,10 @@ class CompilationRunnerTest(tf.test.TestCase):
         _POLICY_FEATURE_VALUE,
         1 - (_POLICY_REWARD + constant.DELTA) / (7 + constant.DELTA))
     self.assertListProtoEqual([expected_example], [
-        tf.train.SequenceExample.FromString(x) for x in data.sequence_examples
+        tf.train.SequenceExample.FromString(x)
+        for x in data.serialized_sequence_examples
     ])
+    self.assertEqual(2, data.length)
     self.assertCountEqual(
         {
             'default':

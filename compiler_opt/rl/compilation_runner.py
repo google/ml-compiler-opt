@@ -226,7 +226,11 @@ def start_cancellable_process(
 class CompilationResult:
   """Result of a call to CompilationRunner.collect_data.
 
-  sequence_examples: a list of tf.train.SequenceExample serialized protos.
+  sequence_examples: a list of tf.train.SequenceExample protos, init-only
+                     variables.
+  serialized_sequence_examples: a list of tf.train.SequenceExample serialized
+                                protos, derived from sequence_examples.
+  length: total length of all sequence examples, derived from sequence_examples.
   reward_stats: a dictionary from keys (e.g. function names) to a RewardStat.
   rewards: a list of reward values.
   keys: a list of keys.
@@ -237,14 +241,26 @@ class CompilationResult:
 
   2) The keys in reward stats are those in the keys field.
   """
-  sequence_examples: List[str]
+  sequence_examples: dataclasses.InitVar[List[tf.train.SequenceExample]]
+  serialized_sequence_examples: List[str] = dataclasses.field(init=False)
+  length: int = dataclasses.field(init=False)
   reward_stats: Dict[str, RewardStat]
   rewards: List[float]
   keys: List[str]
 
-  def __post_init__(self):
-    assert len(self.sequence_examples) == len(self.rewards) == len(self.keys)
+  def __post_init__(self, sequence_examples: List[tf.train.SequenceExample]):
+    object.__setattr__(self, 'serialized_sequence_examples',
+                       [x.SerializeToString() for x in sequence_examples])
+    lengths = [
+        len(next(iter(x.feature_lists.feature_list.values())).feature)
+        for x in sequence_examples
+    ]
+    object.__setattr__(self, 'length', sum(lengths))
+
+    assert (len(self.serialized_sequence_examples) == len(self.rewards) ==
+            (len(self.keys)))
     assert set(self.keys) == set(self.reward_stats.keys())
+    assert not hasattr(self, 'sequence_examples')
 
 
 class CompilationRunner:
@@ -367,7 +383,7 @@ class CompilationRunner:
           sequence_example=sequence_example,
           reward=_calculate_reward(
               policy=policy_reward, baseline=moving_average_reward))
-      sequence_example_list.append(sequence_example.SerializeToString())
+      sequence_example_list.append(sequence_example)
       reward_stat[k].moving_average_reward = (
           moving_average_reward * self._moving_average_decay_rate +
           policy_reward * (1 - self._moving_average_decay_rate))
