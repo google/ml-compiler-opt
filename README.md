@@ -57,7 +57,7 @@ Training assumes a clang build with ML 'development-mode'. Please refer to:
 
 *   [LLVM documentation](https://llvm.org/docs/CMake.html)
 *   the build
-    [bot script](https://github.com/google/ml-compiler-opt/blob/master/buildbot/buildbot_init.sh)
+    [bot script](https://github.com/google/ml-compiler-opt/blob/main/buildbot/buildbot_init.sh)
 
 The model training - specific prerequisites are:
 
