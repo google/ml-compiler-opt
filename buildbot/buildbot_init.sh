@@ -81,7 +81,7 @@ ADMIN_PACKAGES="tmux"
         liblzma-dev \
         libssl-dev \
         libgss-dev \
-        python-dev \
+        python3-dev \
         wget \
         zlib1g-dev
 
