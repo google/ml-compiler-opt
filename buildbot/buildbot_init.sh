@@ -34,16 +34,8 @@ mount -t tmpfs tmpfs /tmp
 mkdir -p $BOT_DIR
 mount -t tmpfs tmpfs -o size=80% $BOT_DIR
 
-BUSTER_PACKAGES=
-
-if lsb_release -a | grep "buster" ; then
-  BUSTER_PACKAGES="python3-distutils"
-
 TF_API_DEP_PACKAGES="python3 python3-pip"
 ADMIN_PACKAGES="tmux"
-
-
-fi
 
 (
   SLEEP=0
@@ -66,7 +58,8 @@ fi
       apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
 
       apt-get install -qq -y \
-        $BUSTER_PACKAGES \
+        python3-distutils \
+        python-is-python3 \
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
         g++ \
