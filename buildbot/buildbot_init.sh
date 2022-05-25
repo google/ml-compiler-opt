@@ -45,8 +45,6 @@ ADMIN_PACKAGES="tmux"
 
     (
       set -ex
-      apt-key adv --recv-keys --keyserver keyserver.ubuntu.com FEEA9169307EA071 || exit 1
-      apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 871920D1991BC93C || exit 1
 
       dpkg --add-architecture i386
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
