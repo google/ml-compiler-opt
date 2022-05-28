@@ -233,7 +233,8 @@ rm -rf $DEFAULT_TRACE &&
     compiler_opt/tools/generate_default_trace.py \
     --data_path=$CORPUS \
     --output_path=$DEFAULT_TRACE \
-    --compile_task=inlining \
+    --gin_files=compiler_opt/rl/inlining/gin_configs/common.gin \
+    --gin_bindings=config_registry.get_configuration.implementation=@configs.InliningConfig
     --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
     --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
     --sampling_rate=0.2
@@ -310,6 +311,7 @@ python3 compiler_opt/tools/generate_default_trace.py \
   --policy_path=$OUTPUT_DIR/saved_policy \
   --output_performance_path=$OUTPUT_PERFORMANCE_PATH \
   --compile_task=inlining \
+  --gin_files=compiler_opt/rl/inlining/gin_configs/common.gin \
   --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
   --gin_bindings=llvm_size_path"'=$LLVM_INSTALLDIR/bin/llvm-size'" \
   --sampling_rate=0.2
