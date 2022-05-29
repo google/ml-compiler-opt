@@ -108,7 +108,20 @@ This is this repository.
 
 ### Tensorflow dependencies
 
-See also [the build bot script](buildbot/builbot_init.sh)
+See also [the build bot script](../../buildbot/buildbot_init.sh)
+
+**NOTE:** The versioning of Tensorflow is pretty important in order to get a
+functioning build with the demo setup. Building with a Tensorflow pip
+package above v2.7.0 will cause the build to fail as well as building with
+a libtensorflow version above v1.15.x. Versions of the Tensorflow pip package
+under v2.8.0 don't have any available wheels for Python 3.10, so if you
+are on a more recent distro (eg Ubuntu 22.04) that has Python 3.10, you will
+run into version compatibility issues between the required Tensorflow version
+and the available Python version (pip will refuse to install Tensorflow) trying
+to install the required python packages from `ml-compiler-opt/requirements.txt`.
+To mitigate this, either use a distro with a compatible python version
+(eg Ubuntu 20.04), or your preferred flavor of python virtual environment
+to utilize a compatible Python version.
 
 ```shell
 cd
@@ -234,7 +247,7 @@ rm -rf $DEFAULT_TRACE &&
     --data_path=$CORPUS \
     --output_path=$DEFAULT_TRACE \
     --gin_files=compiler_opt/rl/inlining/gin_configs/common.gin \
-    --gin_bindings=config_registry.get_configuration.implementation=@configs.InliningConfig
+    --gin_bindings=config_registry.get_configuration.implementation=@configs.InliningConfig \
     --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
     --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
     --sampling_rate=0.2
