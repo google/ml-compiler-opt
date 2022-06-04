@@ -18,8 +18,8 @@
 import gin
 
 from compiler_opt.rl import problem_configuration
-import compiler_opt.rl.regalloc.config as config
-import compiler_opt.rl.regalloc.regalloc_runner as regalloc_runner
+from compiler_opt.rl.regalloc import config
+from compiler_opt.rl.regalloc import regalloc_runner
 
 
 @gin.register(module='configs')

@@ -18,8 +18,8 @@
 import gin
 
 from compiler_opt.rl import problem_configuration
-import compiler_opt.rl.inlining.config as config
-import compiler_opt.rl.inlining.inlining_runner as inlining_runner
+from compiler_opt.rl.inlining import config
+from compiler_opt.rl.inlining import inlining_runner
 
 
 @gin.register(module='configs')

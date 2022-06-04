@@ -18,7 +18,8 @@
 Extract IR for training, either from a compile_commands.json file produced by
 cmake, or a linker parameter list file.
 
-Only run with 'python compiler_opt/tools/extract_ir.py ...'
+Only run with
+'python compiler_opt/tools/extract_ir.py ...'
 
 The compilation is assumed to have been performed with clang, using
 -fembed-bitcode=all passed to cc1 (i.e. pass clang -Xclang=-fembed-bitcode=all)

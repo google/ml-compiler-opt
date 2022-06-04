@@ -16,7 +16,8 @@
 r"""Convert benchmark results.json to csv.
 
 To run:
-python3 compiler_opt/tools/benchmark_report_counter.py \
+python3 \
+compiler_opt/tools/benchmark_report_counter.py \
   --base=/tmp/base_report.json \
   --exp=/tmp/exp_report.json \
   --counters=INSTRUCTIONS \

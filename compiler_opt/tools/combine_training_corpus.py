@@ -24,7 +24,8 @@ combinedcorpus/corpus2
 
 Running this script with
 
-python3 compiler_opt/tools/combine_training_corpus.py \
+python3 \
+compiler_opt/tools/combine_training_corpus.py \
   --root_dir=$PATH_TO_combinedcorpus
 
 generates combinedcorpus/module_path file. In this way corpus1 and
