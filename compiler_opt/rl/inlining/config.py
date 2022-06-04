@@ -76,7 +76,7 @@ def get_inlining_signature_spec():
       dtype=tf.int64, shape=(), name='inlining_decision', minimum=0, maximum=1)
 
   return time_step_spec, action_spec
-  # LINT.ThenChange(mlgo/compiler_opt/rl/google/inlining/sparse_bucket_config.pbtxt)
+  # LINT.ThenChange(.../rl/google/inlining/sparse_bucket_config.pbtxt)
 
 
 @gin.configurable
