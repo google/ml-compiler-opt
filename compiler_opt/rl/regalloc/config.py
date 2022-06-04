@@ -15,6 +15,7 @@
 """Register allocation training config."""
 
 import gin
+from numpy import dtype
 import tensorflow as tf
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
@@ -54,6 +55,8 @@ def get_regalloc_signature_spec():
                        'nr_broken_hints', 'nr_urgent', 'nr_rematerializable')))
   observation_spec['progress'] = tensor_spec.BoundedTensorSpec(
       dtype=tf.float32, shape=(), name='progress', minimum=0, maximum=1)
+  observation_spec['lr_use_def_instructions'] = tensor_spec.BoundedTensorSpec(
+      dtype=tf.int64, shape=(33), name='lr_use_def_instructions', minimum=0, maximum=17716)
 
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
@@ -87,6 +90,9 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
     if obs_spec.name in ('max_stage', 'min_stage'):
       return tf.keras.layers.Embedding(7, 4)
+
+    if obs_spec.name in ('lr_use_def_instructions'):
+      return tf.keras.layers.Embedding(17716, 16)
 
     quantile = quantile_map[obs_spec.name]
 
