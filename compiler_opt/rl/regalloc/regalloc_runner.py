@@ -72,7 +72,11 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
-    input_ir_path, cmd_path, thinlto_index_path = file_paths
+    input_ir_path = cmd_path = thinlto_index_path = None
+    if len(file_paths) == 3:
+        input_ir_path, cmd_path, thinlto_index_path = file_paths
+    else:
+        input_ir_path, cmd_path = file_paths
 
     result = {}
     try:
