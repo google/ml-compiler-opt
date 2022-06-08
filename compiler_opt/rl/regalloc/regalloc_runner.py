@@ -20,6 +20,7 @@ import io
 import os
 import tempfile
 from typing import Dict, Optional, Tuple
+from absl import logging
 
 import gin
 import tensorflow as tf
@@ -40,6 +41,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
+  # TODO: refactor file_paths parameter to ensure correctness during construction
   def _compile_fn(
       self, file_paths: Tuple[str, str, str], tf_policy_path: str,
       reward_only: bool, cancellation_manager: Optional[
@@ -74,9 +76,11 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
 
     input_ir_path = cmd_path = thinlto_index_path = None
     if len(file_paths) == 3:
-        input_ir_path, cmd_path, thinlto_index_path = file_paths
+      input_ir_path, cmd_path, thinlto_index_path = file_paths
+    elif len(file_paths) == 2:
+      input_ir_path, cmd_path = file_paths
     else:
-        input_ir_path, cmd_path = file_paths
+      logging.fatal('Expected 2 or 3 file paths')
 
     result = {}
     try:
