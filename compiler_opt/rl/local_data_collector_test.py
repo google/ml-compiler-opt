@@ -85,6 +85,7 @@ class Sleeper(compilation_runner.CompilationRunner):
 
   def collect_data(self, file_paths, tf_policy_path, reward_only,
                    cancellation_token):
+    _ = reward_only
     cancellation_manager = self._get_cancellation_manager(cancellation_token)
     try:
       compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,

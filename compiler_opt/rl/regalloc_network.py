@@ -162,6 +162,7 @@ class RegAllocNetwork(network.DistributionNetwork):
            network_state=(),
            training: bool = False,
            mask=None):
+    _ = mask
     state, network_state = self._encoder(
         observations,
         step_type=step_type,
