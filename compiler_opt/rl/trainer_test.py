@@ -14,13 +14,13 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.trainer."""
 
-from absl.testing.absltest import mock
 import tensorflow as tf
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.networks import q_rnn_network
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 from tf_agents.trajectories import trajectory
+from unittest import mock
 
 from compiler_opt.rl import trainer
 
