@@ -23,7 +23,7 @@ jobs:
           pip install pytest pytype pylint
       - name: Type check
         run: |
-          pytype --protocols .
+          pytype --protocols -j auto .
       - name: Lint
         run: |
           pylint --rcfile .pylintrc **/*.py
