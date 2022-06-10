@@ -18,8 +18,8 @@ from typing import Callable
 
 import gin
 import tensorflow as tf
-import tf_agents as tfa
 
+from tf_agents.agents import TFAgent
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
@@ -29,10 +29,10 @@ from compiler_opt.rl import constant
 from compiler_opt.rl import constant_value_network
 
 
-def _create_behavioral_cloning_agent(
-    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
-    preprocessing_layers: types.NestedLayer,
-    policy_network: types.Network) -> tfa.agents.TFAgent:
+def _create_behavioral_cloning_agent(time_step_spec: types.NestedTensorSpec,
+                                     action_spec: types.NestedTensorSpec,
+                                     preprocessing_layers: types.NestedLayer,
+                                     policy_network: types.Network) -> TFAgent:
   """Creates a behavioral_cloning_agent."""
 
   network = policy_network(
@@ -48,7 +48,7 @@ def _create_behavioral_cloning_agent(
 def _create_dqn_agent(time_step_spec: types.NestedTensorSpec,
                       action_spec: types.NestedTensorSpec,
                       preprocessing_layers: types.NestedLayer,
-                      policy_network: types.Network) -> tfa.agents.TFAgent:
+                      policy_network: types.Network) -> TFAgent:
   """Creates a dqn_agent."""
   network = policy_network(
       time_step_spec.observation,
@@ -62,7 +62,7 @@ def _create_dqn_agent(time_step_spec: types.NestedTensorSpec,
 def _create_ppo_agent(time_step_spec: types.NestedTensorSpec,
                       action_spec: types.NestedTensorSpec,
                       preprocessing_layers: types.NestedLayer,
-                      policy_network: types.Network) -> tfa.agents.TFAgent:
+                      policy_network: types.Network) -> TFAgent:
   """Creates a ppo_agent."""
 
   actor_network = policy_network(
