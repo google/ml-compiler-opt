@@ -102,6 +102,7 @@ disable=abstract-method,
         no-member,
         no-name-in-module,
         no-self-use,
+	no-value-for-parameter, # gin causes false positives
         nonzero-method,
         oct-method,
         old-division,
