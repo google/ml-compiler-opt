@@ -27,7 +27,7 @@ jobs:
           pytype --protocols -j auto .
       - name: Lint
         run: |
-          pylint --rcfile .pylintrc **/*.py
+          pylint --rcfile .pylintrc --recursive yes .
       - name: Test
         run: |
           pytest
