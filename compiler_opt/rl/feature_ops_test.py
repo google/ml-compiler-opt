@@ -39,7 +39,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
-    super(FeatureUtilsTest, self).setUp()
+    super().setUp()
 
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)

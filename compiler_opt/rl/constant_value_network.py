@@ -40,7 +40,7 @@ class ConstantValueNetwork(network.Network):
     Raises:
       ValueError: If input_tensor_spec is not an instance of network.InputSpec.
     """
-    super(ConstantValueNetwork, self).__init__(
+    super().__init__(
         input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
 
     self._constant_output_val = constant_output_val

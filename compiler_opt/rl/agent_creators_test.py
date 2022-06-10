@@ -49,7 +49,7 @@ class AgentCreatorsTest(tf.test.TestCase):
         minimum=0,
         maximum=1,
         name='inlining_decision')
-    super(AgentCreatorsTest, self).setUp()
+    super().setUp()
 
   def test_create_behavioral_cloning_agent(self):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)

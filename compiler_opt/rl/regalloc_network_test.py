@@ -40,7 +40,7 @@ class RegAllocNetworkTest(tf.test.TestCase):
     time_step_spec, action_spec = config.get_regalloc_signature_spec()
     random_observation = tensor_spec.sample_spec_nest(
         time_step_spec, outer_dims=(2, 3))
-    super(RegAllocNetworkTest, self).setUp()
+    super().setUp()
     self._time_step_spec = time_step_spec
     self._action_spec = action_spec
     self._random_observation = random_observation

@@ -83,7 +83,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         name='live_interval_weight',
         minimum=-100,
         maximum=20)
-    super(DataReaderTest, self).setUp()
+    super().setUp()
 
   @parameterized.named_parameters(
       ('SequenceExampleDatasetFn',

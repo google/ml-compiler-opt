@@ -28,7 +28,7 @@ from tf_agents.utils import nest_utils
 class RegAllocEncodingNetwork(encoding_network.EncodingNetwork):
 
   def __init__(self, **kwargs):
-    super(RegAllocEncodingNetwork, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # remove the first layer (Flatten) in postprocessing_layers cause this will
     # flatten the B x T x 33 x dim to B x T x (33 x dim).
     self._postprocessing_layers = self._postprocessing_layers[1:]
@@ -38,7 +38,7 @@ class RegAllocProbProjectionNetwork(
     categorical_projection_network.CategoricalProjectionNetwork):
 
   def __init__(self, **kwargs):
-    super(RegAllocProbProjectionNetwork, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # shape after projection_layer: B x T x 33 x 1; then gets re-shaped to
     # B x T x 33.
     self._projection_layer = tf.keras.layers.Dense(
@@ -54,7 +54,7 @@ class RegAllocRNDEncodingNetwork(RegAllocEncodingNetwork):
 
   def __init__(self, **kwargs):
     pooling_layer = tf.keras.layers.GlobalMaxPool1D(data_format='channels_last')
-    super(RegAllocRNDEncodingNetwork, self).__init__(**kwargs)
+    super().__init__(**kwargs)
     # add a pooling layer at the end to to convert B x T x 33 x dim to
     # B x T x dim.
     self._postprocessing_layers.append(pooling_layer)
@@ -142,7 +142,7 @@ class RegAllocNetwork(network.DistributionNetwork):
         sample_spec=output_tensor_spec, logits_init_output_factor=0.1)
     output_spec = projection_network.output_spec
 
-    super(RegAllocNetwork, self).__init__(
+    super().__init__(
         input_tensor_spec=input_tensor_spec,
         state_spec=(),
         output_spec=output_spec,

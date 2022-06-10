@@ -69,7 +69,7 @@ class TrainerTest(tf.test.TestCase):
         preprocessing_layers={
             'inlining_default': tf.keras.layers.Lambda(lambda x: x)
         })
-    super(TrainerTest, self).setUp()
+    super().setUp()
 
   def test_trainer_initialization(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(

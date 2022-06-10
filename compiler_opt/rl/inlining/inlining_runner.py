@@ -41,7 +41,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
   """
 
   def __init__(self, llvm_size_path: str, *args, **kwargs):
-    super(InliningRunner, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self._llvm_size_path = llvm_size_path
 
   def _compile_fn(

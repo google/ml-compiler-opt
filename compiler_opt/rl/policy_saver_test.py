@@ -30,7 +30,7 @@ from compiler_opt.rl import policy_saver
 class PolicySaverTest(tf.test.TestCase):
 
   def setUp(self):
-    super(PolicySaverTest, self).setUp()
+    super().setUp()
     observation_spec = tf.TensorSpec(
         dtype=tf.int64, shape=(), name='callee_users')
     self._time_step_spec = time_step.time_step_spec(observation_spec)

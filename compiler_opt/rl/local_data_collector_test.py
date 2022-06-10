@@ -76,7 +76,8 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
 
 class Sleeper(compilation_runner.CompilationRunner):
 
-  def __init__(self, killed, timedout, living):
+  def __init__(self, killed, timedout,
+               living):  # pylint: disable super-init-not-called
     self._killed = killed
     self._timedout = timedout
     self._living = living

@@ -66,7 +66,7 @@ def _create_test_data(batch_size, sequence_length):
 class RandomNetworkDistillationTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    super(RandomNetworkDistillationTest, self).setUp()
+    super().setUp()
     self._update_frequency = 1
     observation_spec = {
         'edge_count': tf.TensorSpec(

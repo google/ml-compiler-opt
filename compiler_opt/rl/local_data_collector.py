@@ -41,7 +41,7 @@ class LocalDataCollector(data_collector.DataCollector):
                                                compilation_runner.RewardStat]]],
       exit_checker_ctor=data_collector.EarlyExitChecker):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
-    super(LocalDataCollector, self).__init__()
+    super().__init__()
 
     self._file_paths = file_paths
     self._num_modules = num_modules
