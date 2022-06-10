@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.data_reader."""
 
 import os
@@ -112,8 +111,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     experience = next(data_iterator)
     self.assertIsInstance(experience, trajectory.Trajectory)
     self.assertAllEqual([2, 3], experience.step_type.shape)
-    self.assertCountEqual(['feature_key'],
-                          experience.observation.keys())
+    self.assertCountEqual(['feature_key'], experience.observation.keys())
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]],
                         experience.observation['feature_key'])
     self.assertAllEqual([[0, 0, 0], [0, 0, 0]], experience.action)

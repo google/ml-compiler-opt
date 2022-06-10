@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.compilation_runner."""
 
 import os
@@ -55,7 +54,7 @@ def _get_sequence_example_with_reward(feature_value, reward):
         }
       }
     }""").substitute(
-        feature_value=feature_value, reward=reward)
+      feature_value=feature_value, reward=reward)
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
@@ -257,9 +256,11 @@ class CompilationRunnerTest(tf.test.TestCase):
     with self.assertRaises(subprocess.TimeoutExpired):
       compilation_runner.start_cancellable_process(
           ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file],
-          timeout=0.5, cancellation_manager=None)
+          timeout=0.5,
+          cancellation_manager=None)
     time.sleep(2)
     self.assertFalse(os.path.exists(sentinel_file))
+
 
 if __name__ == '__main__':
   tf.test.main()

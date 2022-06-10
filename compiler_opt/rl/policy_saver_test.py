@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.policy_saver."""
 
 import json
@@ -80,6 +79,7 @@ class PolicySaverTest(tf.test.TestCase):
               'shape': [1],
           }
       }], json.loads(tf.io.gfile.GFile(output_signature_fn).read()))
+
 
 if __name__ == '__main__':
   tf.test.main()

@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Generate initial training data from the behavior of the current heuristic."""
 
 import contextlib
@@ -65,7 +64,6 @@ _GIN_FILES = flags.DEFINE_multi_string(
 _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
 
 ResultsQueueEntry = Optional[Tuple[str, List[str],
                                    Dict[str, compilation_runner.RewardStat]]]

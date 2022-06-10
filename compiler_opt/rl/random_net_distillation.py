@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Random Network Distillation Implementation."""
 import gin
 import tensorflow as tf
@@ -186,12 +185,11 @@ class RandomNetworkDistillation():
       addition of external reward + intrinsic reward).
     """
     # compute intrinsic reward for length - 1 horizon
-    intrinsic_reward = self._get_intrinsic_reward(
-        experience.observation)
+    intrinsic_reward = self._get_intrinsic_reward(experience.observation)
 
     normalized_intrinsic_reward = self._intrinsic_reward_normalizer.normalize(
-        intrinsic_reward, clip_value=0,
-        center_mean=False) * self._decay_scale(self._global_step)
+        intrinsic_reward, clip_value=0, center_mean=False) * self._decay_scale(
+            self._global_step)
     self._intrinsic_reward_normalizer.update(intrinsic_reward)
 
     # update the log
@@ -201,7 +199,8 @@ class RandomNetworkDistillation():
     batch_size = experience.reward.shape[0]
     # assign the last time step reward = 0 (no intrinsic reward)
     normalized_intrinsic_reward = tf.concat(
-        [normalized_intrinsic_reward, tf.zeros([batch_size, 1])], axis=1)
+        [normalized_intrinsic_reward,
+         tf.zeros([batch_size, 1])], axis=1)
 
     # reconstruct the reward: external + intrinsic
     reconstructed_reward = experience.reward + normalized_intrinsic_reward

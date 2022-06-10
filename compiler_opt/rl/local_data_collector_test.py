@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.local_data_collector."""
 
 import collections
@@ -112,6 +111,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
     mock_compilation_runner.collect_data = mock_collect_data
 
     def create_test_iterator_fn():
+
       def _test_iterator_fn(data_list):
         assert data_list in (
             [_get_sequence_example(feature_value=1).SerializeToString()] * 9,

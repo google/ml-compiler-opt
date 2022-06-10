@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.trainer."""
 
 from absl.testing.absltest import mock
@@ -30,11 +29,12 @@ def _create_test_data(batch_size, sequence_length):
   test_trajectory = trajectory.Trajectory(
       step_type=tf.fill([batch_size, sequence_length], 1),
       observation={
-          'inlining_default': tf.fill(
-              [batch_size, sequence_length], tf.constant(10, dtype=tf.int64))
+          'inlining_default':
+              tf.fill([batch_size, sequence_length],
+                      tf.constant(10, dtype=tf.int64))
       },
-      action=tf.fill(
-          [batch_size, sequence_length], tf.constant(1, dtype=tf.int64)),
+      action=tf.fill([batch_size, sequence_length],
+                     tf.constant(1, dtype=tf.int64)),
       policy_info=(),
       next_step_type=tf.fill([batch_size, sequence_length], 1),
       reward=tf.fill([batch_size, sequence_length], 2.0),
@@ -149,6 +149,7 @@ class TrainerTest(tf.test.TestCase):
     action_outputs = test_trainer._agent.policy.action(random_time_step,
                                                        action_outputs.state)
     self.assertAllEqual([inference_batch_size], action_outputs.action.shape)
+
 
 if __name__ == '__main__':
   tf.test.main()

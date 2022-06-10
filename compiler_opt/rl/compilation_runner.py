@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Module for running compilation and collect training data."""
 
 import concurrent
@@ -313,6 +312,7 @@ class CompilationRunner:
     if not cancellation_token:
       return None
     ret = WorkerCancellationManager()
+
     def signaler():
       cancellation_token.wait()
       ret.signal()
