@@ -26,6 +26,7 @@ from absl import logging
 import gin
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
+from typing import List
 
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
@@ -97,7 +98,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  with open(os.path.join(FLAGS.data_path, 'module_paths'), 'r') as f:
+  with open(
+      os.path.join(FLAGS.data_path, 'module_paths'), 'r',
+      encoding='utf-8') as f:
     module_paths = [
         os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
     ]
@@ -118,8 +121,8 @@ def train_eval(agent_name=constant.AgentName.PPO,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 
-  sequence_example_iterator_fn = (
-      lambda seq_ex: iter(dataset_fn(seq_ex).repeat()))
+  def sequence_example_iterator_fn(seq_ex: List[str]):
+    return iter(dataset_fn(seq_ex).repeat())
 
   reward_stat_map = collections.defaultdict(lambda: None)
   reward_stat_map_path = os.path.join(root_dir, 'reward_stat_map')
