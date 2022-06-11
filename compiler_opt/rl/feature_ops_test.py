@@ -30,7 +30,8 @@ def _get_sqrt_z_score_preprocessing_fn_cross_product():
     for z_score in [True, False]:
       for preprocessing_fn in [None, lambda x: x * x]:
         # pylint: disable=line-too-long
-        test_name = (f'sqrt_{sqrt}_zscore_{z_score}_preprocessfn_{preprocessing_fn}')
+        test_name = (
+            f'sqrt_{sqrt}_zscore_{z_score}_preprocessfn_{preprocessing_fn}')
         testcases.append((test_name, sqrt, z_score, preprocessing_fn))
   return testcases
 

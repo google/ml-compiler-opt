@@ -272,7 +272,7 @@ def main(argv):
           f.write(path + '\n')
 
     logging.info('Converted %d files out of %d',
-                len(objs) - relative_output_paths.count(None), len(objs))
+                 len(objs) - relative_output_paths.count(None), len(objs))
 
 
 if __name__ == '__main__':
