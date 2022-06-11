@@ -95,9 +95,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
@@ -132,9 +132,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
@@ -163,9 +163,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=False)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
