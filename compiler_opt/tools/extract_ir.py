@@ -160,7 +160,7 @@ class TrainingIRExtractor:
       subprocess.run(
           self._get_extraction_cmd_command(llvm_objcopy_path), check=True)
       if cmd_filter is not None or is_thinlto:
-        with open(self.cmd_file()) as f:
+        with open(self.cmd_file(), encoding='utf-8') as f:
           lines = f.readlines()
         assert len(lines) == 1
         cmdline = lines[0]
@@ -246,7 +246,7 @@ def main(argv):
   flags.mark_flags_as_required(['output_dir', 'input'])
   objs = []
   if FLAGS.input_type == 'json':
-    with open(FLAGS.input) as f:
+    with open(FLAGS.input, encoding='utf-8') as f:
       objs = load_from_compile_commands(json.load(f), FLAGS.output_dir)
   elif FLAGS.input_type == 'params':
     if not FLAGS.obj_base_dir:
@@ -254,23 +254,25 @@ def main(argv):
           '-obj_base_dir is unspecified, assuming current directory.'
           'If no objects are found, use this option to specify the root'
           'directory for the object file paths in the input file.')
-    with open(FLAGS.input) as f:
+    with open(FLAGS.input, encoding='utf-8') as f:
       objs = load_from_lld_params([l.strip() for l in f.readlines()],
                                   FLAGS.obj_base_dir, FLAGS.output_dir)
   else:
     logging.error('Unknown input type: %s', FLAGS.input_type)
 
-  pool = multiprocessing.Pool(FLAGS.num_workers)
-  relative_output_paths = pool.map(extract_artifacts, objs)
+  with multiprocessing.Pool(FLAGS.num_workers) as pool:
+    relative_output_paths = pool.map(extract_artifacts, objs)
 
-  # Write all Non-None relative paths to FLAGS.output_dir/module_paths.
-  with open(os.path.join(FLAGS.output_dir, 'module_paths'), 'w') as f:
-    for path in relative_output_paths:
-      if path is not None:
-        f.write(path + '\n')
+    # Write all Non-None relative paths to FLAGS.output_dir/module_paths.
+    with open(
+        os.path.join(FLAGS.output_dir, 'module_paths'), 'w',
+        encoding='utf-8') as f:
+      for path in relative_output_paths:
+        if path is not None:
+          f.write(path + '\n')
 
-  logging.info('Converted %d files out of %d',
-               len(objs) - relative_output_paths.count(None), len(objs))
+    logging.info('Converted %d files out of %d',
+                len(objs) - relative_output_paths.count(None), len(objs))
 
 
 if __name__ == '__main__':
