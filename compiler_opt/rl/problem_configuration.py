@@ -31,11 +31,13 @@ To use:
 
 * when running the tool, pass:
 
-  `--gin_bindings=config_registry.get_configuration.implementation=@the.implementation.name`
+  `--gin_bindings=config_registry.get_configuration.implementation=\
+    @the.implementation.name`
 
   for example:
 
-  `--gin_bindings=config_registry.get_configuration.implementation=@configs.InliningConfig`
+  `--gin_bindings=config_registry.get_configuration.implementation=\
+    @configs.InliningConfig`
 
 =================
 Conventions

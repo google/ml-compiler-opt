@@ -36,7 +36,8 @@ _ROOT_DIR = flags.DEFINE_string(
 _DATA_PATH = flags.DEFINE_multi_string(
     'data_path', [],
     'Path to TFRecord file(s) containing training data. Skip training and dump'
-    'an untrained model with random weights (for testing purpose) if unspecified.'
+    'an untrained model with random weights (for testing purpose) if '
+    'unspecified.'
 )
 _GIN_FILES = flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files.')

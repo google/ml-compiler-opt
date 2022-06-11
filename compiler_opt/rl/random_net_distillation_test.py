@@ -78,11 +78,12 @@ class RandomNetworkDistillationTest(tf.test.TestCase, parameterized.TestCase):
     data_iterator = _create_test_data(batch_size=3, sequence_length=3)
 
     # initialize the random_network_distillation instance
-    random_network_distillation = random_net_distillation.RandomNetworkDistillation(
-        time_step_spec=self._time_step_spec,
-        preprocessing_layer_creator=_processing_layer_creator(),
-        encoding_network=encoding_network.EncodingNetwork,
-        update_frequency=self._update_frequency)
+    random_network_distillation = \
+        random_net_distillation.RandomNetworkDistillation(
+          time_step_spec=self._time_step_spec,
+          preprocessing_layer_creator=_processing_layer_creator(),
+          encoding_network=encoding_network.EncodingNetwork,
+          update_frequency=self._update_frequency)
 
     experience = next(data_iterator)
     # test the RND train function return type

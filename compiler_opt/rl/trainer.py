@@ -184,8 +184,8 @@ class Trainer(object):
           experience = next(dataset_iter)
         except StopIteration:
           logging.warning(
-              'Warning: skip training because do not have enough data to fill in a batch, consider increase data or reduce batch size.'
-          )
+              ('Warning: skip training because do not have enough data to fill '
+               'in a batch, consider increase data or reduce batch size.'))
           break
 
         # random network distillation for intrinsic reward generation

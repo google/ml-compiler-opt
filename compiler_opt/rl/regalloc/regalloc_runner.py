@@ -40,7 +40,8 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  # TODO: refactor file_paths parameter to ensure correctness during construction
+  # TODO: refactor file_paths parameter to ensure correctness during
+  # construction
   def _compile_fn(
       self, file_paths: Tuple[str, str, str], tf_policy_path: str,
       reward_only: bool, cancellation_manager: Optional[
