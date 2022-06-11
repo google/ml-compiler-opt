@@ -97,7 +97,7 @@ def get_command_line_for_bundle(cmd_file: str,
       '-fprofile-sample-use'
   ]
 
-  with open(cmd_file, 'rb') as f:
+  with open(cmd_file, 'r') as f:
     option_iterator = iter(f.read().split('\0'))
     option = next(option_iterator, None)
     while option:
