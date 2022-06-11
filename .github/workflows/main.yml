@@ -23,11 +23,14 @@ jobs:
           pip install pytest pytype==2022.06.06 pylint==2.14.1
           pylint --version
       - name: Type check
+        id: typecheck
         run: |
           pytype --protocols -j auto .
       - name: Lint
+        continue-on-error: true
         run: |
           pylint --rcfile .pylintrc --recursive yes .
       - name: Test
+        if: steps.typecheck.conclusion == 'success'
         run: |
           pytest
