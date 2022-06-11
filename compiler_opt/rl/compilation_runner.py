@@ -101,7 +101,7 @@ def get_command_line_for_bundle(cmd_file: str,
     option_iterator = iter(f.read().split('\0'))
     option = next(option_iterator, None)
     while option:
-      if any([option.startswith(flag) for flag in flags_to_remove]):
+      if any(option.startswith(flag) for flag in flags_to_remove):
         if '=' not in option:
           next(option_iterator, None)
       else:
@@ -375,8 +375,8 @@ class CompilationRunner:
       policy_reward = v[1]
       if k not in reward_stat:
         raise ValueError(
-            'Example %s does not exist under default policy for module %s' %
-            (k, file_paths[0]))
+            (f'Example {k} does not exist under default policy for '
+             'module {file_paths[0]}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
