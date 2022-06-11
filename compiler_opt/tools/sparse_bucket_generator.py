@@ -116,10 +116,10 @@ def _generate_vocab(feature_values_arrays, feature_name):
       np.shape(feature_values)[0] * FLAGS.sampling_fraction)
   values = np.random.choice(feature_values, sample_length, replace=False)
   bin_edges = np.quantile(values, np.linspace(0, 1, FLAGS.num_buckets))
-  filename = os.path.join(FLAGS.output_dir, '{}.buckets'.format(feature_name))
-  with open(filename, 'w') as f:
+  filename = os.path.join(FLAGS.output_dir, f'{feature_name}.buckets')
+  with open(filename, 'w', encoding='utf-8') as f:
     for edge in bin_edges:
-      f.write('{}\n'.format(edge))
+      f.write(f'{edge}\n')
 
 
 def main(_) -> None:
