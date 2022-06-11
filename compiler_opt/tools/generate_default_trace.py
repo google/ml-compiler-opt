@@ -129,7 +129,9 @@ def main(_):
   runner = problem_config.get_runner(moving_average_decay_rate=0)
   assert runner
 
-  with open(os.path.join(_DATA_PATH.value, 'module_paths'), 'r') as f:
+  with open(
+      os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
+      encoding='utf-8') as f:
     module_paths = [
         os.path.join(_DATA_PATH.value, name.rstrip('\n')) for name in f
     ]
@@ -151,7 +153,7 @@ def main(_):
   sizes_and_paths.sort(reverse=True)
   sorted_module_paths = [p for _, p in sizes_and_paths]
   module_specs = [
-      tuple([p + suffix for suffix in file_suffix]) for p in sorted_module_paths
+      tuple(p + suffix for suffix in file_suffix) for p in sorted_module_paths
   ]
 
   worker_count = (
@@ -209,13 +211,13 @@ def main(_):
             tfrecord_writer.write(r)
         if performance_writer:
           for key, value in reward_stat.items():
-            performance_writer.write('%s,%s,%f,%f\n' %
-                                     (module_name, key, value.default_reward,
-                                      value.moving_average_reward))
+            performance_writer.write(
+                (f'{module_name},{key},{value.default_reward},'
+                 f'{value.moving_average_reward}\n'))
 
-      print('%d of %d modules succeeded, and %d trainining examples written' %
-            (total_successful_examples, len(module_specs),
-             total_training_examples))
+      print((f'{total_successful_examples} of {len(module_specs)} modules '
+             f'succeeded, and {total_training_examples} trainining examples '
+             'written'))
       for p in processes:
         p.join()
 
