@@ -20,25 +20,25 @@ import os
 import tensorflow as tf
 from tf_agents.policies import policy_saver
 
-OUTPUT_SIGNATURE = "output_spec.json"
+OUTPUT_SIGNATURE = 'output_spec.json'
 
 _TYPE_CONVERSION_DICT = {
-    tf.float32: "float",
-    tf.float64: "double",
-    tf.int8: "int8_t",
-    tf.uint8: "uint8_t",
-    tf.int16: "int16_t",
-    tf.uint16: "uint16_t",
-    tf.int32: "int32_t",
-    tf.uint32: "uint32_t",
-    tf.int64: "int64_t",
-    tf.uint64: "uint64_t",
+    tf.float32: 'float',
+    tf.float64: 'double',
+    tf.int8: 'int8_t',
+    tf.uint8: 'uint8_t',
+    tf.int16: 'int16_t',
+    tf.uint16: 'uint16_t',
+    tf.int32: 'int32_t',
+    tf.uint32: 'uint32_t',
+    tf.int64: 'int64_t',
+    tf.uint64: 'uint64_t',
 }
 
 
 def _split_tensor_name(name):
   """Return tuple (op, port) with the op and int port for the tensor name."""
-  op_port = name.split(":", 2)
+  op_port = name.split(':', 2)
   if len(op_port) == 1:
     return op_port, 0
   else:
@@ -60,7 +60,7 @@ def _get_non_identity_op(tensor):
     The true associated output tensor of the original function in the main
     SavedModel graph.
   """
-  while tensor.op.name.startswith("Identity"):
+  while tensor.op.name.startswith('Identity'):
     tensor = tensor.op.inputs[0]
   return tensor
 
@@ -100,21 +100,20 @@ class PolicySaver(object):
 
     # Dict mapping spec name to spec in flattened action signature.
     sm_action_signature = (
-        tf.nest.flatten(saved_model.signatures["action"].structured_outputs))
+        tf.nest.flatten(saved_model.signatures['action'].structured_outputs))
 
     # Map spec name to index in flattened outputs.
     sm_action_indices = dict(
         (k.name, i) for i, k in enumerate(sm_action_signature))
 
     # List mapping flattened structured outputs to tensors.
-    sm_action_tensors = saved_model.signatures["action"].outputs
+    sm_action_tensors = saved_model.signatures['action'].outputs
 
     # First entry in output list is the decision (action)
     decision_spec = tf.nest.flatten(action_signature.action)
     if len(decision_spec) != 1:
-      raise ValueError(
-          "Expected action decision to have 1 tensor, but saw: {}".format(
-              action_signature.action))
+      raise ValueError(('Expected action decision to have 1 tensor, but '
+                        f'saw: {action_signature.action}'))
 
     # Find the decision's tensor in the flattened output tensor list.
     sm_action_decision = (
@@ -125,12 +124,12 @@ class PolicySaver(object):
     # The first entry in the output_signature file corresponds to the decision.
     (tensor_op, tensor_port) = _split_tensor_name(sm_action_decision.name)
     output_list = [{
-        "logging_name": decision_spec[0].name,  # used in SequenceExample.
-        "tensor_spec": {
-            "name": tensor_op,
-            "port": tensor_port,
-            "type": _TYPE_CONVERSION_DICT[sm_action_decision.dtype],
-            "shape": sm_action_decision.shape.as_list(),
+        'logging_name': decision_spec[0].name,  # used in SequenceExample.
+        'tensor_spec': {
+            'name': tensor_op,
+            'port': tensor_port,
+            'type': _TYPE_CONVERSION_DICT[sm_action_decision.dtype],
+            'shape': sm_action_decision.shape.as_list(),
         }
     }]
     for info_spec in tf.nest.flatten(action_signature.info):
@@ -138,16 +137,16 @@ class PolicySaver(object):
       sm_action_info = _get_non_identity_op(sm_action_info)
       (tensor_op, tensor_port) = _split_tensor_name(sm_action_info.name)
       output_list.append({
-          "logging_name": info_spec.name,  # used in SequenceExample.
-          "tensor_spec": {
-              "name": tensor_op,
-              "port": tensor_port,
-              "type": _TYPE_CONVERSION_DICT[sm_action_info.dtype],
-              "shape": sm_action_info.shape.as_list(),
+          'logging_name': info_spec.name,  # used in SequenceExample.
+          'tensor_spec': {
+              'name': tensor_op,
+              'port': tensor_port,
+              'type': _TYPE_CONVERSION_DICT[sm_action_info.dtype],
+              'shape': sm_action_info.shape.as_list(),
           }
       })
 
-    with tf.io.gfile.GFile(os.path.join(path, OUTPUT_SIGNATURE), "w") as f:
+    with tf.io.gfile.GFile(os.path.join(path, OUTPUT_SIGNATURE), 'w') as f:
       f.write(json.dumps(output_list))
 
   def save(self, root_dir):
