@@ -198,27 +198,27 @@ def start_cancellable_process(
     TimeoutExpired: if the process times out.
     ProcessKilledError: if the process was killed via the cancellation token.
   """
-  p = subprocess.Popen(
-      cmdline, stdout=(subprocess.PIPE if want_output else None))
-  if cancellation_manager:
-    cancellation_manager.register_process(p)
-
-  try:
-    retcode = p.wait(timeout=timeout)
-  except subprocess.TimeoutExpired as e:
-    kill_process_ignore_exceptions(p)
-    raise e
-  finally:
+  with subprocess.Popen(
+      cmdline, stdout=(subprocess.PIPE if want_output else None)) as p:
     if cancellation_manager:
-      cancellation_manager.unregister_process(p)
-  if retcode != 0:
-    raise ProcessKilledError(
-    ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
-  else:
-    if want_output:
-      ret: bytes = p.stdout.read()
-      p.stdout.close()
-      return ret
+      cancellation_manager.register_process(p)
+
+    try:
+      retcode = p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+      kill_process_ignore_exceptions(p)
+      raise e
+    finally:
+      if cancellation_manager:
+        cancellation_manager.unregister_process(p)
+    if retcode != 0:
+      raise ProcessKilledError(
+      ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
+    else:
+      if want_output:
+        ret: bytes = p.stdout.read()
+        p.stdout.close()
+        return ret
 
 
 @dataclasses.dataclass(frozen=True)
