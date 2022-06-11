@@ -103,12 +103,11 @@ class InliningRunner(compilation_runner.CompilationRunner):
           cancellation_manager=cancellation_manager,
           want_output=True)
       if not output_bytes:
-        raise RuntimeError('Empty llvm-size output: %s' %
-                           ' '.join(command_line))
+        raise RuntimeError(f'Empty llvm-size output: {" ".join(command_line)}')
       output = output_bytes.decode('utf-8')
       tmp = output.split('\n')
       if len(tmp) != 3:
-        raise RuntimeError('Wrong llvm-size output %s' % output)
+        raise RuntimeError(f'Wrong llvm-size output {output}')
       tmp = tmp[1].split('\t')
       native_size = int(tmp[0])
 

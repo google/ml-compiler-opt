@@ -121,4 +121,4 @@ def create_agent(agent_name: constant.AgentName,
     return _create_ppo_agent(time_step_spec, action_spec, preprocessing_layers,
                              policy_network)
   else:
-    raise ValueError('Unknown agent: {}'.format(agent_name))
+    raise ValueError(f'Unknown agent: {agent_name}')

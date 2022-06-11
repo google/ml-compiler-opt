@@ -118,6 +118,7 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
         features = [tf.where(tf.math.is_inf(tf.expand_dims(obs, -1)), 1.0, 0.0)]
         obs = tf.where(tf.math.is_inf(obs), 1.0, obs)
         features.append(log_normalize_fn(obs))
+        # pylint: disable=unexpected-keyword-arg
         return tf.concat(features, axis=-1)
 
       return tf.keras.layers.Lambda(use_def_density_processing_fn)

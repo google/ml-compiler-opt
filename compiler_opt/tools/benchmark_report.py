@@ -38,7 +38,7 @@ ABComparison = Dict[str, Dict[str, Tuple[float, float, float]]]
 
 
 def _geomean(data: List[float]):
-  return math.exp(sum([math.log(x) for x in data]) / len(data))
+  return math.exp(sum(math.log(x) for x in data) / len(data))
 
 
 def _stdev(data: List[float]):

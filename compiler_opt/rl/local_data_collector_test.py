@@ -26,8 +26,8 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
-from google.protobuf import text_format
 from compiler_opt.rl import local_data_collector
+from google.protobuf import text_format
 
 
 def _get_sequence_example(feature_value):
@@ -75,17 +75,18 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
 
 
 class Sleeper(compilation_runner.CompilationRunner):
+  """Test CompilationRunner that just sleeps."""
 
-  def __init__(self, killed, timedout,
-               living):  # pylint: disable super-init-not-called
+  # pylint: disable=super-init-not-called
+  def __init__(self, killed, timedout, living):
     self._killed = killed
     self._timedout = timedout
     self._living = living
     self._lock = mp.Manager().Lock()
 
-  def collect_data(self, file_paths, tf_policy_path, reward_only,
+  def collect_data(self, file_paths, tf_policy_path, reward_stat,
                    cancellation_token):
-    _ = reward_only
+    _ = reward_stat
     cancellation_manager = self._get_cancellation_manager(cancellation_token)
     try:
       compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,

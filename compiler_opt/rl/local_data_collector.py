@@ -131,9 +131,7 @@ class LocalDataCollector(data_collector.DataCollector):
     wait_seconds = wait_for_termination()
     # signal whatever work is left to finish
     ct.signal()
-    current_work = [
-        (paths, res) for paths, res in zip(sampled_file_paths, results)
-    ]
+    current_work = zip(sampled_file_paths, results)
     finished_work = [(paths, res) for paths, res in current_work if res.ready()]
     successful_work = [
         (paths, res) for paths, res in finished_work if res.successful()
@@ -149,7 +147,7 @@ class LocalDataCollector(data_collector.DataCollector):
             for (_, res) in successful_work
         ]))
     total_trajectory_length = sum(
-        [res.get().length for (_, res) in successful_work])
+        res.get().length for (_, res) in successful_work)
     self._reward_stat_map.update({
         '-'.join(file_paths): res.get().reward_stats
         for (file_paths, res) in successful_work

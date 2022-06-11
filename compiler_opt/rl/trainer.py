@@ -174,6 +174,8 @@ class Trainer(object):
   def train(self, dataset_iter, monitor_dict, num_iterations):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
+    # context management is implemented in decorator
+    # pylint: disable=not-context-manager
     with tf.summary.record_if(
         lambda: tf.math.equal(self._global_step % self._summary_interval, 0)):
       for _ in range(num_iterations):
