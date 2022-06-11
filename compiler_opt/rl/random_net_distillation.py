@@ -198,6 +198,7 @@ class RandomNetworkDistillation():
 
     batch_size = experience.reward.shape[0]
     # assign the last time step reward = 0 (no intrinsic reward)
+    # pylint: disable=unexpected-keyword-arg
     normalized_intrinsic_reward = tf.concat(
         [normalized_intrinsic_reward,
          tf.zeros([batch_size, 1])], axis=1)
