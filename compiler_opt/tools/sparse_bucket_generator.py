@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """OSS-compatible pipeline to generate sparse buckets.
 
 Generate numerical features' X (1000) quantile based on their distributions
@@ -31,16 +30,15 @@ from absl import logging
 import numpy as np
 import tensorflow as tf
 
-
 flags.DEFINE_string('input', None,
                     'Path to input file containing tf record datasets.')
 flags.DEFINE_string('output_dir', None,
                     'Path to output directory to store quantiles per feature.')
 flags.DEFINE_float('sampling_fraction', 1.0,
                    'Fraction to downsample input data.', 0.0, 1.0)
-flags.DEFINE_integer('parallelism', None,
-                     'Number of parallel processes to spawn.'
-                     'Each process does vocab generation for each feature.', 1)
+flags.DEFINE_integer(
+    'parallelism', None, 'Number of parallel processes to spawn.'
+    'Each process does vocab generation for each feature.', 1)
 flags.DEFINE_integer('num_buckets', 1000,
                      'Number of quantiles to bucketize feature values into.')
 
@@ -64,17 +62,17 @@ def _get_feature_info(
     feature = feature_list.feature[0]
     kind = feature.WhichOneof('kind')
     if kind == 'float_list':
-      sequence_features[key] = tf.io.RaggedFeature(partitions=(),
-                                                   dtype=tf.float32)
+      sequence_features[key] = tf.io.RaggedFeature(
+          partitions=(), dtype=tf.float32)
     elif kind == 'int64_list':
-      sequence_features[key] = tf.io.RaggedFeature(partitions=(),
-                                                   dtype=tf.int64)
+      sequence_features[key] = tf.io.RaggedFeature(
+          partitions=(), dtype=tf.int64)
   return sequence_features
 
 
 def create_tfrecord_parser_fn(
-    sequence_features:
-    Dict[str, tf.io.RaggedFeature]) -> Callable[[str], List[tf.Tensor]]:
+    sequence_features: Dict[str, tf.io.RaggedFeature]
+) -> Callable[[str], List[tf.Tensor]]:
   """Create a parser function for reading serialized tf.data.TFRecordDataset.
 
   Args:
@@ -118,11 +116,10 @@ def _generate_vocab(feature_values_arrays, feature_name):
       np.shape(feature_values)[0] * FLAGS.sampling_fraction)
   values = np.random.choice(feature_values, sample_length, replace=False)
   bin_edges = np.quantile(values, np.linspace(0, 1, FLAGS.num_buckets))
-  filename = os.path.join(FLAGS.output_dir,
-                          '{}.buckets'.format(feature_name))
-  with open(filename, 'w') as f:
+  filename = os.path.join(FLAGS.output_dir, f'{feature_name}.buckets')
+  with open(filename, 'w', encoding='utf-8') as f:
     for edge in bin_edges:
-      f.write('{}\n'.format(edge))
+      f.write(f'{edge}\n')
 
 
 def main(_) -> None:
@@ -158,8 +155,10 @@ def main(_) -> None:
   with mp.Pool(FLAGS.parallelism) as pool:
     feature_names = list(sorted(sequence_features))
     for i, feature_values_arrays in enumerate(data_list):
-      pool.apply_async(_generate_vocab,
-                       (feature_values_arrays, feature_names[i],))
+      pool.apply_async(_generate_vocab, (
+          feature_values_arrays,
+          feature_names[i],
+      ))
     pool.close()
     pool.join()
 

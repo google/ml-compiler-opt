@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Module for collecting data locally."""
 
 import itertools
@@ -42,7 +41,7 @@ class LocalDataCollector(data_collector.DataCollector):
                                                compilation_runner.RewardStat]]],
       exit_checker_ctor=data_collector.EarlyExitChecker):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
-    super(LocalDataCollector, self).__init__()
+    super().__init__()
 
     self._file_paths = file_paths
     self._num_modules = num_modules
@@ -88,6 +87,7 @@ class LocalDataCollector(data_collector.DataCollector):
     jobs = [(file_paths, policy_path,
              self._reward_stat_map['-'.join(file_paths)], cancellation_token)
             for file_paths in sampled_file_paths]
+
     # Make sure we're not missing failures in workers. All but
     # ProcessKilledError, which we want to ignore.
     def error_callback(e):
@@ -121,6 +121,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
+
       def get_num_finished_work():
         finished_work = sum(res.ready() for res in results)
         return finished_work
@@ -130,15 +131,11 @@ class LocalDataCollector(data_collector.DataCollector):
     wait_seconds = wait_for_termination()
     # signal whatever work is left to finish
     ct.signal()
-    current_work = [
-        (paths, res) for paths, res in zip(sampled_file_paths, results)
+    current_work = zip(sampled_file_paths, results)
+    finished_work = [(paths, res) for paths, res in current_work if res.ready()]
+    successful_work = [
+        (paths, res) for paths, res in finished_work if res.successful()
     ]
-    finished_work = [
-        (paths, res) for paths, res in current_work if res.ready()
-    ]
-    successful_work = [(paths, res)
-                       for paths, res in finished_work
-                       if res.successful()]
     failures = len(finished_work) - len(successful_work)
 
     logging.info(('%d of %d modules finished in %d seconds (%d failures).'),
@@ -150,7 +147,7 @@ class LocalDataCollector(data_collector.DataCollector):
             for (_, res) in successful_work
         ]))
     total_trajectory_length = sum(
-        [res.get().length for (_, res) in successful_work])
+        res.get().length for (_, res) in successful_work)
     self._reward_stat_map.update({
         '-'.join(file_paths): res.get().reward_stats
         for (file_paths, res) in successful_work

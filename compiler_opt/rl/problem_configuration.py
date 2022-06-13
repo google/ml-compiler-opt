@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Compilation problem component model.
 
 A 'compilation problem' is an optimization problem with a specific way of
@@ -32,11 +31,13 @@ To use:
 
 * when running the tool, pass:
 
-  `--gin_bindings=config_registry.get_configuration.implementation=@the.implementation.name`
+  `--gin_bindings=config_registry.get_configuration.implementation=\
+    @the.implementation.name`
 
   for example:
 
-  `--gin_bindings=config_registry.get_configuration.implementation=@configs.InliningConfig`
+  `--gin_bindings=config_registry.get_configuration.implementation=\
+    @configs.InliningConfig`
 
 =================
 Conventions
@@ -73,7 +74,6 @@ import tensorflow as tf
 import tf_agents as tfa
 
 from compiler_opt.rl import compilation_runner
-
 
 types = tfa.typing.types
 

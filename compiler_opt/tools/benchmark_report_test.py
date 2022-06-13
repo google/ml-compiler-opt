@@ -12,13 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.tools.benchmark_report_converter."""
 
 from absl.testing import absltest
 
 from compiler_opt.tools import benchmark_report
-
 
 base_data = {
     'benchmarks': [

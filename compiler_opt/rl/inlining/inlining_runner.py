@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Module for collect data of inlining-for-size."""
 
 import io
@@ -42,7 +41,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
   """
 
   def __init__(self, llvm_size_path: str, *args, **kwargs):
-    super(InliningRunner, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self._llvm_size_path = llvm_size_path
 
   def _compile_fn(
@@ -104,12 +103,11 @@ class InliningRunner(compilation_runner.CompilationRunner):
           cancellation_manager=cancellation_manager,
           want_output=True)
       if not output_bytes:
-        raise RuntimeError('Empty llvm-size output: %s' %
-                           ' '.join(command_line))
+        raise RuntimeError(f'Empty llvm-size output: {" ".join(command_line)}')
       output = output_bytes.decode('utf-8')
       tmp = output.split('\n')
       if len(tmp) != 3:
-        raise RuntimeError('Wrong llvm-size output %s' % output)
+        raise RuntimeError(f'Wrong llvm-size output {output}')
       tmp = tmp[1].split('\t')
       native_size = int(tmp[0])
 

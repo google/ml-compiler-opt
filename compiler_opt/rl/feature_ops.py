@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """operations to transform features (observations)."""
 
 import os
@@ -60,6 +59,7 @@ def get_normalize_fn(quantile: List[float],
   """Return a normalization function to normalize the input feature."""
 
   if not preprocessing_fn:
+    # pylint: disable=unnecessary-lambda-assignment
     preprocessing_fn = lambda x: x
   processed_quantile = [preprocessing_fn(x) for x in quantile]
   mean = np.mean(processed_quantile)

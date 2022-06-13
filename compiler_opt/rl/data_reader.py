@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """util function to create training datasets."""
 
 from typing import Callable, List
@@ -143,8 +142,8 @@ def create_parser_fn(
 
 def create_sequence_example_dataset_fn(
     agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
-) -> Callable[[List[str]], tf.data.Dataset]:
+    action_spec: types.NestedSpec, batch_size: int,
+    train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   Args:
@@ -236,8 +235,8 @@ def create_file_dataset_fn(
 
 def create_tfrecord_dataset_fn(
     agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int
-) -> Callable[[List[str]], tf.data.Dataset]:
+    action_spec: types.NestedSpec, batch_size: int,
+    train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
   Args:

@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 r"""Train behavioral cloning policy for LLVM Inliner decision rule."""
 
 import os
@@ -37,8 +36,8 @@ _ROOT_DIR = flags.DEFINE_string(
 _DATA_PATH = flags.DEFINE_multi_string(
     'data_path', [],
     'Path to TFRecord file(s) containing training data. Skip training and dump'
-    'an untrained model with random weights (for testing purpose) if unspecified.'
-)
+    'an untrained model with random weights (for testing purpose) if '
+    'unspecified.')
 _GIN_FILES = flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files.')
 _GIN_BINDINGS = flags.DEFINE_multi_string(
@@ -64,10 +63,8 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
                                          preprocessing_layer_creator)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
   policy_dict = {
-      'saved_policy':
-          tf_agent.policy,
-      'saved_collect_policy':
-          tf_agent.collect_policy,
+      'saved_policy': tf_agent.policy,
+      'saved_collect_policy': tf_agent.collect_policy,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 

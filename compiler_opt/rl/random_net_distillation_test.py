@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for random_network_distillation."""
 
 from absl.testing import parameterized
@@ -67,7 +66,7 @@ def _create_test_data(batch_size, sequence_length):
 class RandomNetworkDistillationTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    super(RandomNetworkDistillationTest, self).setUp()
+    super().setUp()
     self._update_frequency = 1
     observation_spec = {
         'edge_count': tf.TensorSpec(
@@ -79,11 +78,12 @@ class RandomNetworkDistillationTest(tf.test.TestCase, parameterized.TestCase):
     data_iterator = _create_test_data(batch_size=3, sequence_length=3)
 
     # initialize the random_network_distillation instance
-    random_network_distillation = random_net_distillation.RandomNetworkDistillation(
-        time_step_spec=self._time_step_spec,
-        preprocessing_layer_creator=_processing_layer_creator(),
-        encoding_network=encoding_network.EncodingNetwork,
-        update_frequency=self._update_frequency)
+    random_network_distillation = \
+        random_net_distillation.RandomNetworkDistillation(
+          time_step_spec=self._time_step_spec,
+          preprocessing_layer_creator=_processing_layer_creator(),
+          encoding_network=encoding_network.EncodingNetwork,
+          update_frequency=self._update_frequency)
 
     experience = next(data_iterator)
     # test the RND train function return type

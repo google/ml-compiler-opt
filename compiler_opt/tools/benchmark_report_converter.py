@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 r"""Convert benchmark results.json to csv.
 
 To run:
@@ -71,7 +70,7 @@ def main(argv: Sequence[str]) -> None:
       summary = comparison.summarize()
   with tf.io.gfile.GFile(FLAGS.output, 'w+') as o:
     co = csv.writer(o)
-    for bm in summary:
+    for bm in summary.items():
       for c in summary[bm]:
         co.writerow([bm, c] + list(summary[bm][c]))
 

@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Module for running compilation and collect training data."""
 
 import concurrent
@@ -98,11 +97,11 @@ def get_command_line_for_bundle(cmd_file: str,
       '-fprofile-sample-use'
   ]
 
-  with open(cmd_file) as f:
+  with open(cmd_file, encoding='utf-8') as f:
     option_iterator = iter(f.read().split('\0'))
     option = next(option_iterator, None)
     while option:
-      if any([option.startswith(flag) for flag in flags_to_remove]):
+      if any(option.startswith(flag) for flag in flags_to_remove):
         if '=' not in option:
           next(option_iterator, None)
       else:
@@ -199,27 +198,27 @@ def start_cancellable_process(
     TimeoutExpired: if the process times out.
     ProcessKilledError: if the process was killed via the cancellation token.
   """
-  p = subprocess.Popen(
-      cmdline, stdout=(subprocess.PIPE if want_output else None))
-  if cancellation_manager:
-    cancellation_manager.register_process(p)
-
-  try:
-    retcode = p.wait(timeout=timeout)
-  except subprocess.TimeoutExpired as e:
-    kill_process_ignore_exceptions(p)
-    raise e
-  finally:
+  with subprocess.Popen(
+      cmdline, stdout=(subprocess.PIPE if want_output else None)) as p:
     if cancellation_manager:
-      cancellation_manager.unregister_process(p)
-  if retcode != 0:
-    raise ProcessKilledError(
-    ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
-  else:
-    if want_output:
-      ret: bytes = p.stdout.read()
-      p.stdout.close()
-      return ret
+      cancellation_manager.register_process(p)
+
+    try:
+      retcode = p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+      kill_process_ignore_exceptions(p)
+      raise e
+    finally:
+      if cancellation_manager:
+        cancellation_manager.unregister_process(p)
+    if retcode != 0:
+      raise ProcessKilledError(
+      ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
+    else:
+      if want_output:
+        ret: bytes = p.stdout.read()
+        p.stdout.close()
+        return ret
 
 
 @dataclasses.dataclass(frozen=True)
@@ -313,6 +312,7 @@ class CompilationRunner:
     if not cancellation_token:
       return None
     ret = WorkerCancellationManager()
+
     def signaler():
       cancellation_token.wait()
       ret.signal()
@@ -375,8 +375,8 @@ class CompilationRunner:
       policy_reward = v[1]
       if k not in reward_stat:
         raise ValueError(
-            'Example %s does not exist under default policy for module %s' %
-            (k, file_paths[0]))
+            (f'Example {k} does not exist under default policy for '
+             'module {file_paths[0]}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(

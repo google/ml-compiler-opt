@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Analysis for benchmark results.json."""
 
 import collections
@@ -39,7 +38,7 @@ ABComparison = Dict[str, Dict[str, Tuple[float, float, float]]]
 
 
 def _geomean(data: List[float]):
-  return math.exp(sum([math.log(x) for x in data]) / len(data))
+  return math.exp(sum(math.log(x) for x in data) / len(data))
 
 
 def _stdev(data: List[float]):

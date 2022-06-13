@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.local_data_collector."""
 
 import collections
@@ -27,8 +26,8 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
-from google.protobuf import text_format
 from compiler_opt.rl import local_data_collector
+from google.protobuf import text_format
 
 
 def _get_sequence_example(feature_value):
@@ -76,15 +75,18 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
 
 
 class Sleeper(compilation_runner.CompilationRunner):
+  """Test CompilationRunner that just sleeps."""
 
+  # pylint: disable=super-init-not-called
   def __init__(self, killed, timedout, living):
     self._killed = killed
     self._timedout = timedout
     self._living = living
     self._lock = mp.Manager().Lock()
 
-  def collect_data(self, file_paths, tf_policy_path, reward_only,
+  def collect_data(self, file_paths, tf_policy_path, reward_stat,
                    cancellation_token):
+    _ = reward_stat
     cancellation_manager = self._get_cancellation_manager(cancellation_token)
     try:
       compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
@@ -112,6 +114,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
     mock_compilation_runner.collect_data = mock_collect_data
 
     def create_test_iterator_fn():
+
       def _test_iterator_fn(data_list):
         assert data_list in (
             [_get_sequence_example(feature_value=1).SerializeToString()] * 9,

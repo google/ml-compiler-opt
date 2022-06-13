@@ -1,4 +1,5 @@
 # coding=utf-8
+# pylint: disable=protected-access
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.data_reader."""
 
 import os
@@ -84,7 +84,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         name='live_interval_weight',
         minimum=-100,
         maximum=20)
-    super(DataReaderTest, self).setUp()
+    super().setUp()
 
   @parameterized.named_parameters(
       ('SequenceExampleDatasetFn',
@@ -95,9 +95,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
@@ -112,8 +112,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     experience = next(data_iterator)
     self.assertIsInstance(experience, trajectory.Trajectory)
     self.assertAllEqual([2, 3], experience.step_type.shape)
-    self.assertCountEqual(['feature_key'],
-                          experience.observation.keys())
+    self.assertCountEqual(['feature_key'], experience.observation.keys())
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]],
                         experience.observation['feature_key'])
     self.assertAllEqual([[0, 0, 0], [0, 0, 0]], experience.action)
@@ -133,9 +132,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=True)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 
@@ -164,9 +163,9 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         self._agent_name, is_action_discrete=False)
 
     data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:
+    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:
+    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
       data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
       _write_tmp_tfrecord(data_source, example, 100)
 

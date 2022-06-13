@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """LLVM Policy Trainer."""
 
 import time
@@ -175,6 +174,8 @@ class Trainer(object):
   def train(self, dataset_iter, monitor_dict, num_iterations):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
+    # context management is implemented in decorator
+    # pylint: disable=not-context-manager
     with tf.summary.record_if(
         lambda: tf.math.equal(self._global_step % self._summary_interval, 0)):
       for _ in range(num_iterations):
@@ -185,8 +186,8 @@ class Trainer(object):
           experience = next(dataset_iter)
         except StopIteration:
           logging.warning(
-              'Warning: skip training because do not have enough data to fill in a batch, consider increase data or reduce batch size.'
-          )
+              ('Warning: skip training because do not have enough data to fill '
+               'in a batch, consider increase data or reduce batch size.'))
           break
 
         # random network distillation for intrinsic reward generation

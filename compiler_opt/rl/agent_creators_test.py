@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.agent_creators."""
 
 import gin
@@ -50,7 +49,7 @@ class AgentCreatorsTest(tf.test.TestCase):
         minimum=0,
         maximum=1,
         name='inlining_decision')
-    super(AgentCreatorsTest, self).setUp()
+    super().setUp()
 
   def test_create_behavioral_cloning_agent(self):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)

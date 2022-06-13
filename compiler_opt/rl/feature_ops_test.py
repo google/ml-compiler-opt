@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for compiler_opt.rl.feature_ops."""
 
 import os
@@ -30,8 +29,9 @@ def _get_sqrt_z_score_preprocessing_fn_cross_product():
   for sqrt in [True, False]:
     for z_score in [True, False]:
       for preprocessing_fn in [None, lambda x: x * x]:
-        test_name = ('sqrt_%s_zscore_%s_preprocessfn_%s' %
-                     (sqrt, z_score, preprocessing_fn))
+        # pylint: disable=line-too-long
+        test_name = (
+            f'sqrt_{sqrt}_zscore_{z_score}_preprocessfn_{preprocessing_fn}')
         testcases.append((test_name, sqrt, z_score, preprocessing_fn))
   return testcases
 
@@ -40,7 +40,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
-    super(FeatureUtilsTest, self).setUp()
+    super().setUp()
 
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)

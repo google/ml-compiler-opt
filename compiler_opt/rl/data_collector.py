@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Data collection module."""
 
 import abc
@@ -81,10 +80,11 @@ class DataCollector(metaclass=abc.ABCMeta):
 class EarlyExitChecker:
   """Class which checks if it is ok to early-exit from data collection."""
 
-  def __init__(self,  # pylint: disable=dangerous-default-value
-               num_modules: int,
-               deadline: float = DEADLINE_IN_SECONDS,
-               thresholds: Tuple[Tuple[float, float], ...] = WAIT_TERMINATION):
+  def __init__(
+      self,  # pylint: disable=dangerous-default-value
+      num_modules: int,
+      deadline: float = DEADLINE_IN_SECONDS,
+      thresholds: Tuple[Tuple[float, float], ...] = WAIT_TERMINATION):
     """Initializes the early exit checker.
 
     Args:
