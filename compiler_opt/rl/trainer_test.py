@@ -1,5 +1,4 @@
 # coding=utf-8
-# pylint: disable=protected-access
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for compiler_opt.rl.trainer."""
+
+# pylint: disable=protected-access
 
 import tensorflow as tf
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
