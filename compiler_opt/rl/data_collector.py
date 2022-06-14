@@ -53,7 +53,7 @@ class DataCollector(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def collect_data(
       self, policy_path: str
-  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, float]]:
+  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
