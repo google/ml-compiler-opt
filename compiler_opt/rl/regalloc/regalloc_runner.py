@@ -43,8 +43,8 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   # TODO: refactor file_paths parameter to ensure correctness during
   # construction
   def _compile_fn(
-      self, file_paths: Tuple[str, str, str], tf_policy_path: str,
-      reward_only: bool, cancellation_manager: Optional[
+      self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
+      cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
