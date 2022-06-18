@@ -14,6 +14,7 @@ train_eval.batch_size=64
 train_eval.train_sequence_length=1
 
 regalloc.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/regalloc/vocab'
+regalloc.config.get_observation_processing_layer_creator.with_sqrt = False
 regalloc.config.get_observation_processing_layer_creator.with_z_score_normalization = False
 
 create_agent.policy_network = @regalloc_network.RegAllocNetwork
