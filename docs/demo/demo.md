@@ -135,13 +135,13 @@ export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
 
 mkdir ~/tensorflow
 export TENSORFLOW_C_LIB_PATH=~/tensorflow
-wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
-tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH}"
+wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz
+tar xfz libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH}"
 ```
 
 ## Build LLVM
 
-Build LLVM with both 'release' and 'development' ML modes, and additional
+Build LLVM with the 'development' ML mode, and additional
 Fuchsia-specific settings:
 
 ```
@@ -171,6 +171,10 @@ python3 scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk
 pass manager by default. This allows us to not need to require it explicitly at
 compile time, but it is a requirement for the MLGO project (all our work assumes
 the new pass manager)
+
+**NOTE 3**: The python executable should be explicitly set if there are multiple
+(particularly, newer) Python executables on the system with
+`-DPython3_EXECUTABLE=/path/to/compatible/python`
 
 ## Build Fuchsia
 
