@@ -14,10 +14,10 @@
 # limitations under the License.
 """Module for running compilation and collect training data."""
 
-import concurrent
+from abc import abstractclassmethod, abstractmethod
+import concurrent.futures
 import dataclasses
 import json
-import multiprocessing
 import subprocess
 import threading
 from typing import Dict, List, Optional, Tuple
@@ -119,18 +119,6 @@ class ProcessKilledError(Exception):
     Exception.__init__(self)
 
 
-class ProcessCancellationToken:
-
-  def __init__(self):
-    self._event = multiprocessing.Manager().Event()
-
-  def signal(self):
-    self._event.set()
-
-  def wait(self):
-    self._event.wait()
-
-
 def kill_process_ignore_exceptions(p: 'subprocess.Popen[bytes]'):
   # kill the process and ignore exceptions. Exceptions would be thrown if the
   # process has already been killed/finished (which is inherently in a race
@@ -157,6 +145,9 @@ class WorkerCancellationManager:
     self._done = False
     self._lock = threading.Lock()
 
+  def enable(self):
+    self._done = False
+
   def register_process(self, p: 'subprocess.Popen[bytes]'):
     """Register a process for potential cancellation."""
     with self._lock:
@@ -165,12 +156,13 @@ class WorkerCancellationManager:
         return
     kill_process_ignore_exceptions(p)
 
-  def signal(self):
+  def kill_all_processes(self):
     """Cancel any pending work."""
     with self._lock:
       self._done = True
     for p in self._processes:
       kill_process_ignore_exceptions(p)
+    return len(self._processes)
 
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
@@ -262,21 +254,23 @@ class CompilationResult:
     assert not hasattr(self, 'sequence_examples')
 
 
+class CompilationRunnerStub:
+  """The interface of a stub to CompilationRunner."""
+
+  @abstractmethod
+  def collect_data(
+      self, file_paths: Tuple[str, ...], tf_policy_path: str,
+      reward_stat: Optional[Dict[str, RewardStat]]
+  ) -> concurrent.futures.Future[CompilationResult]:
+    ...
+
+  @abstractmethod
+  def cancel_all_work(self) -> concurrent.futures.Future:
+    ...
+
+
 class CompilationRunner:
   """Base class for collecting compilation data."""
-
-  _POOL: concurrent.futures.ThreadPoolExecutor = None
-
-  @staticmethod
-  def init_pool():
-    """Worker process initialization."""
-    CompilationRunner._POOL = concurrent.futures.ThreadPoolExecutor()
-
-  @staticmethod
-  def _get_pool():
-    """Internal API for fetching the cancellation token waiting pool."""
-    assert CompilationRunner._POOL
-    return CompilationRunner._POOL
 
   def __init__(self,
                clang_path: Optional[str] = None,
@@ -293,40 +287,17 @@ class CompilationRunner:
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
     self._compilation_timeout = _COMPILATION_TIMEOUT.value
+    self._cancellation_manager = WorkerCancellationManager()
 
-  def _get_cancellation_manager(
-      self, cancellation_token: Optional[ProcessCancellationToken]
-  ) -> Optional[WorkerCancellationManager]:
-    """Convert the ProcessCancellationToken into a WorkerCancellationManager.
+  def enable(self):
+    self._cancellation_manager.enable()
 
-    The conversion also registers the ProcessCancellationToken wait() on a
-    thread which will call the WorkerCancellationManager upon completion.
-    Since the token is always signaled, the thread always completes its work.
-
-    Args:
-      cancellation_token: the ProcessCancellationToken to convert.
-
-    Returns:
-      a WorkerCancellationManager, if a ProcessCancellationToken was given.
-    """
-    if not cancellation_token:
-      return None
-    ret = WorkerCancellationManager()
-
-    def signaler():
-      cancellation_token.wait()
-      ret.signal()
-
-    CompilationRunner._get_pool().submit(signaler)
-    return ret
+  def cancel_all_work(self):
+    return self._cancellation_manager.kill_all_processes()
 
   def collect_data(
-      self,
-      file_paths: Tuple[str, ...],
-      tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]],
-      cancellation_token: Optional[ProcessCancellationToken] = None
-  ) -> CompilationResult:
+      self, file_paths: Tuple[str, ...], tf_policy_path: str,
+      reward_stat: Optional[Dict[str, RewardStat]]) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
@@ -346,14 +317,12 @@ class CompilationRunner:
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    cancellation_manager = self._get_cancellation_manager(cancellation_token)
-
     if reward_stat is None:
       default_result = self._compile_fn(
           file_paths,
           tf_policy_path='',
           reward_only=bool(tf_policy_path),
-          cancellation_manager=cancellation_manager)
+          cancellation_manager=self._cancellation_manager)
       reward_stat = {
           k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
       }
@@ -363,7 +332,7 @@ class CompilationRunner:
           file_paths,
           tf_policy_path,
           reward_only=False,
-          cancellation_manager=cancellation_manager)
+          cancellation_manager=self._cancellation_manager)
     else:
       policy_result = default_result
 

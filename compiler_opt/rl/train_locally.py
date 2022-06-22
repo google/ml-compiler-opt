@@ -25,7 +25,6 @@ from absl import flags
 from absl import logging
 import gin
 import tensorflow as tf
-from tf_agents.system import system_multiprocessing as multiprocessing
 from typing import List
 
 from compiler_opt.rl import agent_creators
@@ -111,9 +110,6 @@ def train_eval(agent_name=constant.AgentName.PPO,
       file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
                     for path in module_paths]
 
-  runner = problem_config.get_runner(
-      moving_average_decay_rate=moving_average_decay_rate)
-
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
       time_step_spec=time_step_spec,
@@ -145,7 +141,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
       file_paths=file_paths,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
-      runner=runner,
+      worker_ctor=functools.partial(
+          problem_config.get_runner_ctor(),
+          moving_average_decay_rate=moving_average_decay_rate),
       parser=sequence_example_iterator_fn,
       reward_stat_map=reward_stat_map)
 
@@ -185,4 +183,4 @@ def main(_):
 
 if __name__ == '__main__':
   flags.mark_flag_as_required('data_path')
-  multiprocessing.handle_main(functools.partial(app.run, main))
+  app.run(main)

@@ -28,6 +28,9 @@ class InliningConfig(problem_configuration.ProblemConfiguration):
   def get_runner(self, *args, **kwargs):
     return inlining_runner.InliningRunner(*args, **kwargs)
 
+  def get_runner_ctor(self):
+    return inlining_runner.InliningRunner
+
   def get_signature_spec(self):
     return config.get_inlining_signature_spec()
 

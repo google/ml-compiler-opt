@@ -15,6 +15,8 @@
 """Ensure flags are initialized for e.g. pytest harness case."""
 
 import sys
+#import compiler_opt.core.dask.worker_manager as default_factory
+import compiler_opt.core.multiprocessing.worker_manager as default_factory
 
 from absl import flags
 
@@ -28,3 +30,5 @@ from absl import flags
 if not flags.FLAGS.is_parsed():
   flags.FLAGS(sys.argv, known_only=True)
 assert flags.FLAGS.is_parsed()
+
+worker_generator = default_factory.get_compilation_jobs

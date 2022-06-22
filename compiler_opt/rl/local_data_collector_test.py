@@ -44,7 +44,7 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
+def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
   assert file_paths == ('a', 'b')
   assert tf_policy_dir == 'policy'
   assert reward_stat is None or reward_stat == {
@@ -77,30 +77,10 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  # pylint: disable=super-init-not-called
-  def __init__(self, killed, timedout, living):
-    self._killed = killed
-    self._timedout = timedout
-    self._living = living
-    self._lock = mp.Manager().Lock()
-
-  def collect_data(self, file_paths, tf_policy_path, reward_stat,
-                   cancellation_token):
-    _ = reward_stat
-    cancellation_manager = self._get_cancellation_manager(cancellation_token)
-    try:
-      compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
-                                                   cancellation_manager)
-    except compilation_runner.ProcessKilledError as e:
-      with self._lock:
-        self._killed.value += 1
-      raise e
-    except subprocess.TimeoutExpired as e:
-      with self._lock:
-        self._timedout.value += 1
-      raise e
-    with self._lock:
-      self._living.value += 1
+  def collect_data(self, file_paths, tf_policy_path, reward_stat):
+    _ = file_paths, tf_policy_path, reward_stat
+    compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
+                                                 self._cancellation_manager)
     return compilation_runner.CompilationResult(
         sequence_examples=[], reward_stats={}, rewards=[], keys=[])
 
@@ -108,10 +88,15 @@ class Sleeper(compilation_runner.CompilationRunner):
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
-    mock_compilation_runner = mock.create_autospec(
-        compilation_runner.CompilationRunner)
 
-    mock_compilation_runner.collect_data = mock_collect_data
+    def make_runner():
+
+      class MyRunner(compilation_runner.CompilationRunner):
+
+        def collect_data(self, *args, **kwargs):
+          return mock_collect_data(*args, **kwargs)
+
+      return MyRunner()
 
     def create_test_iterator_fn():
 
@@ -132,8 +117,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
         file_paths=tuple([('a', 'b')] * 100),
         num_workers=4,
         num_modules=9,
-        runner=mock_compilation_runner,
         parser=create_test_iterator_fn(),
+        worker_ctor=make_runner,
         reward_stat_map=collections.defaultdict(lambda: None))
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
@@ -161,11 +146,6 @@ class LocalDataCollectorTest(tf.test.TestCase):
     collector.close_pool()
 
   def test_local_data_collector_task_management(self):
-    killed = mp.Manager().Value('i', value=0)
-    timedout = mp.Manager().Value('i', value=0)
-    living = mp.Manager().Value('i', value=0)
-
-    mock_compilation_runner = Sleeper(killed, timedout, living)
 
     def parser(_):
       pass
@@ -182,17 +162,18 @@ class LocalDataCollectorTest(tf.test.TestCase):
         file_paths=tuple([('a', 'b')] * 200),
         num_workers=4,
         num_modules=4,
-        runner=mock_compilation_runner,
+        worker_ctor=Sleeper,
         parser=parser,
         reward_stat_map=collections.defaultdict(lambda: None),
         exit_checker_ctor=QuickExiter)
     collector.collect_data(policy_path='policy')
-    # close the pool first, so we are forced to wait for the workers to process
-    # their cancellation.
+    collector.join_pending_jobs()
+    killed = 0
+    for _, w in collector.get_last_work():
+      self.assertRaises(compilation_runner.ProcessKilledError, w.result)
+      killed += 1
+    self.assertEquals(killed, 4)
     collector.close_pool()
-    self.assertEqual(killed.value, 4)
-    self.assertEqual(living.value, 0)
-    self.assertEqual(timedout.value, 0)
 
 
 if __name__ == '__main__':
