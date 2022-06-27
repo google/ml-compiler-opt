@@ -126,7 +126,7 @@ def main(_):
   logging.info(gin.config_str())
 
   problem_config = registry.get_configuration()
-  runner = problem_config.get_runner(moving_average_decay_rate=0)
+  runner = problem_config.get_runner_type(moving_average_decay_rate=0)
   assert runner
 
   with open(

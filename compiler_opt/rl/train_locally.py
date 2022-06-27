@@ -111,7 +111,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
                     for path in module_paths]
 
-  runner = problem_config.get_runner(
+  runner = problem_config.get_runner_type()(
       moving_average_decay_rate=moving_average_decay_rate)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(

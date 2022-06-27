@@ -92,7 +92,7 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_runner(self, *args, **kwargs) -> compilation_runner.CompilationRunner:
+  def get_runner_type(self) -> type[compilation_runner.CompilationRunner]:
     raise NotImplementedError
 
 
