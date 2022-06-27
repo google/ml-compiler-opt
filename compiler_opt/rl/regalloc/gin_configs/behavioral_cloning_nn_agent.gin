@@ -7,22 +7,14 @@ import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
 import tf_agents.networks.actor_distribution_network
 
 include 'compiler_opt/rl/regalloc/gin_configs/common.gin'
+include 'compiler_opt/rl/regalloc/gin_configs/network.gin'
 
 train_eval.agent_name=%constant.AgentName.BEHAVIORAL_CLONE
 train_eval.num_iterations=10000
 train_eval.batch_size=64
 train_eval.train_sequence_length=1
 
-regalloc.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/regalloc/vocab'
-regalloc.config.get_observation_processing_layer_creator.with_sqrt = False
-regalloc.config.get_observation_processing_layer_creator.with_z_score_normalization = False
-
-create_agent.policy_network = @regalloc_network.RegAllocNetwork
-
-RegAllocNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
-RegAllocNetwork.fc_layer_params=(80, 40)
-RegAllocNetwork.dropout_layer_params=(0.2, 0.2)
-RegAllocNetwork.activation_fn=@tf.keras.activations.relu
+RegAllocNetwork.dropout_layer_params = (0.2, 0.2)
 
 tf.train.AdamOptimizer.learning_rate = 0.001
 tf.train.AdamOptimizer.epsilon = 0.0003125
