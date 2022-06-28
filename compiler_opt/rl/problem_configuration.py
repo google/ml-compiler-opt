@@ -73,6 +73,8 @@ from typing import Callable, Iterable, Tuple
 import tensorflow as tf
 import tf_agents as tfa
 
+# used for type annotation in a string (for 3.8 compat)
+# pylint: disable=unused-import
 from compiler_opt.rl import compilation_runner
 
 types = tfa.typing.types
@@ -92,7 +94,7 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_runner(self, *args, **kwargs) -> compilation_runner.CompilationRunner:
+  def get_runner_type(self) -> 'type[compilation_runner.CompilationRunner]':
     raise NotImplementedError
 
 

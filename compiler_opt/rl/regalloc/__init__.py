@@ -25,8 +25,8 @@ from compiler_opt.rl.regalloc import regalloc_runner
 class RegallocEvictionConfig(problem_configuration.ProblemConfiguration):
   """Expose the regalloc eviction configuration."""
 
-  def get_runner(self, *args, **kwargs):
-    return regalloc_runner.RegAllocRunner(*args, **kwargs)
+  def get_runner_type(self):
+    return regalloc_runner.RegAllocRunner
 
   def get_signature_spec(self):
     return config.get_regalloc_signature_spec()

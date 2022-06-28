@@ -25,8 +25,8 @@ from compiler_opt.rl.inlining import inlining_runner
 class InliningConfig(problem_configuration.ProblemConfiguration):
   """Expose the regalloc eviction components."""
 
-  def get_runner(self, *args, **kwargs):
-    return inlining_runner.InliningRunner(*args, **kwargs)
+  def get_runner_type(self):
+    return inlining_runner.InliningRunner
 
   def get_signature_spec(self):
     return config.get_inlining_signature_spec()
