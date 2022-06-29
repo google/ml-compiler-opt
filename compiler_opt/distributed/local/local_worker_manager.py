@@ -35,6 +35,7 @@ import multiprocessing.connection
 import queue
 import threading
 
+from absl import logging
 # pylint: disable=unused-import
 from compiler_opt.distributed.worker import Worker
 
@@ -58,10 +59,9 @@ class TaskResult:
   value: Any
 
 
-def _run(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
-         worker_class: 'type[Worker]', *args, **kwargs):
+def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
+              worker_class: 'type[Worker]', *args, **kwargs):
   """Worker process entrypoint."""
-
   pool = concurrent.futures.ThreadPoolExecutor()
   obj = worker_class(*args, **kwargs)
 
@@ -88,6 +88,14 @@ def _run(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
         out_q.put(TaskResult(msgid=task.msgid, success=False, value=e))
     else:
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
+
+
+def _run(*args, **kwargs):
+  try:
+    _run_impl(*args, **kwargs)
+  except Exception as e:
+    logging.error(e)
+    raise e
 
 
 def _make_stub(cls: 'type[Worker]', *args, **kwargs):
@@ -129,7 +137,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       self._pump.start()
 
     def _msg_pump(self):
-      while not self._stop_pump.is_set():
+      while not self._stop_pump.is_set() and self._process.is_alive():
         try:
           # avoid blocking so we may notice if _stop_pump was set. We aren't
           # very concerned with delay between shutdown request and the message
@@ -145,8 +153,17 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
         except queue.Empty:
           continue
       self._done.set()
+      with self._lock:
+        for _, v in self._map.items():
+          v.set_exception(concurrent.futures.CancelledError())
+        self._map = None
 
     def __getattr__(self, name):
+      result_future = concurrent.futures.Future()
+      if not self._process.is_alive() or self._done.is_set():
+        result_future.set_exception(concurrent.futures.CancelledError())
+        return result_future
+
       with self._msgidlock:
         msgid = self._msgid
         self._msgid += 1
@@ -159,7 +176,6 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
                 args=args,
                 kwargs=kwargs,
                 is_urgent=cls.is_priority_method(name)))
-        result_future = concurrent.futures.Future()
         with self._lock:
           self._map[msgid] = result_future
         return result_future

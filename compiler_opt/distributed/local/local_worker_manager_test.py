@@ -15,6 +15,7 @@
 """Test for local worker manager."""
 
 import concurrent.futures
+import multiprocessing
 import time
 
 from absl.testing import absltest
@@ -62,6 +63,20 @@ class LocalWorkerManagerTest(absltest.TestCase):
       time.sleep(3)
       # everything still works
       self.assertEqual(p2.get_token().result(), 2)
+
+  def test_failure(self):
+
+    class Job(Worker):
+
+      def __init__(self, wont_be_passed):
+        self._arg = wont_be_passed
+
+      def method(self):
+        return self._arg
+
+    with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
+      self.assertRaises(concurrent.futures.CancelledError,
+                        pool[0].method().result)
 
 
 if __name__ == '__main__':
