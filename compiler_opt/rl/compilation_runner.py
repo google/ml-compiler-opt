@@ -102,7 +102,7 @@ def get_command_line_for_bundle(
     option_iterator = iter(f.read().split('\0'))
     option = next(option_iterator, None)
     while option:
-      if any([option.startswith(flag) for flag in delete_flags]):
+      if any(option.startswith(flag) for flag in delete_flags):
         if '=' not in option:
           next(option_iterator, None)
       else:
