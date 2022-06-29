@@ -15,6 +15,7 @@
 """Test for local worker manager."""
 
 import concurrent.futures
+import time
 
 from absl.testing import absltest
 from compiler_opt.distributed.worker import Worker
@@ -57,6 +58,10 @@ class LocalWorkerManagerTest(absltest.TestCase):
       self.assertEqual(p2.get_token().result(), 2)
       self.assertEqual(p1.priority_method().result(), 'priority 1')
       self.assertEqual(p2.priority_method().result(), 'priority 2')
+      # wait - to make sure the pump doesn't panic if there's no new messages
+      time.sleep(3)
+      # everything still works
+      self.assertEqual(p2.get_token().result(), 2)
 
 
 if __name__ == '__main__':

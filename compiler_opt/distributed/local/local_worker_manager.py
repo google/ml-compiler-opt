@@ -58,7 +58,7 @@ class TaskResult:
   value: Any
 
 
-def _run(in_q: queue.Queue[Task], out_q: queue.Queue[TaskResult],
+def _run(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
          worker_class: type[Worker], *args, **kwargs):
   """Worker process entrypoint."""
 
@@ -96,8 +96,8 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     """Client stub to a worker hosted by a process."""
 
     def __init__(self):
-      self._send: queue.Queue[Task] = multiprocessing.get_context().Queue()
-      self._receive: queue.Queue[TaskResult] = multiprocessing.get_context(
+      self._send: 'queue.Queue[Task]' = multiprocessing.get_context().Queue()
+      self._receive: 'queue.Queue[TaskResult]' = multiprocessing.get_context(
       ).Queue()
 
       # this is the process hosting one worker instance.
