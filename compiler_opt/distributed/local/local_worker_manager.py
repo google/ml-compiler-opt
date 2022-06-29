@@ -141,6 +141,9 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       self._observer.start()
       self._pump.start()
 
+    def _is_cancelled_or_broken(self):
+      return self._stop_pump.is_set() or not self._process.is_alive()
+
     def _msg_pump(self):
       while True:
         task_result = self._receive.get()
