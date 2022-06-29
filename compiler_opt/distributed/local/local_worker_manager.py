@@ -84,7 +84,7 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
       try:
         res = application()
         out_q.put(TaskResult(msgid=task.msgid, success=True, value=res))
-      except Exception as e:  # pylint: disable=broad-except
+      except BaseException as e:  # pylint: disable=broad-except
         out_q.put(TaskResult(msgid=task.msgid, success=False, value=e))
     else:
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
@@ -93,7 +93,7 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
 def _run(*args, **kwargs):
   try:
     _run_impl(*args, **kwargs)
-  except Exception as e:
+  except BaseException as e:
     logging.error(e)
     raise e
 
@@ -136,8 +136,11 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       self._process.start()
       self._pump.start()
 
+    def _is_cancelled_or_broken(self):
+      return self._stop_pump.is_set() or not self._process.is_alive()
+
     def _msg_pump(self):
-      while not self._stop_pump.is_set() and self._process.is_alive():
+      while not self._is_cancelled_or_broken():
         try:
           # avoid blocking so we may notice if _stop_pump was set. We aren't
           # very concerned with delay between shutdown request and the message
@@ -160,7 +163,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def __getattr__(self, name):
       result_future = concurrent.futures.Future()
-      if not self._process.is_alive() or self._done.is_set():
+      if self._is_cancelled_or_broken():
         result_future.set_exception(concurrent.futures.CancelledError())
         return result_future
 

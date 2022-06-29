@@ -75,8 +75,10 @@ class LocalWorkerManagerTest(absltest.TestCase):
         return self._arg
 
     with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
-      self.assertRaises(concurrent.futures.CancelledError,
-                        pool[0].method().result)
+      with self.assertRaises(concurrent.futures.CancelledError):
+        # this will fail because we didn't pass the arg to the ctor, so the
+        # worker hosting process will crash.
+        pool[0].method().result()
 
 
 if __name__ == '__main__':
