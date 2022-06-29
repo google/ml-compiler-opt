@@ -165,16 +165,13 @@ def create_sequence_example_dataset_fn(
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
     # here.
-    dataset = (tf.data.Dataset.from_tensor_slices(sequence_examples)
-              .filter(lambda string: tf.strings.length(string) > 0)
-              .map(parser_fn)
-              .filter(lambda traj: tf.size(traj.reward) > 2)
-              .unbatch()
-              .batch(train_sequence_length, drop_remainder=True)
-              .cache()
-              .shuffle(trajectory_shuffle_buffer_size)
-              .batch(batch_size, drop_remainder=True)
-              )
+    dataset = (
+        tf.data.Dataset.from_tensor_slices(sequence_examples).filter(
+            lambda string: tf.strings.length(string) > 0).map(parser_fn).filter(
+                lambda traj: tf.size(traj.reward) > 2).unbatch().batch(
+                    train_sequence_length, drop_remainder=True).cache().shuffle(
+                        trajectory_shuffle_buffer_size).batch(
+                            batch_size, drop_remainder=True))
     return dataset
 
   return _sequence_example_dataset_fn

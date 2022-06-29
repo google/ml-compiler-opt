@@ -19,6 +19,7 @@ import collections
 import multiprocessing as mp
 import string
 import subprocess
+import sys
 from unittest import mock
 
 import tensorflow as tf
@@ -147,7 +148,15 @@ class LocalDataCollectorTest(tf.test.TestCase):
             'total_trajectory_length': 18,
         }
     }
-    self.assertEqual(monitor_dict, monitor_dict | expected_monitor_dict_subset)
+    # Issue #38
+    if sys.version_info.minor >= 9:
+      self.assertEqual(monitor_dict,
+                       monitor_dict | expected_monitor_dict_subset)
+    else:
+      self.assertEqual(monitor_dict, {
+          **monitor_dict,
+          **expected_monitor_dict_subset
+      })
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
@@ -158,7 +167,15 @@ class LocalDataCollectorTest(tf.test.TestCase):
             'total_trajectory_length': 18,
         }
     }
-    self.assertEqual(monitor_dict, monitor_dict | expected_monitor_dict_subset)
+    # Issue #38
+    if sys.version_info.minor >= 9:
+      self.assertEqual(monitor_dict,
+                       monitor_dict | expected_monitor_dict_subset)
+    else:
+      self.assertEqual(monitor_dict, {
+          **monitor_dict,
+          **expected_monitor_dict_subset
+      })
 
     collector.close_pool()
 
