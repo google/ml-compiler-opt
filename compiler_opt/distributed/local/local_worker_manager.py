@@ -39,7 +39,7 @@ import threading
 from compiler_opt.distributed.worker import Worker
 
 from contextlib import AbstractContextManager
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclasses.dataclass(frozen=True)
@@ -111,7 +111,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
               **kwargs))
       # lock for the msgid -> reply future map
       self._lock = threading.Lock()
-      self._map: dict[int, concurrent.futures.Future] = {}
+      self._map: Dict[int, concurrent.futures.Future] = {}
       # thread drainig the receive queue
       self._pump = threading.Thread(target=self._msg_pump)
 
