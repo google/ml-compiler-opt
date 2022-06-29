@@ -67,7 +67,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
-               moving_average_decay_rate=1):
+               moving_average_decay_rate=1,
+               additional_compilation_flags=(),
+               delete_compilation_flags=()):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
   problem_config = registry.get_configuration()
@@ -112,7 +114,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
                     for path in module_paths]
 
   runner = problem_config.get_runner_type()(
-      moving_average_decay_rate=moving_average_decay_rate)
+      moving_average_decay_rate=moving_average_decay_rate,
+      additional_flags=additional_compilation_flags,
+      delete_flags=delete_compilation_flags)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,

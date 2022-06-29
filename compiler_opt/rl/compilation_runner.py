@@ -75,9 +75,12 @@ def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
   return sequence_example
 
 
-def get_command_line_for_bundle(cmd_file: str,
-                                ir_file: str,
-                                thinlto: Optional[str] = None) -> List[str]:
+def get_command_line_for_bundle(
+    cmd_file: str,
+    ir_file: str,
+    thinlto: Optional[str] = None,
+    additional_flags: Tuple[str, ...] = (),
+    delete_flags: Tuple[str, ...] = ()) -> List[str]:
   """Cleans up base command line.
 
   Remove certain unnecessary flags, and add the .bc file to compile and, if
@@ -87,21 +90,19 @@ def get_command_line_for_bundle(cmd_file: str,
     cmd_file: Path to a .cmd file (from corpus).
     ir_file: The path to the ir file to compile.
     thinlto: The path to the thinlto index, or None.
+    additional_flags: Tuple of clang flags to add.
+    delete_flags: Tuple of clang flags to remove.
 
   Returns:
     The argument list to pass to the compiler process.
   """
   cmdline = []
-  flags_to_remove = [
-      '-split-dwarf-file', '-split-dwarf-output', '-fthinlto-index',
-      '-fprofile-sample-use'
-  ]
 
   with open(cmd_file, encoding='utf-8') as f:
     option_iterator = iter(f.read().split('\0'))
     option = next(option_iterator, None)
     while option:
-      if any(option.startswith(flag) for flag in flags_to_remove):
+      if any([option.startswith(flag) for flag in delete_flags]):
         if '=' not in option:
           next(option_iterator, None)
       else:
@@ -110,6 +111,7 @@ def get_command_line_for_bundle(cmd_file: str,
   cmdline.extend(['-x', 'ir', ir_file])
   if thinlto:
     cmdline.append('-fthinlto-index=' + thinlto)
+  cmdline.extend(additional_flags)
   return cmdline
 
 
@@ -281,17 +283,23 @@ class CompilationRunner:
   def __init__(self,
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1):
+               moving_average_decay_rate: float = 1,
+               additional_flags: Tuple[str, ...] = (),
+               delete_flags: Tuple[str, ...] = ()):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
+      additional_flags: tuple of clang flags to add.
+      delete_flags: tuple of clang flags to remove.
     """
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
+    self._additional_flags = additional_flags
+    self._delete_flags = delete_flags
     self._compilation_timeout = _COMPILATION_TIMEOUT.value
 
   def _get_cancellation_manager(

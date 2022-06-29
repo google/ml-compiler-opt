@@ -85,7 +85,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
         command_line.append(self._launcher_path)
       command_line.extend([self._clang_path] +
                           compilation_runner.get_command_line_for_bundle(
-                              cmd_path, input_ir_path) + [
+                              cmd_path,
+                              input_ir_path,
+                              additional_flags=self._additional_flags,
+                              delete_flags=self._delete_flags) + [
                                   '-mllvm', '-enable-ml-inliner=development',
                                   '-mllvm', '-training-log=' +
                                   log_path, '-o', output_native_path

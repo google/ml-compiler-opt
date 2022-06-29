@@ -89,7 +89,8 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
         command_line.append(self._launcher_path)
       command_line.extend([self._clang_path] +
                           compilation_runner.get_command_line_for_bundle(
-                              cmd_path, input_ir_path, thinlto_index_path) + [
+                              cmd_path, input_ir_path, thinlto_index_path,
+                              self._additional_flags, self._delete_flags) + [
                                   '-mllvm', '-thinlto-assume-merged', '-mllvm',
                                   '-regalloc-enable-advisor=development',
                                   '-mllvm', '-regalloc-training-log=' +

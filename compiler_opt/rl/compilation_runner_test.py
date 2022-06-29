@@ -224,18 +224,24 @@ class CompilationRunnerTest(tf.test.TestCase):
         ])
 
   def test_command_line_correction(self):
+    delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
+                                '-fthinlto-index', '-fprofile-sample-use',
+                                '-fprofile-remapping-file')
     data = [
         '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
         '-split-dwarf-output', 'somepath/some.dwo'
     ]
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(argfile.full_path,
-                                                       'hi.bc'),
+        compilation_runner.get_command_line_for_bundle(
+            argfile.full_path, 'hi.bc', delete_flags=delete_compilation_flags),
         ['-cc1', '-x', 'ir', 'hi.bc'])
     self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(argfile.full_path,
-                                                       'hi.bc', 'index.bc'),
+        compilation_runner.get_command_line_for_bundle(
+            argfile.full_path,
+            'hi.bc',
+            'index.bc',
+            delete_flags=delete_compilation_flags),
         ['-cc1', '-x', 'ir', 'hi.bc', '-fthinlto-index=index.bc'])
 
   def test_start_subprocess_output(self):
