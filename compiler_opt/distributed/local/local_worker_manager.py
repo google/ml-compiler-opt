@@ -59,7 +59,7 @@ class TaskResult:
 
 
 def _run(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
-         worker_class: type[Worker], *args, **kwargs):
+         worker_class: 'type[Worker]', *args, **kwargs):
   """Worker process entrypoint."""
 
   pool = concurrent.futures.ThreadPoolExecutor()
