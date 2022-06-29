@@ -124,7 +124,6 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # when we stop.
       self._lock = threading.Lock()
       self._map: Dict[int, concurrent.futures.Future] = {}
-
       # thread drainig the receive queue
       self._pump = threading.Thread(target=self._msg_pump)
       def observer():
