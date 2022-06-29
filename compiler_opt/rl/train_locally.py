@@ -126,7 +126,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       train_sequence_length=train_sequence_length)
 
   def sequence_example_iterator_fn(seq_ex: List[str]):
-    return iter(dataset_fn(seq_ex).repeat())
+    return iter(dataset_fn(seq_ex).repeat().prefetch(tf.data.AUTOTUNE))
 
   reward_stat_map = collections.defaultdict(lambda: None)
   reward_stat_map_path = os.path.join(root_dir, 'reward_stat_map')
