@@ -16,15 +16,13 @@
 
 import collections
 
-import multiprocessing as mp
 import string
-import subprocess
 import sys
-from unittest import mock
 
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
@@ -47,7 +45,7 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
+def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
   assert file_paths == ('a', 'b')
   assert tf_policy_dir == 'policy'
   assert reward_stat is None or reward_stat == {
@@ -80,30 +78,11 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  # pylint: disable=super-init-not-called
-  def __init__(self, killed, timedout, living):
-    self._killed = killed
-    self._timedout = timedout
-    self._living = living
-    self._lock = mp.Manager().Lock()
+  def collect_data(self, file_paths, tf_policy_path, reward_stat):
+    _ = file_paths, tf_policy_path, reward_stat
+    compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
+                                                 self._cancellation_manager)
 
-  def collect_data(self, file_paths, tf_policy_path, reward_stat,
-                   cancellation_token):
-    _ = reward_stat
-    cancellation_manager = self._get_cancellation_manager(cancellation_token)
-    try:
-      compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
-                                                   cancellation_manager)
-    except compilation_runner.ProcessKilledError as e:
-      with self._lock:
-        self._killed.value += 1
-      raise e
-    except subprocess.TimeoutExpired as e:
-      with self._lock:
-        self._timedout.value += 1
-      raise e
-    with self._lock:
-      self._living.value += 1
     return compilation_runner.CompilationResult(
         sequence_examples=[], reward_stats={}, rewards=[], keys=[])
 
@@ -111,10 +90,11 @@ class Sleeper(compilation_runner.CompilationRunner):
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
-    mock_compilation_runner = mock.create_autospec(
-        compilation_runner.CompilationRunner)
 
-    mock_compilation_runner.collect_data = mock_collect_data
+    class MyRunner(compilation_runner.CompilationRunner):
+
+      def collect_data(self, *args, **kwargs):
+        return mock_collect_data(*args, **kwargs)
 
     def create_test_iterator_fn():
 
@@ -131,60 +111,55 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
       return _test_iterator_fn
 
-    collector = local_data_collector.LocalDataCollector(
-        file_paths=tuple([('a', 'b')] * 100),
-        num_workers=4,
-        num_modules=9,
-        runner=mock_compilation_runner,
-        parser=create_test_iterator_fn(),
-        reward_stat_map=collections.defaultdict(lambda: None))
+    with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
+      collector = local_data_collector.LocalDataCollector(
+          file_paths=tuple([('a', 'b')] * 100),
+          num_modules=9,
+          worker_pool=lwp,
+          parser=create_test_iterator_fn(),
+          reward_stat_map=collections.defaultdict(lambda: None))
 
-    data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
-    data = list(data_iterator)
-    self.assertEqual([1, 2, 3], data)
-    expected_monitor_dict_subset = {
-        'default': {
-            'success_modules': 9,
-            'total_trajectory_length': 18,
-        }
-    }
-    # Issue #38
-    if sys.version_info.minor >= 9:
-      self.assertEqual(monitor_dict,
-                       monitor_dict | expected_monitor_dict_subset)
-    else:
-      self.assertEqual(monitor_dict, {
-          **monitor_dict,
-          **expected_monitor_dict_subset
-      })
+      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      data = list(data_iterator)
+      self.assertEqual([1, 2, 3], data)
+      expected_monitor_dict_subset = {
+          'default': {
+              'success_modules': 9,
+              'total_trajectory_length': 18,
+          }
+      }
+      # Issue #38
+      if sys.version_info.minor >= 9:
+        self.assertEqual(monitor_dict,
+                        monitor_dict | expected_monitor_dict_subset)
+      else:
+        self.assertEqual(monitor_dict, {
+            **monitor_dict,
+            **expected_monitor_dict_subset
+        })
 
-    data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
-    data = list(data_iterator)
-    self.assertEqual([4, 5, 6], data)
-    expected_monitor_dict_subset = {
-        'default': {
-            'success_modules': 9,
-            'total_trajectory_length': 18,
-        }
-    }
-    # Issue #38
-    if sys.version_info.minor >= 9:
-      self.assertEqual(monitor_dict,
-                       monitor_dict | expected_monitor_dict_subset)
-    else:
-      self.assertEqual(monitor_dict, {
-          **monitor_dict,
-          **expected_monitor_dict_subset
-      })
+      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      data = list(data_iterator)
+      self.assertEqual([4, 5, 6], data)
+      expected_monitor_dict_subset = {
+          'default': {
+              'success_modules': 9,
+              'total_trajectory_length': 18,
+          }
+      }
+      # Issue #38
+      if sys.version_info.minor >= 9:
+        self.assertEqual(monitor_dict,
+                        monitor_dict | expected_monitor_dict_subset)
+      else:
+        self.assertEqual(monitor_dict, {
+            **monitor_dict,
+            **expected_monitor_dict_subset
+        })
 
-    collector.close_pool()
+        collector.close_pool()
 
   def test_local_data_collector_task_management(self):
-    killed = mp.Manager().Value('i', value=0)
-    timedout = mp.Manager().Value('i', value=0)
-    living = mp.Manager().Value('i', value=0)
-
-    mock_compilation_runner = Sleeper(killed, timedout, living)
 
     def parser(_):
       pass
@@ -197,21 +172,22 @@ class LocalDataCollectorTest(tf.test.TestCase):
       def wait(self, _):
         return False
 
-    collector = local_data_collector.LocalDataCollector(
-        file_paths=tuple([('a', 'b')] * 200),
-        num_workers=4,
-        num_modules=4,
-        runner=mock_compilation_runner,
-        parser=parser,
-        reward_stat_map=collections.defaultdict(lambda: None),
-        exit_checker_ctor=QuickExiter)
-    collector.collect_data(policy_path='policy')
-    # close the pool first, so we are forced to wait for the workers to process
-    # their cancellation.
-    collector.close_pool()
-    self.assertEqual(killed.value, 4)
-    self.assertEqual(living.value, 0)
-    self.assertEqual(timedout.value, 0)
+    with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
+      collector = local_data_collector.LocalDataCollector(
+          file_paths=tuple([('a', 'b')] * 200),
+          num_modules=4,
+          worker_pool=lwp,
+          parser=parser,
+          reward_stat_map=collections.defaultdict(lambda: None),
+          exit_checker_ctor=QuickExiter)
+      collector.collect_data(policy_path='policy')
+      collector.join_pending_jobs()
+      killed = 0
+      for _, w in collector.get_last_work():
+        self.assertRaises(compilation_runner.ProcessKilledError, w.result)
+        killed += 1
+      self.assertEqual(killed, 4)
+      collector.close_pool()
 
 
 if __name__ == '__main__':

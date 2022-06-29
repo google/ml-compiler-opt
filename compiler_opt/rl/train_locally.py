@@ -28,6 +28,7 @@ import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 from typing import List
 
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
@@ -113,11 +114,6 @@ def train_eval(agent_name=constant.AgentName.PPO,
       file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
                     for path in module_paths]
 
-  runner = problem_config.get_runner_type()(
-      moving_average_decay_rate=moving_average_decay_rate,
-      additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags)
-
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
       time_step_spec=time_step_spec,
@@ -145,38 +141,44 @@ def train_eval(agent_name=constant.AgentName.PPO,
     logging.info('Loaded Reward Stat Map from disk, containing %d modules',
                  len(reward_stat_map))
 
-  data_collector = local_data_collector.LocalDataCollector(
-      file_paths=tuple(file_paths),
-      num_workers=FLAGS.num_workers,
-      num_modules=FLAGS.num_modules,
-      runner=runner,
-      parser=sequence_example_iterator_fn,
-      reward_stat_map=reward_stat_map)
+  with LocalWorkerPool(
+      worker_class=problem_config.get_runner_type(),
+      count=FLAGS.num_workers,
+      moving_average_decay_rate=moving_average_decay_rate,
+      additional_flags=additional_compilation_flags,
+      delete_flags=delete_compilation_flags) as worker_pool:
+    data_collector = local_data_collector.LocalDataCollector(
+        file_paths=tuple(file_paths),
+        num_modules=FLAGS.num_modules,
+        worker_pool=worker_pool,
+        parser=sequence_example_iterator_fn,
+        reward_stat_map=reward_stat_map)
 
-  # Repeat for num_policy_iterations iterations.
-  t1 = time.time()
-  while (llvm_trainer.global_step_numpy() <
-         num_policy_iterations * num_iterations):
-    t2 = time.time()
-    logging.info('Last iteration took: %f', t2 - t1)
-    t1 = t2
-    with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
-      json.dump(reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
+    # Repeat for num_policy_iterations iterations.
+    t1 = time.time()
+    while (llvm_trainer.global_step_numpy() <
+           num_policy_iterations * num_iterations):
+      t2 = time.time()
+      logging.info('Last iteration took: %f', t2 - t1)
+      t1 = t2
+      with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
+        json.dump(
+            reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
 
-    policy_path = os.path.join(root_dir, 'policy',
-                               str(llvm_trainer.global_step_numpy()))
-    saver.save(policy_path)
+      policy_path = os.path.join(root_dir, 'policy',
+                                 str(llvm_trainer.global_step_numpy()))
+      saver.save(policy_path)
 
-    dataset_iter, monitor_dict = data_collector.collect_data(
-        policy_path=os.path.join(policy_path, deploy_policy_name))
-    llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
+      dataset_iter, monitor_dict = data_collector.collect_data(
+          policy_path=os.path.join(policy_path, deploy_policy_name))
+      llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
-    data_collector.on_dataset_consumed(dataset_iter)
+      data_collector.on_dataset_consumed(dataset_iter)
 
-  # Save final policy.
-  saver.save(root_dir)
-  # Wait for all the workers to finish.
-  data_collector.close_pool()
+    # Save final policy.
+    saver.save(root_dir)
+    # Wait for all the workers to finish.
+    data_collector.close_pool()
 
 
 def main(_):

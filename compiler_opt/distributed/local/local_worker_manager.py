@@ -124,6 +124,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # when we stop.
       self._lock = threading.Lock()
       self._map: Dict[int, concurrent.futures.Future] = {}
+
       # thread drainig the receive queue
       self._pump = threading.Thread(target=self._msg_pump)
       def observer():
@@ -140,9 +141,6 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # the observer must follow the process start, otherwise join() raises.
       self._observer.start()
       self._pump.start()
-
-    def _is_cancelled_or_broken(self):
-      return self._stop_pump.is_set() or not self._process.is_alive()
 
     def _msg_pump(self):
       while True:

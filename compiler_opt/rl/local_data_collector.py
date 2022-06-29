@@ -14,15 +14,16 @@
 # limitations under the License.
 """Module for collecting data locally."""
 
+import concurrent.futures
 import itertools
 import random
 import time
 from typing import Callable, Dict, Iterator, List, Tuple, Optional
 
 from absl import logging
-import multiprocessing  # for Pool
 from tf_agents.trajectories import trajectory
 
+from compiler_opt.distributed import worker
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
 
@@ -33,9 +34,8 @@ class LocalDataCollector(data_collector.DataCollector):
   def __init__(
       self,
       file_paths: Tuple[Tuple[str, ...], ...],
-      num_workers: int,
       num_modules: int,
-      runner: compilation_runner.CompilationRunner,
+      worker_pool: List[compilation_runner.CompilationRunnerStub],
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
@@ -45,61 +45,57 @@ class LocalDataCollector(data_collector.DataCollector):
 
     self._file_paths = file_paths
     self._num_modules = num_modules
-    self._runner = runner
     self._parser = parser
-    self._pool = multiprocessing.get_context().Pool(
-        num_workers, initializer=compilation_runner.CompilationRunner.init_pool)
+    self._worker_pool = worker_pool
     self._reward_stat_map = reward_stat_map
-
     self._exit_checker_ctor = exit_checker_ctor
-    self._pending_work = None
-    # hold on to the token so it won't get GCed before all its wait()
-    # complete
-    self._last_token = None
+    # pending_work is a future that resolves when post-data collection cleanup
+    # work completes, i.e. cancelling all work and re-enabling the workers.
+    # We remove this activity from the critical path by running it concurrently
+    # with the training phase - i.e. whatever happens between successive data
+    # collection calls.
+    self._pending_work: concurrent.futures.Future = None
+    self._current_work: list[Tuple[Tuple[str,...], worker.WorkerFuture]] = []
+    self._pool = concurrent.futures.ThreadPoolExecutor()
+
+  # for testing
+  def get_last_work(self):
+    return self._current_work
 
   def close_pool(self):
-    self._join_pending_jobs()
-    if self._pool:
-      # Stop accepting new work
-      self._pool.close()
-      self._pool.join()
-      self._pool = None
+    self.join_pending_jobs()
+    for p in self._worker_pool:
+      p.cancel_all_work()
+    self._worker_pool = None
 
-  def _join_pending_jobs(self):
+  def join_pending_jobs(self):
+    t1 = time.time()
     if self._pending_work:
-      t1 = time.time()
-      for w in self._pending_work:
-        w.wait()
+      concurrent.futures.wait([self._pending_work])
 
-      self._pending_work = None
-      # this should have taken negligible time, normally, since all the work
-      # has been cancelled and the workers had time to process the cancellation
-      # while training was unfolding.
-      logging.info('Waiting for pending work from last iteration took %f',
-                   time.time() - t1)
-    self._last_token = None
+    self._pending_work = None
+    # this should have taken negligible time, normally, since all the work
+    # has been cancelled and the workers had time to process the cancellation
+    # while training was unfolding.
+    logging.info('Waiting for pending work from last iteration took %f',
+                 time.time() - t1)
 
-  def _schedule_jobs(self, policy_path, sampled_file_paths):
+  def _schedule_jobs(
+      self, policy_path, sampled_file_paths
+  ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
-    self._join_pending_jobs()
-    cancellation_token = compilation_runner.ProcessCancellationToken()
+    self.join_pending_jobs()
     jobs = [(file_paths, policy_path,
-             self._reward_stat_map['-'.join(file_paths)], cancellation_token)
+             self._reward_stat_map['-'.join(file_paths)])
             for file_paths in sampled_file_paths]
 
-    # Make sure we're not missing failures in workers. All but
-    # ProcessKilledError, which we want to ignore.
-    def error_callback(e):
-      if isinstance(e, compilation_runner.ProcessKilledError):
-        return
-      logging.exception('Error in worker: %r', e)
-
-    return (cancellation_token, [
-        self._pool.apply_async(
-            self._runner.collect_data, job, error_callback=error_callback)
-        for job in jobs
-    ])
+    # Naive load balancing.
+    ret = []
+    for i in range(len(jobs)):
+      ret.append(self._worker_pool[i % len(self._worker_pool)].collect_data(
+          *(jobs[i])))
+    return ret
 
   def collect_data(
       self, policy_path: str
@@ -117,39 +113,48 @@ class LocalDataCollector(data_collector.DataCollector):
       information is viewable in TensorBoard.
     """
     sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
-    ct, results = self._schedule_jobs(policy_path, sampled_file_paths)
+    results = self._schedule_jobs(policy_path, sampled_file_paths)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
 
       def get_num_finished_work():
-        finished_work = sum(res.ready() for res in results)
+        finished_work = sum(res.done() for res in results)
         return finished_work
 
       return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
-    # signal whatever work is left to finish
-    ct.signal()
-    current_work = zip(sampled_file_paths, results)
-    finished_work = [(paths, res) for paths, res in current_work if res.ready()]
-    successful_work = [
-        (paths, res) for paths, res in finished_work if res.successful()
+    self._current_work = list(zip(sampled_file_paths, results))
+    finished_work = [
+        (paths, res) for paths, res in self._current_work if res.done()
     ]
+    successful_work = [(paths, res.result())
+                       for paths, res in finished_work
+                       if not worker.get_exception(res)]
     failures = len(finished_work) - len(successful_work)
 
     logging.info(('%d of %d modules finished in %d seconds (%d failures).'),
                  len(finished_work), self._num_modules, wait_seconds, failures)
 
+    # signal whatever work is left to finish, and re-enable workers.
+    def wrapup():
+      cancel_futures = [wkr.cancel_all_work() for wkr in self._worker_pool]
+      worker.wait_for(cancel_futures)
+      # now that the workers killed pending compilations, make sure the workers
+      # drained their working queues first - they should all complete quickly
+      # since the cancellation manager is killing immediately any process starts
+      worker.wait_for(results)
+      worker.wait_for([wkr.enable() for wkr in self._worker_pool])
+
+    self._pending_work = self._pool.submit(wrapup)
+
     sequence_examples = list(
-        itertools.chain.from_iterable([
-            res.get().serialized_sequence_examples
-            for (_, res) in successful_work
-        ]))
-    total_trajectory_length = sum(
-        res.get().length for (_, res) in successful_work)
+        itertools.chain.from_iterable(
+            [res.serialized_sequence_examples for (_, res) in successful_work]))
+    total_trajectory_length = sum(res.length for (_, res) in successful_work)
     self._reward_stat_map.update({
-        '-'.join(file_paths): res.get().reward_stats
+        '-'.join(file_paths): res.reward_stats
         for (file_paths, res) in successful_work
     })
 
@@ -160,19 +165,13 @@ class LocalDataCollector(data_collector.DataCollector):
     }
     rewards = list(
         itertools.chain.from_iterable(
-            [res.get().rewards for (_, res) in successful_work]))
+            [res.rewards for (_, res) in successful_work]))
     monitor_dict[
         'reward_distribution'] = data_collector.build_distribution_monitor(
             rewards)
 
     parsed = self._parser(sequence_examples)
 
-    self._pending_work = [res for res in results if not res.ready()]
-    # if some of the cancelled work hasn't yet processed the signal, let's let
-    # it do that while we process the data. We also need to hold on to the
-    # current token, so its Event object doesn't get GC-ed here.
-    if self._pending_work:
-      self._last_token = ct
     return parsed, monitor_dict
 
   def on_dataset_consumed(self,

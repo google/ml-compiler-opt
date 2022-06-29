@@ -14,6 +14,9 @@
 # limitations under the License.
 """Common abstraction for a worker contract."""
 
+import abc
+from typing import Generic, Iterable, TypeVar
+
 
 class Worker:
 
@@ -21,3 +24,36 @@ class Worker:
   def is_priority_method(cls, method_name: str) -> bool:
     _ = method_name
     return False
+
+
+T = TypeVar('T')
+
+
+# Dask's Futures are limited. This captures that.
+class WorkerFuture(Generic[T], metaclass=abc.ABCMeta):
+
+  @abc.abstractmethod
+  def result(self) -> T:
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def done(self) -> bool:
+    raise NotImplementedError()
+
+
+def wait_for(futures: Iterable[WorkerFuture]):
+  """Dask futures don't support more than result() and done()."""
+  for f in futures:
+    try:
+      _ = f.result()
+    except:  # pylint: disable=bare-except
+      pass
+
+
+def get_exception(worker_future: WorkerFuture):
+  assert worker_future.done()
+  try:
+    _ = worker_future.result()
+    return None
+  except Exception as e:  # pylint: disable=broad-except
+    return e
