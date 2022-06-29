@@ -38,8 +38,7 @@ REWARD_QUANTILE_MONITOR = (0.1, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, 50,
 def build_distribution_monitor(data: Sequence[float]) -> Dict[str, float]:
   if not data:
     return {}
-  quantiles = np.percentile(
-      data, REWARD_QUANTILE_MONITOR, interpolation='lower')
+  quantiles = np.percentile(data, REWARD_QUANTILE_MONITOR, method='lower')
   monitor_dict = {
       f'p_{x}': y for (x, y) in zip(REWARD_QUANTILE_MONITOR, quantiles)
   }

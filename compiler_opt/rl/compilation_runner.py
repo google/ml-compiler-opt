@@ -80,7 +80,8 @@ def get_command_line_for_bundle(
     ir_file: str,
     thinlto: Optional[str] = None,
     additional_flags: Tuple[str, ...] = (),
-    delete_flags: Tuple[str, ...] = ()) -> List[str]:
+    delete_flags: Tuple[str, ...] = ()
+) -> List[str]:
   """Cleans up base command line.
 
   Remove certain unnecessary flags, and add the .bc file to compile and, if

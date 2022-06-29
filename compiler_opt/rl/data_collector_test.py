@@ -28,7 +28,7 @@ class DataCollectorTest(absltest.TestCase):
   def test_build_distribution_monitor(self):
     data = [3, 2, 1]
     monitor_dict = data_collector.build_distribution_monitor(data)
-    self.assertDictContainsSubset({'mean': 2, 'p_0.1': 1}, monitor_dict)
+    self.assertEqual(monitor_dict, monitor_dict | {'mean': 2, 'p_0.1': 1})
 
   @mock.patch('time.time')
   def test_early_exit(self, mock_time):

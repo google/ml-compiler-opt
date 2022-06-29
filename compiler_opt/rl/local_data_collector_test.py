@@ -147,7 +147,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
             'total_trajectory_length': 18,
         }
     }
-    self.assertDictContainsSubset(expected_monitor_dict_subset, monitor_dict)
+    self.assertEqual(monitor_dict, monitor_dict | expected_monitor_dict_subset)
 
     data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
     data = list(data_iterator)
@@ -158,7 +158,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
             'total_trajectory_length': 18,
         }
     }
-    self.assertDictContainsSubset(expected_monitor_dict_subset, monitor_dict)
+    self.assertEqual(monitor_dict, monitor_dict | expected_monitor_dict_subset)
 
     collector.close_pool()
 
