@@ -40,14 +40,14 @@ from absl import logging
 from compiler_opt.distributed.worker import Worker
 
 from contextlib import AbstractContextManager
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 
 @dataclasses.dataclass(frozen=True)
 class Task:
   msgid: int
   func_name: str
-  args: list
+  args: tuple
   kwargs: dict
   is_urgent: bool
 
@@ -161,11 +161,11 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
           v.set_exception(concurrent.futures.CancelledError())
         self._map = None
 
-    def __getattr__(self, name):
+    def __getattr__(self, name) -> Callable[[Any], concurrent.futures.Future]:
       result_future = concurrent.futures.Future()
       if self._is_cancelled_or_broken():
         result_future.set_exception(concurrent.futures.CancelledError())
-        return result_future
+        return lambda *_, **__: result_future
 
       with self._msgidlock:
         msgid = self._msgid
