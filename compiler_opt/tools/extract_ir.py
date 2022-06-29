@@ -34,8 +34,7 @@ import re
 import shutil
 import subprocess
 
-from typing import Dict
-from typing import List
+from typing import Dict, List, Optional
 
 from absl import app
 from absl import flags
@@ -71,7 +70,7 @@ FLAGS = flags.FLAGS
 
 # TODO(ml-compiler-opt): maybe we can also convert here the cmdline file,from a
 # \0 - separated list of strings, to a \n one.
-def should_include_module(cmdline: str, match_regexp: str) -> bool:
+def should_include_module(cmdline: str, match_regexp: Optional[str]) -> bool:
   """Determine if the module should be included."""
   if match_regexp is None:
     return True
@@ -79,7 +78,7 @@ def should_include_module(cmdline: str, match_regexp: str) -> bool:
   return any(len(re.findall(match_regexp, l)) for l in lines)
 
 
-def get_thinlto_index(cmdline: str, basedir: str) -> str:
+def get_thinlto_index(cmdline: str, basedir: str) -> Optional[str]:
   opts = cmdline.split('\0')
   for option in opts:
     if option.startswith('-fthinlto-index'):
@@ -150,7 +149,7 @@ class TrainingIRExtractor:
     ]
 
   def extract(self, llvm_objcopy_path: str, cmd_filter: str,
-              is_thinlto: bool) -> str:
+              is_thinlto: bool) -> Optional[str]:
     """Run llvm-objcopy to extract the .bc and command line."""
     if not os.path.exists(self.input_obj()):
       logging.info('%s does not exist.', self.input_obj())
@@ -235,7 +234,7 @@ def load_from_lld_params(params_array: List[str], obj_base_dir: str,
 
 # This is here just for readability, lint complains if the pooling expression is
 # over 3 lines; and it needs to be a non-local so it may be pickled.
-def extract_artifacts(obj: TrainingIRExtractor) -> str:
+def extract_artifacts(obj: TrainingIRExtractor) -> Optional[str]:
   return obj.extract(FLAGS.llvm_objcopy_path, FLAGS.cmd_filter,
                      FLAGS.thinlto_build)
 
@@ -272,7 +271,7 @@ def main(argv):
           f.write(path + '\n')
 
     logging.info('Converted %d files out of %d',
-                 len(objs) - relative_output_paths.count(None), len(objs))
+                 len(objs) - len(relative_output_paths), len(objs))
 
 
 if __name__ == '__main__':

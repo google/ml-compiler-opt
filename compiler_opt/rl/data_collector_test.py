@@ -34,7 +34,7 @@ class DataCollectorTest(absltest.TestCase):
   def test_early_exit(self, mock_time):
     mock_time.return_value = 0
     early_exit = data_collector.EarlyExitChecker(
-        num_modules=10, deadline=10, thresholds=[(.9, 0), (.5, .5), (0, 1)])
+        num_modules=10, deadline=10, thresholds=((.9, 0), (.5, .5), (0, 1)))
 
     # We've waited no time, so have to hit 90% to early exit
     self.assertFalse(early_exit._should_exit(0))

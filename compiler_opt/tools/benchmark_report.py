@@ -96,7 +96,7 @@ class BenchmarkReport:
     return frozenset(ret)
 
   def _load_values(self, data: BenchmarkRunResults,
-                   names: Iterable[str]) -> PerBenchmarkResults:
+                   names: Iterable[str]) -> None:
     """Organize json values per-benchmark, per counter.
 
     Args:

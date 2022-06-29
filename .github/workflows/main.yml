@@ -24,7 +24,7 @@ jobs:
           pylint --version
       - name: Type check
         run: |
-          pytype --protocols -j auto .
+          pytype -j auto .
       - name: Test
         run: |
           pytest

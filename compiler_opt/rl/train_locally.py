@@ -146,7 +146,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                  len(reward_stat_map))
 
   data_collector = local_data_collector.LocalDataCollector(
-      file_paths=file_paths,
+      file_paths=tuple(file_paths),
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner,

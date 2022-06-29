@@ -23,7 +23,9 @@ from unittest import mock
 from absl import flags
 import tensorflow as tf
 
-from google.protobuf import text_format
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import text_format  # pytype: disable=pyi-error
+
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 

@@ -27,7 +27,9 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
-from google.protobuf import text_format
+
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import text_format  # pytype: disable=pyi-error
 
 
 def _get_sequence_example(feature_value):
