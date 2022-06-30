@@ -100,5 +100,6 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
   def get_runner_type(self) -> 'type[compilation_runner.CompilationRunner]':
     raise NotImplementedError
 
+
 def is_thinlto(module_paths: Iterable[str]) -> bool:
   return tf.io.gfile.exists(next(iter(module_paths)) + '.thinlto.bc')

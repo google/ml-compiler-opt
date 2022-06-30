@@ -98,6 +98,6 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
   return observation_processing_layer
 
+
 def get_nonnormalized_features():
   return ['reward', 'inlining_default', 'inlining_decision']
-

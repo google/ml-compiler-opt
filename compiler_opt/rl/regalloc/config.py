@@ -98,8 +98,7 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
           first_non_zero = x
           break
 
-      normalize_fn = feature_ops.get_normalize_fn(quantile,
-                                                  with_sqrt,
+      normalize_fn = feature_ops.get_normalize_fn(quantile, with_sqrt,
                                                   with_z_score_normalization,
                                                   eps)
       log_normalize_fn = feature_ops.get_normalize_fn(
@@ -142,8 +141,9 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
   return observation_processing_layer
 
+
 def get_nonnormalized_features():
-  return ['mask', 'nr_urgent',
-          'is_hint', 'is_local',
-          'is_free', 'max_stage',
-          'min_stage', 'reward']
+  return [
+      'mask', 'nr_urgent', 'is_hint', 'is_local', 'is_free', 'max_stage',
+      'min_stage', 'reward'
+  ]
