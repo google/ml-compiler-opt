@@ -32,7 +32,7 @@ import dataclasses
 import functools
 import multiprocessing
 import multiprocessing.connection
-import queue
+import queue  # pylint: disable=unused-import
 import threading
 
 from absl import logging
@@ -62,6 +62,9 @@ class TaskResult:
 def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
               worker_class: 'type[Worker]', *args, **kwargs):
   """Worker process entrypoint."""
+  # Note: the out_q is typed as taking only TaskResult objects, not
+  # Optional[TaskResult], despite that being the type it is used on the Stub
+  # side. This is because the `None` value is only injected by the Stub itself.
   pool = concurrent.futures.ThreadPoolExecutor()
   obj = worker_class(*args, **kwargs)
 
@@ -105,8 +108,8 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def __init__(self):
       self._send: 'queue.Queue[Task]' = multiprocessing.get_context().Queue()
-      self._receive: 'queue.Queue[TaskResult]' = multiprocessing.get_context(
-      ).Queue()
+      self._receive: 'queue.Queue[Optional[TaskResult]]' = \
+         multiprocessing.get_context().Queue()
 
       # this is the process hosting one worker instance.
       self._process = multiprocessing.Process(
@@ -141,20 +144,17 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def _msg_pump(self):
       while not self._is_cancelled_or_broken():
-        try:
-          # avoid blocking so we may notice if _stop_pump was set. We aren't
-          # very concerned with delay between shutdown request and the message
-          # pump noticing it, this happens only at the very end of training.
-          task_result = self._receive.get(timeout=1.0)
-          with self._lock:
-            future = self._map[task_result.msgid]
-            del self._map[task_result.msgid]
-            if task_result.success:
-              future.set_result(task_result.value)
-            else:
-              future.set_exception(task_result.value)
-        except queue.Empty:
+        task_result = self._receive.get()
+        if not task_result:
+          # we're shutting down. Let the while loop condition exit.
           continue
+        with self._lock:
+          future = self._map[task_result.msgid]
+          del self._map[task_result.msgid]
+          if task_result.success:
+            future.set_result(task_result.value)
+          else:
+            future.set_exception(task_result.value)
       self._done.set()
       with self._lock:
         for _, v in self._map.items():
@@ -191,6 +191,10 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       except:  # pylint: disable=bare-except
         pass
       self._stop_pump.set()
+      # Unblock the msg pump
+      self._receive.put(None)
+
+    def wait_for_msg_pump_exit(self):
       self._done.wait()
 
     def __dir__(self):
@@ -214,7 +218,10 @@ class LocalWorkerPool(AbstractContextManager):
     return self._stubs
 
   def __exit__(self, *args, **kwargs):
-    # each shutdown may take ~1 second because of the timeout in the message
-    # pump, so let's parallelize shutting everything down.
-    with concurrent.futures.ThreadPoolExecutor() as tpe:
-      concurrent.futures.wait([tpe.submit(s.shutdown) for s in self._stubs])
+    # first, trigger killing the worker process and exiting of the msg pump,
+    # which will also clear out any pending futures.
+    for s in self._stubs:
+      s.shutdown()
+    # now wait for the message pumps to indicate they exit.
+    for s in self._stubs:
+      s.wait_for_msg_pump_exit()
