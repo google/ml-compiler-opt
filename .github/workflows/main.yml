@@ -31,3 +31,6 @@ jobs:
       - name: Lint
         run: |
           pylint --rcfile .pylintrc --recursive yes .
+      - name: Check License Header
+        run: |
+          ./check-license.sh
