@@ -33,3 +33,6 @@ class RegallocEvictionConfig(problem_configuration.ProblemConfiguration):
 
   def get_preprocessing_layer_creator(self):
     return config.get_observation_processing_layer_creator()
+
+  def get_nonnormalized_features(self):
+    return config.get_nonnormalized_features()

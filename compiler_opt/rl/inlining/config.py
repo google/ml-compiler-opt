@@ -97,3 +97,7 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
                                      with_z_score_normalization, eps))
 
   return observation_processing_layer
+
+def get_nonnormalized_features():
+  return ['reward', 'inlining_default', 'inlining_decision']
+

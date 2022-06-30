@@ -93,10 +93,12 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
       self) -> Callable[[types.TensorSpec], tf.keras.layers.Layer]:
     raise NotImplementedError
 
+  def get_nonnormalized_features(self) -> Iterable[str]:
+    return []
+
   @abc.abstractmethod
   def get_runner_type(self) -> 'type[compilation_runner.CompilationRunner]':
     raise NotImplementedError
-
 
 def is_thinlto(module_paths: Iterable[str]) -> bool:
   return tf.io.gfile.exists(next(iter(module_paths)) + '.thinlto.bc')

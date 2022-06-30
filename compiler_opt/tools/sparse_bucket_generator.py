@@ -21,14 +21,17 @@ by exclusively using OSS-compatible libraries.
 import math
 import multiprocessing as mp
 import os
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Iterable
 
 from absl import app
 from absl import flags
 from absl import logging
+import gin
 
 import numpy as np
 import tensorflow as tf
+
+from compiler_opt.rl import registry
 
 flags.DEFINE_string('input', None,
                     'Path to input file containing tf record datasets.')
@@ -41,16 +44,23 @@ flags.DEFINE_integer(
     'Each process does vocab generation for each feature.', 1)
 flags.DEFINE_integer('num_buckets', 1000,
                      'Number of quantiles to bucketize feature values into.')
+flags.DEFINE_multi_string('gin_files', [],
+                          'List of paths to gin configuration files.')
+flags.DEFINE_multi_string(
+    'gin_bindings', [],
+    'Gin bindings to override the values set in the config files.')
 
 FLAGS = flags.FLAGS
 
 
 def _get_feature_info(
-    serialized_proto: tf.Tensor) -> Dict[str, tf.io.RaggedFeature]:
+    serialized_proto: tf.Tensor,
+    features_to_not_process: Iterable[str]) -> Dict[str, tf.io.RaggedFeature]:
   """Provides feature information by analyzing a single serialized example.
 
   Args:
     serialized_proto: serialized SequenceExample.
+    features_to_not_process: A list of feature names that should not be processed
 
   Returns:
     Dictionary of Tensor formats indexed by feature name.
@@ -59,6 +69,8 @@ def _get_feature_info(
   example.ParseFromString(serialized_proto.numpy())
   sequence_features = {}
   for key, feature_list in example.feature_lists.feature_list.items():
+    if key in features_to_not_process:
+      continue
     feature = feature_list.feature[0]
     kind = feature.WhichOneof('kind')
     if kind == 'float_list':
@@ -123,17 +135,23 @@ def _generate_vocab(feature_values_arrays, feature_name):
 
 
 def main(_) -> None:
+  gin.parse_config_files_and_bindings(
+      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=False)
+  logging.info(gin.config_str())
+  problem_config = registry.get_configuration()
+
   """Generate num_buckets quantiles for each feature."""
   tf.io.gfile.makedirs(FLAGS.output_dir)
   dataset = tf.data.Dataset.list_files(FLAGS.input)
   dataset = tf.data.TFRecordDataset(dataset)
+  features_to_not_process = problem_config.get_nonnormalized_features()
 
   sequence_features = {}
   # TODO(b/222775595): need to fix this after update to logic for handling
   # empty examples during trace generation.
   for raw_example in dataset:
     try:
-      sequence_features = _get_feature_info(raw_example)
+      sequence_features = _get_feature_info(raw_example, features_to_not_process)
       logging.info('Found valid sequence_features dict: %s', sequence_features)
       break
     except IndexError:

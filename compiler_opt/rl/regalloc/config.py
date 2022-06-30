@@ -88,22 +88,26 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
     if obs_spec.name in ('max_stage', 'min_stage'):
       return tf.keras.layers.Embedding(7, 4)
 
-    quantile = quantile_map[obs_spec.name]
+    normalize_fn = log_normalize_fn = None
+    if obs_spec.name not in get_nonnormalized_features():
+      quantile = quantile_map[obs_spec.name]
 
-    first_non_zero = 0
-    for x in quantile:
-      if x > 0:
-        first_non_zero = x
-        break
+      first_non_zero = 0
+      for x in quantile:
+        if x > 0:
+          first_non_zero = x
+          break
 
-    normalize_fn = feature_ops.get_normalize_fn(quantile, with_sqrt,
-                                                with_z_score_normalization, eps)
-    log_normalize_fn = feature_ops.get_normalize_fn(
-        quantile,
-        with_sqrt,
-        with_z_score_normalization,
-        eps,
-        preprocessing_fn=lambda x: tf.math.log(x + first_non_zero))
+      normalize_fn = feature_ops.get_normalize_fn(quantile,
+                                                  with_sqrt,
+                                                  with_z_score_normalization,
+                                                  eps)
+      log_normalize_fn = feature_ops.get_normalize_fn(
+          quantile,
+          with_sqrt,
+          with_z_score_normalization,
+          eps,
+          preprocessing_fn=lambda x: tf.math.log(x + first_non_zero))
 
     if obs_spec.name in ['nr_rematerializable', 'nr_broken_hints']:
       return tf.keras.layers.Lambda(normalize_fn)
@@ -137,3 +141,9 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
     raise KeyError('Missing preprocessing function for some feature.')
 
   return observation_processing_layer
+
+def get_nonnormalized_features():
+  return ['mask', 'nr_urgent',
+          'is_hint', 'is_local',
+          'is_free', 'max_stage',
+          'min_stage', 'reward']
