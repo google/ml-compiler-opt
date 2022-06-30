@@ -60,7 +60,8 @@ def _get_feature_info(
 
   Args:
     serialized_proto: serialized SequenceExample.
-    features_to_not_process: A list of feature names that should not be processed
+    features_to_not_process: A list of feature names that should not be
+                             processed.
 
   Returns:
     Dictionary of Tensor formats indexed by feature name.
@@ -140,7 +141,7 @@ def main(_) -> None:
   logging.info(gin.config_str())
   problem_config = registry.get_configuration()
 
-  """Generate num_buckets quantiles for each feature."""
+  # Generate num_buckets quantiles for each feature.
   tf.io.gfile.makedirs(FLAGS.output_dir)
   dataset = tf.data.Dataset.list_files(FLAGS.input)
   dataset = tf.data.TFRecordDataset(dataset)
@@ -151,7 +152,8 @@ def main(_) -> None:
   # empty examples during trace generation.
   for raw_example in dataset:
     try:
-      sequence_features = _get_feature_info(raw_example, features_to_not_process)
+      sequence_features = _get_feature_info(raw_example,
+                                            features_to_not_process)
       logging.info('Found valid sequence_features dict: %s', sequence_features)
       break
     except IndexError:
