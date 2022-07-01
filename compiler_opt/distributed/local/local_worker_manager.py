@@ -120,16 +120,17 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
               out_q=self._receive,
               *args,
               **kwargs))
-      # lock for the msgid -> reply future map
+      # lock for the msgid -> reply future map. The map will be set to None
+      # when we stop.
       self._lock = threading.Lock()
       self._map: Dict[int, concurrent.futures.Future] = {}
+
       # thread drainig the receive queue
       self._pump = threading.Thread(target=self._msg_pump)
-
-      # event set by _pump when it exits
-      self._done = threading.Event()
-      # event set by the stub to tell the message pump to exit.
-      self._stop_pump = threading.Event()
+      def observer():
+        self._process.join()
+        self._receive.put(None)
+      self._observer = threading.Thread(target=observer)
 
       # atomic control to _msgid
       self._msgidlock = threading.Lock()
@@ -137,19 +138,15 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
       # start the worker and the message pump
       self._process.start()
+      # the observer must follow the process start, otherwise join() raises.
+      self._observer.start()
       self._pump.start()
 
-    def _is_cancelled_or_broken(self):
-      return self._stop_pump.is_set() or not self._process.is_alive()
-
     def _msg_pump(self):
-      while not self._is_cancelled_or_broken():
-        try:
-          task_result = self._receive.get(timeout=1)
-          if not task_result:
-            continue
-        except queue.Empty:
-          continue
+      while True:
+        task_result = self._receive.get()
+        if not task_result:
+          break
         with self._lock:
           future = self._map[task_result.msgid]
           del self._map[task_result.msgid]
@@ -157,32 +154,37 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
             future.set_result(task_result.value)
           else:
             future.set_exception(task_result.value)
-      self._done.set()
+
+      # clear out pending futures and mark ourselves as "stopped" by null-ing
+      # the map
       with self._lock:
         for _, v in self._map.items():
           v.set_exception(concurrent.futures.CancelledError())
         self._map = None
 
+    def _is_stopped(self):
+      return self._map is None
+
     def __getattr__(self, name) -> Callable[[Any], concurrent.futures.Future]:
       result_future = concurrent.futures.Future()
-      if self._is_cancelled_or_broken():
-        result_future.set_exception(concurrent.futures.CancelledError())
-        return lambda *_, **__: result_future
 
       with self._msgidlock:
         msgid = self._msgid
         self._msgid += 1
 
       def remote_call(*args, **kwargs):
-        self._send.put(
-            Task(
-                msgid=msgid,
-                func_name=name,
-                args=args,
-                kwargs=kwargs,
-                is_urgent=cls.is_priority_method(name)))
         with self._lock:
-          self._map[msgid] = result_future
+          if self._is_stopped():
+            result_future.set_exception(concurrent.futures.CancelledError())
+          else:
+            self._send.put(
+                Task(
+                    msgid=msgid,
+                    func_name=name,
+                    args=args,
+                    kwargs=kwargs,
+                    is_urgent=cls.is_priority_method(name)))
+            self._map[msgid] = result_future
         return result_future
 
       return remote_call
@@ -190,14 +192,13 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     def shutdown(self):
       try:
         self._process.kill()
-      except:  # pylint: disable=bare-except
+      finally:
         pass
-      self._stop_pump.set()
-      # Unblock the msg pump
-      self._receive.put(None)
 
     def wait_for_msg_pump_exit(self):
-      self._done.wait()
+      self._observer.join()
+      self._pump.join()
+      self._process.join()
 
     def __dir__(self):
       return [n for n in dir(cls) if not n.startswith('_')]
