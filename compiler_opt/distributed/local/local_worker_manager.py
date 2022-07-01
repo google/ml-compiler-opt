@@ -93,12 +93,16 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
 
 
-def _run(*args, **kwargs):
+def _run(out_q: 'queue.Queue[TaskResult]', *args, **kwargs):
   try:
-    _run_impl(*args, **kwargs)
+    _run_impl(out_q=out_q, *args, **kwargs)
   except BaseException as e:
     logging.error(e)
     raise e
+  finally:
+    # Signal the msg pump should exit.
+    out_q.put(None)
+
 
 
 def _make_stub(cls: 'type[Worker]', *args, **kwargs):
