@@ -81,5 +81,23 @@ class LocalWorkerManagerTest(absltest.TestCase):
         pool[0].method().result()
 
 
+  def test_worker_crash_while_waiting(self):
+
+    class Job(Worker):
+
+      def method(self):
+        time.sleep(3600)
+
+    with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
+      p = pool[0]
+      f = p.method()
+      self.assertFalse(f.done())
+      try:
+        p._process.kill()  # pylint: disable=protected-access
+      finally:
+        with self.assertRaises(concurrent.futures.CancelledError):
+          _ = f.result()
+
+
 if __name__ == '__main__':
   multiprocessing.handle_test_main(absltest.main)

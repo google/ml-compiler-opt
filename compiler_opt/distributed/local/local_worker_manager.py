@@ -93,16 +93,12 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
 
 
-def _run(out_q: 'queue.Queue[TaskResult]', *args, **kwargs):
+def _run(*args, **kwargs):
   try:
-    _run_impl(out_q=out_q, *args, **kwargs)
+    _run_impl(*args, **kwargs)
   except BaseException as e:
     logging.error(e)
     raise e
-  finally:
-    # Signal the msg pump should exit.
-    out_q.put(None)
-
 
 
 def _make_stub(cls: 'type[Worker]', *args, **kwargs):
@@ -113,7 +109,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     def __init__(self):
       self._send: 'queue.Queue[Task]' = multiprocessing.get_context().Queue()
       self._receive: 'queue.Queue[Optional[TaskResult]]' = \
-         multiprocessing.get_context().Queue()
+        multiprocessing.get_context().Queue()
 
       # this is the process hosting one worker instance.
       self._process = multiprocessing.Process(
@@ -148,9 +144,11 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def _msg_pump(self):
       while not self._is_cancelled_or_broken():
-        task_result = self._receive.get()
-        if not task_result:
-          # we're shutting down. Let the while loop condition exit.
+        try:
+          task_result = self._receive.get(timeout=1)
+          if not task_result:
+            continue
+        except queue.Empty:
           continue
         with self._lock:
           future = self._map[task_result.msgid]
