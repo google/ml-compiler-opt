@@ -14,15 +14,17 @@
 # limitations under the License.
 """Implementation of the 'inlining for size' problem."""
 
+from typing import Tuple, List
 import gin
 
-from compiler_opt.rl import problem_configuration
+from compiler_opt.rl.problem_configuration import ProblemConfiguration
 from compiler_opt.rl.inlining import config
 from compiler_opt.rl.inlining import inlining_runner
+from compiler_opt.rl.adt import ModuleSpec
 
 
 @gin.register(module='configs')
-class InliningConfig(problem_configuration.ProblemConfiguration):
+class InliningConfig(ProblemConfiguration):
   """Expose the regalloc eviction components."""
 
   def get_runner_type(self):
@@ -36,3 +38,23 @@ class InliningConfig(problem_configuration.ProblemConfiguration):
 
   def get_nonnormalized_features(self):
     return config.get_nonnormalized_features()
+
+  def get_module_specs(self, data_path: str,
+                       additional_flags: Tuple[str, ...] = (),
+                       delete_flags: Tuple[str, ...] = ()) -> List[ModuleSpec]:
+    """Fetch a list of ModuleSpecs for the corpus at data_path
+
+    Args:
+      data_path: base directory of corpus
+      additional_flags: tuple of clang flags to add.
+      delete_flags: tuple of clang flags to remove.
+    """
+    xopts = {
+      'tf_policy_path': ['-mllvm', '-ml-inliner-model-under-training={path:s}'],
+      'training_log': ['-mllvm', '-training-log={path:s}']
+    }
+    additional_flags = list(additional_flags)
+    additional_flags += ['-mllvm', '-enable-ml-inliner=development']
+
+    return ProblemConfiguration._get_module_specs(data_path, additional_flags,
+                                                  delete_flags, xopts)

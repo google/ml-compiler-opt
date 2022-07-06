@@ -35,10 +35,10 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
+from compiler_opt.rl.problem_configuration import ProblemConfiguration
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
@@ -72,7 +72,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                delete_compilation_flags=()):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
-  problem_config = registry.get_configuration()
+  problem_config: ProblemConfiguration = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
@@ -100,23 +100,14 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  with open(
-      os.path.join(FLAGS.data_path, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    module_paths = [
-        os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
-    ]
-
-    if not problem_configuration.is_thinlto(module_paths):
-      file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
-    else:
-      file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
-                    for path in module_paths]
+  logging.info('Loading module specs from corpus')
+  module_specs = problem_config.get_module_specs(FLAGS.data_path,
+                                                 additional_compilation_flags,
+                                                 delete_compilation_flags)
+  logging.info('Done loading module specs from corpus')
 
   runner = problem_config.get_runner_type()(
-      moving_average_decay_rate=moving_average_decay_rate,
-      additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags)
+      moving_average_decay_rate=moving_average_decay_rate)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
@@ -146,7 +137,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                  len(reward_stat_map))
 
   data_collector = local_data_collector.LocalDataCollector(
-      file_paths=tuple(file_paths),
+      module_specs=module_specs,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner,

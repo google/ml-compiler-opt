@@ -26,6 +26,7 @@ from absl import flags
 import tensorflow as tf
 
 from compiler_opt.rl import constant
+from compiler_opt.rl.adt import ModuleSpec
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
@@ -73,47 +74,6 @@ def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
     added_feature.float_list.value.append(reward)
 
   return sequence_example
-
-
-def get_command_line_for_bundle(
-    cmd_file: str,
-    ir_file: str,
-    thinlto: Optional[str] = None,
-    additional_flags: Tuple[str, ...] = (),
-    delete_flags: Tuple[str, ...] = ()
-) -> List[str]:
-  """Cleans up base command line.
-
-  Remove certain unnecessary flags, and add the .bc file to compile and, if
-  given, the thinlto index.
-
-  Args:
-    cmd_file: Path to a .cmd file (from corpus).
-    ir_file: The path to the ir file to compile.
-    thinlto: The path to the thinlto index, or None.
-    additional_flags: Tuple of clang flags to add.
-    delete_flags: Tuple of clang flags to remove.
-
-  Returns:
-    The argument list to pass to the compiler process.
-  """
-  cmdline = []
-
-  with open(cmd_file, encoding='utf-8') as f:
-    option_iterator = iter(f.read().split('\0'))
-    option = next(option_iterator, None)
-    while option:
-      if any(option.startswith(flag) for flag in delete_flags):
-        if '=' not in option:
-          next(option_iterator, None)
-      else:
-        cmdline.append(option)
-      option = next(option_iterator, None)
-  cmdline.extend(['-x', 'ir', ir_file])
-  if thinlto:
-    cmdline.append('-fthinlto-index=' + thinlto)
-  cmdline.extend(additional_flags)
-  return cmdline
 
 
 class ProcessKilledError(Exception):
@@ -284,23 +244,17 @@ class CompilationRunner:
   def __init__(self,
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1,
-               additional_flags: Tuple[str, ...] = (),
-               delete_flags: Tuple[str, ...] = ()):
+               moving_average_decay_rate: float = 1):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
-      additional_flags: tuple of clang flags to add.
-      delete_flags: tuple of clang flags to remove.
     """
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
-    self._additional_flags = additional_flags
-    self._delete_flags = delete_flags
     self._compilation_timeout = _COMPILATION_TIMEOUT.value
 
   def _get_cancellation_manager(
@@ -331,7 +285,7 @@ class CompilationRunner:
 
   def collect_data(
       self,
-      file_paths: Tuple[str, ...],
+      module_spec: ModuleSpec,
       tf_policy_path: str,
       reward_stat: Optional[Dict[str, RewardStat]],
       cancellation_token: Optional[ProcessCancellationToken] = None
@@ -339,7 +293,7 @@ class CompilationRunner:
     """Collect data for the given IR file and policy.
 
     Args:
-      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
+      module_spec: a ModuleSpec.
       tf_policy_path: path to the tensorflow policy.
       reward_stat: reward stat of this module, None if unknown.
       cancellation_token: a CancellationToken through which workers may be
@@ -359,7 +313,7 @@ class CompilationRunner:
 
     if reward_stat is None:
       default_result = self._compile_fn(
-          file_paths,
+          module_spec,
           tf_policy_path='',
           reward_only=bool(tf_policy_path),
           cancellation_manager=cancellation_manager)
@@ -369,7 +323,7 @@ class CompilationRunner:
 
     if tf_policy_path:
       policy_result = self._compile_fn(
-          file_paths,
+          module_spec,
           tf_policy_path,
           reward_only=False,
           cancellation_manager=cancellation_manager)
@@ -385,7 +339,7 @@ class CompilationRunner:
       if k not in reward_stat:
         raise ValueError(
             (f'Example {k} does not exist under default policy for '
-             'module {file_paths[0]}'))
+             'module {module_spec.name}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
@@ -407,13 +361,13 @@ class CompilationRunner:
         keys=keys)
 
   def _compile_fn(
-      self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
+      self, module_spec: ModuleSpec, tf_policy_path: str, reward_only: bool,
       cancellation_manager: Optional[WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
-      file_paths: path to files needed for compilation.
+      module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
       cancellation_manager: a WorkerCancellationManager to handle early

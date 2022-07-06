@@ -19,7 +19,6 @@ import io
 import os
 import tempfile
 from typing import Dict, Optional, Tuple
-from absl import logging
 
 import gin
 import tensorflow as tf
@@ -27,6 +26,7 @@ import tensorflow as tf
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import struct_pb2  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl.adt import ModuleSpec
 
 
 @gin.configurable(module='runners')
@@ -41,22 +41,19 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  # TODO: refactor file_paths parameter to ensure correctness during
-  # construction
   def _compile_fn(
-      self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
-      cancellation_manager: Optional[
+      self, module_spec: ModuleSpec, tf_policy_path: str,
+      reward_only: bool, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
-      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd,
-        .thinlto.bc).
+      module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return reward.
       cancellation_manager: handler for early termination by killing any running
-      processes
+        processes
 
     Returns:
       A dict mapping from example identifier to tuple containing:
@@ -75,31 +72,18 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
-    input_ir_path = cmd_path = thinlto_index_path = None
-    if len(file_paths) == 3:
-      input_ir_path, cmd_path, thinlto_index_path = file_paths
-    elif len(file_paths) == 2:
-      input_ir_path, cmd_path = file_paths
-    else:
-      logging.fatal('Expected 2 or 3 file paths')
-
     result = {}
     try:
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] +
-                          compilation_runner.get_command_line_for_bundle(
-                              cmd_path, input_ir_path, thinlto_index_path,
-                              self._additional_flags, self._delete_flags) + [
-                                  '-mllvm', '-thinlto-assume-merged', '-mllvm',
-                                  '-regalloc-enable-advisor=development',
-                                  '-mllvm', '-regalloc-training-log=' +
-                                  log_path, '-o', output_native_path
-                              ])
-
-      if tf_policy_path:
-        command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
+      command_line.append(self._clang_path)
+      command_line.extend(
+          module_spec.cmd(
+              training_log={'path': log_path},
+              output={'path': output_native_path},
+              tf_policy_path=None
+              if not tf_policy_path else {'path': tf_policy_path}))
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
                                                    cancellation_manager)

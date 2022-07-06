@@ -28,6 +28,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
+from compiler_opt.rl.adt import ModuleSpec
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
@@ -47,8 +48,8 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(file_paths, tf_policy_dir, reward_stat, _):
-  assert file_paths == ('a', 'b')
+def mock_collect_data(module_spec, tf_policy_dir, reward_stat, _):
+  assert module_spec.name == 'dummy'
   assert tf_policy_dir == 'policy'
   assert reward_stat is None or reward_stat == {
       'default':
@@ -87,7 +88,7 @@ class Sleeper(compilation_runner.CompilationRunner):
     self._living = living
     self._lock = mp.Manager().Lock()
 
-  def collect_data(self, file_paths, tf_policy_path, reward_stat,
+  def collect_data(self, module_spec, tf_policy_path, reward_stat,
                    cancellation_token):
     _ = reward_stat
     cancellation_manager = self._get_cancellation_manager(cancellation_token)
@@ -132,7 +133,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       return _test_iterator_fn
 
     collector = local_data_collector.LocalDataCollector(
-        file_paths=tuple([('a', 'b')] * 100),
+        module_specs=[ModuleSpec(['-O2'], {}, 'dummy')] * 100,
         num_workers=4,
         num_modules=9,
         runner=mock_compilation_runner,
@@ -198,7 +199,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
         return False
 
     collector = local_data_collector.LocalDataCollector(
-        file_paths=tuple([('a', 'b')] * 200),
+        module_specs=[ModuleSpec(['-O2'], {}, 'dummy')] * 200,
         num_workers=4,
         num_modules=4,
         runner=mock_compilation_runner,
