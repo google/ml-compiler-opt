@@ -12,13 +12,39 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A script for running chromium based benchmarks
+
+This script allows for running chromium benchmarks to evaluate the performance
+of MLGO regalloc models in a highly automated fashion. It will automatically
+recompile LLVM if requested with the release mode model specified, recompile
+the chromium benchmarks using the correct MLGO model/advisor, and then run
+a specified subset of those tests designed to minimize run to run variability.
+
+Usage:
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_chromium.py \
+  --compile_tests \
+  --advisor=release \
+  --chromium_src_path=/chromium/src \
+  --depot_tools_path=/depot_tools \
+  --llvm_build_path=/llvm-build \
+  --compile_llvm \
+  --model_path=/tmp/model \
+  --tensorflow_c_lib_path=/tmp/tensorflow \
+  --chromium_build_path=./out/Release \
+  --output_file=./output.json \
+  --perf_counters=mem_uops_retired.all_loads \
+  --perf_counters=mem_uops_retired.all_stores
+
+Note that --perf_counters can be defined multiple times to grab more than one
+performance counter. Also note that the chromium_build_path is a relative directory.
+It is relative to the chromium source dir and specified this way as there appears
+to be problems building chromium outside of the source directory.
+"""
 
 import os
 import shutil
 import subprocess
 import json
-
-from joblib import Parallel, delayed
 
 from absl import flags
 from absl import app
@@ -51,6 +77,21 @@ flags.DEFINE_integer("num_threads", 1, "The number of threads to use when runnin
 flags.DEFINE_multi_string("perf_counters", ["mem_uops_retired.all_loads","mem_uops_retired.all_stores"], "The performance counters to use")
 
 def build_chromium_tests(regalloc_advisor, chromium_build_path, chromium_source_path, depot_tools_path, llvm_build_path, tests_to_build):
+  """Builds the chromium test suite
+
+  This function will build the specified chromium test targets using the specified
+  regalloc advisor. This function configures some default build options using gn
+  as shown below in the gn_args list, and then builds the needed targets using
+  autoninja.
+
+  Args:
+    regalloc_advisor: The regalloc advisor to use when compiling
+    chromium_build_path: The path (relative to the chromium source dir) to use for building chromium
+    chromium_source_path: The path to the chromium source
+    depot_tools_path: The path to the root of your depot tools checkout
+    llvm_build_path: The path to the root of the direcotry where llvm was built
+    tests_to_build: An array of test targets that are to be built
+  """
   chromium_absolute_build_path = os.path.join(chromium_source_path, chromium_build_path)
   if os.path.exists(chromium_absolute_build_path):
     shutil.rmtree(chromium_absolute_build_path)
@@ -94,6 +135,21 @@ def build_chromium_tests(regalloc_advisor, chromium_build_path, chromium_source_
   ninja_compile_process.wait()
 
 def run_tests(tests_to_run, chromium_absolute_build_path, num_threads, perf_counters):
+  """A utility to run a set of chromium tests
+
+  This function takes in a list of test descriptions containing the
+  name of a chromium test target as well as a list of all the tests
+  within that test executable that are to be run. It executes each test
+  (in parallel if specified for performance counters that aren't highly
+  sensitive to that environment), grabbing the perf counters for the test
+  that are specified.
+
+  Args:
+    tests_to_run: A list of python dictionaries containing the test descriptions
+    chromium_absolute_build_path: The absolute build path to the chromium build dir
+    num_threads: The number of threads to use when running tests
+    perf_counters: A list of perf compatible performance counters
+  """
   test_data = {}
   for test in tests_to_run:
     executable_path = os.path.join(chromium_absolute_build_path, test["executable"])
