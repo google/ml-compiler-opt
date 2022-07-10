@@ -45,6 +45,9 @@ def build_llvm(model_path,
   """
   if not use_existing_build and os.path.exists(llvm_build_path):
     shutil.rmtree(llvm_build_path)
+  
+  if not os.path.exists(llvm_build_path):
+    os.makedirs(llvm_build_path)
 
   cmake_config_command = ["cmake", "-G", "Ninja",
     f"-DLLVM_RAEVICT_MODEL_PATH={model_path}"]
@@ -58,7 +61,7 @@ def build_llvm(model_path,
       f"-DTENSORFLOW_C_LIB_PATH={tensorflow_c_lib_path}",
       f"-DTENSORFLOW_AOT_PATH='{tensorflow_aot_path}'",
       "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON",
-      "-DLLVM_ENABLE_PROJECTS='clang'",
+      "-DLLVM_ENABLE_PROJECTS='clang;lld'",
       "-DLLVM_ENABLE_RUNTIMES='compiler-rt'",
       f"{llvm_source_path}"
     ])
