@@ -21,15 +21,6 @@ import re
 
 from joblib import Parallel, delayed
 
-def load_test_set(test_set_file_name):
-  """Loads a set of tests to run from a JSON file
-
-  Args:
-    test_set_file_name: the path to the file to load the test set from
-  """
-  with open(test_set_file_name) as test_set_file:
-    return json.load(test_set_file)
-
 def run_test(test_executable, test_name, perf_counters):
   """Runs a specific test
 
@@ -49,6 +40,7 @@ def run_test(test_executable, test_name, perf_counters):
   command_vector.extend([test_executable, "--gtest_filter={filter}".format(filter=test_name)])
   process = subprocess.Popen(command_vector, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out, err = process.communicate()
+  print(test_executable)
   # all of the output from perf stat is on STDERR
   return err.decode("UTF-8")
 
@@ -89,7 +81,7 @@ def run_and_parse(test_description):
   print("Finished running test {test}".format(test=test_name), file=sys.stderr)
   return (test_name, parse_perf_stat_output(test_output, performance_counters))
 
-def run_test_suite(test_suite_description_path, test_executable, perf_counters, num_threads=1):
+def run_test_suite(test_suite_description, test_executable, perf_counters, num_threads=1):
   """Runs an entire test suite
 
   This function takes in a test suite description in the form of a path to a JSON
@@ -100,8 +92,8 @@ def run_test_suite(test_suite_description_path, test_executable, perf_counters, 
   with extreme caution while benchmarking.
 
   Args:
-    test_suite_description_path: A path to a JSON file containing a list of tests
-      to be run for the test suite
+    test_suite_description: A python dictionary containing an array with the
+      key tests which has all the tests to run
     test_executable: A path to the gtest executable being described by the test
       description JSON
     perf_counters: A list of strings of valid perf performance counters that
@@ -109,10 +101,9 @@ def run_test_suite(test_suite_description_path, test_executable, perf_counters, 
     num_threads: The number of threads to use when running tests. Set to 1 by
       default. Be very cautious about running benchmarks in parallel.
   """
-  tests_list = load_test_set(test_suite_description_path)
 
   test_descriptions = []
-  for test in tests_list["tests"]:
+  for test in test_suite_description["tests"]:
     test_descriptions.append((test_executable, test, perf_counters))
   
   test_data_output = Parallel(n_jobs=num_threads)(delayed(run_and_parse)(test_description) for test_description in test_descriptions)
