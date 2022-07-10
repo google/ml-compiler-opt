@@ -45,7 +45,7 @@ def build_llvm(model_path,
   """
   if not use_existing_build and os.path.exists(llvm_build_path):
     shutil.rmtree(llvm_build_path)
-  
+
   if not os.path.exists(llvm_build_path):
     os.makedirs(llvm_build_path)
 
