@@ -31,6 +31,7 @@ be printed to the terminal (fully compatible with shell pipes).
 
 import json
 import sys
+import os
 
 from absl import app
 from absl import flags
@@ -57,6 +58,7 @@ def main(argv):
   output = ""
   if FLAGS.output_type == "json":
     test_json = {
+      "executable": os.path.basename(FLAGS.gtest_executable),
       "tests": test_list
     }
     output = json.dumps(test_json, indent=4)
