@@ -133,7 +133,7 @@ def build_chromium_tests(regalloc_advisor,
   new_environment['AR'] = os.path.join(llvm_build_path, './bin/llvm-ar')
   new_environment['NM'] = os.path.join(llvm_build_path, './bin/llvm-nm')
   new_environment['CPPFLAGS'] = \
-    f'-mllvm-regalloc-enable-advisor={regalloc_advisor}'
+    f'-mllvm -regalloc-enable-advisor={regalloc_advisor}'
 
   gn_args = [
     'is_official_build=true',
@@ -218,7 +218,7 @@ def main():
     build_chromium_tests(FLAGS.advisor,
                          FLAGS.chromium_build_path,
                          FLAGS.chromium_src_path,
-                         FLAGS.depot_tools_oath,
+                         FLAGS.depot_tools_path,
                          FLAGS.llvm_build_path,
                          test_executables)
 
