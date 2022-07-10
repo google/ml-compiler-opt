@@ -197,7 +197,7 @@ def run_tests(tests_to_run,
                                                            num_threads))
   return test_data
 
-def main():
+def main(_):
   test_descriptions = []
   for test_description in FLAGS.test_description:
     with open(test_description, encoding='UTF-8') as test_description_file:
