@@ -187,7 +187,7 @@ def build_test_suite(regalloc_advisor,
                         ) as cmake_stage_2_build_process:
     cmake_stage_2_build_process.wait()
 
-def main():
+def main(_):
   if FLAGS.llvm_test_suite_build_path is None:
     FLAGS.llvm_test_suite_build_path = os.path.join(FLAGS.llvm_test_suite_path,
                                                     './build')
