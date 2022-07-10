@@ -1,0 +1,32 @@
+{
+    "executable": "components_perftests",
+    "tests": [
+        "ProtoDBPerfTest.LoadEntriesSingle_OnePrefix_DifferingNumDBs_Medium",
+        "ProtoDBPerfTest.LoadEntriesMulti_OnePrefix_DifferingNumDBs_Medium",
+        "HQPPerfTestOnePopularURL.Backspacing",
+        "ProtoDBPerfTest.LoadEntriesSingle_SkipReadCache_Medium",
+        "ProtoDBPerfTest.LoadEntriesMulti_DifferingNumDBs_Small",
+        "HQPPerfTestOnePopularURL.Typing",
+        "ProtoDBPerfTest.LoadEntriesSingle_OnePrefix_DifferingNumDBs_SkipReadCache_Large",
+        "ProtoDBPerfTest.DistributionTestSmall_ManyEntries_Multi",
+        "ProtoDBPerfTest.LoadEntriesSingle_DifferingNumDBs_SkipReadCache_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_Medium",
+        "ProtoDBPerfTest.DistributionTestSmall_FewEntries_Single",
+        "ProtoDBPerfTest.LoadEntriesSingle_DifferingNumDBs_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_SkipReadCache_Large",
+        "ProtoDBPerfTest.LoadEntriesSingle_OnePrefix_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_OnePrefix_SkipReadCache_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_SkipReadCache_Medium",
+        "ProtoDBPerfTest.LoadEntriesMulti_Large",
+        "ProtoDBPerfTest.LoadEntriesSingle_OnePrefix_DifferingNumDBs_SkipReadCache_Medium",
+        "ProtoDBPerfTest.LoadEntriesSingle_DifferingNumDBs_Small",
+        "ProtoDBPerfTest.LoadEntriesSingle_DifferingNumDBs_Medium",
+        "ProtoDBPerfTest.LoadEntriesSingle_OnePrefix_SkipReadCache_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_OnePrefix_Large",
+        "ProtoDBPerfTest.LoadEntriesMulti_DifferingNumDBs_SkipReadCache_Large",
+        "ProtoDBPerfTest.DistributionTestSmall_ManyEntries_Batch_Multi",
+        "IndexedRulesetPerftest.IndexRuleset",
+        "IndexedRulesetPerftest.MatchAll",
+        "V4StorePerftest.StressTest"
+    ]
+}
