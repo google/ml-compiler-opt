@@ -14,7 +14,6 @@
 # limitations under the License.
 """Utilities for working with test executables using gtest (ie Chromium)"""
 
-import json
 import sys
 import subprocess
 import re
@@ -34,15 +33,17 @@ def run_test(test_executable, test_name, perf_counters):
     perf_counters: A string list of performance counters recognized by
       perf stat (platform dependent)
   """
-  command_vector = ["perf", "stat"]
+  command_vector = ['perf', 'stat']
   for perf_counter in perf_counters:
-    command_vector.extend(["-e", perf_counter])
-  command_vector.extend([test_executable, "--gtest_filter={filter}".format(filter=test_name)])
-  process = subprocess.Popen(command_vector, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  out, err = process.communicate()
-  print(test_executable)
-  # all of the output from perf stat is on STDERR
-  return err.decode("UTF-8")
+    command_vector.extend(['-e', perf_counter])
+  command_vector.extend([test_executable, f'--gtest_filter={test_name}'])
+  with subprocess.Popen(command_vector,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE) as process:
+    err = process.communicate()[1]
+    print(test_executable)
+    # all of the output from perf stat is on STDERR
+    return err.decode('UTF-8')
 
 def parse_perf_stat_output(perf_stat_output, perf_counters):
   """Parses raw output from perf stat
@@ -57,10 +58,10 @@ def parse_perf_stat_output(perf_stat_output, perf_counters):
       performance counters
   """
   counters_dict = {}
-  for line in perf_stat_output.split("\n"):
+  for line in perf_stat_output.split('\n'):
     for perf_counter in perf_counters:
       if perf_counter in line:
-        count_string = re.findall("^\s*\d*", line)[0].replace(" ","")
+        count_string = re.findall(r'^\s*\d*', line)[0].replace(' ','')
         count = int(count_string)
         counters_dict[perf_counter] = count
   return counters_dict
@@ -78,13 +79,16 @@ def run_and_parse(test_description):
   """
   test_executable, test_name, performance_counters = test_description
   test_output = run_test(test_executable, test_name, performance_counters)
-  print("Finished running test {test}".format(test=test_name), file=sys.stderr)
+  print(f'Finished running test {test_name}', file=sys.stderr)
   return (test_name, parse_perf_stat_output(test_output, performance_counters))
 
-def run_test_suite(test_suite_description, test_executable, perf_counters, num_threads=1):
+def run_test_suite(test_suite_description,
+                  test_executable,
+                  perf_counters,
+                  num_threads=1):
   """Runs an entire test suite
 
-  This function takes in a test suite description in the form of a path to a JSON
+  This function takes in a test set description in the form of a path to a JSON
   file and runs all of the tests within that test suite description, capturing
   all of the performance counters requested. This function also allows different
   tests to be run in parallel for non-parallel sensitive performance counters
@@ -103,15 +107,17 @@ def run_test_suite(test_suite_description, test_executable, perf_counters, num_t
   """
 
   test_descriptions = []
-  for test in test_suite_description["tests"]:
+  for test in test_suite_description['tests']:
     test_descriptions.append((test_executable, test, perf_counters))
-  
-  test_data_output = Parallel(n_jobs=num_threads)(delayed(run_and_parse)(test_description) for test_description in test_descriptions)
+
+  test_data_output = Parallel(n_jobs=num_threads)(
+    delayed(run_and_parse)(test_description)
+    for test_description in test_descriptions)
 
   formatted_test_data = {}
   for test_instance in test_data_output:
     formatted_test_data[test_instance[0]] = test_instance[1]
-  
+
   return formatted_test_data
 
 def get_gtest_testlist_raw(path_to_executable):
@@ -125,10 +131,12 @@ def get_gtest_testlist_raw(path_to_executable):
     path_to_executable: A path to the gtest executable for which a test list
       is desired
   """
-  command_vector = [path_to_executable, "--gtest_list_tests"]
-  process = subprocess.Popen(command_vector, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  out, err = process.communicate()
-  return out.decode("UTF-8")
+  command_vector = [path_to_executable, '--gtest_list_tests']
+  with subprocess.Popen(command_vector,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE) as process:
+    out = process.communicate()[0]
+    return out.decode('UTF-8')
 
 def parse_gtest_tests(gtest_output_raw):
   """Parses gtest test list output into a Python list
@@ -143,13 +151,13 @@ def parse_gtest_tests(gtest_output_raw):
       --gtest_list_tests flag
   """
   test_list = []
-  current_test_prefix = ""
-  gtest_output_split = gtest_output_raw.split("\n")
+  current_test_prefix = ''
+  gtest_output_split = gtest_output_raw.split('\n')
   current_index = 0
   # skip to the actual test list
   while current_index < len(gtest_output_split):
     current_string = gtest_output_split[current_index]
-    test_matches = re.findall("^[a-zA-Z]*\.$", current_string)
+    test_matches = re.findall(r'^[a-zA-Z]*\.$', current_string)
     if len(test_matches) != 0:
       break
     current_index += 1
@@ -159,8 +167,8 @@ def parse_gtest_tests(gtest_output_raw):
       current_index += 1
       continue
     # get the test name
-    test_match = re.findall("^\s*\S*", current_string)[0].replace(" ","")
-    if test_match[len(test_match) - 1] == ".":
+    test_match = re.findall(r'^\s*\S*', current_string)[0].replace(' ','')
+    if test_match[len(test_match) - 1] == '.':
       # We've found a new prefix
       current_test_prefix = test_match
       current_index += 1
