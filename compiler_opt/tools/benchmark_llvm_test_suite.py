@@ -65,6 +65,18 @@ flags.mark_flag_as_required("advisor")
 flags.mark_flag_as_required("output_path")
 
 def build_test_suite(regalloc_advisor, llvm_test_suite_build_path, llvm_build_path):
+  """Builds the LLVM test suite using the specified regalloc advisor
+  
+  This function just builds the llvm test suite from scratch. The only two advisor
+  modes are release and default as the main function automatically compiles the advisor
+  to be evaluated as the release mode model into llvm. This script then compiles the test
+  suite using PGO so that benchmarks will return valid results.
+
+  Args:
+    regalloc_advisor: The regalloc advisor (default or release) to use when compiling
+    llvm_test_suite_build_path: the path to place the llvm test suite build in
+    llvm_build_path: The directory to where the LLVM/clang build has been completed
+  """
   llvm_c_compiler_path = os.path.join(llvm_build_path, "./bin/clang")
   llvm_cxx_compiler_path = os.path.join(llvm_build_path, "./bin/clang++")
   llvm_lit_path = os.path.join(llvm_lit_path, "./bin/llvm-lit")
