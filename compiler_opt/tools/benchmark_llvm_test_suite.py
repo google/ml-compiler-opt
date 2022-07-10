@@ -12,6 +12,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A utility for automatically setting up and running the LLVM test suite
+
+This script will automatically do all of the setup in order to compile and run
+the microbenchmarks in the llvm test suite. It will compile the requested model
+into LLVM, compile the test suite using a two stage build to take advantage of
+PGO, and then run all of the Microbenchmarks in the test suite, outputting the
+data to a file of the user's choice.
+
+Usage:
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_llvm_test_suite.py \
+  --advisor=release \
+  --model_path=/tmp/model \
+  --compile_llvm \
+  --llvm_use_incremental \
+  --compile_testsuite \
+  --output_path=./output.json \
+  --llvm_test_suite_path=/llvm-test-suite \
+  --llvm_build_path=/llvm-build \
+  --llvm_source_path=/llvm-project \
+  --llvm_test_suite_build_path=/llvm-test-suite/build \
+  --tensorflow_c_lib_path=/tmp/tensorflow \
+  --perf_counter=INSTRUCTIONS \
+  --perf_counter=MEM_UOPS_RETIRED:ALL_LOADS \
+  --perf_counter=MEM_UOPS_RETIRED:ALL_STORES 
+
+A lot of the flags listed above are just set to their default values. To see what
+their default values are and whether or not you need to adjust them for your setup,
+you can call the script with the --help command.
+"""
 
 import os
 import shutil
