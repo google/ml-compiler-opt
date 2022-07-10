@@ -41,41 +41,44 @@ from compiler_opt.tools import gtest_executable_utils
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("gtest_executable", None, "The path to the gtest executable")
-flags.DEFINE_enum("output_type", "json", ["json", "default"], 
-                  """The output type. JSON produces JSON style output with the tests 
-                  being in an array with the key tests. Default prints all tests separated 
-                  by line breaks""")
-flags.DEFINE_string("output_file", None, """The output path. If not set, all output will get
+flags.DEFINE_string('gtest_executable', None,
+                    'The path to the gtest executable')
+flags.DEFINE_enum('output_type', 'json', ['json', 'default'],
+                  """The output type. JSON produces JSON style output with
+                  the tests being in an array with the key tests. Default
+                  prints all tests separated by line breaks""")
+flags.DEFINE_string('output_file', None,
+                    """The output path. If not set, all output will get
                     dumped to the terminal""")
 
-flags.mark_flag_as_required("gtest_executable")
+flags.mark_flag_as_required('gtest_executable')
 
-def main(argv):
-  test_list_raw_output = gtest_executable_utils.get_gtest_testlist_raw(FLAGS.gtest_executable)
+def main():
+  test_list_raw_output = gtest_executable_utils.get_gtest_testlist_raw(
+    FLAGS.gtest_executable)
   test_list = gtest_executable_utils.parse_gtest_tests(test_list_raw_output)
 
-  output = ""
-  if FLAGS.output_type == "json":
+  output = ''
+  if FLAGS.output_type == 'json':
     test_json = {
-      "executable": os.path.basename(FLAGS.gtest_executable),
-      "tests": test_list
+      'executable': os.path.basename(FLAGS.gtest_executable),
+      'tests': test_list
     }
     output = json.dumps(test_json, indent=4)
-  elif FLAGS.output_type == "default":
+  elif FLAGS.output_type == 'default':
     for test in test_list:
       output = output + f'{test}\n'
     # get rid of extra last newline
     output = output[:-1]
   else:
-    logging.fatal("output_type should only be json or default")
+    logging.fatal('output_type should only be json or default')
 
   if FLAGS.output_file:
-    with open(FLAGS.output_file, "w") as output_file:
+    with open(FLAGS.output_file, 'w', encoding='UTF-8') as output_file:
       output_file.write(output)
       print(f'wrote tests to {FLAGS.output_file}', file=sys.stderr)
   else:
     print(output)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   app.run(main)
