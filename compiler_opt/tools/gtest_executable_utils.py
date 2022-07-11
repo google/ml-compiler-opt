@@ -118,9 +118,14 @@ def run_test_suite(test_suite_description: Dict[str, List[str]],
     delayed(run_and_parse)(test_description)
     for test_description in test_descriptions)
 
-  formatted_test_data = {}
+  formatted_test_data = []
   for test_instance in test_data_output:
-    formatted_test_data[test_instance[0]] = test_instance[1]
+    test_info = {
+      'name': test_instance[0],
+      'iterations': 1
+    }
+    test_info.update(test_instance[1])
+    formatted_test_data.append(test_info)
 
   return formatted_test_data
 
