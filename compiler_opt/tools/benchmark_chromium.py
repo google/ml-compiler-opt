@@ -53,6 +53,8 @@ from absl import app
 from compiler_opt.tools import gtest_executable_utils
 from compiler_opt.tools import benchmarking_utils
 
+from typing import List, Dict, Union
+
 FLAGS = flags.FLAGS
 
 default_test_descriptions = [
@@ -99,12 +101,12 @@ flags.DEFINE_multi_string('perf_counters',
                           'mem_uops_retired.all_stores'],
                           'The performance counters to use')
 
-def build_chromium_tests(regalloc_advisor,
-                         chromium_build_path,
-                         chromium_source_path,
-                         depot_tools_path,
-                         llvm_build_path,
-                         tests_to_build):
+def build_chromium_tests(regalloc_advisor: str,
+                         chromium_build_path: str,
+                         chromium_source_path: str,
+                         depot_tools_path: str,
+                         llvm_build_path: str,
+                         tests_to_build: List[str]):
   """Builds the chromium test suite
 
   This function will build the specified chromium tests using the specified
@@ -167,10 +169,10 @@ def build_chromium_tests(regalloc_advisor,
                         cwd=chromium_source_path) as ninja_compile_process:
     ninja_compile_process.wait()
 
-def run_tests(tests_to_run,
-              chromium_absolute_build_path,
-              num_threads,
-              perf_counters):
+def run_tests(tests_to_run: List[Dict[str,Union[str, List[str]]]],
+              chromium_absolute_build_path: str,
+              num_threads: int,
+              perf_counters: List[str]):
   """A utility to run a set of chromium tests
 
   This function takes in a list of test descriptions containing the

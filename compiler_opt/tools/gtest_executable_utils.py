@@ -19,8 +19,9 @@ import subprocess
 import re
 
 from joblib import Parallel, delayed
+from typing import Tuple, List, Optional, Dict
 
-def run_test(test_executable, test_name, perf_counters):
+def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
   """Runs a specific test
 
   This function executes a specific test in a gtest executable using
@@ -45,7 +46,7 @@ def run_test(test_executable, test_name, perf_counters):
     # all of the output from perf stat is on STDERR
     return err.decode('UTF-8')
 
-def parse_perf_stat_output(perf_stat_output, perf_counters):
+def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
   """Parses raw output from perf stat
 
   This function takes in the raw decoded output from perf stat
@@ -66,7 +67,7 @@ def parse_perf_stat_output(perf_stat_output, perf_counters):
         counters_dict[perf_counter] = count
   return counters_dict
 
-def run_and_parse(test_description):
+def run_and_parse(test_description: Tuple[str, str, List[str]]):
   """Runs a test and processes the output of an individual test
 
   This function takes in a description of an individual test, runs the test
@@ -82,10 +83,10 @@ def run_and_parse(test_description):
   print(f'Finished running test {test_name}', file=sys.stderr)
   return (test_name, parse_perf_stat_output(test_output, performance_counters))
 
-def run_test_suite(test_suite_description,
-                  test_executable,
-                  perf_counters,
-                  num_threads=1):
+def run_test_suite(test_suite_description: Dict[str, List[str]],
+                  test_executable: str,
+                  perf_counters: List[str],
+                  num_threads: Optional[int]):
   """Runs an entire test suite
 
   This function takes in a test set description in the form of a path to a JSON
@@ -106,6 +107,9 @@ def run_test_suite(test_suite_description,
       default. Be very cautious about running benchmarks in parallel.
   """
 
+  if num_threads is None:
+    num_threads = 1
+
   test_descriptions = []
   for test in test_suite_description['tests']:
     test_descriptions.append((test_executable, test, perf_counters))
@@ -120,7 +124,7 @@ def run_test_suite(test_suite_description,
 
   return formatted_test_data
 
-def get_gtest_testlist_raw(path_to_executable):
+def get_gtest_testlist_raw(path_to_executable: str):
   """Gets raw output of a gtest executable's test list
 
   Takes in a path to a gtest executable and uses the flag --gtest_list_tests
@@ -138,7 +142,7 @@ def get_gtest_testlist_raw(path_to_executable):
     out = process.communicate()[0]
     return out.decode('UTF-8')
 
-def parse_gtest_tests(gtest_output_raw):
+def parse_gtest_tests(gtest_output_raw: str):
   """Parses gtest test list output into a Python list
 
   Loops through each line in the raw output obtained from the

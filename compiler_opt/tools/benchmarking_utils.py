@@ -21,11 +21,13 @@ import shutil
 import tensorflow
 import json
 
-def build_llvm(model_path,
-               use_existing_build,
-               llvm_build_path,
-               llvm_source_path=None,
-               tensorflow_c_lib_path=None):
+from typing import Optional, List
+
+def build_llvm(model_path: str,
+               use_existing_build: bool,
+               llvm_build_path: str,
+               llvm_source_path: Optional[str],
+               tensorflow_c_lib_path: Optional[str]):
   """Builds LLVM/clang with the specified model and the correct settings
 
   This function invokes CMake with all the correct build flags specified
@@ -75,7 +77,7 @@ def build_llvm(model_path,
                         cwd=llvm_build_path) as cmake_compile_process:
     cmake_compile_process.wait()
 
-def run_microbenchmark(executable, perf_counters):
+def run_microbenchmark(executable: str, perf_counters: List[str]):
   """Runs all the tests in a specific google benchmark binary
 
   This function takes in an executable and performance counters according to the

@@ -112,10 +112,10 @@ flags.DEFINE_multi_string('perf_counter', [],
 flags.mark_flag_as_required('advisor')
 flags.mark_flag_as_required('output_path')
 
-def build_test_suite(regalloc_advisor,
-                     llvm_test_suite_build_path,
-                     llvm_build_path,
-                     llvm_test_suite_source_path):
+def build_test_suite(regalloc_advisor: str,
+                     llvm_test_suite_build_path: str,
+                     llvm_build_path: str,
+                     llvm_test_suite_source_path: str):
   """Builds the LLVM test suite using the specified regalloc advisor
 
   This function just builds the llvm test suite from scratch. The only two
