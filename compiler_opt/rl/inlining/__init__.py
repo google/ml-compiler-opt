@@ -17,14 +17,14 @@
 from typing import Tuple, List
 import gin
 
-from compiler_opt.rl.problem_configuration import ProblemConfiguration
+from compiler_opt import adt
+from compiler_opt.rl import problem_configuration
 from compiler_opt.rl.inlining import config
 from compiler_opt.rl.inlining import inlining_runner
-from compiler_opt.rl.adt import ModuleSpec
 
 
 @gin.register(module='configs')
-class InliningConfig(ProblemConfiguration):
+class InliningConfig(problem_configuration.ProblemConfiguration):
   """Expose the regalloc eviction components."""
 
   def get_runner_type(self):
@@ -39,9 +39,12 @@ class InliningConfig(ProblemConfiguration):
   def get_nonnormalized_features(self):
     return config.get_nonnormalized_features()
 
-  def get_module_specs(self, data_path: str,
-                       additional_flags: Tuple[str, ...] = (),
-                       delete_flags: Tuple[str, ...] = ()) -> List[ModuleSpec]:
+  def get_module_specs(
+      self,
+      data_path: str,
+      additional_flags: Tuple[str, ...] = (),
+      delete_flags: Tuple[str, ...] = ()
+  ) -> List[adt.ModuleSpec]:
     """Fetch a list of ModuleSpecs for the corpus at data_path
 
     Args:
@@ -50,11 +53,10 @@ class InliningConfig(ProblemConfiguration):
       delete_flags: tuple of clang flags to remove.
     """
     xopts = {
-      'tf_policy_path': ['-mllvm', '-ml-inliner-model-under-training={path:s}'],
-      'training_log': ['-mllvm', '-training-log={path:s}']
+        'tf_policy_path':
+            ('-mllvm', '-ml-inliner-model-under-training={path:s}'),
+        'training_log': ('-mllvm', '-training-log={path:s}')
     }
-    additional_flags = list(additional_flags)
-    additional_flags += ['-mllvm', '-enable-ml-inliner=development']
+    additional_flags += ('-mllvm', '-enable-ml-inliner=development')
 
-    return ProblemConfiguration._get_module_specs(data_path, additional_flags,
-                                                  delete_flags, xopts)
+    return adt.ModuleSpec.get(data_path, additional_flags, delete_flags, xopts)

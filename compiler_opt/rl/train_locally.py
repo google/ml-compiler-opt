@@ -38,7 +38,6 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
-from compiler_opt.rl.problem_configuration import ProblemConfiguration
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
@@ -72,7 +71,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                delete_compilation_flags=()):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
-  problem_config: ProblemConfiguration = registry.get_configuration()
+  problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 

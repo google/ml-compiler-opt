@@ -22,8 +22,8 @@ from typing import Dict, Optional, Tuple
 import gin
 import tensorflow as tf
 
+from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
-from compiler_opt.rl.adt import ModuleSpec
 
 _DEFAULT_IDENTIFIER = 'default'
 
@@ -46,7 +46,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
     self._llvm_size_path = llvm_size_path
 
   def _compile_fn(
-      self, module_spec: ModuleSpec, tf_policy_path: str, reward_only: bool,
+      self, module_spec: adt.ModuleSpec, tf_policy_path: str, reward_only: bool,
       cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
@@ -83,13 +83,12 @@ class InliningRunner(compilation_runner.CompilationRunner):
       if self._launcher_path:
         command_line.append(self._launcher_path)
       command_line.append(self._clang_path)
-      command_line.extend(module_spec.cmd(
-          training_log={'path': log_path},
-          output={'path': output_native_path},
-          tf_policy_path=None if not tf_policy_path else {
-              'path': tf_policy_path})
-      )
-
+      command_line.extend(
+          module_spec.cmd(
+              training_log={'path': log_path},
+              output={'path': output_native_path},
+              tf_policy_path=None
+              if not tf_policy_path else {'path': tf_policy_path}))
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
                                                    cancellation_manager)

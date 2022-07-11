@@ -30,10 +30,9 @@ import gin
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+from compiler_opt import adt  # pylint: disable=unused-import
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import registry
-from compiler_opt.rl.adt import ModuleSpec  # pylint: disable=unused-import
-from compiler_opt.rl.problem_configuration import ProblemConfiguration
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
 # currently use them as string annotations
@@ -71,7 +70,7 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
 
 
 def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
-           work_queue: 'queue.Queue[ModuleSpec]',
+           work_queue: 'queue.Queue[adt.ModuleSpec]',
            results_queue: 'queue.Queue[Optional[List[str]]]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -97,9 +96,7 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
       return
     try:
       data = runner.collect_data(
-          module_spec=module_spec,
-          tf_policy_path=policy_path,
-          reward_stat=None)
+          module_spec=module_spec, tf_policy_path=policy_path, reward_stat=None)
       if not m:
         results_queue.put((module_spec.name, data.serialized_sequence_examples,
                            data.reward_stats))
@@ -126,17 +123,15 @@ def main(_):
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
-  problem_config: ProblemConfiguration = registry.get_configuration()
+  problem_config = registry.get_configuration()
   runner = problem_config.get_runner_type()(moving_average_decay_rate=0)
   assert runner
 
-  module_specs = problem_config.get_module_specs(_DATA_PATH.value,
-                                                 delete_flags=(
-                                                 '-split-dwarf-file',
-                                                 '-split-dwarf-output',
-                                                 '-fthinlto-index',
-                                                 '-fprofile-sample-use',
-                                                 '-fprofile-remapping-file'))
+  module_specs = problem_config.get_module_specs(
+      _DATA_PATH.value,
+      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                    '-fthinlto-index', '-fprofile-sample-use',
+                    '-fprofile-remapping-file'))
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
     module_specs = [ms for ms in module_specs if m.match(ms.name)]
@@ -148,8 +143,9 @@ def main(_):
 
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  sizes_and_specs = [(os.path.getsize(m.name + '.bc'), i) for i, m in
-                     enumerate(module_specs)]
+  sizes_and_specs = [
+      (os.path.getsize(m.name + '.bc'), i) for i, m in enumerate(module_specs)
+  ]
   sizes_and_specs.sort(reverse=True)
   module_specs = [module_specs[i] for _, i in sizes_and_specs]
 
@@ -168,8 +164,8 @@ def main(_):
     with performance_context as performance_writer:
       ctx = multiprocessing.get_context()
       m = ctx.Manager()
-      results_queue: ('queue.Queue[ResultsQueueEntry]') = m.Queue()
-      work_queue: 'queue.Queue[Tuple[str, ...]]' = m.Queue()
+      results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
+      work_queue: 'queue.Queue[adt.ModuleSpec]' = m.Queue()
       for module_spec in module_specs:
         work_queue.put(module_spec)
 

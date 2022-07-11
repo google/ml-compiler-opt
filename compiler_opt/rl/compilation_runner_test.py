@@ -26,10 +26,9 @@ import tensorflow as tf
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
+from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
-from compiler_opt.rl.adt import ModuleSpec
-from compiler_opt.rl.problem_configuration import get_command_line_for_bundle
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
@@ -109,7 +108,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
-        module_spec=ModuleSpec(['-O2'], {}, 'dummy'),
+        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
         tf_policy_path='policy_path',
         reward_stat=None)
     self.assertEqual(2, mock_compile_fn.call_count)
@@ -139,8 +138,10 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
-    data = runner.collect_data(module_spec=ModuleSpec(['-O2'], {}, 'dummy'),
-                               tf_policy_path='', reward_stat=None)
+    data = runner.collect_data(
+        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
+        tf_policy_path='',
+        reward_stat=None)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
     self.assertEqual(1, mock_compile_fn.call_count)
@@ -169,7 +170,7 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        module_spec=ModuleSpec(['-O2'], {}, 'dummy'),
+        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
         tf_policy_path='policy_path',
         reward_stat={
             'default':
@@ -206,46 +207,10 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
-          module_spec=ModuleSpec(['-O2'], {}, 'dummy'),
+          module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
           tf_policy_path='policy_path',
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
-
-  def test_command_line_file(self):
-    data = ['-cc1', '-foo', '-bar=baz']
-    argfile = self.create_tempfile(content='\0'.join(data))
-    self.assertEqual(
-        get_command_line_for_bundle(argfile.full_path, 'my_file.bc'),
-        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
-    self.assertEqual(
-        get_command_line_for_bundle(argfile.full_path, 'my_file.bc',
-                                    'the_index.bc'),
-        [
-            '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
-            '-fthinlto-index=the_index.bc', '-mllvm', '-thinlto-assume-merged'
-        ])
-
-  def test_command_line_correction(self):
-    delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
-                                '-fthinlto-index', '-fprofile-sample-use',
-                                '-fprofile-remapping-file')
-    data = [
-        '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
-        '-split-dwarf-output', 'somepath/some.dwo'
-    ]
-    argfile = self.create_tempfile(content='\0'.join(data))
-    self.assertEqual(
-        get_command_line_for_bundle(
-            argfile.full_path, 'hi.bc', delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc'])
-    self.assertEqual(
-        get_command_line_for_bundle(
-            argfile.full_path,
-            'hi.bc',
-            'index.bc',
-            delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc', '-fthinlto-index=index.bc', '-mllvm',
-         '-thinlto-assume-merged'])
 
   def test_start_subprocess_output(self):
     ct = compilation_runner.WorkerCancellationManager()
