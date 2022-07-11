@@ -145,7 +145,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     def _msg_pump(self):
       while True:
         task_result = self._receive.get()
-        if not task_result:
+        if task_result is None:
           break
         with self._lock:
           future = self._map[task_result.msgid]
@@ -192,10 +192,10 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     def shutdown(self):
       try:
         self._process.kill()
-      finally:
+      except:  # pylint: disable=bare-except
         pass
 
-    def wait_for_msg_pump_exit(self):
+    def join(self):
       self._observer.join()
       self._pump.join()
       self._process.join()
@@ -227,4 +227,4 @@ class LocalWorkerPool(AbstractContextManager):
       s.shutdown()
     # now wait for the message pumps to indicate they exit.
     for s in self._stubs:
-      s.wait_for_msg_pump_exit()
+      s.join()
