@@ -189,11 +189,11 @@ def run_tests(tests_to_run: List[Dict[str,Union[str, List[str]]]],
     num_threads: The number of threads to use when running tests
     perf_counters: A list of perf compatible performance counters
   """
-  test_data = {}
+  test_data = []
   for test in tests_to_run:
     executable_path = os.path.join(chromium_absolute_build_path,
                                    test['executable'])
-    test_data.update(gtest_executable_utils.run_test_suite(test,
+    test_data.extend(gtest_executable_utils.run_test_suite(test,
                                                            executable_path,
                                                            perf_counters,
                                                            num_threads))

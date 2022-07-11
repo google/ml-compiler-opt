@@ -42,7 +42,6 @@ def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE) as process:
     err = process.communicate()[1]
-    print(test_executable)
     # all of the output from perf stat is on STDERR
     return err.decode('UTF-8')
 
