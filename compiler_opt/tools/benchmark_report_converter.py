@@ -70,7 +70,9 @@ def main(argv: Sequence[str]) -> None:
       summary = comparison.summarize()
   with tf.io.gfile.GFile(FLAGS.output, 'w+') as o:
     co = csv.writer(o)
-    for bm in summary.items():
+    # Pylint suggest using items for some reason, but the key is still needed
+    # pylint: disable=consider-using-dict-items
+    for bm in summary:
       for c in summary[bm]:
         co.writerow([bm, c] + list(summary[bm][c]))
 
