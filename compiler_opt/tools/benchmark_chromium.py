@@ -232,7 +232,10 @@ def main(_):
                         FLAGS.perf_counters)
 
   with open(FLAGS.output_file, 'w', encoding='UTF-8') as output_file:
-    output_file.write(json.dumps(test_data, indent=4))
+    output_data = {
+      'benchmarks': test_data
+    }
+    output_file.write(json.dumps(output_data, indent=4))
 
 if __name__ == '__main__':
   app.run(main)
