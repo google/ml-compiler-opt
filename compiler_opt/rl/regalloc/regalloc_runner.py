@@ -25,8 +25,8 @@ import tensorflow as tf
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import struct_pb2  # pytype: disable=pyi-error
-from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 
 
 @gin.configurable(module='runners')
@@ -42,8 +42,8 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   """
 
   def _compile_fn(
-      self, module_spec: adt.ModuleSpec, tf_policy_path: str, reward_only: bool,
-      cancellation_manager: Optional[
+      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      reward_only: bool, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.

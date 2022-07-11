@@ -25,8 +25,8 @@ from unittest import mock
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 
@@ -133,7 +133,9 @@ class LocalDataCollectorTest(tf.test.TestCase):
       return _test_iterator_fn
 
     collector = local_data_collector.LocalDataCollector(
-        module_specs=[adt.ModuleSpec(('-O2',), {}, 'dummy')] * 100,
+        module_specs=[
+            corpus.ModuleSpec(_exec_cmd=('-O2',), _xopts={}, name='dummy')
+        ] * 100,
         num_workers=4,
         num_modules=9,
         runner=mock_compilation_runner,
@@ -199,7 +201,9 @@ class LocalDataCollectorTest(tf.test.TestCase):
         return False
 
     collector = local_data_collector.LocalDataCollector(
-        module_specs=[adt.ModuleSpec(('-O2',), {}, 'dummy')] * 200,
+        module_specs=[
+            corpus.ModuleSpec(_exec_cmd=('-O2',), _xopts={}, name='dummy')
+        ] * 200,
         num_workers=4,
         num_modules=4,
         runner=mock_compilation_runner,

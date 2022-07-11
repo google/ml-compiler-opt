@@ -25,8 +25,8 @@ from typing import Dict, List, Optional, Tuple
 from absl import flags
 import tensorflow as tf
 
-from compiler_opt import adt
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
@@ -285,7 +285,7 @@ class CompilationRunner:
 
   def collect_data(
       self,
-      module_spec: adt.ModuleSpec,
+      module_spec: corpus.ModuleSpec,
       tf_policy_path: str,
       reward_stat: Optional[Dict[str, RewardStat]],
       cancellation_token: Optional[ProcessCancellationToken] = None
@@ -361,7 +361,8 @@ class CompilationRunner:
         keys=keys)
 
   def _compile_fn(
-      self, module_spec: adt.ModuleSpec, tf_policy_path: str, reward_only: bool,
+      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      reward_only: bool,
       cancellation_manager: Optional[WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.

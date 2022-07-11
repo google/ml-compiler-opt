@@ -26,8 +26,8 @@ import tensorflow as tf
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
-from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import constant
 
 _DEFAULT_FEATURE_VALUE = 12
@@ -108,7 +108,8 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
-        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
+        module_spec=corpus.ModuleSpec(
+            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat=None)
     self.assertEqual(2, mock_compile_fn.call_count)
@@ -139,7 +140,8 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
+        module_spec=corpus.ModuleSpec(
+            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
         tf_policy_path='',
         reward_stat=None)
     # One call when we ask for the default policy, because it can provide both
@@ -170,7 +172,8 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
+        module_spec=corpus.ModuleSpec(
+            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat={
             'default':
@@ -207,7 +210,8 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
-          module_spec=adt.ModuleSpec(('-O2',), {}, 'dummy'),
+          module_spec=corpus.ModuleSpec(
+              _exec_cmd=('-O2',), _xopts={}, name='dummy'),
           tf_policy_path='policy_path',
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)

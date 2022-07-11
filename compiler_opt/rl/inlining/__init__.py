@@ -17,10 +17,10 @@
 from typing import Tuple, List
 import gin
 
-from compiler_opt import adt
 from compiler_opt.rl import problem_configuration
 from compiler_opt.rl.inlining import config
 from compiler_opt.rl.inlining import inlining_runner
+from compiler_opt.rl.inlining import inlining_spec
 
 
 @gin.register(module='configs')
@@ -39,24 +39,5 @@ class InliningConfig(problem_configuration.ProblemConfiguration):
   def get_nonnormalized_features(self):
     return config.get_nonnormalized_features()
 
-  def get_module_specs(
-      self,
-      data_path: str,
-      additional_flags: Tuple[str, ...] = (),
-      delete_flags: Tuple[str, ...] = ()
-  ) -> List[adt.ModuleSpec]:
-    """Fetch a list of ModuleSpecs for the corpus at data_path
-
-    Args:
-      data_path: base directory of corpus
-      additional_flags: tuple of clang flags to add.
-      delete_flags: tuple of clang flags to remove.
-    """
-    xopts = {
-        'tf_policy_path':
-            ('-mllvm', '-ml-inliner-model-under-training={path:s}'),
-        'training_log': ('-mllvm', '-training-log={path:s}')
-    }
-    additional_flags += ('-mllvm', '-enable-ml-inliner=development')
-
-    return adt.ModuleSpec.get(data_path, additional_flags, delete_flags, xopts)
+  def get_spec_type(self):
+    return inlining_spec.InliningSpec

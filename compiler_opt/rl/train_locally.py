@@ -100,7 +100,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
   logging.info('Loading module specs from corpus')
-  module_specs = problem_config.get_module_specs(FLAGS.data_path,
+  module_specs = problem_config.get_spec_type().get(FLAGS.data_path,
                                                  additional_compilation_flags,
                                                  delete_compilation_flags)
   logging.info('Done loading module specs from corpus')

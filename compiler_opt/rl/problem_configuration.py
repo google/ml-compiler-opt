@@ -68,15 +68,15 @@ Conventions
 """
 
 import abc
-from typing import Callable, Iterable, Tuple, List
+from typing import Callable, Iterable, Tuple
 
 import tensorflow as tf
 import tf_agents as tfa
 
 # used for type annotation in a string (for 3.8 compat)
 # pylint: disable=unused-import
-from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 
 types = tfa.typing.types
 
@@ -102,17 +102,5 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_module_specs(
-      self,
-      data_path: str,
-      additional_flags: Tuple[str, ...] = (),
-      delete_flags: Tuple[str, ...] = ()
-  ) -> List[adt.ModuleSpec]:
-    """Fetch a list of ModuleSpecs for the corpus at data_path
-
-    Args:
-      data_path: base directory of corpus
-      additional_flags: tuple of clang flags to add.
-      delete_flags: tuple of clang flags to remove.
-    """
+  def get_spec_type(self) -> 'type[corpus.ModuleSpec]':
     raise NotImplementedError

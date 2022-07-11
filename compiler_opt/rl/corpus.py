@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
+
+from __future__ import annotations  # for typing .get()
 from absl import logging
 from dataclasses import dataclass
 from typing import List, Dict, Iterable, Tuple, Optional
+import abc
 import json
 import os
 import tensorflow as tf
@@ -46,8 +49,8 @@ class ModuleSpec:
     return ret_cmd
 
   @classmethod
-  def get(cls, data_path: str, additional_flags: Tuple[str, ...],
-          delete_flags: Tuple[str, ...], xopts: Dict[str, Tuple[str, ...]]):
+  def _get(cls, data_path: str, additional_flags: Tuple[str, ...],
+           delete_flags: Tuple[str, ...], xopts: Dict[str, Tuple[str, ...]]):
     module_paths: List[str] = _load_module_paths(
         data_path, os.path.join(data_path, 'module_paths'))
 
@@ -80,6 +83,19 @@ class ModuleSpec:
       module_specs.append(cls(tuple(exec_cmd), xopts, module_path))
 
     return module_specs
+
+  @classmethod
+  @abc.abstractmethod
+  def get(cls, data_path: str, additional_flags: Tuple[str, ...],
+          delete_flags: Tuple[str, ...]) -> List[ModuleSpec]:
+    """Fetch a list of ModuleSpecs for the corpus at data_path
+
+    Args:
+      data_path: base directory of corpus
+      additional_flags: tuple of clang flags to add.
+      delete_flags: tuple of clang flags to remove.
+    """
+    raise NotImplementedError
 
 
 def _has_thinlto_index(module_paths: Iterable[str]) -> bool:

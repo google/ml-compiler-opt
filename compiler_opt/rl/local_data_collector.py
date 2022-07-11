@@ -23,8 +23,8 @@ from absl import logging
 import multiprocessing  # for Pool
 from tf_agents.trajectories import trajectory
 
-from compiler_opt import adt
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 
 
@@ -33,7 +33,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      module_specs: List[adt.ModuleSpec],
+      module_specs: List[corpus.ModuleSpec],
       num_workers: int,
       num_modules: int,
       runner: compilation_runner.CompilationRunner,
@@ -81,7 +81,7 @@ class LocalDataCollector(data_collector.DataCollector):
     self._last_token = None
 
   def _schedule_jobs(self, policy_path: str,
-                     sampled_modules: List[adt.ModuleSpec]):
+                     sampled_modules: List[corpus.ModuleSpec]):
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()

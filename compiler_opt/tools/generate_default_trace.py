@@ -30,8 +30,8 @@ import gin
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt import adt  # pylint: disable=unused-import
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus  # pylint:disable=unused-import
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -70,7 +70,7 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
 
 
 def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
-           work_queue: 'queue.Queue[adt.ModuleSpec]',
+           work_queue: 'queue.Queue[corpus.ModuleSpec]',
            results_queue: 'queue.Queue[Optional[List[str]]]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -127,7 +127,7 @@ def main(_):
   runner = problem_config.get_runner_type()(moving_average_decay_rate=0)
   assert runner
 
-  module_specs = problem_config.get_module_specs(
+  module_specs = problem_config.get_spec_type().get(
       _DATA_PATH.value,
       delete_flags=('-split-dwarf-file', '-split-dwarf-output',
                     '-fthinlto-index', '-fprofile-sample-use',
@@ -165,7 +165,7 @@ def main(_):
       ctx = multiprocessing.get_context()
       m = ctx.Manager()
       results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
-      work_queue: 'queue.Queue[adt.ModuleSpec]' = m.Queue()
+      work_queue: 'queue.Queue[corpus.ModuleSpec]' = m.Queue()
       for module_spec in module_specs:
         work_queue.put(module_spec)
 

@@ -18,7 +18,7 @@
 import tensorflow as tf
 import json
 
-from compiler_opt.adt import module_spec
+from compiler_opt.rl import corpus
 
 
 class CommandParsingTest(tf.test.TestCase):
@@ -27,11 +27,11 @@ class CommandParsingTest(tf.test.TestCase):
     data = ['-cc1', '-foo', '-bar=baz']
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(argfile.full_path, 'my_file.bc'),
+        corpus._load_and_parse_command(argfile.full_path, 'my_file.bc'),
         ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
     self.assertEqual(
-        module_spec._load_and_parse_command(argfile.full_path, 'my_file.bc',
-                                            'the_index.bc'),
+        corpus._load_and_parse_command(argfile.full_path, 'my_file.bc',
+                                       'the_index.bc'),
         [
             '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
             '-fthinlto-index=the_index.bc', '-mllvm', '-thinlto-assume-merged'
@@ -47,7 +47,7 @@ class CommandParsingTest(tf.test.TestCase):
     ]
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(
+        corpus._load_and_parse_command(
             argfile.full_path, 'hi.bc', delete_flags=delete_compilation_flags),
         ['-cc1', '-x', 'ir', 'hi.bc'])
 
@@ -56,7 +56,7 @@ class CommandParsingTest(tf.test.TestCase):
     data = ['-cc1']
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(
+        corpus._load_and_parse_command(
             argfile.full_path, 'hi.bc', additional_flags=additional_flags),
         ['-cc1', '-x', 'ir', 'hi.bc', '-fix-all-bugs'])
 
@@ -65,7 +65,7 @@ class CommandParsingTest(tf.test.TestCase):
     data = ['-cc1', '-fthinlto-index=bad']
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(
+        corpus._load_and_parse_command(
             argfile.full_path,
             'hi.bc',
             cmd_override=cmd_override,
@@ -73,14 +73,14 @@ class CommandParsingTest(tf.test.TestCase):
             delete_flags=('-fthinlto-index',)),
         ['-fix-all-bugs', '-x', 'ir', 'hi.bc'])
     self.assertEqual(
-        module_spec._load_and_parse_command(
+        corpus._load_and_parse_command(
             None, 'hi.bc', cmd_override=cmd_override),
         ['-fix-all-bugs', '-x', 'ir', 'hi.bc'])
 
   def test_cmd_not_provided(self):
     self.assertRaises(
         ValueError,
-        module_spec._load_and_parse_command,
+        corpus._load_and_parse_command,
         None,
         'hi.bc',
         cmd_override=None,
@@ -98,7 +98,7 @@ class CommandParsingTest(tf.test.TestCase):
     ]
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(
+        corpus._load_and_parse_command(
             argfile.full_path,
             'hi.bc',
             delete_flags=delete_compilation_flags,
@@ -109,7 +109,7 @@ class CommandParsingTest(tf.test.TestCase):
     data = ['-fix-all-bugs', '-xyz']
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        module_spec._load_and_parse_command(argfile.full_path, 'hi.bc'),
+        corpus._load_and_parse_command(argfile.full_path, 'hi.bc'),
         ['-cc1', '-fix-all-bugs', '-xyz', '-x', 'ir', 'hi.bc'])
 
 
@@ -118,11 +118,11 @@ class LoadMetadataTest(tf.test.TestCase):
   def test_exists(self):
     data = {'abc': 123}
     metadata_file = self.create_tempfile(content=json.dumps(data))
-    read_data = module_spec._load_metadata(metadata_file.full_path)
+    read_data = corpus._load_metadata(metadata_file.full_path)
     self.assertEqual(data, read_data)
 
   def test_not_exists(self):
-    read_data = module_spec._load_metadata('this#file$cant:possibly^exist')
+    read_data = corpus._load_metadata('this#file$cant:possibly^exist')
     self.assertEqual({}, read_data)
 
 
@@ -131,18 +131,17 @@ class LoadModulePathsTest(tf.test.TestCase):
   def test_exists(self):
     data = ['1', '2', '3']
     module_paths_path = self.create_tempfile(content='\n'.join(data))
-    read_data = module_spec._load_module_paths('/abc/',
-                                               module_paths_path.full_path)
+    read_data = corpus._load_module_paths('/abc/', module_paths_path.full_path)
     self.assertEqual(['/abc/' + p for p in data], read_data)
 
   def test_empty(self):
     module_paths_path = self.create_tempfile()
-    self.assertRaises(ValueError, module_spec._load_module_paths, '/abc/',
+    self.assertRaises(ValueError, corpus._load_module_paths, '/abc/',
                       module_paths_path.full_path)
 
   def test_not_exists(self):
-    self.assertRaises(FileNotFoundError, module_spec._load_module_paths,
-                      '/abc/', 'this#file$cant:possibly^exist')
+    self.assertRaises(FileNotFoundError, corpus._load_module_paths, '/abc/',
+                      'this#file$cant:possibly^exist')
 
 
 class HasCmdTest(tf.test.TestCase):
@@ -150,11 +149,10 @@ class HasCmdTest(tf.test.TestCase):
   def test_exists(self):
     tempdir = self.create_tempdir()
     tempdir.create_file(file_path='a.cmd')
-    self.assertTrue(module_spec._has_cmd(iter([tempdir.full_path + '/a'])))
+    self.assertTrue(corpus._has_cmd(iter([tempdir.full_path + '/a'])))
 
   def test_not_exists(self):
-    self.assertFalse(
-        module_spec._has_cmd(iter(['this#file$cant:possibly^exist'])))
+    self.assertFalse(corpus._has_cmd(iter(['this#file$cant:possibly^exist'])))
 
 
 class HasThinLTOIndexTest(tf.test.TestCase):
@@ -162,22 +160,23 @@ class HasThinLTOIndexTest(tf.test.TestCase):
   def test_exists(self):
     tempdir = self.create_tempdir()
     tempdir.create_file(file_path='a.thinlto.bc')
-    self.assertTrue(
-        module_spec._has_thinlto_index(iter([tempdir.full_path + '/a'])))
+    self.assertTrue(corpus._has_thinlto_index(iter([tempdir.full_path + '/a'])))
 
   def test_not_exists(self):
     self.assertFalse(
-        module_spec._has_thinlto_index(iter(['this#file$cant:possibly^exist'])))
+        corpus._has_thinlto_index(iter(['this#file$cant:possibly^exist'])))
 
 
 class ModuleSpecTest(tf.test.TestCase):
 
   def test_cmd(self):
-    ms = module_spec.ModuleSpec(
-        ('-cc1', '-fix-all-bugs'), {
+    ms = corpus.ModuleSpec(
+        _exec_cmd=('-cc1', '-fix-all-bugs'),
+        _xopts={
             'policy': ('-mllvm', '-policy={path:s}'),
             'log': ('-log1={path:s}', '-log2={path:s}')
-        }, 'dummy')
+        },
+        name='dummy')
     self.assertEqual(ms.name, 'dummy')
     self.assertEqual(ms.cmd(), ['-cc1', '-fix-all-bugs'])
     self.assertEqual(ms.cmd(policy=None, log=None), ['-cc1', '-fix-all-bugs'])
@@ -205,7 +204,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
     xopts = {'abc': ('123',), 'xyz': ('321',)}
-    ms_list = module_spec.ModuleSpec.get(
+    ms_list = corpus.ModuleSpec._get(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',),
@@ -242,7 +241,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
     xopts = {'abc': ('123',), 'xyz': ('321',)}
-    ms_list = module_spec.ModuleSpec.get(
+    ms_list = corpus.ModuleSpec._get(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',),
