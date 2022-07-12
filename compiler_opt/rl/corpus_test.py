@@ -17,6 +17,7 @@
 
 import tensorflow as tf
 import json
+import os
 
 from compiler_opt.rl import corpus
 
@@ -71,7 +72,7 @@ class CommandParsingTest(tf.test.TestCase):
             cmd_override=cmd_override,
             additional_flags=('-add-bugs',),
             delete_flags=('-fthinlto-index',)),
-        ['-fix-all-bugs', '-x', 'ir', 'hi.bc'])
+        ['-fix-all-bugs', '-x', 'ir', 'hi.bc', '-add-bugs'])
     self.assertEqual(
         corpus._load_and_parse_command(
             None, 'hi.bc', cmd_override=cmd_override),
@@ -130,18 +131,25 @@ class LoadModulePathsTest(tf.test.TestCase):
 
   def test_exists(self):
     data = ['1', '2', '3']
-    module_paths_path = self.create_tempfile(content='\n'.join(data))
-    read_data = corpus._load_module_paths('/abc/', module_paths_path.full_path)
-    self.assertEqual(['/abc/' + p for p in data], read_data)
+    tempdir = self.create_tempdir()
+    tempdir.create_file(file_path='module_paths', content='\n'.join(data))
+    read_data = corpus._load_module_paths(tempdir.full_path)
+    self.assertEqual([os.path.join(tempdir.full_path, p) for p in data],
+                     read_data)
 
   def test_empty(self):
-    module_paths_path = self.create_tempfile()
-    self.assertRaises(ValueError, corpus._load_module_paths, '/abc/',
-                      module_paths_path.full_path)
+    tempdir = self.create_tempdir()
+    tempdir.create_file(file_path='module_paths')
+    self.assertRaises(ValueError, corpus._load_module_paths, tempdir.full_path)
 
-  def test_not_exists(self):
-    self.assertRaises(FileNotFoundError, corpus._load_module_paths, '/abc/',
-                      'this#file$cant:possibly^exist')
+  def test_not_exists_file(self):
+    tempdir = self.create_tempdir()
+    self.assertRaises(FileNotFoundError, corpus._load_module_paths,
+                      tempdir.full_path)
+
+  def test_not_exists_dir(self):
+    self.assertRaises(FileNotFoundError, corpus._load_module_paths,
+                      '/this#path$cant:possibly^exist')
 
 
 class HasCmdTest(tf.test.TestCase):
@@ -171,25 +179,26 @@ class ModuleSpecTest(tf.test.TestCase):
 
   def test_cmd(self):
     ms = corpus.ModuleSpec(
-        _exec_cmd=('-cc1', '-fix-all-bugs'),
-        _xopts={
-            'policy': ('-mllvm', '-policy={path:s}'),
-            'log': ('-log1={path:s}', '-log2={path:s}')
+        exec_cmd=('-cc1', '-fix-all-bugs'),
+        extra_opts={
+            'mllvm': ('-mllvm', '{opt:s}'),
+            'std': ('{opt:s}',)
         },
         name='dummy')
     self.assertEqual(ms.name, 'dummy')
     self.assertEqual(ms.cmd(), ['-cc1', '-fix-all-bugs'])
-    self.assertEqual(ms.cmd(policy=None, log=None), ['-cc1', '-fix-all-bugs'])
+    self.assertEqual(ms.cmd([]), ['-cc1', '-fix-all-bugs'])
     self.assertEqual(
-        ms.cmd(policy={'path': '/abc'}, log=None),
-        ['-cc1', '-fix-all-bugs', '-mllvm', '-policy=/abc'])
+        ms.cmd([('-policy=path',)]), ['-cc1', '-fix-all-bugs', '-policy=path'])
     self.assertEqual(
-        ms.cmd(policy={'path': '/abc'}, log={'path': '/xyz'}), [
-            '-cc1', '-fix-all-bugs', '-mllvm', '-policy=/abc', '-log1=/xyz',
-            '-log2=/xyz'
-        ])
-    self.assertRaises(
-        ValueError, ms.cmd, pollicy={'path': '/abc'}, log={'path': '/xyz'})
+        ms.cmd([('-mllvm', '-policy=path')]),
+        ['-cc1', '-fix-all-bugs', '-mllvm', '-policy=path'])
+    self.assertEqual(
+        ms.cmd([('-mllvm', '-policy=path'), ('-nomllvm',)]),
+        ['-cc1', '-fix-all-bugs', '-mllvm', '-policy=path', '-nomllvm'])
+    self.assertRaises(ValueError, ms.cmd, [('-miivm', '-policy=path')])
+    self.assertRaises(ValueError, ms.cmd,
+                      [('-miivm', '-policy=path', '-extra-opt')])
 
   def test_get(self):
     data = ['1', '2']
@@ -203,25 +212,21 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.thinlto.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
-    xopts = {'abc': ('123',), 'xyz': ('321',)}
-    ms_list = corpus.ModuleSpec._get(
+    ms_list = corpus.read(
         tempdir.full_path,
         additional_flags=('-add',),
-        delete_flags=('-fthinlto-index',),
-        xopts=xopts)
+        delete_flags=('-fthinlto-index',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
     self.assertEqual(ms1.name, tempdir.full_path + '/1')
-    self.assertEqual(ms1._xopts, xopts)
-    self.assertEqual(ms1._exec_cmd,
+    self.assertEqual(ms1.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
     self.assertEqual(ms2.name, tempdir.full_path + '/2')
-    self.assertEqual(ms2._xopts, xopts)
-    self.assertEqual(ms2._exec_cmd,
+    self.assertEqual(ms2.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
@@ -240,28 +245,24 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.thinlto.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
-    xopts = {'abc': ('123',), 'xyz': ('321',)}
-    ms_list = corpus.ModuleSpec._get(
+    ms_list = corpus.read(
         tempdir.full_path,
         additional_flags=('-add',),
-        delete_flags=('-fthinlto-index',),
-        xopts=xopts)
+        delete_flags=('-fthinlto-index',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
     self.assertEqual(ms1.name, tempdir.full_path + '/1')
-    self.assertEqual(ms1._xopts, xopts)
-    self.assertEqual(ms1._exec_cmd,
+    self.assertEqual(ms1.exec_cmd,
                      ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/1.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
-                      '-mllvm', '-thinlto-assume-merged'))
+                      '-mllvm', '-thinlto-assume-merged', '-add'))
 
     self.assertEqual(ms2.name, tempdir.full_path + '/2')
-    self.assertEqual(ms2._xopts, xopts)
-    self.assertEqual(ms2._exec_cmd,
+    self.assertEqual(ms2.exec_cmd,
                      ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
-                      '-mllvm', '-thinlto-assume-merged'))
+                      '-mllvm', '-thinlto-assume-merged', '-add'))
 
 
 if __name__ == '__main__':

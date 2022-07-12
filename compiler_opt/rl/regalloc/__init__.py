@@ -14,13 +14,11 @@
 # limitations under the License.
 """Implementation of the 'regalloc' problem."""
 
-from typing import Tuple, List
 import gin
 
 from compiler_opt.rl import problem_configuration
 from compiler_opt.rl.regalloc import config
 from compiler_opt.rl.regalloc import regalloc_runner
-from compiler_opt.rl.regalloc import regalloc_spec
 
 
 @gin.register(module='configs')
@@ -38,6 +36,3 @@ class RegallocEvictionConfig(problem_configuration.ProblemConfiguration):
 
   def get_nonnormalized_features(self):
     return config.get_nonnormalized_features()
-
-  def get_spec_type(self):
-    return regalloc_spec.RegAllocSpec

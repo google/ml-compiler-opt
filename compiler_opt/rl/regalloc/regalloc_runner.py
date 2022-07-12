@@ -78,12 +78,13 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       if self._launcher_path:
         command_line.append(self._launcher_path)
       command_line.append(self._clang_path)
-      command_line.extend(
-          module_spec.cmd(
-              training_log={'path': log_path},
-              output={'path': output_native_path},
-              tf_policy_path=None
-              if not tf_policy_path else {'path': tf_policy_path}))
+      additional_flags = [('-mllvm', '-regalloc-enable-advisor=development'),
+                          ('-mllvm',
+                           f'-regalloc-training-log={output_native_path}')]
+      if tf_policy_path:
+        additional_flags.append(('-mllvm', f'-regalloc-model={tf_policy_path}'))
+      command_line.extend(module_spec.cmd(additional_flags))
+
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
                                                    cancellation_manager)

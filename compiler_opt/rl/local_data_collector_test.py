@@ -134,7 +134,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     collector = local_data_collector.LocalDataCollector(
         module_specs=[
-            corpus.ModuleSpec(_exec_cmd=('-O2',), _xopts={}, name='dummy')
+            corpus.ModuleSpec(exec_cmd=('-O2',), extra_opts={}, name='dummy')
         ] * 100,
         num_workers=4,
         num_modules=9,
@@ -202,7 +202,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     collector = local_data_collector.LocalDataCollector(
         module_specs=[
-            corpus.ModuleSpec(_exec_cmd=('-O2',), _xopts={}, name='dummy')
+            corpus.ModuleSpec(exec_cmd=('-O2',), extra_opts={}, name='dummy')
         ] * 200,
         num_workers=4,
         num_modules=4,

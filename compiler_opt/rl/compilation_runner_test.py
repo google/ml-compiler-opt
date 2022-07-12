@@ -109,7 +109,7 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
         module_spec=corpus.ModuleSpec(
-            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat=None)
     self.assertEqual(2, mock_compile_fn.call_count)
@@ -141,7 +141,7 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     data = runner.collect_data(
         module_spec=corpus.ModuleSpec(
-            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
         tf_policy_path='',
         reward_stat=None)
     # One call when we ask for the default policy, because it can provide both
@@ -173,7 +173,7 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     data = runner.collect_data(
         module_spec=corpus.ModuleSpec(
-            _exec_cmd=('-O2',), _xopts={}, name='dummy'),
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat={
             'default':
@@ -211,7 +211,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
           module_spec=corpus.ModuleSpec(
-              _exec_cmd=('-O2',), _xopts={}, name='dummy'),
+              exec_cmd=('-O2',), extra_opts={}, name='dummy'),
           tf_policy_path='policy_path',
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)

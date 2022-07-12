@@ -31,6 +31,7 @@ from typing import List
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
@@ -100,9 +101,8 @@ def train_eval(agent_name=constant.AgentName.PPO,
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
   logging.info('Loading module specs from corpus')
-  module_specs = problem_config.get_spec_type().get(FLAGS.data_path,
-                                                 additional_compilation_flags,
-                                                 delete_compilation_flags)
+  module_specs = corpus.read(FLAGS.data_path, additional_compilation_flags,
+                             delete_compilation_flags)
   logging.info('Done loading module specs from corpus')
 
   runner = problem_config.get_runner_type()(

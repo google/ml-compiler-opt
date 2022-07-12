@@ -31,7 +31,7 @@ import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
-from compiler_opt.rl import corpus  # pylint:disable=unused-import
+from compiler_opt.rl import corpus
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -127,7 +127,7 @@ def main(_):
   runner = problem_config.get_runner_type()(moving_average_decay_rate=0)
   assert runner
 
-  module_specs = problem_config.get_spec_type().get(
+  module_specs = corpus.read(
       _DATA_PATH.value,
       delete_flags=('-split-dwarf-file', '-split-dwarf-output',
                     '-fthinlto-index', '-fprofile-sample-use',
