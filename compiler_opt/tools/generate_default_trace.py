@@ -125,6 +125,11 @@ def worker(runner_cls: Type[compilation_runner.CompilationRunner],
       results_queue.put(None)
 
 
+def get_runner():
+  problem_config = registry.get_configuration()
+  return problem_config.get_runner_type()(moving_average_decay_rate=0)
+
+
 def main(_):
 
   gin.parse_config_files_and_bindings(
