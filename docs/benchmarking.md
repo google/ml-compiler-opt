@@ -150,7 +150,7 @@ To generate custom test descriptions for gtest executables (ie the test
 executables that are used by chromium), you can use the `list_gtests.py` script.
 This script doesn't need to be used for running the chromium performance tests
 unless you are interested in adjusting the currently set test descriptions
-availble in `/compiler_opt/benchmark/chromium_test_descriptions` or are
+available in `/compiler_opt/benchmark/chromium_test_descriptions` or are
 interested in using tests from a different project that also uses gtest.
 
 Example:
