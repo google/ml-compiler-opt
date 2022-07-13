@@ -16,7 +16,7 @@
 
 from absl.testing import absltest
 
-from compiler_opt.tools import benchmark_report
+from compiler_opt.benchmark import benchmark_report
 
 base_data = {
     'benchmarks': [
