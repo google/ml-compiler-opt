@@ -14,6 +14,7 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.local_data_collector."""
 
+# pylint: disable=protected-access
 import collections
 
 import string
@@ -181,9 +182,9 @@ class LocalDataCollectorTest(tf.test.TestCase):
           reward_stat_map=collections.defaultdict(lambda: None),
           exit_checker_ctor=QuickExiter)
       collector.collect_data(policy_path='policy')
-      collector.join_pending_jobs()
+      collector._join_pending_jobs()
       killed = 0
-      for _, w in collector.get_last_work():
+      for _, w in collector._current_work:
         self.assertRaises(compilation_runner.ProcessKilledError, w.result)
         killed += 1
       self.assertEqual(killed, 4)

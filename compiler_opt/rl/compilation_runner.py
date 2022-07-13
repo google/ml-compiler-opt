@@ -148,7 +148,8 @@ class WorkerCancellationManager:
     self._lock = threading.Lock()
 
   def enable(self):
-    self._done = False
+    with self._lock:
+      self._done = False
 
   def register_process(self, p: 'subprocess.Popen[bytes]'):
     """Register a process for potential cancellation."""

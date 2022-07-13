@@ -54,26 +54,22 @@ class LocalDataCollector(data_collector.DataCollector):
     # We remove this activity from the critical path by running it concurrently
     # with the training phase - i.e. whatever happens between successive data
     # collection calls.
-    self._pending_work: concurrent.futures.Future = None
+    self._workers_reset: concurrent.futures.Future = None
     self._current_work: List[Tuple[Tuple[str,...], worker.WorkerFuture]] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
-  # for testing
-  def get_last_work(self):
-    return self._current_work
-
   def close_pool(self):
-    self.join_pending_jobs()
+    self._join_pending_jobs()
     for p in self._worker_pool:
       p.cancel_all_work()
     self._worker_pool = None
 
-  def join_pending_jobs(self):
+  def _join_pending_jobs(self):
     t1 = time.time()
-    if self._pending_work:
-      concurrent.futures.wait([self._pending_work])
+    if self._workers_reset:
+      concurrent.futures.wait([self._workers_reset])
 
-    self._pending_work = None
+    self._workers_reset = None
     # this should have taken negligible time, normally, since all the work
     # has been cancelled and the workers had time to process the cancellation
     # while training was unfolding.
@@ -85,7 +81,7 @@ class LocalDataCollector(data_collector.DataCollector):
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
-    self.join_pending_jobs()
+    self._join_pending_jobs()
     jobs = [(file_paths, policy_path,
              self._reward_stat_map['-'.join(file_paths)])
             for file_paths in sampled_file_paths]
@@ -147,7 +143,7 @@ class LocalDataCollector(data_collector.DataCollector):
       worker.wait_for(results)
       worker.wait_for([wkr.enable() for wkr in self._worker_pool])
 
-    self._pending_work = self._pool.submit(wrapup)
+    self._workers_reset = self._pool.submit(wrapup)
 
     sequence_examples = list(
         itertools.chain.from_iterable(
