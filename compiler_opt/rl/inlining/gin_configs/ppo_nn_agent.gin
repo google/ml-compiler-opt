@@ -12,6 +12,7 @@ include 'compiler_opt/rl/inlining/gin_configs/common.gin'
 train_eval.agent_name=%constant.AgentName.PPO
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
+train_eval.num_modules=100
 train_eval.num_iterations=300
 train_eval.batch_size=256
 train_eval.train_sequence_length=16
