@@ -121,7 +121,7 @@ def build_chromium_tests(regalloc_advisor: str,
       for building chromium
     chromium_source_path: The path to the chromium source
     depot_tools_path: The path to the root of your depot tools checkout
-    llvm_build_path: The path to the root of the direcotry where llvm was built
+    llvm_build_path: The path to the root of the directory where llvm was built
     tests_to_build: An array of test targets that are to be built
   """
   chromium_absolute_build_path = os.path.join(chromium_source_path,
