@@ -49,12 +49,12 @@ class LocalDataCollector(data_collector.DataCollector):
     self._worker_pool = worker_pool
     self._reward_stat_map = reward_stat_map
     self._exit_checker_ctor = exit_checker_ctor
-    # pending_work is a future that resolves when post-data collection cleanup
+    # _reset_workers is a future that resolves when post-data collection cleanup
     # work completes, i.e. cancelling all work and re-enabling the workers.
     # We remove this activity from the critical path by running it concurrently
     # with the training phase - i.e. whatever happens between successive data
     # collection calls.
-    self._workers_reset: concurrent.futures.Future = None
+    self._reset_workers: concurrent.futures.Future = None
     self._current_work: List[Tuple[Tuple[str,...], worker.WorkerFuture]] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
@@ -66,10 +66,10 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def _join_pending_jobs(self):
     t1 = time.time()
-    if self._workers_reset:
-      concurrent.futures.wait([self._workers_reset])
+    if self._reset_workers:
+      concurrent.futures.wait([self._reset_workers])
 
-    self._workers_reset = None
+    self._reset_workers = None
     # this should have taken negligible time, normally, since all the work
     # has been cancelled and the workers had time to process the cancellation
     # while training was unfolding.
@@ -143,7 +143,7 @@ class LocalDataCollector(data_collector.DataCollector):
       worker.wait_for(results)
       worker.wait_for([wkr.enable() for wkr in self._worker_pool])
 
-    self._workers_reset = self._pool.submit(wrapup)
+    self._reset_workers = self._pool.submit(wrapup)
 
     sequence_examples = list(
         itertools.chain.from_iterable(
