@@ -21,10 +21,7 @@ virtualenv "${VENV_PATH}" -p python3 --system-site-packages
 source "${VENV_PATH}"/bin/activate
 
 # Download pre-requisite packages.
-pip3 install -r requirements.txt -q
-
-# Get the test harness package.
-pip3 install pytest
+pip3 install -r dev-requirements.txt -q
 
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
 
