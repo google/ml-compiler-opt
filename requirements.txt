@@ -51,4 +51,3 @@ werkzeug==2.0.1
 wheel==0.37.0
 wrapt==1.13.3
 zipp==3.7.0
-joblib==1.1.0
