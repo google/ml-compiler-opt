@@ -19,9 +19,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r dev-requirements.txt
           pip install -r ./compiler_opt/benchmark/requirements.txt
-          pip install pytest pytype==2022.06.06 pylint==2.14.1
           pylint --version
       - name: Type check
         run: |
