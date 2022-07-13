@@ -82,19 +82,14 @@ class InliningRunner(compilation_runner.CompilationRunner):
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] +
-                          compilation_runner.get_command_line_for_bundle(
-                              module_spec.name + '.cmd',
-                              module_spec.name + '.bc',
-                              additional_flags=self._additional_flags,
-                              delete_flags=self._delete_flags) + [
-                                  '-mllvm', '-enable-ml-inliner=development',
-                                  '-mllvm', '-training-log=' +
-                                  log_path, '-o', output_native_path
-                              ])
+      command_line.append(self._clang_path)
+      additional_flags = [('-mllvm', '-enable-ml-inliner=development'),
+                          ('-mllvm', f'-training-log={output_native_path}')]
       if tf_policy_path:
-        command_line.extend(
-            ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
+        additional_flags.append(
+            ('-mllvm', f'-ml-inliner-model-under-training={tf_policy_path}'))
+      command_line.extend(module_spec.cmd(additional_flags))
+
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
                                                    cancellation_manager)

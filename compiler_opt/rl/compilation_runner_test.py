@@ -216,43 +216,6 @@ class CompilationRunnerTest(tf.test.TestCase):
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
 
-  def test_command_line_file(self):
-    data = ['-cc1', '-foo', '-bar=baz']
-    argfile = self.create_tempfile(content='\0'.join(data))
-    self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(argfile.full_path,
-                                                       'my_file.bc'),
-        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
-    self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(argfile.full_path,
-                                                       'my_file.bc',
-                                                       'the_index.bc'),
-        [
-            '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
-            '-fthinlto-index=the_index.bc'
-        ])
-
-  def test_command_line_correction(self):
-    delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
-                                '-fthinlto-index', '-fprofile-sample-use',
-                                '-fprofile-remapping-file')
-    data = [
-        '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
-        '-split-dwarf-output', 'somepath/some.dwo'
-    ]
-    argfile = self.create_tempfile(content='\0'.join(data))
-    self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(
-            argfile.full_path, 'hi.bc', delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc'])
-    self.assertEqual(
-        compilation_runner.get_command_line_for_bundle(
-            argfile.full_path,
-            'hi.bc',
-            'index.bc',
-            delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc', '-fthinlto-index=index.bc'])
-
   def test_start_subprocess_output(self):
     ct = compilation_runner.WorkerCancellationManager()
     output = compilation_runner.start_cancellable_process(

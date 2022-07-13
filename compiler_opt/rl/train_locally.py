@@ -100,20 +100,13 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  with open(
-      os.path.join(FLAGS.data_path, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    module_specs = [
-        corpus.ModuleSpec(
-            name=os.path.join(FLAGS.data_path, name.rstrip('\n')),
-            exec_cmd=(),
-            extra_opts={}) for name in f
-    ]
+  logging.info('Loading module specs from corpus')
+  module_specs = corpus.read(FLAGS.data_path, additional_compilation_flags,
+                             delete_compilation_flags)
+  logging.info('Done loading module specs from corpus')
 
   runner = problem_config.get_runner_type()(
-      moving_average_decay_rate=moving_average_decay_rate,
-      additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags)
+      moving_average_decay_rate=moving_average_decay_rate)
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,

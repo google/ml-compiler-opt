@@ -127,16 +127,11 @@ def main(_):
   runner = problem_config.get_runner_type()(moving_average_decay_rate=0)
   assert runner
 
-  with open(
-      os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    module_specs = [
-        corpus.ModuleSpec(
-            name=os.path.join(_DATA_PATH.value, name.rstrip('\n')),
-            exec_cmd=(),
-            extra_opts={}) for name in f
-    ]
-
+  module_specs = corpus.read(
+      _DATA_PATH.value,
+      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                    '-fthinlto-index', '-fprofile-sample-use',
+                    '-fprofile-remapping-file'))
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
     module_specs = [ms for ms in module_specs if m.match(ms.name)]

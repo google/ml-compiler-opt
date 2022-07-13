@@ -41,8 +41,6 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  # TODO: refactor file_paths parameter to ensure correctness during
-  # construction
   def _compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
       reward_only: bool, cancellation_manager: Optional[
@@ -79,18 +77,14 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend(
-          [self._clang_path] + compilation_runner.get_command_line_for_bundle(
-              module_spec.name + '.cmd', module_spec.name +
-              '.bc', module_spec.name +
-              '.thinlto.bc', self._additional_flags, self._delete_flags) + [
-                  '-mllvm', '-thinlto-assume-merged', '-mllvm',
-                  '-regalloc-enable-advisor=development', '-mllvm',
-                  '-regalloc-training-log=' + log_path, '-o', output_native_path
-              ])
-
+      command_line.append(self._clang_path)
+      additional_flags = [('-mllvm', '-regalloc-enable-advisor=development'),
+                          ('-mllvm',
+                           f'-regalloc-training-log={output_native_path}')]
       if tf_policy_path:
-        command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
+        additional_flags.append(('-mllvm', f'-regalloc-model={tf_policy_path}'))
+      command_line.extend(module_spec.cmd(additional_flags))
+
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
                                                    cancellation_manager)
