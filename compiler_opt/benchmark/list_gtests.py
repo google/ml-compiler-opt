@@ -19,7 +19,7 @@ line breaks or in a JSON format.
 
 Usage:
 PYTHONPATH=$PYTHONPATH:. python3 \
-compiler_opt/tools/list_gtests.py \
+compiler_opt/benchmark/list_gtests.py \
   --gtest_executable=/path/to/executable \
   --output_type=json \
   --output_file=/path/to/output
@@ -37,7 +37,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
-from compiler_opt.tools import gtest_executable_utils
+from compiler_opt.benchmark import gtest_executable_utils
 
 FLAGS = flags.FLAGS
 

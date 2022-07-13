@@ -22,7 +22,7 @@ data to a file of the user's choice.
 
 Usage:
 PYTHONPATH=$PYTHONPATH:. \
-  python3 ./compiler_opt/tools/benchmark_llvm_test_suite.py \
+  python3 ./compiler_opt/benchmark/benchmark_llvm_test_suite.py \
   --advisor=release \
   --model_path=/tmp/model \
   --compile_llvm \
@@ -51,7 +51,7 @@ import json
 from absl import flags
 from absl import app
 
-from compiler_opt.tools import benchmarking_utils
+from compiler_opt.benchmark import benchmarking_utils
 
 default_tests = [
   'harris/harris',

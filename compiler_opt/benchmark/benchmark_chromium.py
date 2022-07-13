@@ -21,7 +21,8 @@ the chromium benchmarks using the correct MLGO model/advisor, and then run
 a specified subset of those tests designed to minimize run to run variability.
 
 Usage:
-PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_chromium.py \
+PYTHONPATH=$PYTHONPATH:. python3 \
+  ./compiler_opt/benchmark/benchmark_chromium.py \
   --compile_tests \
   --advisor=release \
   --chromium_src_path=/chromium/src \
@@ -50,8 +51,8 @@ import json
 from absl import flags
 from absl import app
 
-from compiler_opt.tools import gtest_executable_utils
-from compiler_opt.tools import benchmarking_utils
+from compiler_opt.benchmark import gtest_executable_utils
+from compiler_opt.benchmark import benchmarking_utils
 
 from typing import List, Dict, Union
 

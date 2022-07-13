@@ -16,7 +16,7 @@ r"""Convert benchmark results.json to csv.
 
 To run:
 python3 \
-compiler_opt/tools/benchmark_report_counter.py \
+compiler_opt/benchmark/benchmark_report_counter.py \
   --base=/tmp/base_report.json \
   --exp=/tmp/exp_report.json \
   --counters=INSTRUCTIONS \
@@ -40,7 +40,7 @@ from absl import flags
 
 import tensorflow.compat.v2 as tf
 
-from compiler_opt.tools import benchmark_report
+from compiler_opt.benchmark import benchmark_report
 
 flags.DEFINE_string('suite_name', 'benchmark_suite',
                     'The name of the benchmark suite (for reporting).')

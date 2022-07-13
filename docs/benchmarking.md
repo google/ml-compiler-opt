@@ -40,7 +40,7 @@ automatically configure everything to run a benchmark using the latest released
 regalloc model:
 ```bash
 cd ~/ml-compiler-opt
-PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_llvm_test_suite.py \
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/benchmark/benchmark_llvm_test_suite.py \
   --advisor=release \
   --compile_llvm \
   --compile_testsuite \
@@ -108,7 +108,7 @@ benchmarks based on test description JSON files.
 Example:
 ```bash
 cd ~/ml-compiler-opt
-PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_chromium.py \
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/benchmark/benchmark_chromium.py \
   --advisor=release \
   --chromium_build_path=./out/Release \
   --chromium_src_path=~/chromim/src \
@@ -151,7 +151,7 @@ executables that are used by chromium), you can use the `list_gtests.py` script.
 
 Example:
 ```bash
-PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/list_gtests.py \
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/benchmark/list_gtests.py \
 --gtest_executable=/path/to/executable \
 --output_file=test.json \
 --output_type=json
@@ -173,7 +173,7 @@ of tests), `baseline.json` and `experimental.json` from the llvm test suite
 benchmarking script with the performance counter `INSTRUCTIONS` enabled. You can get 
 a summary comparison with the following command:
 ```bash
-PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/benchmark_report_converter.py \
+PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/benchmark/benchmark_report_converter.py \
 --base=baseline.json \
 --exp=experimental.json \
 --counters=INSTRUCTIONS \
