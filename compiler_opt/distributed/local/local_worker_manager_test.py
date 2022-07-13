@@ -80,7 +80,6 @@ class LocalWorkerManagerTest(absltest.TestCase):
         # worker hosting process will crash.
         pool[0].method().result()
 
-
   def test_worker_crash_while_waiting(self):
 
     class Job(Worker):

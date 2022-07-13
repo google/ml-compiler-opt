@@ -24,6 +24,7 @@ import multiprocessing  # for Pool
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 
 
@@ -32,7 +33,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      file_paths: Tuple[Tuple[str, ...], ...],
+      module_specs: List[corpus.ModuleSpec],
       num_workers: int,
       num_modules: int,
       runner: compilation_runner.CompilationRunner,
@@ -43,7 +44,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._file_paths = file_paths
+    self._module_specs = module_specs
     self._num_modules = num_modules
     self._runner = runner
     self._parser = parser
@@ -79,14 +80,14 @@ class LocalDataCollector(data_collector.DataCollector):
                    time.time() - t1)
     self._last_token = None
 
-  def _schedule_jobs(self, policy_path, sampled_file_paths):
+  def _schedule_jobs(self, policy_path: str,
+                     sampled_modules: List[corpus.ModuleSpec]):
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
     cancellation_token = compilation_runner.ProcessCancellationToken()
-    jobs = [(file_paths, policy_path,
-             self._reward_stat_map['-'.join(file_paths)], cancellation_token)
-            for file_paths in sampled_file_paths]
+    jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name],
+             cancellation_token) for module_spec in sampled_modules]
 
     # Make sure we're not missing failures in workers. All but
     # ProcessKilledError, which we want to ignore.
@@ -116,8 +117,8 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
-    ct, results = self._schedule_jobs(policy_path, sampled_file_paths)
+    sampled_modules = random.sample(self._module_specs, k=self._num_modules)
+    ct, results = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
@@ -131,7 +132,7 @@ class LocalDataCollector(data_collector.DataCollector):
     wait_seconds = wait_for_termination()
     # signal whatever work is left to finish
     ct.signal()
-    current_work = zip(sampled_file_paths, results)
+    current_work = zip(sampled_modules, results)
     finished_work = [(paths, res) for paths, res in current_work if res.ready()]
     successful_work = [
         (paths, res) for paths, res in finished_work if res.successful()
@@ -149,8 +150,8 @@ class LocalDataCollector(data_collector.DataCollector):
     total_trajectory_length = sum(
         res.get().length for (_, res) in successful_work)
     self._reward_stat_map.update({
-        '-'.join(file_paths): res.get().reward_stats
-        for (file_paths, res) in successful_work
+        module_spec.name: res.get().reward_stats
+        for (module_spec, res) in successful_work
     })
 
     monitor_dict = {}

@@ -31,7 +31,7 @@ import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
-from compiler_opt.rl import problem_configuration
+from compiler_opt.rl import corpus
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -70,7 +70,7 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
 
 
 def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
-           work_queue: 'queue.Queue[Tuple[str, ...]]',
+           work_queue: 'queue.Queue[corpus.ModuleSpec]',
            results_queue: 'queue.Queue[Optional[List[str]]]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -91,16 +91,14 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
 
   while True:
     try:
-      module_triple = work_queue.get_nowait()
+      module_spec = work_queue.get_nowait()
     except queue.Empty:
       return
     try:
       data = runner.collect_data(
-          file_paths=module_triple,
-          tf_policy_path=policy_path,
-          reward_stat=None)
+          module_spec=module_spec, tf_policy_path=policy_path, reward_stat=None)
       if not m:
-        results_queue.put((module_triple[0], data.serialized_sequence_examples,
+        results_queue.put((module_spec.name, data.serialized_sequence_examples,
                            data.reward_stats))
         continue
       new_reward_stats = {}
@@ -112,10 +110,10 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
         new_reward_stats[k] = data.reward_stats[k]
         new_sequence_examples.append(sequence_example)
       results_queue.put(
-          (module_triple[0], new_sequence_examples, new_reward_stats))
+          (module_spec.name, new_sequence_examples, new_reward_stats))
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             RuntimeError):
-      logging.error('Failed to compile %s.', module_triple)
+      logging.error('Failed to compile %s.', module_spec.name)
       results_queue.put(None)
 
 
@@ -132,29 +130,29 @@ def main(_):
   with open(
       os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
       encoding='utf-8') as f:
-    module_paths = [
-        os.path.join(_DATA_PATH.value, name.rstrip('\n')) for name in f
+    module_specs = [
+        corpus.ModuleSpec(
+            name=os.path.join(_DATA_PATH.value, name.rstrip('\n')),
+            exec_cmd=(),
+            extra_opts={}) for name in f
     ]
-  is_thinlto = problem_configuration.is_thinlto(module_paths)
-  file_suffix = ('.bc', '.cmd', '.thinlto.bc') if is_thinlto else ('.bc',
-                                                                   '.cmd')
+
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
-    module_paths = [mp for mp in module_paths if m.match(mp)]
+    module_specs = [ms for ms in module_specs if m.match(ms.name)]
 
   # Sampling if needed.
   if _SAMPLING_RATE.value < 1:
-    sampled_modules = int(len(module_paths) * _SAMPLING_RATE.value)
-    module_paths = random.sample(module_paths, k=sampled_modules)
+    sampled_modules = int(len(module_specs) * _SAMPLING_RATE.value)
+    module_specs = random.sample(module_specs, k=sampled_modules)
 
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  sizes_and_paths = [(os.path.getsize(p + '.bc'), p) for p in module_paths]
-  sizes_and_paths.sort(reverse=True)
-  sorted_module_paths = [p for _, p in sizes_and_paths]
-  module_specs = [
-      tuple(p + suffix for suffix in file_suffix) for p in sorted_module_paths
+  sizes_and_specs = [
+      (os.path.getsize(m.name + '.bc'), i) for i, m in enumerate(module_specs)
   ]
+  sizes_and_specs.sort(reverse=True)
+  module_specs = [module_specs[i] for _, i in sizes_and_specs]
 
   worker_count = (
       min(os.cpu_count(), _NUM_WORKERS.value)
@@ -171,8 +169,8 @@ def main(_):
     with performance_context as performance_writer:
       ctx = multiprocessing.get_context()
       m = ctx.Manager()
-      results_queue: ('queue.Queue[ResultsQueueEntry]') = m.Queue()
-      work_queue: 'queue.Queue[Tuple[str, ...]]' = m.Queue()
+      results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
+      work_queue: 'queue.Queue[corpus.ModuleSpec]' = m.Queue()
       for module_spec in module_specs:
         work_queue.put(module_spec)
 

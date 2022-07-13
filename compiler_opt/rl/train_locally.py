@@ -31,11 +31,11 @@ from typing import List
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
@@ -103,15 +103,12 @@ def train_eval(agent_name=constant.AgentName.PPO,
   with open(
       os.path.join(FLAGS.data_path, 'module_paths'), 'r',
       encoding='utf-8') as f:
-    module_paths = [
-        os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
+    module_specs = [
+        corpus.ModuleSpec(
+            name=os.path.join(FLAGS.data_path, name.rstrip('\n')),
+            exec_cmd=(),
+            extra_opts={}) for name in f
     ]
-
-    if not problem_configuration.is_thinlto(module_paths):
-      file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
-    else:
-      file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
-                    for path in module_paths]
 
   runner = problem_config.get_runner_type()(
       moving_average_decay_rate=moving_average_decay_rate,
@@ -146,7 +143,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                  len(reward_stat_map))
 
   data_collector = local_data_collector.LocalDataCollector(
-      file_paths=tuple(file_paths),
+      module_specs=module_specs,
       num_workers=FLAGS.num_workers,
       num_modules=FLAGS.num_modules,
       runner=runner,

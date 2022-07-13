@@ -28,6 +28,7 @@ from google.protobuf import text_format  # pytype: disable=pyi-error
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
@@ -107,7 +108,8 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
-        file_paths=('bc', 'cmd'),
+        module_spec=corpus.ModuleSpec(
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat=None)
     self.assertEqual(2, mock_compile_fn.call_count)
@@ -138,7 +140,10 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        file_paths=('bc', 'cmd'), tf_policy_path='', reward_stat=None)
+        module_spec=corpus.ModuleSpec(
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
+        tf_policy_path='',
+        reward_stat=None)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
     self.assertEqual(1, mock_compile_fn.call_count)
@@ -167,7 +172,8 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        file_paths=('bc', 'cmd'),
+        module_spec=corpus.ModuleSpec(
+            exec_cmd=('-O2',), extra_opts={}, name='dummy'),
         tf_policy_path='policy_path',
         reward_stat={
             'default':
@@ -204,7 +210,8 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
-          file_paths=('bc', 'cmd'),
+          module_spec=corpus.ModuleSpec(
+              exec_cmd=('-O2',), extra_opts={}, name='dummy'),
           tf_policy_path='policy_path',
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)

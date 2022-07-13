@@ -26,6 +26,7 @@ from absl import flags
 import tensorflow as tf
 
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
@@ -331,7 +332,7 @@ class CompilationRunner:
 
   def collect_data(
       self,
-      file_paths: Tuple[str, ...],
+      module_spec: corpus.ModuleSpec,
       tf_policy_path: str,
       reward_stat: Optional[Dict[str, RewardStat]],
       cancellation_token: Optional[ProcessCancellationToken] = None
@@ -339,7 +340,7 @@ class CompilationRunner:
     """Collect data for the given IR file and policy.
 
     Args:
-      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
+      module_spec: a ModuleSpec.
       tf_policy_path: path to the tensorflow policy.
       reward_stat: reward stat of this module, None if unknown.
       cancellation_token: a CancellationToken through which workers may be
@@ -359,7 +360,7 @@ class CompilationRunner:
 
     if reward_stat is None:
       default_result = self._compile_fn(
-          file_paths,
+          module_spec,
           tf_policy_path='',
           reward_only=bool(tf_policy_path),
           cancellation_manager=cancellation_manager)
@@ -369,7 +370,7 @@ class CompilationRunner:
 
     if tf_policy_path:
       policy_result = self._compile_fn(
-          file_paths,
+          module_spec,
           tf_policy_path,
           reward_only=False,
           cancellation_manager=cancellation_manager)
@@ -385,7 +386,7 @@ class CompilationRunner:
       if k not in reward_stat:
         raise ValueError(
             (f'Example {k} does not exist under default policy for '
-             'module {file_paths[0]}'))
+             f'module {module_spec.name}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
@@ -407,13 +408,14 @@ class CompilationRunner:
         keys=keys)
 
   def _compile_fn(
-      self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
+      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      reward_only: bool,
       cancellation_manager: Optional[WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
-      file_paths: path to files needed for compilation.
+      module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
       cancellation_manager: a WorkerCancellationManager to handle early
