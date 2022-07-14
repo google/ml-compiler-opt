@@ -32,6 +32,7 @@ from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
@@ -103,15 +104,14 @@ def train_eval(agent_name=constant.AgentName.PPO,
   with open(
       os.path.join(FLAGS.data_path, 'module_paths'), 'r',
       encoding='utf-8') as f:
-    module_paths = [
-        os.path.join(FLAGS.data_path, name.rstrip('\n')) for name in f
+    lines = f.readlines()
+    has_thinlto = problem_configuration.is_thinlto(
+        [os.path.join(FLAGS.data_path, lines[0].rstrip('\n'))])
+    module_specs = [
+        corpus.ModuleSpec(
+            name=os.path.join(FLAGS.data_path, name.rstrip('\n')),
+            has_thinlto=has_thinlto) for name in lines
     ]
-
-    if not problem_configuration.is_thinlto(module_paths):
-      file_paths = [(path + '.bc', path + '.cmd') for path in module_paths]
-    else:
-      file_paths = [(path + '.bc', path + '.cmd', path + '.thinlto.bc')
-                    for path in module_paths]
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
@@ -147,7 +147,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       additional_flags=additional_compilation_flags,
       delete_flags=delete_compilation_flags) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
-        file_paths=tuple(file_paths),
+        module_specs=module_specs,
         num_modules=num_modules,
         worker_pool=worker_pool,
         parser=sequence_example_iterator_fn,

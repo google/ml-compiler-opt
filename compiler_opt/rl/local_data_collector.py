@@ -25,6 +25,7 @@ from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 
 
@@ -33,7 +34,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      file_paths: Tuple[Tuple[str, ...], ...],
+      module_specs: List[corpus.ModuleSpec],
       num_modules: int,
       worker_pool: List[compilation_runner.CompilationRunnerStub],
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
@@ -43,7 +44,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._file_paths = file_paths
+    self._module_specs = module_specs
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
@@ -55,7 +56,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # with the training phase - i.e. whatever happens between successive data
     # collection calls.
     self._reset_workers: concurrent.futures.Future = None
-    self._current_work: List[Tuple[Tuple[str, ...], worker.WorkerFuture]] = []
+    self._current_work: List[Tuple[corpus.ModuleSpec, worker.WorkerFuture]] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
   def close_pool(self):
@@ -76,15 +77,13 @@ class LocalDataCollector(data_collector.DataCollector):
     logging.info('Waiting for pending work from last iteration took %f',
                  time.time() - t1)
 
-  def _schedule_jobs(
-      self, policy_path, sampled_file_paths
-  ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
+  def _schedule_jobs(self, policy_path: str,
+                     sampled_modules: List[corpus.ModuleSpec]):
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
-    jobs = [(file_paths, policy_path,
-             self._reward_stat_map['-'.join(file_paths)])
-            for file_paths in sampled_file_paths]
+    jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
+            for module_spec in sampled_modules]
 
     # Naive load balancing.
     ret = []
@@ -108,8 +107,8 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_file_paths = random.sample(self._file_paths, k=self._num_modules)
-    results = self._schedule_jobs(policy_path, sampled_file_paths)
+    sampled_modules = random.sample(self._module_specs, k=self._num_modules)
+    results = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
@@ -121,12 +120,12 @@ class LocalDataCollector(data_collector.DataCollector):
       return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
-    self._current_work = list(zip(sampled_file_paths, results))
+    self._current_work = list(zip(sampled_modules, results))
     finished_work = [
-        (paths, res) for paths, res in self._current_work if res.done()
+        (spec, res) for spec, res in self._current_work if res.done()
     ]
-    successful_work = [(paths, res.result())
-                       for paths, res in finished_work
+    successful_work = [(spec, res.result())
+                       for spec, res in finished_work
                        if not worker.get_exception(res)]
     failures = len(finished_work) - len(successful_work)
 
@@ -149,10 +148,8 @@ class LocalDataCollector(data_collector.DataCollector):
         itertools.chain.from_iterable(
             [res.serialized_sequence_examples for (_, res) in successful_work]))
     total_trajectory_length = sum(res.length for (_, res) in successful_work)
-    self._reward_stat_map.update({
-        '-'.join(file_paths): res.reward_stats
-        for (file_paths, res) in successful_work
-    })
+    self._reward_stat_map.update(
+        {spec.name: res.reward_stats for (spec, res) in successful_work})
 
     monitor_dict = {}
     monitor_dict['default'] = {
