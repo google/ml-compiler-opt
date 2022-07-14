@@ -21,7 +21,7 @@ import queue
 import random
 import re
 import subprocess
-from typing import Dict, List, Optional, Tuple  # pylint:disable=unused-import
+from typing import Dict, List, Optional, Tuple, Type  # pylint:disable=unused-import
 
 from absl import app
 from absl import flags
@@ -69,8 +69,8 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
                                    Dict[str, compilation_runner.RewardStat]]]
 
 
-def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
-           work_queue: 'queue.Queue[Tuple[str, ...]]',
+def worker(runner_cls: Type[compilation_runner.CompilationRunner],
+           policy_path: str, work_queue: 'queue.Queue[Tuple[str, ...]]',
            results_queue: 'queue.Queue[Optional[List[str]]]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -87,6 +87,12 @@ def worker(runner: compilation_runner.CompilationRunner, policy_path: str,
     results_queue: the queue where results are deposited.
     key_filter: regex filter for key names to include, or None to include all.
   """
+  runner = runner_cls(
+      moving_average_decay_rate=0,
+      additional_flags=(),
+      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                    '-fthinlto-index', '-fprofile-sample-use',
+                    '-fprofile-remapping-file'))
   m = re.compile(key_filter) if key_filter else None
 
   while True:
@@ -126,12 +132,7 @@ def main(_):
   logging.info(gin.config_str())
 
   problem_config = registry.get_configuration()
-  runner = problem_config.get_runner_type()(
-      moving_average_decay_rate=0,
-      additional_flags=(),
-      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
-                    '-fthinlto-index', '-fprofile-sample-use',
-                    '-fprofile-remapping-file'))
+  runner = problem_config.get_runner_type()
   assert runner
 
   with open(
