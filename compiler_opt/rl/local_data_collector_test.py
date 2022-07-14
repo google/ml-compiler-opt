@@ -132,7 +132,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       # Issue #38
       if sys.version_info.minor >= 9:
         self.assertEqual(monitor_dict,
-                        monitor_dict | expected_monitor_dict_subset)
+                         monitor_dict | expected_monitor_dict_subset)
       else:
         self.assertEqual(monitor_dict, {
             **monitor_dict,
@@ -151,7 +151,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       # Issue #38
       if sys.version_info.minor >= 9:
         self.assertEqual(monitor_dict,
-                        monitor_dict | expected_monitor_dict_subset)
+                         monitor_dict | expected_monitor_dict_subset)
       else:
         self.assertEqual(monitor_dict, {
             **monitor_dict,

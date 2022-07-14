@@ -54,41 +54,38 @@ from absl import app
 from compiler_opt.benchmark import benchmarking_utils
 
 default_tests = [
-  'harris/harris',
-  'SLPVectorization/SLPVectorizationBenchmarks',
-  'MemFunctions/MemFunctions',
-  'LoopVectorization/LoopVectorizationBenchmarks',
-  'LoopInterchange/LoopInterchange',
-  'LCALS/SubsetALambdaLoops/lcalsALambda',
-  'LCALS/SubsetARawLoops/lcalsARaw',
-  'LCALS/SubsetBLambdaLoops/lcalsBLambda',
-  'LCALS/SubsetBRawLoops/lcalsBRaw',
-  'LCALS/SubsetCLambdaLoops/lcalsCLambda',
-  'LCALS/SubsetCRawLoops/lcalsCRaw',
-  'ImageProcessing/AnisotropicDiffusion/AnisotropicDiffusion',
-  'ImageProcessing/BilateralFiltering/BilateralFilter',
-  'ImageProcessing/Blur/blur',
-  'ImageProcessing/Dilate/Dilate',
-  'ImageProcessing/Dither/Dither',
-  'ImageProcessing/Interpolation/Interpolation',
-  'Builtins/Int128/Builtins'
+    'harris/harris', 'SLPVectorization/SLPVectorizationBenchmarks',
+    'MemFunctions/MemFunctions',
+    'LoopVectorization/LoopVectorizationBenchmarks',
+    'LoopInterchange/LoopInterchange', 'LCALS/SubsetALambdaLoops/lcalsALambda',
+    'LCALS/SubsetARawLoops/lcalsARaw', 'LCALS/SubsetBLambdaLoops/lcalsBLambda',
+    'LCALS/SubsetBRawLoops/lcalsBRaw', 'LCALS/SubsetCLambdaLoops/lcalsCLambda',
+    'LCALS/SubsetCRawLoops/lcalsCRaw',
+    'ImageProcessing/AnisotropicDiffusion/AnisotropicDiffusion',
+    'ImageProcessing/BilateralFiltering/BilateralFilter',
+    'ImageProcessing/Blur/blur', 'ImageProcessing/Dilate/Dilate',
+    'ImageProcessing/Dither/Dither',
+    'ImageProcessing/Interpolation/Interpolation', 'Builtins/Int128/Builtins'
 ]
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_enum('advisor', None, ['default', 'release'],
-                  'The regalloc advisor to be used for compiling'
-                  'the test suite')
+flags.DEFINE_enum(
+    'advisor', None, ['default', 'release'],
+    'The regalloc advisor to be used for compiling'
+    'the test suite')
 flags.DEFINE_string('model_path', '',
                     'The path to the regalloc model for testing')
 flags.DEFINE_boolean('compile_llvm', True,
                      'compiles llvm using the specified model path')
-flags.DEFINE_boolean('llvm_use_incremental', True,
-                     'recompile LLVM incrementally rather than doing a whole'
-                     'build')
-flags.DEFINE_boolean('compile_testsuite', True,
-                     'compiles the test suite using the specified advisor and'
-                     'model path')
+flags.DEFINE_boolean(
+    'llvm_use_incremental', True,
+    'recompile LLVM incrementally rather than doing a whole'
+    'build')
+flags.DEFINE_boolean(
+    'compile_testsuite', True,
+    'compiles the test suite using the specified advisor and'
+    'model path')
 flags.DEFINE_string('output_path', None,
                     'The output JSON file containing the test results')
 flags.DEFINE_string('llvm_test_suite_path', '/llvm-test-suite',
@@ -101,21 +98,21 @@ flags.DEFINE_string('llvm_test_suite_build_path', None,
                     'The path to the llvm test suite build')
 flags.DEFINE_string('tensorflow_c_lib_path', '/tmp/tensorflow',
                     'The path to the tensorflow c lib library')
-flags.DEFINE_multi_string('tests_to_run', default_tests,
-                          'Tests compiled with google benchmark to run,'
-                          'with paths from the base of the ./microbenchmarks'
-                          'directory')
-flags.DEFINE_multi_string('perf_counter', [],
-                          'A perf counter to be used (may be defined more than'
-                           'once).')
+flags.DEFINE_multi_string(
+    'tests_to_run', default_tests,
+    'Tests compiled with google benchmark to run,'
+    'with paths from the base of the ./microbenchmarks'
+    'directory')
+flags.DEFINE_multi_string(
+    'perf_counter', [], 'A perf counter to be used (may be defined more than'
+    'once).')
 
 flags.mark_flag_as_required('advisor')
 flags.mark_flag_as_required('output_path')
 
-def build_test_suite(regalloc_advisor: str,
-                     llvm_test_suite_build_path: str,
-                     llvm_build_path: str,
-                     llvm_test_suite_source_path: str):
+
+def build_test_suite(regalloc_advisor: str, llvm_test_suite_build_path: str,
+                     llvm_build_path: str, llvm_test_suite_source_path: str):
   """Builds the LLVM test suite using the specified regalloc advisor
 
   This function just builds the llvm test suite from scratch. The only two
@@ -142,77 +139,69 @@ def build_test_suite(regalloc_advisor: str,
 
   cpp_flags = f'-mllvm -regalloc-enable-advisor={regalloc_advisor}'
 
-  cmake_config_command_stage_1 = ['cmake', '-G', 'Ninja',
-    '-DTEST_SUITE_PROFILE_GENERATE=ON',
-    '-DTEST_SUITE_RUN_TYPE=train',
-    f'-DCMAKE_C_COMPILER={llvm_c_compiler_path}',
-    f'-DCMAKE_CXX_COMPILER={llvm_cxx_compiler_path}',
-    f'-DCMAKE_CXX_FLAGS=\'{cpp_flags}\'',
-    f'-DCMAKE_C_FLAGS=\'{cpp_flags}\'',
-    '-DBENCHMARK_ENABLE_LIBPFM=ON',
-    '-DTEST_SUITE_BENCHMARKING_ONLY=ON',
-    llvm_test_suite_source_path]
+  cmake_config_command_stage_1 = [
+      'cmake', '-G', 'Ninja', '-DTEST_SUITE_PROFILE_GENERATE=ON',
+      '-DTEST_SUITE_RUN_TYPE=train',
+      f'-DCMAKE_C_COMPILER={llvm_c_compiler_path}',
+      f'-DCMAKE_CXX_COMPILER={llvm_cxx_compiler_path}',
+      f'-DCMAKE_CXX_FLAGS=\'{cpp_flags}\'', f'-DCMAKE_C_FLAGS=\'{cpp_flags}\'',
+      '-DBENCHMARK_ENABLE_LIBPFM=ON', '-DTEST_SUITE_BENCHMARKING_ONLY=ON',
+      llvm_test_suite_source_path
+  ]
 
-  with subprocess.Popen(cmake_config_command_stage_1,
-                        cwd=llvm_test_suite_build_path
-                        ) as cmake_stage_1_process:
+  with subprocess.Popen(
+      cmake_config_command_stage_1,
+      cwd=llvm_test_suite_build_path) as cmake_stage_1_process:
     cmake_stage_1_process.wait()
 
   cmake_compile_command = ['cmake', '--build', '.']
-  with subprocess.Popen(cmake_compile_command,
-                        cwd=llvm_test_suite_build_path
-                        ) as cmake_stage_1_build_process:
+  with subprocess.Popen(
+      cmake_compile_command,
+      cwd=llvm_test_suite_build_path) as cmake_stage_1_build_process:
     cmake_stage_1_build_process.wait()
 
   lit_test_runner_command = [f'{llvm_lit_path}', '.']
 
-  with subprocess.Popen(lit_test_runner_command,
-                        cwd=llvm_test_suite_build_path
-                        ) as lit_test_runner_process:
+  with subprocess.Popen(
+      lit_test_runner_command,
+      cwd=llvm_test_suite_build_path) as lit_test_runner_process:
     lit_test_runner_process.wait()
 
-  cmake_config_command_stage_2 = ['cmake', '-G', 'Ninja',
-    '-DTEST_SUITE_PROFILE_GENERATE=OFF',
-    '-DTEST_SUITE_PROFILE_USE=ON',
-    '-DTEST_SUITE_RUN_TYPE=ref',
-    '.']
+  cmake_config_command_stage_2 = [
+      'cmake', '-G', 'Ninja', '-DTEST_SUITE_PROFILE_GENERATE=OFF',
+      '-DTEST_SUITE_PROFILE_USE=ON', '-DTEST_SUITE_RUN_TYPE=ref', '.'
+  ]
 
-  with subprocess.Popen(cmake_config_command_stage_2,
-                        cwd=llvm_test_suite_build_path
-                        ) as cmake_stage_2_process:
+  with subprocess.Popen(
+      cmake_config_command_stage_2,
+      cwd=llvm_test_suite_build_path) as cmake_stage_2_process:
     cmake_stage_2_process.wait()
 
-  with subprocess.Popen(cmake_compile_command,
-                        cwd=llvm_test_suite_build_path
-                        ) as cmake_stage_2_build_process:
+  with subprocess.Popen(
+      cmake_compile_command,
+      cwd=llvm_test_suite_build_path) as cmake_stage_2_build_process:
     cmake_stage_2_build_process.wait()
+
 
 def main(_):
   if FLAGS.llvm_test_suite_build_path is None:
     FLAGS.llvm_test_suite_build_path = os.path.join(FLAGS.llvm_test_suite_path,
                                                     './build')
   if FLAGS.compile_llvm:
-    benchmarking_utils.build_llvm(FLAGS.model_path,
-                                  FLAGS.llvm_use_incremental,
-                                  FLAGS.llvm_build_path,
-                                  FLAGS.llvm_source_path,
+    benchmarking_utils.build_llvm(FLAGS.model_path, FLAGS.llvm_use_incremental,
+                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path,
                                   FLAGS.tensorflow_c_lib_path)
   if FLAGS.compile_testsuite:
-    build_test_suite(FLAGS.advisor,
-                     FLAGS.llvm_test_suite_build_path,
-                     FLAGS.llvm_build_path,
-                     FLAGS.llvm_test_suite_path)
+    build_test_suite(FLAGS.advisor, FLAGS.llvm_test_suite_build_path,
+                     FLAGS.llvm_build_path, FLAGS.llvm_test_suite_path)
   completed_benchmarks = []
   for test in FLAGS.tests_to_run:
     test_path = os.path.join(FLAGS.llvm_test_suite_build_path,
                              './MicroBenchmarks/' + test)
-    completed_benchmarks.extend(benchmarking_utils.run_microbenchmark(
-      test_path,
-      FLAGS.perf_counter))
+    completed_benchmarks.extend(
+        benchmarking_utils.run_microbenchmark(test_path, FLAGS.perf_counter))
   with open(FLAGS.output_path, 'w', encoding='UTF-8') as output_file:
-    json_to_write = {
-      'benchmarks': completed_benchmarks
-    }
+    json_to_write = {'benchmarks': completed_benchmarks}
     output_file.write(json.dumps(json_to_write, indent=4))
 
 

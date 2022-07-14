@@ -59,15 +59,16 @@ from typing import List, Dict, Union
 FLAGS = flags.FLAGS
 
 default_test_descriptions = [
-  './compiler_opt/tools/chromium_test_descriptions/base_perftests.json',
-  './compiler_opt/tools/chromium_test_descriptions/browser_tests.json',
-  './compiler_opt/tools/chromium_test_descriptions/components_perftests.json'
+    './compiler_opt/tools/chromium_test_descriptions/base_perftests.json',
+    './compiler_opt/tools/chromium_test_descriptions/browser_tests.json',
+    './compiler_opt/tools/chromium_test_descriptions/components_perftests.json'
 ]
 
-flags.DEFINE_multi_string('test_description', default_test_descriptions,
-                          '(Can be defined multiple times) A path to a test'
-                          'description JSON file containing the test executable'
-                          'and the tests to run')
+flags.DEFINE_multi_string(
+    'test_description', default_test_descriptions,
+    '(Can be defined multiple times) A path to a test'
+    'description JSON file containing the test executable'
+    'and the tests to run')
 flags.DEFINE_boolean('compile_tests', True,
                      'Whether or not to compile the tests from scratch')
 flags.DEFINE_enum('advisor', None, ['release', 'default'],
@@ -80,34 +81,35 @@ flags.DEFINE_string('llvm_build_path', '/llvm-build',
                     'The path to your llvm build')
 flags.DEFINE_boolean('compile_llvm', True,
                      'whether or not to compile llvm using the new model')
-flags.DEFINE_boolean('llvm_use_incremental', True,
-                     'whether or not to use an incremental build while'
-                     'compiling llvm')
+flags.DEFINE_boolean(
+    'llvm_use_incremental', True,
+    'whether or not to use an incremental build while'
+    'compiling llvm')
 flags.DEFINE_string('llvm_source_path', '/llvm-project',
                     'The root path of your local llvm-project checkout')
 flags.DEFINE_string('model_path', '',
                     'The path to the model to use when compiling llvm')
-flags.DEFINE_string('tensorflow_c_lib_path', '/tmp/tensorflow',
-                    'The path to an extracted copy of the tensorflow c library')
-flags.DEFINE_string('chromium_build_path', './out/Release',
-                    'The chromium build path, relative to the chromium source'
-                    'directory')
+flags.DEFINE_string(
+    'tensorflow_c_lib_path', '/tmp/tensorflow',
+    'The path to an extracted copy of the tensorflow c library')
+flags.DEFINE_string(
+    'chromium_build_path', './out/Release',
+    'The chromium build path, relative to the chromium source'
+    'directory')
 flags.DEFINE_string('output_file', 'output.json',
                     'The path to the output file (in JSON format)')
-flags.DEFINE_integer('num_threads', 1,
-                     'The number of threads to use when running benchmarks.'
-                     'Should be used with caution')
-flags.DEFINE_multi_string('perf_counters',
-                          ['mem_uops_retired.all_loads',
-                          'mem_uops_retired.all_stores'],
-                          'The performance counters to use')
+flags.DEFINE_integer(
+    'num_threads', 1, 'The number of threads to use when running benchmarks.'
+    'Should be used with caution')
+flags.DEFINE_multi_string(
+    'perf_counters',
+    ['mem_uops_retired.all_loads', 'mem_uops_retired.all_stores'],
+    'The performance counters to use')
 
-def build_chromium_tests(regalloc_advisor: str,
-                         chromium_build_path: str,
-                         chromium_source_path: str,
-                         depot_tools_path: str,
-                         llvm_build_path: str,
-                         tests_to_build: List[str]):
+
+def build_chromium_tests(regalloc_advisor: str, chromium_build_path: str,
+                         chromium_source_path: str, depot_tools_path: str,
+                         llvm_build_path: str, tests_to_build: List[str]):
   """Builds the chromium test suite
 
   This function will build the specified chromium tests using the specified
@@ -139,16 +141,11 @@ def build_chromium_tests(regalloc_advisor: str,
     f'-mllvm -regalloc-enable-advisor={regalloc_advisor}'
 
   gn_args = [
-    'is_official_build=true',
-    'use_thin_lto=false',
-    'is_cfi=false',
-    'use_cfi_icall=false',
-    'use_cfi_cast=false',
-    'clang_use_chrome_plugins=false',
-    'is_debug=false',
-    'symbol_level=0',
-    'custom_toolchain=\\\"//build/toolchain/linux/unbundle:default\\\"',
-    'host_toolchain=\\\"//build/toolchain/linux/unbundle:default\\\"'
+      'is_official_build=true', 'use_thin_lto=false', 'is_cfi=false',
+      'use_cfi_icall=false', 'use_cfi_cast=false',
+      'clang_use_chrome_plugins=false', 'is_debug=false', 'symbol_level=0',
+      'custom_toolchain=\\\"//build/toolchain/linux/unbundle:default\\\"',
+      'host_toolchain=\\\"//build/toolchain/linux/unbundle:default\\\"'
   ]
 
   gn_args_string = '--args="'
@@ -157,22 +154,23 @@ def build_chromium_tests(regalloc_advisor: str,
   gn_args_string += '"'
 
   gn_config_command = 'gn gen ' + chromium_build_path + ' ' + gn_args_string
-  with subprocess.Popen(gn_config_command,
-                        env=new_environment,
-                        cwd=chromium_source_path,
-                        shell=True) as gn_config_process:
+  with subprocess.Popen(
+      gn_config_command,
+      env=new_environment,
+      cwd=chromium_source_path,
+      shell=True) as gn_config_process:
     gn_config_process.wait()
 
   ninja_compile_command = ['autoninja', '-C', chromium_build_path]
   ninja_compile_command.extend(tests_to_build)
-  with subprocess.Popen(ninja_compile_command,
-                        env=new_environment,
-                        cwd=chromium_source_path) as ninja_compile_process:
+  with subprocess.Popen(
+      ninja_compile_command, env=new_environment,
+      cwd=chromium_source_path) as ninja_compile_process:
     ninja_compile_process.wait()
 
-def run_tests(tests_to_run: List[Dict[str,Union[str, List[str]]]],
-              chromium_absolute_build_path: str,
-              num_threads: int,
+
+def run_tests(tests_to_run: List[Dict[str, Union[str, List[str]]]],
+              chromium_absolute_build_path: str, num_threads: int,
               perf_counters: List[str]):
   """A utility to run a set of chromium tests
 
@@ -194,11 +192,11 @@ def run_tests(tests_to_run: List[Dict[str,Union[str, List[str]]]],
   for test in tests_to_run:
     executable_path = os.path.join(chromium_absolute_build_path,
                                    test['executable'])
-    test_data.extend(gtest_executable_utils.run_test_suite(test,
-                                                           executable_path,
-                                                           perf_counters,
-                                                           num_threads))
+    test_data.extend(
+        gtest_executable_utils.run_test_suite(test, executable_path,
+                                              perf_counters, num_threads))
   return test_data
+
 
 def main(_):
   test_descriptions = []
@@ -211,32 +209,24 @@ def main(_):
     test_executables.append(test_description['executable'])
 
   if FLAGS.compile_llvm:
-    benchmarking_utils.build_llvm(FLAGS.model_path,
-                                  FLAGS.llvm_use_incremental,
-                                  FLAGS.llvm_build_path,
-                                  FLAGS.llvm_source_path,
+    benchmarking_utils.build_llvm(FLAGS.model_path, FLAGS.llvm_use_incremental,
+                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path,
                                   FLAGS.tensorflow_c_lib_path)
 
   if FLAGS.compile_tests:
-    build_chromium_tests(FLAGS.advisor,
-                         FLAGS.chromium_build_path,
-                         FLAGS.chromium_src_path,
-                         FLAGS.depot_tools_path,
-                         FLAGS.llvm_build_path,
-                         test_executables)
+    build_chromium_tests(FLAGS.advisor, FLAGS.chromium_build_path,
+                         FLAGS.chromium_src_path, FLAGS.depot_tools_path,
+                         FLAGS.llvm_build_path, test_executables)
 
   chromium_absolute_build_path = os.path.join(FLAGS.chromium_src_path,
                                               FLAGS.chromium_build_path)
-  test_data = run_tests(test_descriptions,
-                        chromium_absolute_build_path,
-                        FLAGS.num_threads,
-                        FLAGS.perf_counters)
+  test_data = run_tests(test_descriptions, chromium_absolute_build_path,
+                        FLAGS.num_threads, FLAGS.perf_counters)
 
   with open(FLAGS.output_file, 'w', encoding='UTF-8') as output_file:
-    output_data = {
-      'benchmarks': test_data
-    }
+    output_data = {'benchmarks': test_data}
     output_file.write(json.dumps(output_data, indent=4))
+
 
 if __name__ == '__main__':
   app.run(main)

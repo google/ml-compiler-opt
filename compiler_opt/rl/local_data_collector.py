@@ -55,7 +55,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # with the training phase - i.e. whatever happens between successive data
     # collection calls.
     self._reset_workers: concurrent.futures.Future = None
-    self._current_work: List[Tuple[Tuple[str,...], worker.WorkerFuture]] = []
+    self._current_work: List[Tuple[Tuple[str, ...], worker.WorkerFuture]] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
   def close_pool(self):

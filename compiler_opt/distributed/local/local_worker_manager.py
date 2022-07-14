@@ -127,9 +127,11 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
       # thread drainig the receive queue
       self._pump = threading.Thread(target=self._msg_pump)
+
       def observer():
         self._process.join()
         self._receive.put(None)
+
       self._observer = threading.Thread(target=observer)
 
       # atomic control to _msgid
