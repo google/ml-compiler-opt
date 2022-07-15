@@ -21,6 +21,7 @@ import re
 from joblib import Parallel, delayed
 from typing import Tuple, List, Optional, Dict
 
+
 def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
   """Runs a specific test
 
@@ -38,12 +39,13 @@ def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
   for perf_counter in perf_counters:
     command_vector.extend(['-e', perf_counter])
   command_vector.extend([test_executable, f'--gtest_filter={test_name}'])
-  with subprocess.Popen(command_vector,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE) as process:
+  with subprocess.Popen(
+      command_vector, stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE) as process:
     err = process.communicate()[1]
     # all of the output from perf stat is on STDERR
     return err.decode('UTF-8')
+
 
 def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
   """Parses raw output from perf stat
@@ -61,10 +63,11 @@ def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
   for line in perf_stat_output.split('\n'):
     for perf_counter in perf_counters:
       if perf_counter in line:
-        count_string = re.findall(r'^\s*\d*', line)[0].replace(' ','')
+        count_string = re.findall(r'^\s*\d*', line)[0].replace(' ', '')
         count = int(count_string)
         counters_dict[perf_counter] = count
   return counters_dict
+
 
 def run_and_parse(test_description: Tuple[str, str, List[str]]):
   """Runs a test and processes the output of an individual test
@@ -82,10 +85,10 @@ def run_and_parse(test_description: Tuple[str, str, List[str]]):
   print(f'Finished running test {test_name}', file=sys.stderr)
   return (test_name, parse_perf_stat_output(test_output, performance_counters))
 
+
 def run_test_suite(test_suite_description: Dict[str, List[str]],
-                  test_executable: str,
-                  perf_counters: List[str],
-                  num_threads: Optional[int]):
+                   test_executable: str, perf_counters: List[str],
+                   num_threads: Optional[int]):
   """Runs an entire test suite
 
   This function takes in a test set description in the form of a path to a JSON
@@ -114,19 +117,17 @@ def run_test_suite(test_suite_description: Dict[str, List[str]],
     test_descriptions.append((test_executable, test, perf_counters))
 
   test_data_output = Parallel(n_jobs=num_threads)(
-    delayed(run_and_parse)(test_description)
-    for test_description in test_descriptions)
+      delayed(run_and_parse)(test_description)
+      for test_description in test_descriptions)
 
   formatted_test_data = []
   for test_instance in test_data_output:
-    test_info = {
-      'name': test_instance[0],
-      'iterations': 1
-    }
+    test_info = {'name': test_instance[0], 'iterations': 1}
     test_info.update(test_instance[1])
     formatted_test_data.append(test_info)
 
   return formatted_test_data
+
 
 def get_gtest_testlist_raw(path_to_executable: str):
   """Gets raw output of a gtest executable's test list
@@ -140,11 +141,12 @@ def get_gtest_testlist_raw(path_to_executable: str):
       is desired
   """
   command_vector = [path_to_executable, '--gtest_list_tests']
-  with subprocess.Popen(command_vector,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE) as process:
+  with subprocess.Popen(
+      command_vector, stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE) as process:
     out = process.communicate()[0]
     return out.decode('UTF-8')
+
 
 def parse_gtest_tests(gtest_output_raw: str):
   """Parses gtest test list output into a Python list
@@ -175,7 +177,7 @@ def parse_gtest_tests(gtest_output_raw: str):
       current_index += 1
       continue
     # get the test name
-    test_match = re.findall(r'^\s*\S*', current_string)[0].replace(' ','')
+    test_match = re.findall(r'^\s*\S*', current_string)[0].replace(' ', '')
     if test_match[len(test_match) - 1] == '.':
       # We've found a new prefix
       current_test_prefix = test_match

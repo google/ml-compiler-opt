@@ -23,9 +23,8 @@ import json
 
 from typing import Optional, List
 
-def build_llvm(model_path: str,
-               use_existing_build: bool,
-               llvm_build_path: str,
+
+def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
                llvm_source_path: Optional[str],
                tensorflow_c_lib_path: Optional[str]):
   """Builds LLVM/clang with the specified model and the correct settings
@@ -51,31 +50,32 @@ def build_llvm(model_path: str,
   if not os.path.exists(llvm_build_path):
     os.makedirs(llvm_build_path)
 
-  cmake_config_command = ["cmake", "-G", "Ninja",
-    f"-DLLVM_RAEVICT_MODEL_PATH={model_path}"]
+  cmake_config_command = [
+      "cmake", "-G", "Ninja", f"-DLLVM_RAEVICT_MODEL_PATH={model_path}"
+  ]
 
   if use_existing_build:
     cmake_config_command.append(".")
   else:
     tensorflow_aot_path = os.path.dirname(tensorflow.__file__)
     cmake_config_command.extend([
-      "-DCMAKE_BUILD_TYPE=Release",
-      f"-DTENSORFLOW_C_LIB_PATH={tensorflow_c_lib_path}",
-      f"-DTENSORFLOW_AOT_PATH='{tensorflow_aot_path}'",
-      "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON",
-      "-DLLVM_ENABLE_PROJECTS='clang;lld'",
-      "-DLLVM_ENABLE_RUNTIMES='compiler-rt'",
-      f"{llvm_source_path}"
+        "-DCMAKE_BUILD_TYPE=Release",
+        f"-DTENSORFLOW_C_LIB_PATH={tensorflow_c_lib_path}",
+        f"-DTENSORFLOW_AOT_PATH='{tensorflow_aot_path}'",
+        "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON",
+        "-DLLVM_ENABLE_PROJECTS='clang;lld'",
+        "-DLLVM_ENABLE_RUNTIMES='compiler-rt'", f"{llvm_source_path}"
     ])
 
-  with subprocess.Popen(cmake_config_command,
-                        cwd=llvm_build_path) as cmake_config_process:
+  with subprocess.Popen(
+      cmake_config_command, cwd=llvm_build_path) as cmake_config_process:
     cmake_config_process.wait()
 
   cmake_compile_command = ["cmake", "--build", "."]
-  with subprocess.Popen(cmake_compile_command,
-                        cwd=llvm_build_path) as cmake_compile_process:
+  with subprocess.Popen(
+      cmake_compile_command, cwd=llvm_build_path) as cmake_compile_process:
     cmake_compile_process.wait()
+
 
 def run_microbenchmark(executable: str, perf_counters: List[str]):
   """Runs all the tests in a specific google benchmark binary
@@ -93,15 +93,13 @@ def run_microbenchmark(executable: str, perf_counters: List[str]):
     perf_counters_string = perf_counters_string + perf_counter + ","
   perf_counters_string = perf_counters_string[:-1]
   test_runner_command = [
-    executable,
-    "--benchmark_out_format=console",
-    "--benchmark_out=/dev/stderr",
-    "--benchmark_format=json",
-    f"--benchmark_perf_counters={perf_counters_string}"
+      executable, "--benchmark_out_format=console",
+      "--benchmark_out=/dev/stderr", "--benchmark_format=json",
+      f"--benchmark_perf_counters={perf_counters_string}"
   ]
 
-  with subprocess.Popen(test_runner_command,
-                        stdout=subprocess.PIPE) as test_runner_process:
+  with subprocess.Popen(
+      test_runner_command, stdout=subprocess.PIPE) as test_runner_process:
     out = test_runner_process.communicate()[0]
 
     out_json = json.loads(out)
