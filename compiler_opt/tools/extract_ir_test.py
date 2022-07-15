@@ -15,6 +15,7 @@
 """Tests for compiler_opt.tools.extract_ir."""
 
 # pylint: disable=protected-access
+import os.path
 
 from absl.testing import absltest
 
@@ -112,6 +113,63 @@ class ExtractIrTest(absltest.TestCase):
     self.assertEqual(obj[0].thinlto_index_file(),
                      '/tmp/out/lib/obj1.o.thinlto.bc')
     self.assertEqual(obj[1].input_obj(), '/some/path/lib/dir/obj2.o')
+
+  def test_lld_thinlto_discovery(self):
+    tempdir = self.create_tempdir()
+    tempdir.create_file(file_path='1.3.import.bc')
+    tempdir.create_file(file_path='2.3.import.bc')
+    tempdir.create_file(file_path='3.3.import.bc')
+    tempdir.create_file(file_path='1.thinlto.bc')
+    tempdir.create_file(file_path='2.thinlto.bc')
+    tempdir.create_file(file_path='3.thinlto.bc')
+    outdir = self.create_tempdir()
+    obj = extract_ir.load_for_lld_thinlto(tempdir.full_path, outdir.full_path)
+    self.assertLen(obj, 3)
+    for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
+      self.assertEqual(o._obj_relative_path, f'{i + 1:d}')
+      self.assertEqual(o._obj_base_dir, tempdir.full_path)
+      self.assertEqual(o._output_base_dir, outdir.full_path)
+
+  def test_lld_thinlto_discovery_nested(self):
+    outer = self.create_tempdir()
+    tempdir = outer.mkdir(dir_path='nest')
+    tempdir.create_file(file_path='1.3.import.bc')
+    tempdir.create_file(file_path='2.3.import.bc')
+    tempdir.create_file(file_path='3.3.import.bc')
+    tempdir.create_file(file_path='1.thinlto.bc')
+    tempdir.create_file(file_path='2.thinlto.bc')
+    tempdir.create_file(file_path='3.thinlto.bc')
+    outdir = self.create_tempdir()
+    obj = extract_ir.load_for_lld_thinlto(outer.full_path, outdir.full_path)
+    self.assertLen(obj, 3)
+    for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
+      self.assertEqual(o._obj_relative_path, f'nest/{i + 1:d}')
+      self.assertEqual(o._obj_base_dir, outer.full_path)
+      self.assertEqual(o._output_base_dir, outdir.full_path)
+
+  def test_lld_thinlto_extraction(self):
+    outer = self.create_tempdir()
+    tempdir = outer.mkdir(dir_path='nest')
+    tempdir.create_file(file_path='1.3.import.bc')
+    tempdir.create_file(file_path='2.3.import.bc')
+    tempdir.create_file(file_path='3.3.import.bc')
+    tempdir.create_file(file_path='1.thinlto.bc')
+    tempdir.create_file(file_path='2.thinlto.bc')
+    tempdir.create_file(file_path='3.thinlto.bc')
+    outdir = self.create_tempdir()
+    obj = extract_ir.load_for_lld_thinlto(outer.full_path, outdir.full_path)
+    for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
+      mod_path = o.extract(thinlto_build='lld')
+      self.assertEqual(mod_path, f'nest/{i + 1:d}')
+    self.assertTrue(os.path.exists(os.path.join(outdir.full_path, 'nest/1.bc')))
+    self.assertTrue(os.path.exists(os.path.join(outdir.full_path, 'nest/2.bc')))
+    self.assertTrue(os.path.exists(os.path.join(outdir.full_path, 'nest/3.bc')))
+    self.assertTrue(
+        os.path.exists(os.path.join(outdir.full_path, 'nest/1.thinlto.bc')))
+    self.assertTrue(
+        os.path.exists(os.path.join(outdir.full_path, 'nest/2.thinlto.bc')))
+    self.assertTrue(
+        os.path.exists(os.path.join(outdir.full_path, 'nest/3.thinlto.bc')))
 
   def test_filtering(self):
     cmdline = '-cc1\0x/y/foobar.cpp\0-Oz\0-Ifoo\0-o\0bin/out.o'
