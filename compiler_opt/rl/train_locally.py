@@ -48,8 +48,6 @@ flags.DEFINE_string('data_path', None,
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
-flags.DEFINE_integer('num_modules', 100,
-                     'Number of modules to collect data for each iteration.')
 flags.DEFINE_multi_string('gin_files', [],
                           'List of paths to gin configuration files.')
 flags.DEFINE_multi_string(
@@ -63,6 +61,7 @@ FLAGS = flags.FLAGS
 def train_eval(agent_name=constant.AgentName.PPO,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
+               num_modules=100,
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1,
@@ -149,7 +148,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       delete_flags=delete_compilation_flags) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
         file_paths=tuple(file_paths),
-        num_modules=FLAGS.num_modules,
+        num_modules=num_modules,
         worker_pool=worker_pool,
         parser=sequence_example_iterator_fn,
         reward_stat_map=reward_stat_map)
