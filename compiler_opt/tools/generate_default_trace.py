@@ -21,7 +21,7 @@ import queue
 import random
 import re
 import subprocess
-from typing import Dict, List, Optional, Tuple, Type  # pylint:disable=unused-import
+from typing import Dict, List, Optional, Union, Tuple  # pylint:disable=unused-import
 
 from absl import app
 from absl import flags
@@ -66,8 +66,10 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
 
-ResultsQueueEntry = Optional[Tuple[str, List[str],
-                                   Dict[str, compilation_runner.RewardStat]]]
+ResultsQueueEntry = Union[Optional[Tuple[str, List[str],
+                                         Dict[str,
+                                              compilation_runner.RewardStat]]],
+                          BaseException]
 
 
 def get_runner() -> compilation_runner.CompilationRunner:
@@ -81,7 +83,7 @@ def get_runner() -> compilation_runner.CompilationRunner:
 
 
 def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
-           results_queue: 'queue.Queue[Optional[List[str]]]',
+           results_queue: 'queue.Queue[ResultsQueueEntry]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
 
@@ -97,35 +99,41 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
     results_queue: the queue where results are deposited.
     key_filter: regex filter for key names to include, or None to include all.
   """
-  runner = get_runner()
-  m = re.compile(key_filter) if key_filter else None
+  try:
+    runner = get_runner()
+    m = re.compile(key_filter) if key_filter else None
 
-  while True:
-    try:
-      module_spec = work_queue.get_nowait()
-    except queue.Empty:
-      return
-    try:
-      data = runner.collect_data(
-          module_spec=module_spec, tf_policy_path=policy_path, reward_stat=None)
-      if not m:
-        results_queue.put((module_spec.name, data.serialized_sequence_examples,
-                           data.reward_stats))
-        continue
-      new_reward_stats = {}
-      new_sequence_examples = []
-      for k, sequence_example in zip(data.keys,
-                                     data.serialized_sequence_examples):
-        if not m.match(k):
+    while True:
+      try:
+        module_spec = work_queue.get_nowait()
+      except queue.Empty:
+        return
+      try:
+        data = runner.collect_data(
+            module_spec=module_spec,
+            tf_policy_path=policy_path,
+            reward_stat=None)
+        if not m:
+          results_queue.put(
+              (module_spec.name, data.serialized_sequence_examples,
+               data.reward_stats))
           continue
-        new_reward_stats[k] = data.reward_stats[k]
-        new_sequence_examples.append(sequence_example)
-      results_queue.put(
-          (module_spec.name, new_sequence_examples, new_reward_stats))
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
-            RuntimeError):
-      logging.error('Failed to compile %s.', module_spec.name)
-      results_queue.put(None)
+        new_reward_stats = {}
+        new_sequence_examples = []
+        for k, sequence_example in zip(data.keys,
+                                      data.serialized_sequence_examples):
+          if not m.match(k):
+            continue
+          new_reward_stats[k] = data.reward_stats[k]
+          new_sequence_examples.append(sequence_example)
+        results_queue.put(
+            (module_spec.name, new_sequence_examples, new_reward_stats))
+      except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+              RuntimeError):
+        logging.error('Failed to compile %s.', module_spec.name)
+        results_queue.put(None)
+  except BaseException as e:  # pylint: disable=broad-except
+    results_queue.put(e)
 
 
 def main(_):
@@ -206,6 +214,8 @@ def main(_):
                                     total_failed_examples, total_work)
 
         results = results_queue.get()
+        if isinstance(results, BaseException):
+          logging.fatal(results)
         if not results:
           total_failed_examples += 1
           continue
