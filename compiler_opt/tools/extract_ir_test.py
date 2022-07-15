@@ -16,9 +16,12 @@
 
 # pylint: disable=protected-access
 
+from absl import flags
 from absl.testing import absltest
 
 from compiler_opt.tools import extract_ir
+
+flags.FLAGS['num_workers'].allow_override = True
 
 
 class ExtractIrTest(absltest.TestCase):

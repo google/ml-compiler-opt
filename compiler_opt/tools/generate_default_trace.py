@@ -27,8 +27,8 @@ from absl import app
 from absl import flags
 from absl import logging
 import gin
+import multiprocessing
 import tensorflow as tf
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import problem_configuration
@@ -69,8 +69,17 @@ ResultsQueueEntry = Optional[Tuple[str, List[str],
                                    Dict[str, compilation_runner.RewardStat]]]
 
 
-def worker(runner_cls: Type[compilation_runner.CompilationRunner],
-           policy_path: str, work_queue: 'queue.Queue[Tuple[str, ...]]',
+def get_runner() -> compilation_runner.CompilationRunner:
+  problem_config = registry.get_configuration()
+  return problem_config.get_runner_type()(
+      moving_average_decay_rate=0,
+      additional_flags=(),
+      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                    '-fthinlto-index', '-fprofile-sample-use',
+                    '-fprofile-remapping-file'))
+
+
+def worker(policy_path: str, work_queue: 'queue.Queue[Tuple[str, ...]]',
            results_queue: 'queue.Queue[Optional[List[str]]]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -87,12 +96,7 @@ def worker(runner_cls: Type[compilation_runner.CompilationRunner],
     results_queue: the queue where results are deposited.
     key_filter: regex filter for key names to include, or None to include all.
   """
-  runner = runner_cls(
-      moving_average_decay_rate=0,
-      additional_flags=(),
-      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
-                    '-fthinlto-index', '-fprofile-sample-use',
-                    '-fprofile-remapping-file'))
+  runner = get_runner()
   m = re.compile(key_filter) if key_filter else None
 
   while True:
@@ -130,10 +134,6 @@ def main(_):
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
-
-  problem_config = registry.get_configuration()
-  runner = problem_config.get_runner_type()
-  assert runner
 
   with open(
       os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
@@ -185,9 +185,9 @@ def main(_):
       # pylint:disable=g-complex-comprehension
       processes = [
           ctx.Process(
-              target=functools.partial(
-                  worker, runner, _POLICY_PATH.value, work_queue, results_queue,
-                  _KEY_FILTER.value)) for _ in range(0, worker_count)
+              target=functools.partial(worker, _POLICY_PATH.value, work_queue,
+                                       results_queue, _KEY_FILTER.value))
+          for _ in range(0, worker_count)
       ]
       # pylint:enable=g-complex-comprehension
 
@@ -230,4 +230,4 @@ def main(_):
 
 if __name__ == '__main__':
   flags.mark_flag_as_required('data_path')
-  multiprocessing.handle_main(functools.partial(app.run, main))
+  app.run(main)
