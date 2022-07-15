@@ -121,7 +121,7 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
         new_reward_stats = {}
         new_sequence_examples = []
         for k, sequence_example in zip(data.keys,
-                                      data.serialized_sequence_examples):
+                                       data.serialized_sequence_examples):
           if not m.match(k):
             continue
           new_reward_stats[k] = data.reward_stats[k]
