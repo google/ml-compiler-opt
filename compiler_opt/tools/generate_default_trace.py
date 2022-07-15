@@ -27,8 +27,8 @@ from absl import app
 from absl import flags
 from absl import logging
 import gin
+import multiprocessing
 import tensorflow as tf
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import problem_configuration
@@ -235,4 +235,4 @@ def main(_):
 
 if __name__ == '__main__':
   flags.mark_flag_as_required('data_path')
-  multiprocessing.handle_main(functools.partial(app.run, main))
+  app.run(main)

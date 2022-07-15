@@ -17,16 +17,19 @@
 import os
 from unittest import mock
 
+from absl import flags
 from absl.testing import absltest
 from absl.testing import flagsaver
 import gin
+import multiprocessing
 import tensorflow as tf
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
 from compiler_opt.tools import generate_default_trace
+
+flags.FLAGS['num_workers'].allow_override = True
 
 
 class MockCompilationRunner(compilation_runner.CompilationRunner):
@@ -58,9 +61,7 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
 
 class GenerateDefaultTraceTest(absltest.TestCase):
 
-  @mock.patch(
-      'compiler_opt.tools.generate_default_trace.get_runner'
-  )
+  @mock.patch('compiler_opt.tools.generate_default_trace.get_runner')
   def test_api(self, mock_get_runner):
     tmp_dir = self.create_tempdir()
     module_names = ['a', 'b', 'c', 'd']
@@ -79,7 +80,7 @@ class GenerateDefaultTraceTest(absltest.TestCase):
         data_path=tmp_dir.full_path,
         num_workers=2,
         output_path=os.path.join(tmp_dir.full_path, 'output'),
-        output_performance_path=os.path.join(tmp_dir.full_path, 
+        output_performance_path=os.path.join(tmp_dir.full_path,
                                              'output_performance'),
     ):
       generate_default_trace.main(None)
@@ -87,13 +88,11 @@ class GenerateDefaultTraceTest(absltest.TestCase):
   def test_get_runner(self):
     with gin.unlock_config():
       gin.parse_config_files_and_bindings(
-          config_files=[
-              'compiler_opt/rl/inlining/gin_configs/common.gin'
-          ],
+          config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
           bindings=None)
     runner = generate_default_trace.get_runner()
     self.assertIsInstance(runner, compilation_runner.CompilationRunner)
 
 
 if __name__ == '__main__':
-  multiprocessing.handle_test_main(absltest.main)
+  absltest.main()
