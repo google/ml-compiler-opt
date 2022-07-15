@@ -21,7 +21,6 @@ from absl import flags
 from absl.testing import absltest
 from absl.testing import flagsaver
 import gin
-import multiprocessing
 import tensorflow as tf
 
 # This is https://github.com/google/pytype/issues/764
@@ -33,6 +32,7 @@ flags.FLAGS['num_workers'].allow_override = True
 
 
 class MockCompilationRunner(compilation_runner.CompilationRunner):
+  """A compilation runner just for test."""
 
   def collect_data(self, file_paths, tf_policy_path, reward_stat):
     sequence_example_text = """
@@ -66,11 +66,13 @@ class GenerateDefaultTraceTest(absltest.TestCase):
     tmp_dir = self.create_tempdir()
     module_names = ['a', 'b', 'c', 'd']
 
-    with open(os.path.join(tmp_dir.full_path, 'module_paths'), 'w') as f:
+    with tf.io.gfile.GFile(
+        os.path.join(tmp_dir.full_path, 'module_paths'), 'w') as f:
       f.write('\n'.join(module_names))
 
     for module_name in module_names:
-      with open(os.path.join(tmp_dir.full_path, module_name + '.bc'), 'w') as f:
+      with tf.io.gfile.GFile(
+          os.path.join(tmp_dir.full_path, module_name + '.bc'), 'w') as f:
         f.write(module_name)
 
     mock_compilation_runner = MockCompilationRunner()
