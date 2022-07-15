@@ -54,7 +54,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # work completes, i.e. cancelling all work and re-enabling the workers.
     # We remove this activity from the critical path by running it concurrently
     # with the training phase - i.e. whatever happens between successive data
-    # collection calls.
+    # collection calls. Subsequent runs will wait for these to finish.
     self._reset_workers: concurrent.futures.Future = None
     self._current_work: List[Tuple[corpus.ModuleSpec, worker.WorkerFuture]] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()

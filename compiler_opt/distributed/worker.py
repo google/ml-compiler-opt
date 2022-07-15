@@ -15,7 +15,7 @@
 """Common abstraction for a worker contract."""
 
 import abc
-from typing import Generic, Iterable, TypeVar
+from typing import Generic, Iterable, Optional, TypeVar
 
 
 class Worker:
@@ -50,7 +50,7 @@ def wait_for(futures: Iterable[WorkerFuture]):
       pass
 
 
-def get_exception(worker_future: WorkerFuture):
+def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
   assert worker_future.done()
   try:
     _ = worker_future.result()
