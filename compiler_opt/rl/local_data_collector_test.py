@@ -25,6 +25,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 
@@ -46,8 +47,8 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
-  assert file_paths == ('a', 'b')
+def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
+  assert module_spec.name == 'dummy'
   assert tf_policy_dir == 'policy'
   assert reward_stat is None or reward_stat == {
       'default':
@@ -79,8 +80,8 @@ def mock_collect_data(file_paths, tf_policy_dir, reward_stat):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, file_paths, tf_policy_path, reward_stat):
-    _ = file_paths, tf_policy_path, reward_stat
+  def collect_data(self, module_spec, tf_policy_path, reward_stat):
+    _ = module_spec, tf_policy_path, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
 
@@ -114,7 +115,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          file_paths=tuple([('a', 'b')] * 100),
+          module_specs=[corpus.ModuleSpec(name='dummy')] * 100,
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
@@ -175,7 +176,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          file_paths=tuple([('a', 'b')] * 200),
+          module_specs=[corpus.ModuleSpec(name='dummy')] * 200,
           num_modules=4,
           worker_pool=lwp,
           parser=parser,

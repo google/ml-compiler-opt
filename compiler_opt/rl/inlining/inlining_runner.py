@@ -23,6 +23,7 @@ import gin
 import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
 
 _DEFAULT_IDENTIFIER = 'default'
 
@@ -45,14 +46,14 @@ class InliningRunner(compilation_runner.CompilationRunner):
     self._llvm_size_path = llvm_size_path
 
   def _compile_fn(
-      self, file_paths: Tuple[str, str], tf_policy_path: str, reward_only: bool,
-      cancellation_manager: Optional[
+      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      reward_only: bool, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
-      file_paths: path to files needed for inlining, Tuple of (.bc, .cmd).
+      module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return native size.
       cancellation_manager: handler for early termination by killing any running
@@ -75,24 +76,22 @@ class InliningRunner(compilation_runner.CompilationRunner):
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
-    input_ir_path, cmd_path = file_paths
-
     sequence_example = tf.train.SequenceExample()
     native_size = 0
     try:
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] +
-                          compilation_runner.get_command_line_for_bundle(
-                              cmd_path,
-                              input_ir_path,
-                              additional_flags=self._additional_flags,
-                              delete_flags=self._delete_flags) + [
-                                  '-mllvm', '-enable-ml-inliner=development',
-                                  '-mllvm', '-training-log=' +
-                                  log_path, '-o', output_native_path
-                              ])
+      command_line.extend(
+          [self._clang_path] + compilation_runner.get_command_line_for_bundle(
+              module_spec.name + '.cmd',
+              module_spec.name + '.bc', (module_spec.name + '.thinlto.bc'
+                                        ) if module_spec.has_thinlto else None,
+              additional_flags=self._additional_flags,
+              delete_flags=self._delete_flags) + [
+                  '-mllvm', '-enable-ml-inliner=development', '-mllvm',
+                  '-training-log=' + log_path, '-o', output_native_path
+              ])
       if tf_policy_path:
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])

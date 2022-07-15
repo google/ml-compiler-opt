@@ -34,7 +34,7 @@ flags.FLAGS['num_workers'].allow_override = True
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
 
-  def collect_data(self, file_paths, tf_policy_path, reward_stat):
+  def collect_data(self, module_spec, tf_policy_path, reward_stat):
     sequence_example_text = """
       feature_lists {
         feature_list {
