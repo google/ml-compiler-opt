@@ -159,7 +159,7 @@ class ExtractIrTest(absltest.TestCase):
     outdir = self.create_tempdir()
     obj = extract_ir.load_for_lld_thinlto(outer.full_path, outdir.full_path)
     for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
-      mod_path = o.extract(thinlto_build='lld')
+      mod_path = o.extract(thinlto_build='local')
       self.assertEqual(mod_path, f'nest/{i + 1:d}')
     self.assertTrue(os.path.exists(os.path.join(outdir.full_path, 'nest/1.bc')))
     self.assertTrue(os.path.exists(os.path.join(outdir.full_path, 'nest/2.bc')))

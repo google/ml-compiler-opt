@@ -23,8 +23,11 @@ Only run with
 The compilation is assumed to have been performed with clang, using
 -fembed-bitcode=all passed to cc1 (i.e. pass clang -Xclang=-fembed-bitcode=all)
 
-In a ThinLTO case, the compilation is assumed to have been performed specifying
--mllvm -lto-embed-bitcode=post-merge-pre-opt.
+In a distributed ThinLTO case, the compilation is assumed to have been performed
+specifying -mllvm -lto-embed-bitcode=post-merge-pre-opt.
+
+In a local ThinLTO case, the compilation is assumedto have been performed
+specifying -Wl,--save-temps=import -Wl,--thinlto-emit-index-files
 """
 
 import json
@@ -62,13 +65,13 @@ flags.DEFINE_string(
     'independently for each separate command line option. For example, ^-Oz$ '
     'will match Oz - built binaries. Does not work with thinlto_build=lld.')
 flags.DEFINE_enum(
-    'thinlto_build', None, ['clang', 'lld'],
-    'Set to \'clang\', or \'lld\' if the build was ThinLTO-ed by clang or lld '
-    'respectively. This ensures the thinlto.bc files are also copied. '
+    'thinlto_build', None, ['distributed', 'local'],
+    'Set if the build was performed with either \'distributed\' or '
+    '\'local\' ThinLTO. This ensures the thinlto.bc files are also copied. '
     'The build is assumed to have had '
-    '-mllvm -lto-embed-bitcode=post-merge-pre-opt passed to clang, or'
-    '-Wl,--save-temps=import and -Wl,--thinlto-emit-index-files passed to '
-    'clang if the lld performed ThinLTO.')
+    '-mllvm -lto-embed-bitcode=post-merge-pre-opt passed in the distributed '
+    'case, or -Wl,--save-temps=import and -Wl,--thinlto-emit-index-files '
+    'passed in the local case.')
 
 FLAGS = flags.FLAGS
 
@@ -124,6 +127,8 @@ class TrainingIRExtractor:
     return os.path.join(self.obj_base_dir(), self._obj_relative_path)
 
   def lld_src_bc(self):
+    # .3.import.bc is the suffix attached to post-merge-pre-opt ('postimport')
+    # IR bitcode saved by lld. It is hardcoded into lld.
     return os.path.join(self._obj_base_dir,
                         self._obj_relative_path + '.3.import.bc')
 
@@ -220,12 +225,12 @@ class TrainingIRExtractor:
               llvm_objcopy_path: Optional[str] = None,
               cmd_filter: Optional[str] = None,
               thinlto_build: Optional[str] = None) -> Optional[str]:
-    if thinlto_build == 'lld':
+    if thinlto_build == 'local':
       return self._extract_lld_artifacts()
     return self._extract_clang_artifacts(
         llvm_objcopy_path=llvm_objcopy_path,
         cmd_filter=cmd_filter,
-        is_thinlto=thinlto_build == 'clang')
+        is_thinlto=thinlto_build == 'distributed')
 
 
 def convert_compile_command_to_objectfile(command: Dict[str, str],
@@ -290,7 +295,6 @@ def load_for_lld_thinlto(obj_base_dir: str,
         output_base_dir=output_dir,
         obj_base_dir=obj_base_dir)
 
-  # Last line is a newline char
   return [make_spec(path) for path in paths]
 
 
@@ -308,11 +312,9 @@ def main(argv):
 
   objs = []
   if FLAGS.input is None:
-    if FLAGS.thinlto_build == 'lld':
-      objs = load_for_lld_thinlto(FLAGS.obj_base_dir, FLAGS.output_dir)
-    else:
-      logging.error('Input flag not provided')
-      raise ValueError
+    if FLAGS.thinlto_build != 'local':
+      raise ValueError('--input or --thinlto_build=local must be provided')
+    objs = load_for_lld_thinlto(FLAGS.obj_base_dir, FLAGS.output_dir)
   elif FLAGS.input_type == 'json':
     with open(FLAGS.input, encoding='utf-8') as f:
       objs = load_from_compile_commands(json.load(f), FLAGS.output_dir)
