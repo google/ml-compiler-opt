@@ -34,3 +34,6 @@ jobs:
       - name: Check License Header
         run: |
           ./check-license.sh
+      - name: yapf formatting check
+        run: |
+          yapf . -drp
