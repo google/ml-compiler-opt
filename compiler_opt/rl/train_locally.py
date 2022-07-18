@@ -100,10 +100,10 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  logging.info('Loading module specs from corpus')
-  module_specs = corpus.read(FLAGS.data_path, additional_compilation_flags,
-                             delete_compilation_flags)
-  logging.info('Done loading module specs from corpus')
+  logging.info('Loading module specs from corpus.')
+  module_specs = corpus.build_modulespecs_from_datapath(
+      FLAGS.data_path, additional_compilation_flags, delete_compilation_flags)
+  logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,

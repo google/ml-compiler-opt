@@ -136,13 +136,13 @@ def main(_):
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
-  logging.info('Loading module specs from corpus')
-  module_specs = corpus.read(
+  logging.info('Loading module specs from corpus.')
+  module_specs = corpus.build_modulespecs_from_datapath(
       _DATA_PATH.value,
       delete_flags=('-split-dwarf-file', '-split-dwarf-output',
                     '-fthinlto-index', '-fprofile-sample-use',
                     '-fprofile-remapping-file'))
-  logging.info('Done loading module specs from corpus')
+  logging.info('Done loading module specs from corpus.')
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)

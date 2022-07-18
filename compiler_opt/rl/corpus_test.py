@@ -27,11 +27,14 @@ class CommandParsingTest(tf.test.TestCase):
     data = ['-cc1', '-foo', '-bar=baz']
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
-        corpus._load_and_parse_command(argfile.full_path, 'my_file.bc'),
+        corpus._load_and_parse_command(
+            ir_file='my_file.bc', cmd_file=argfile.full_path),
         ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
     self.assertEqual(
-        corpus._load_and_parse_command(argfile.full_path, 'my_file.bc',
-                                       'the_index.bc'),
+        corpus._load_and_parse_command(
+            ir_file='my_file.bc',
+            cmd_file=argfile.full_path,
+            thinlto_file='the_index.bc'),
         [
             '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
             '-fthinlto-index=the_index.bc', '-mllvm', '-thinlto-assume-merged'
@@ -48,7 +51,9 @@ class CommandParsingTest(tf.test.TestCase):
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
         corpus._load_and_parse_command(
-            argfile.full_path, 'hi.bc', delete_flags=delete_compilation_flags),
+            ir_file='hi.bc',
+            cmd_file=argfile.full_path,
+            delete_flags=delete_compilation_flags),
         ['-cc1', '-x', 'ir', 'hi.bc'])
 
   def test_addition(self):
@@ -57,7 +62,9 @@ class CommandParsingTest(tf.test.TestCase):
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
         corpus._load_and_parse_command(
-            argfile.full_path, 'hi.bc', additional_flags=additional_flags),
+            ir_file='hi.bc',
+            cmd_file=argfile.full_path,
+            additional_flags=additional_flags),
         ['-cc1', '-x', 'ir', 'hi.bc', '-fix-all-bugs'])
 
   def test_modification(self):
@@ -72,8 +79,8 @@ class CommandParsingTest(tf.test.TestCase):
     argfile = self.create_tempfile(content='\0'.join(data))
     self.assertEqual(
         corpus._load_and_parse_command(
-            argfile.full_path,
-            'hi.bc',
+            ir_file='hi.bc',
+            cmd_file=argfile.full_path,
             delete_flags=delete_compilation_flags,
             additional_flags=additional_flags),
         ['-cc1', '-x', 'ir', 'hi.bc', '-fix-all-bugs'])
@@ -132,7 +139,8 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-O3']))
 
-    ms_list = corpus.read(tempdir.full_path, additional_flags=('-add',))
+    ms_list = corpus.build_modulespecs_from_datapath(
+        tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
@@ -156,7 +164,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.thinlto.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
-    ms_list = corpus.read(
+    ms_list = corpus.build_modulespecs_from_datapath(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
