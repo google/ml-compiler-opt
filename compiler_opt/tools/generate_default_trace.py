@@ -32,7 +32,6 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -146,7 +145,7 @@ def main(_):
       os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
       encoding='utf-8') as f:
     lines = f.readlines()
-    has_thinlto = problem_configuration.is_thinlto(
+    has_thinlto = corpus.has_thinlto_index(
         [os.path.join(_DATA_PATH.value, lines[0].rstrip('\n'))])
     module_specs = [
         corpus.ModuleSpec(

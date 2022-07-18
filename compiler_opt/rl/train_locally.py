@@ -37,7 +37,6 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
@@ -105,7 +104,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       os.path.join(FLAGS.data_path, 'module_paths'), 'r',
       encoding='utf-8') as f:
     lines = f.readlines()
-    has_thinlto = problem_configuration.is_thinlto(
+    has_thinlto = corpus.has_thinlto_index(
         [os.path.join(FLAGS.data_path, lines[0].rstrip('\n'))])
     module_specs = [
         corpus.ModuleSpec(
