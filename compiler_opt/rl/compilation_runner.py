@@ -245,23 +245,17 @@ class CompilationRunner(Worker):
   def __init__(self,
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1,
-               additional_flags: Tuple[str, ...] = (),
-               delete_flags: Tuple[str, ...] = ()):
+               moving_average_decay_rate: float = 1):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
-      additional_flags: tuple of clang flags to add.
-      delete_flags: tuple of clang flags to remove.
     """
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
-    self._additional_flags = additional_flags
-    self._delete_flags = delete_flags
     self._compilation_timeout = _COMPILATION_TIMEOUT.value
     self._cancellation_manager = WorkerCancellationManager()
 

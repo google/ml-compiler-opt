@@ -14,9 +14,11 @@
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
 
+from absl import logging
 from dataclasses import dataclass
 from typing import Iterable, Optional, Tuple, List
 
+import os
 import tensorflow as tf
 
 
@@ -25,25 +27,51 @@ class ModuleSpec:
   """Dataclass describing an input module and its compilation command options.
   """
   name: str
-  has_thinlto: bool = False
+  _exec_cmd: Tuple[str, ...] = ()
 
-  def cmd(
-      self,
-      additional_flags: Tuple[str, ...] = (),
-      delete_flags: Tuple[str, ...] = ()
-  ) -> List[str]:
+  def cmd(self) -> List[str]:
     """Retrieves the compiler execution options.
     """
-    return _load_and_parse_command(
-        self.name + '.cmd',
-        self.name + '.bc',
-        (self.name + '.thinlto.bc') if self.has_thinlto else None,
+    # Using a getter as this will be modified in the future
+    return list(self._exec_cmd)
+
+
+def read(
+    data_path: str,
+    additional_flags: Tuple[str, ...] = (),
+    delete_flags: Tuple[str, ...] = ()
+) -> List[ModuleSpec]:
+  module_paths: List[str] = _load_module_paths(data_path)
+
+  has_thinlto: bool = _has_thinlto_index(module_paths)
+
+  module_specs: List[ModuleSpec] = []
+
+  # This takes ~7s for 30k modules
+  for module_path in module_paths:
+    exec_cmd = _load_and_parse_command(
+        cmd_file=(module_path + '.cmd'),
+        ir_file=module_path + '.bc',
+        thinlto_file=(module_path + '.thinlto.bc') if has_thinlto else None,
         additional_flags=additional_flags,
         delete_flags=delete_flags)
+    module_specs.append(ModuleSpec(name=module_path, _exec_cmd=tuple(exec_cmd)))
+
+  return module_specs
 
 
-def has_thinlto_index(module_paths: Iterable[str]) -> bool:
+def _has_thinlto_index(module_paths: Iterable[str]) -> bool:
   return tf.io.gfile.exists(next(iter(module_paths)) + '.thinlto.bc')
+
+
+def _load_module_paths(data_path) -> List[str]:
+  module_paths_path = os.path.join(data_path, 'module_paths')
+  with open(module_paths_path, 'r', encoding='utf-8') as f:
+    ret = [os.path.join(data_path, name.rstrip('\n')) for name in f]
+    if len(ret) == 0:
+      logging.error('%s is empty.', module_paths_path)
+      raise ValueError
+    return ret
 
 
 def _load_and_parse_command(

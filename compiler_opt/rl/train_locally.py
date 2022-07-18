@@ -100,17 +100,10 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  with open(
-      os.path.join(FLAGS.data_path, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    lines = f.readlines()
-    has_thinlto = corpus.has_thinlto_index(
-        [os.path.join(FLAGS.data_path, lines[0].rstrip('\n'))])
-    module_specs = [
-        corpus.ModuleSpec(
-            name=os.path.join(FLAGS.data_path, name.rstrip('\n')),
-            has_thinlto=has_thinlto) for name in lines
-    ]
+  logging.info('Loading module specs from corpus')
+  module_specs = corpus.read(FLAGS.data_path, additional_compilation_flags,
+                             delete_compilation_flags)
+  logging.info('Done loading module specs from corpus')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
@@ -142,9 +135,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
   with LocalWorkerPool(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
-      moving_average_decay_rate=moving_average_decay_rate,
-      additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags) as worker_pool:
+      moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
         module_specs=module_specs,
         num_modules=num_modules,
