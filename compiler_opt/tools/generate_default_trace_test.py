@@ -75,6 +75,10 @@ class GenerateDefaultTraceTest(absltest.TestCase):
           os.path.join(tmp_dir.full_path, module_name + '.bc'), 'w') as f:
         f.write(module_name)
 
+      with tf.io.gfile.GFile(
+          os.path.join(tmp_dir.full_path, module_name + '.cmd'), 'w') as f:
+        f.write(module_name)
+
     mock_compilation_runner = MockCompilationRunner()
     mock_get_runner.return_value = mock_compilation_runner
 

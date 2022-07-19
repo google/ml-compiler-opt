@@ -32,7 +32,6 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -74,12 +73,7 @@ ResultsQueueEntry = Union[Optional[Tuple[str, List[str],
 
 def get_runner() -> compilation_runner.CompilationRunner:
   problem_config = registry.get_configuration()
-  return problem_config.get_runner_type()(
-      moving_average_decay_rate=0,
-      additional_flags=(),
-      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
-                    '-fthinlto-index', '-fprofile-sample-use',
-                    '-fprofile-remapping-file'))
+  return problem_config.get_runner_type()(moving_average_decay_rate=0)
 
 
 def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
@@ -142,17 +136,13 @@ def main(_):
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
-  with open(
-      os.path.join(_DATA_PATH.value, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    lines = f.readlines()
-    has_thinlto = problem_configuration.is_thinlto(
-        [os.path.join(_DATA_PATH.value, lines[0].rstrip('\n'))])
-    module_specs = [
-        corpus.ModuleSpec(
-            name=os.path.join(_DATA_PATH.value, name.rstrip('\n')),
-            has_thinlto=has_thinlto) for name in lines
-    ]
+  logging.info('Loading module specs from corpus.')
+  module_specs = corpus.build_modulespecs_from_datapath(
+      _DATA_PATH.value,
+      delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                    '-fthinlto-index', '-fprofile-sample-use',
+                    '-fprofile-remapping-file'))
+  logging.info('Done loading module specs from corpus.')
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)

@@ -37,7 +37,6 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
-from compiler_opt.rl import problem_configuration
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
@@ -101,17 +100,10 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  with open(
-      os.path.join(FLAGS.data_path, 'module_paths'), 'r',
-      encoding='utf-8') as f:
-    lines = f.readlines()
-    has_thinlto = problem_configuration.is_thinlto(
-        [os.path.join(FLAGS.data_path, lines[0].rstrip('\n'))])
-    module_specs = [
-        corpus.ModuleSpec(
-            name=os.path.join(FLAGS.data_path, name.rstrip('\n')),
-            has_thinlto=has_thinlto) for name in lines
-    ]
+  logging.info('Loading module specs from corpus.')
+  module_specs = corpus.build_modulespecs_from_datapath(
+      FLAGS.data_path, additional_compilation_flags, delete_compilation_flags)
+  logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
@@ -143,9 +135,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
   with LocalWorkerPool(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
-      moving_average_decay_rate=moving_average_decay_rate,
-      additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags) as worker_pool:
+      moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
         module_specs=module_specs,
         num_modules=num_modules,

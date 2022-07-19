@@ -79,15 +79,10 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend(
-          [self._clang_path] + compilation_runner.get_command_line_for_bundle(
-              module_spec.name + '.cmd', module_spec.name + '.bc',
-              (module_spec.name + '.thinlto.bc') if module_spec.has_thinlto else
-              None, self._additional_flags, self._delete_flags) + [
-                  '-mllvm', '-thinlto-assume-merged', '-mllvm',
-                  '-regalloc-enable-advisor=development', '-mllvm',
-                  '-regalloc-training-log=' + log_path, '-o', output_native_path
-              ])
+      command_line.extend([self._clang_path] + list(module_spec.exec_cmd) + [
+          '-mllvm', '-regalloc-enable-advisor=development', '-mllvm',
+          '-regalloc-training-log=' + log_path, '-o', output_native_path
+      ])
 
       if tf_policy_path:
         command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
