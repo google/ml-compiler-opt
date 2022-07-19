@@ -26,13 +26,7 @@ class ModuleSpec:
   """Dataclass describing an input module and its compilation command options.
   """
   name: str
-  _exec_cmd: Tuple[str, ...] = ()
-
-  def cmd(self) -> List[str]:
-    """Retrieves the compiler execution options.
-    """
-    # Using a getter as this will be modified in the future
-    return list(self._exec_cmd)
+  exec_cmd: Tuple[str, ...] = ()
 
 
 def build_modulespecs_from_datapath(
@@ -54,7 +48,7 @@ def build_modulespecs_from_datapath(
         thinlto_file=(module_path + '.thinlto.bc') if has_thinlto else None,
         additional_flags=additional_flags,
         delete_flags=delete_flags)
-    module_specs.append(ModuleSpec(name=module_path, _exec_cmd=tuple(exec_cmd)))
+    module_specs.append(ModuleSpec(name=module_path, exec_cmd=tuple(exec_cmd)))
 
   return module_specs
 

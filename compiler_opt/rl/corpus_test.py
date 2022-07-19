@@ -126,9 +126,9 @@ class HasThinLTOIndexTest(tf.test.TestCase):
 class ModuleSpecTest(tf.test.TestCase):
 
   def test_cmd(self):
-    ms = corpus.ModuleSpec(_exec_cmd=('-cc1', '-fix-all-bugs'), name='dummy')
+    ms = corpus.ModuleSpec(exec_cmd=('-cc1', '-fix-all-bugs'), name='dummy')
     self.assertEqual(ms.name, 'dummy')
-    self.assertEqual(ms.cmd(), ['-cc1', '-fix-all-bugs'])
+    self.assertEqual(ms.exec_cmd, ('-cc1', '-fix-all-bugs'))
 
   def test_get_without_thinlto(self):
     data = ['1', '2']
@@ -145,11 +145,11 @@ class ModuleSpecTest(tf.test.TestCase):
     ms1 = ms_list[0]
     ms2 = ms_list[1]
     self.assertEqual(ms1.name, tempdir.full_path + '/1')
-    self.assertEqual(ms1._exec_cmd,
+    self.assertEqual(ms1.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc', '-add'))
 
     self.assertEqual(ms2.name, tempdir.full_path + '/2')
-    self.assertEqual(ms2._exec_cmd,
+    self.assertEqual(ms2.exec_cmd,
                      ('-O3', '-x', 'ir', tempdir.full_path + '/2.bc', '-add'))
 
   def test_get_with_thinlto(self):
@@ -172,13 +172,13 @@ class ModuleSpecTest(tf.test.TestCase):
     ms1 = ms_list[0]
     ms2 = ms_list[1]
     self.assertEqual(ms1.name, tempdir.full_path + '/1')
-    self.assertEqual(ms1._exec_cmd,
+    self.assertEqual(ms1.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
     self.assertEqual(ms2.name, tempdir.full_path + '/2')
-    self.assertEqual(ms2._exec_cmd,
+    self.assertEqual(ms2.exec_cmd,
                      ('-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))

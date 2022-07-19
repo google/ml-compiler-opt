@@ -79,7 +79,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       command_line = []
       if self._launcher_path:
         command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] + module_spec.cmd() + [
+      command_line.extend([self._clang_path] + list(module_spec.exec_cmd) + [
           '-mllvm', '-regalloc-enable-advisor=development', '-mllvm',
           '-regalloc-training-log=' + log_path, '-o', output_native_path
       ])
