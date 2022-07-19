@@ -92,7 +92,7 @@ class TrainerTest(tf.test.TestCase):
         tf.compat.v1.train.AdamOptimizer(),
         num_outer_dims=2)
     test_trainer = trainer.Trainer(
-        root_dir=self.get_temp_dir(), agent=test_agent)
+        root_dir=self.get_temp_dir(), agent=test_agent, summary_log_interval=1)
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
