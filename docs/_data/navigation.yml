@@ -1,0 +1,7 @@
+main:
+  - title: "About"
+    url: /about/
+  - title: "Get Started"
+    url: /dev/demo/
+  - title: "Contributing"
+    url: /contributing/

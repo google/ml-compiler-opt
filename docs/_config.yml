@@ -23,13 +23,24 @@ email: ml-compiler-opt@google.com
 description: >- # this means to ignore newlines until "baseurl:"
   Machine Learning Guided Compiler Optimizations
 baseurl: "/ml-compiler-opt" # the subpath of your site, e.g. /blog
-url: "https://google.github.io/ml-compiler-opt/" # the base hostname & protocol for your site, e.g. http://example.com
+url: "" # the base hostname & protocol for your site, e.g. http://example.com
 
 remote_theme: mmistakes/minimal-mistakes@4.24.0
-minimal_mistakes_skin: "dark"
+minimal_mistakes_skin: "air"
 plugins:
 - jekyll-remote-theme
 - jekyll-include-cache
+
+include: ["dev"]
+
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: single
+      toc: true
+      toc_sticky: true
 
 # Exclude from processing.
 # The following items will not be processed, by default.
