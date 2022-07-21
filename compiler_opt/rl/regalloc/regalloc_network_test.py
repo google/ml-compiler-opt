@@ -18,8 +18,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tf_agents.specs import tensor_spec
 
-from compiler_opt.rl import regalloc_network
 from compiler_opt.rl.regalloc import config
+from compiler_opt.rl.regalloc import regalloc_network
 
 
 def _observation_processing_layer(obs_spec):

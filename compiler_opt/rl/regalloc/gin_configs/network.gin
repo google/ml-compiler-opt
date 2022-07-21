@@ -1,6 +1,6 @@
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.regalloc.config
-import compiler_opt.rl.regalloc_network
+import compiler_opt.rl.regalloc.regalloc_network
 
 regalloc.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/regalloc/vocab'
 regalloc.config.get_observation_processing_layer_creator.with_sqrt = False
