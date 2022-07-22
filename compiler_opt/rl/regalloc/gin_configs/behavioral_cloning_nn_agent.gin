@@ -2,7 +2,7 @@ import gin.tf.external_configurables
 import compiler_opt.rl.constant
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.regalloc.config
-import compiler_opt.rl.regalloc_network
+import compiler_opt.rl.regalloc.regalloc_network
 import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
 import tf_agents.networks.actor_distribution_network
 
