@@ -16,7 +16,7 @@
 
 from absl import logging
 from dataclasses import dataclass
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 
 import json
 import os
@@ -37,7 +37,7 @@ def build_modulespecs_from_datapath(
 ) -> List[ModuleSpec]:
   # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
   # {additional|delete}_flags here
-  corpus_description: Dict[str, any] = _load_corpus_description(
+  corpus_description: Dict[str, Any] = _load_corpus_description(
       os.path.join(data_path, 'corpus_description.json'))
   module_paths = corpus_description['modules']
   if len(module_paths) == 0:
@@ -72,7 +72,7 @@ def build_modulespecs_from_datapath(
   return module_specs
 
 
-def _load_corpus_description(corpus_description_path: str) -> Dict[str, any]:
+def _load_corpus_description(corpus_description_path: str) -> Dict[str, Any]:
   with open(corpus_description_path, 'r', encoding='utf-8') as f:
     return json.load(f)
 
