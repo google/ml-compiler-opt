@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for the ModuleSpec dataclass and its utility functions."""
-# pylint: disable=protected-access,unused-variable
+# pylint: disable=protected-access
 import json
 import os
 
@@ -26,22 +26,19 @@ class CommandParsingTest(tf.test.TestCase):
 
   def test_thinlto_file(self):
     data = ['-cc1', '-foo', '-bar=baz']
-    tempdir = self.create_tempdir()
-    argfile = tempdir.create_file(content='\0'.join(data), file_path='hi.cmd')
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
-            has_thinlto=False),
-        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', tempdir.full_path + '/hi.bc'])
+            module_path=module_path, has_thinlto=False),
+        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc'])
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
-            has_thinlto=True),
-        [
-            '-cc1', '-foo', '-bar=baz', '-x', 'ir', tempdir.full_path +
-            '/hi.bc', '-fthinlto-index=' + tempdir.full_path + '/hi.thinlto.bc',
-            '-mllvm', '-thinlto-assume-merged'
-        ])
+            module_path=module_path, has_thinlto=True), [
+                '-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc',
+                '-fthinlto-index=' + module_path + '.thinlto.bc', '-mllvm',
+                '-thinlto-assume-merged'
+            ])
 
   def test_deletion(self):
     delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
@@ -51,26 +48,26 @@ class CommandParsingTest(tf.test.TestCase):
         '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
         '-split-dwarf-output', 'somepath/some.dwo'
     ]
-    tempdir = self.create_tempdir()
-    argfile = tempdir.create_file(content='\0'.join(data), file_path='hi.cmd')
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
+            module_path=module_path,
             has_thinlto=False,
             delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', tempdir.full_path + '/hi.bc'])
+        ['-cc1', '-x', 'ir', module_path + '.bc'])
 
   def test_addition(self):
     additional_flags = ('-fix-all-bugs',)
     data = ['-cc1']
-    tempdir = self.create_tempdir()
-    argfile = tempdir.create_file(content='\0'.join(data), file_path='hi.cmd')
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
+            module_path=module_path,
             has_thinlto=False,
             additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', tempdir.full_path + '/hi.bc', '-fix-all-bugs'])
+        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
 
   def test_modification(self):
     delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
@@ -81,31 +78,29 @@ class CommandParsingTest(tf.test.TestCase):
         '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
         '-split-dwarf-output', 'somepath/some.dwo'
     ]
-    tempdir = self.create_tempdir()
-    argfile = tempdir.create_file(content='\0'.join(data), file_path='hi.cmd')
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
+            module_path=module_path,
             has_thinlto=False,
             delete_flags=delete_compilation_flags,
             additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', tempdir.full_path + '/hi.bc', '-fix-all-bugs'])
+        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
 
   def test_override(self):
     cmd_override = ('-fix-all-bugs',)
     data = ['-cc1', '-fthinlto-index=bad']
-    tempdir = self.create_tempdir()
-    argfile = tempdir.create_file(content='\0'.join(data))
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            module_path=os.path.join(tempdir.full_path, 'hi'),
+            module_path=module_path,
             has_thinlto=False,
             cmd_override=cmd_override,
             additional_flags=('-add-bugs',),
-            delete_flags=('-fthinlto-index',)), [
-                '-fix-all-bugs', '-x', 'ir', tempdir.full_path + '/hi.bc',
-                '-add-bugs'
-            ])
+            delete_flags=('-fthinlto-index',)),
+        ['-fix-all-bugs', '-x', 'ir', module_path + '.bc', '-add-bugs'])
     self.assertEqual(
         corpus._load_and_parse_command(
             module_path=os.path.join('this!path#cant$exist/'
@@ -123,9 +118,10 @@ class ModuleSpecTest(tf.test.TestCase):
     self.assertEqual(ms.exec_cmd, ('-cc1', '-fix-all-bugs'))
 
   def test_get_without_thinlto(self):
-    metadata = {'modules': ['1', '2'], 'has_thinlto': False}
+    corpus_description = {'modules': ['1', '2'], 'has_thinlto': False}
     tempdir = self.create_tempdir()
-    tempdir.create_file('metadata.json', content=json.dumps(metadata))
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
     tempdir.create_file('1.bc')
     tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
     tempdir.create_file('2.bc')
@@ -145,9 +141,10 @@ class ModuleSpecTest(tf.test.TestCase):
                      ('-O3', '-x', 'ir', tempdir.full_path + '/2.bc', '-add'))
 
   def test_get_with_thinlto(self):
-    metadata = {'modules': ['1', '2'], 'has_thinlto': True}
+    corpus_description = {'modules': ['1', '2'], 'has_thinlto': True}
     tempdir = self.create_tempdir()
-    tempdir.create_file('metadata.json', content=json.dumps(metadata))
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
     tempdir.create_file('1.bc')
     tempdir.create_file('1.thinlto.bc')
     tempdir.create_file(
@@ -176,13 +173,14 @@ class ModuleSpecTest(tf.test.TestCase):
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
   def test_get_with_override(self):
-    metadata = {
+    corpus_description = {
         'modules': ['1', '2'],
         'has_thinlto': True,
         'global_command_override': ['-O3', '-qrs']
     }
     tempdir = self.create_tempdir()
-    tempdir.create_file('metadata.json', content=json.dumps(metadata))
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
     tempdir.create_file('1.bc')
     tempdir.create_file('1.thinlto.bc')
     tempdir.create_file(

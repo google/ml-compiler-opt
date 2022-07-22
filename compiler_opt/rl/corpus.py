@@ -37,19 +37,19 @@ def build_modulespecs_from_datapath(
 ) -> List[ModuleSpec]:
   # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
   # {additional|delete}_flags here
-  metadata: Dict[str, any] = _load_metadata(
-      os.path.join(data_path, 'metadata.json'))
-  module_paths = metadata['modules']
+  corpus_description: Dict[str, any] = _load_corpus_description(
+      os.path.join(data_path, 'corpus_description.json'))
+  module_paths = corpus_description['modules']
   if len(module_paths) == 0:
-    raise ValueError(f'{data_path}\'s metadata contains no modules.')
+    raise ValueError(f'{data_path}\'s corpus_description contains no modules.')
 
-  has_thinlto: bool = metadata['has_thinlto']
+  has_thinlto: bool = corpus_description['has_thinlto']
 
-  # Future: cmd_override could have per-module overrides if needed
-  if 'global_command_override' in metadata:
-    if metadata['global_command_override'] == ['Please', 'fill', 'options']:
-      raise ValueError('global_command_override in metadata.json not filled.')
-    cmd_override = tuple(metadata['global_command_override'])
+  if 'global_command_override' in corpus_description:
+    if corpus_description['global_command_override'] == ['<UNSPECIFIED>']:
+      raise ValueError(
+          'global_command_override in corpus_description.json not filled.')
+    cmd_override = tuple(corpus_description['global_command_override'])
     if len(additional_flags) > 0:
       logging.warning('Additional flags are specified together with override.')
     if len(delete_flags) > 0:
@@ -72,8 +72,8 @@ def build_modulespecs_from_datapath(
   return module_specs
 
 
-def _load_metadata(metadata_path: str) -> Dict[str, any]:
-  with open(metadata_path, 'r', encoding='utf-8') as f:
+def _load_corpus_description(corpus_description_path: str) -> Dict[str, any]:
+  with open(corpus_description_path, 'r', encoding='utf-8') as f:
     return json.load(f)
 
 

@@ -336,19 +336,20 @@ def main(argv):
   # This comes first rather than later so global_command_override is at the top
   # of the .json after being written
   if FLAGS.thinlto_build == 'local':
-    metadata = {'global_command_override': ['Please', 'fill', 'options']}
+    corpus_description = {'global_command_override': ['<UNSPECIFIED>']}
   else:
-    metadata = {}
+    corpus_description = {}
 
-  metadata.update({
+  corpus_description.update({
       'has_thinlto': FLAGS.thinlto_build is not None,
       'modules': [path for path in relative_output_paths if path is not None]
   })
 
   with open(
-      os.path.join(FLAGS.output_dir, 'metadata.json'), 'w',
+      os.path.join(FLAGS.output_dir, 'corpus_description.json'),
+      'w',
       encoding='utf-8') as f:
-    json.dump(metadata, f, indent=2)
+    json.dump(corpus_description, f, indent=2)
 
     logging.info('Converted %d files out of %d',
                  len(objs) - relative_output_paths.count(None), len(objs))

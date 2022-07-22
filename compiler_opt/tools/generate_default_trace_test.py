@@ -67,7 +67,7 @@ class GenerateDefaultTraceTest(absltest.TestCase):
     module_names = ['a', 'b', 'c', 'd']
 
     with tf.io.gfile.GFile(
-        os.path.join(tmp_dir.full_path, 'metadata.json'), 'w') as f:
+        os.path.join(tmp_dir.full_path, 'corpus_description.json'), 'w') as f:
       json.dump({'modules': module_names, 'has_thinlto': False}, f)
 
     for module_name in module_names:
