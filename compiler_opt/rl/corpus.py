@@ -14,11 +14,12 @@
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
 
+from absl import logging
 from dataclasses import dataclass
-from typing import Iterable, Optional, Tuple, List
+from typing import List, Dict, Tuple
 
+import json
 import os
-import tensorflow as tf
 
 
 @dataclass(frozen=True)
@@ -34,44 +35,54 @@ def build_modulespecs_from_datapath(
     additional_flags: Tuple[str, ...] = (),
     delete_flags: Tuple[str, ...] = ()
 ) -> List[ModuleSpec]:
-  module_paths: List[str] = _load_module_paths(data_path)
+  # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
+  # {additional|delete}_flags here
+  metadata: Dict[str, any] = _load_metadata(
+      os.path.join(data_path, 'metadata.json'))
+  module_paths = metadata['modules']
+  if len(module_paths) == 0:
+    raise ValueError(f'{data_path}\'s metadata contains no modules.')
 
-  has_thinlto: bool = _has_thinlto_index(module_paths)
+  has_thinlto: bool = metadata['has_thinlto']
+
+  # Future: cmd_override could have per-module overrides if needed
+  if 'global_command_override' in metadata:
+    if metadata['global_command_override'] == ['Please', 'fill', 'options']:
+      raise ValueError('global_command_override in metadata.json not filled.')
+    cmd_override = tuple(metadata['global_command_override'])
+    if len(additional_flags) > 0:
+      logging.warning('Additional flags are specified together with override.')
+    if len(delete_flags) > 0:
+      logging.warning('Delete flags are specified together with override.')
+  else:
+    cmd_override = ()
 
   module_specs: List[ModuleSpec] = []
 
   # This takes ~7s for 30k modules
   for module_path in module_paths:
     exec_cmd = _load_and_parse_command(
-        ir_file=module_path + '.bc',
-        cmd_file=(module_path + '.cmd'),
-        thinlto_file=(module_path + '.thinlto.bc') if has_thinlto else None,
+        module_path=os.path.join(data_path, module_path),
+        has_thinlto=has_thinlto,
         additional_flags=additional_flags,
-        delete_flags=delete_flags)
+        delete_flags=delete_flags,
+        cmd_override=cmd_override)
     module_specs.append(ModuleSpec(name=module_path, exec_cmd=tuple(exec_cmd)))
 
   return module_specs
 
 
-def _has_thinlto_index(module_paths: Iterable[str]) -> bool:
-  return tf.io.gfile.exists(next(iter(module_paths)) + '.thinlto.bc')
-
-
-def _load_module_paths(data_path) -> List[str]:
-  module_paths_path = os.path.join(data_path, 'module_paths')
-  with open(module_paths_path, 'r', encoding='utf-8') as f:
-    ret = [os.path.join(data_path, name.rstrip('\n')) for name in f]
-    if len(ret) == 0:
-      raise ValueError(f'{module_paths_path} is empty.')
-    return ret
+def _load_metadata(metadata_path: str) -> Dict[str, any]:
+  with open(metadata_path, 'r', encoding='utf-8') as f:
+    return json.load(f)
 
 
 def _load_and_parse_command(
-    ir_file: str,
-    cmd_file: str,
-    thinlto_file: Optional[str] = None,
+    module_path: str,
+    has_thinlto: bool,
     additional_flags: Tuple[str, ...] = (),
-    delete_flags: Tuple[str, ...] = ()
+    delete_flags: Tuple[str, ...] = (),
+    cmd_override: Tuple[str, ...] = ()
 ) -> List[str]:
   """Cleans up base command line.
 
@@ -79,32 +90,38 @@ def _load_and_parse_command(
   given, the thinlto index.
 
   Args:
-    cmd_file: Path to a .cmd file (from corpus).
-    ir_file: The path to the ir file to compile.
-    thinlto_file: The path to the thinlto index, or None.
+    module_path: Absolute path to the module without extension (from corpus).
+    has_thinlto: Whether to add thinlto flags.
     additional_flags: Tuple of clang flags to add.
     delete_flags: Tuple of clang flags to remove.
+    cmd_override: Tuple of strings to use as the base command line.
 
   Returns:
     The argument list to pass to the compiler process.
   """
   cmdline = []
 
-  with open(cmd_file, encoding='utf-8') as f:
-    option_iterator = iter(f.read().split('\0'))
-    option = next(option_iterator, None)
-    while option is not None:
-      if any(option.startswith(flag) for flag in delete_flags):
-        if '=' not in option:
-          next(option_iterator, None)
-      else:
-        cmdline.append(option)
-      option = next(option_iterator, None)
-  cmdline.extend(['-x', 'ir', ir_file])
+  if cmd_override:
+    option_iterator = iter(cmd_override)
+  else:
+    with open(module_path + '.cmd', encoding='utf-8') as f:
+      option_iterator = iter(f.read().split('\0'))
+  option = next(option_iterator, None)
 
-  if thinlto_file:
-    cmdline.extend(
-        [f'-fthinlto-index={thinlto_file}', '-mllvm', '-thinlto-assume-merged'])
+  while option is not None:
+    if any(option.startswith(flag) for flag in delete_flags):
+      if '=' not in option:
+        next(option_iterator, None)
+    else:
+      cmdline.append(option)
+    option = next(option_iterator, None)
+  cmdline.extend(['-x', 'ir', module_path + '.bc'])
+
+  if has_thinlto:
+    cmdline.extend([
+        f'-fthinlto-index={module_path}.thinlto.bc', '-mllvm',
+        '-thinlto-assume-merged'
+    ])
 
   cmdline.extend(additional_flags)
 

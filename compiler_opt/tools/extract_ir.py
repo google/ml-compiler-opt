@@ -333,13 +333,22 @@ def main(argv):
   with multiprocessing.Pool(FLAGS.num_workers) as pool:
     relative_output_paths = pool.map(extract_artifacts, objs)
 
-    # Write all Non-None relative paths to FLAGS.output_dir/module_paths.
-    with open(
-        os.path.join(FLAGS.output_dir, 'module_paths'), 'w',
-        encoding='utf-8') as f:
-      for path in relative_output_paths:
-        if path is not None:
-          f.write(path + '\n')
+  # This comes first rather than later so global_command_override is at the top
+  # of the .json after being written
+  if FLAGS.thinlto_build == 'local':
+    metadata = {'global_command_override': ['Please', 'fill', 'options']}
+  else:
+    metadata = {}
+
+  metadata.update({
+      'has_thinlto': FLAGS.thinlto_build is not None,
+      'modules': [path for path in relative_output_paths if path is not None]
+  })
+
+  with open(
+      os.path.join(FLAGS.output_dir, 'metadata.json'), 'w',
+      encoding='utf-8') as f:
+    json.dump(metadata, f, indent=2)
 
     logging.info('Converted %d files out of %d',
                  len(objs) - relative_output_paths.count(None), len(objs))
