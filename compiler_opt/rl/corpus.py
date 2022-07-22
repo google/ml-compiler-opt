@@ -21,6 +21,8 @@ from typing import List, Dict, Tuple, Any
 import json
 import os
 
+from compiler_opt.tools import extract_ir
+
 
 @dataclass(frozen=True)
 class ModuleSpec:
@@ -46,7 +48,8 @@ def build_modulespecs_from_datapath(
   has_thinlto: bool = corpus_description['has_thinlto']
 
   if 'global_command_override' in corpus_description:
-    if corpus_description['global_command_override'] == ['<UNSPECIFIED>']:
+    if corpus_description[
+        'global_command_override'] == extract_ir.UNSPECIFIED_OVERRIDE:
       raise ValueError(
           'global_command_override in corpus_description.json not filled.')
     cmd_override = tuple(corpus_description['global_command_override'])

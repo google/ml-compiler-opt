@@ -44,6 +44,9 @@ from absl import app
 from absl import flags
 from absl import logging
 
+# Default of global_command_override in corpus_description.json
+UNSPECIFIED_OVERRIDE = ['<UNSPECIFIED>']
+
 flags.DEFINE_string(
     'input', None,
     'Input file - either compile_commands.json or a linker parameter list')
@@ -336,7 +339,7 @@ def main(argv):
   # This comes first rather than later so global_command_override is at the top
   # of the .json after being written
   if FLAGS.thinlto_build == 'local':
-    corpus_description = {'global_command_override': ['<UNSPECIFIED>']}
+    corpus_description = {'global_command_override': UNSPECIFIED_OVERRIDE}
   else:
     corpus_description = {}
 
