@@ -21,7 +21,7 @@ from typing import List, Dict, Tuple, Any
 import json
 import os
 
-from compiler_opt.tools import extract_ir
+from compiler_opt.rl import constant
 
 
 @dataclass(frozen=True)
@@ -39,17 +39,21 @@ def build_modulespecs_from_datapath(
 ) -> List[ModuleSpec]:
   # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
   # {additional|delete}_flags here
-  corpus_description: Dict[str, Any] = _load_corpus_description(
-      os.path.join(data_path, 'corpus_description.json'))
+  with open(
+      os.path.join(data_path, 'corpus_description.json'), 'r',
+      encoding='utf-8') as f:
+    corpus_description: Dict[str, Any] = json.load(f)
+
   module_paths = corpus_description['modules']
   if len(module_paths) == 0:
     raise ValueError(f'{data_path}\'s corpus_description contains no modules.')
 
   has_thinlto: bool = corpus_description['has_thinlto']
 
+  cmd_override = ()
   if 'global_command_override' in corpus_description:
     if corpus_description[
-        'global_command_override'] == extract_ir.UNSPECIFIED_OVERRIDE:
+        'global_command_override'] == constant.UNSPECIFIED_OVERRIDE:
       raise ValueError(
           'global_command_override in corpus_description.json not filled.')
     cmd_override = tuple(corpus_description['global_command_override'])
@@ -57,8 +61,6 @@ def build_modulespecs_from_datapath(
       logging.warning('Additional flags are specified together with override.')
     if len(delete_flags) > 0:
       logging.warning('Delete flags are specified together with override.')
-  else:
-    cmd_override = ()
 
   module_specs: List[ModuleSpec] = []
 
@@ -73,11 +75,6 @@ def build_modulespecs_from_datapath(
     module_specs.append(ModuleSpec(name=module_path, exec_cmd=tuple(exec_cmd)))
 
   return module_specs
-
-
-def _load_corpus_description(corpus_description_path: str) -> Dict[str, Any]:
-  with open(corpus_description_path, 'r', encoding='utf-8') as f:
-    return json.load(f)
 
 
 def _load_and_parse_command(
