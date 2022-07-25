@@ -30,6 +30,11 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
+from tf_agents.agents import TFAgent
+from tf_agents.policies import TFPolicy
+
+from typing import Dict
+
 _ROOT_DIR = flags.DEFINE_string(
     'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
     'Root directory for writing logs/summaries/checkpoints.')
@@ -58,11 +63,11 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
-                                         action_spec,
-                                         preprocessing_layer_creator)
+  tf_agent: TFAgent = agent_creators.create_agent(agent_name, time_step_spec,
+                                                  action_spec,
+                                                  preprocessing_layer_creator)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
-  policy_dict = {
+  policy_dict: Dict[str, TFPolicy] = {
       'saved_policy': tf_agent.policy,
       'saved_collect_policy': tf_agent.collect_policy,
   }

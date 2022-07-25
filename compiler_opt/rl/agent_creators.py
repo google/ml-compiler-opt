@@ -87,7 +87,7 @@ def create_agent(agent_name: constant.AgentName,
                  action_spec: types.NestedTensorSpec,
                  preprocessing_layer_creator: Callable[[types.TensorSpec],
                                                        tf.keras.layers.Layer],
-                 policy_network: types.Network):
+                 policy_network: types.Network) -> TFAgent:
   """Creates a tfa.agents.TFAgent object.
 
   Args:
