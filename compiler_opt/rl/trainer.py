@@ -20,9 +20,12 @@ from absl import logging
 
 import gin
 import tensorflow as tf
+from compiler_opt.rl import random_net_distillation
+from tf_agents.agents import TFAgent
 from tf_agents.policies import policy_loader
 
 from tf_agents.utils import common as common_utils
+from typing import Optional
 
 _INLINING_DEFAULT_KEY = 'inlining_default'
 
@@ -43,10 +46,11 @@ class Trainer(object):
 
   def __init__(
       self,
-      root_dir,
-      agent,
-      random_network_distillation=None,
-      warmstart_policy_dir=None,
+      root_dir: str,
+      agent: TFAgent,
+      random_network_distillation: Optional[
+          random_net_distillation.RandomNetworkDistillation] = None,
+      warmstart_policy_dir: Optional[str] = None,
       # Params for summaries and logging
       checkpoint_interval=10000,
       log_interval=100,
@@ -180,7 +184,7 @@ class Trainer(object):
   def global_step_numpy(self):
     return self._global_step.numpy()
 
-  def train(self, dataset_iter, monitor_dict, num_iterations):
+  def train(self, dataset_iter, monitor_dict, num_iterations: int):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
     # context management is implemented in decorator

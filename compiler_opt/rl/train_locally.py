@@ -25,6 +25,7 @@ from absl import flags
 from absl import logging
 import gin
 import tensorflow as tf
+from tf_agents.agents import TFAgent
 from tf_agents.system import system_multiprocessing as multiprocessing
 from typing import List
 
@@ -77,9 +78,9 @@ def train_eval(agent_name=constant.AgentName.PPO,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
-                                         action_spec,
-                                         preprocessing_layer_creator)
+  tf_agent: TFAgent = agent_creators.create_agent(agent_name, time_step_spec,
+                                                  action_spec,
+                                                  preprocessing_layer_creator)
   # create the random network distillation object
   random_network_distillation = None
   if use_random_network_distillation:

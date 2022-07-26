@@ -18,7 +18,10 @@ import json
 import os
 
 import tensorflow as tf
+from tf_agents.policies import TFPolicy
 from tf_agents.policies import policy_saver
+
+from typing import Dict, Tuple
 
 OUTPUT_SIGNATURE = 'output_spec.json'
 
@@ -74,17 +77,18 @@ class PolicySaver(object):
   ```
   """
 
-  def __init__(self, policy_dict):
+  def __init__(self, policy_dict: Dict[str, TFPolicy]):
     """Initialize the PolicySaver object.
 
     Args:
       policy_dict: A dict mapping from policy name to policy.
     """
-    self._policy_saver_dict = {
-        policy_name: (policy_saver.PolicySaver(
-            policy, batch_size=1, use_nest_path_signatures=False), policy)
-        for policy_name, policy in policy_dict.items()
-    }
+    self._policy_saver_dict: Dict[str, Tuple[
+        policy_saver.PolicySaver, TFPolicy]] = {
+            policy_name: (policy_saver.PolicySaver(
+                policy, batch_size=1, use_nest_path_signatures=False), policy)
+            for policy_name, policy in policy_dict.items()
+        }
 
   def _save_policy(self, saver, path):
     """Writes policy, model weights and model_binding.txt to path/."""
@@ -149,7 +153,7 @@ class PolicySaver(object):
     with tf.io.gfile.GFile(os.path.join(path, OUTPUT_SIGNATURE), 'w') as f:
       f.write(json.dumps(output_list))
 
-  def save(self, root_dir):
+  def save(self, root_dir: str):
     """Writes policy and model_binding.txt to root_dir/policy_name/."""
     for policy_name, (saver, _) in self._policy_saver_dict.items():
       self._save_policy(saver, os.path.join(root_dir, policy_name))
