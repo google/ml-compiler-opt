@@ -227,6 +227,8 @@ class TrainingIRExtractor:
               llvm_objcopy_path: Optional[str] = None,
               cmd_filter: Optional[str] = None,
               thinlto_build: Optional[str] = None) -> Optional[str]:
+    if self._obj_relative_path is None:
+      return None
     if thinlto_build == 'local':
       return self._extract_lld_artifacts()
     return self._extract_clang_artifacts(
@@ -241,7 +243,11 @@ def convert_compile_command_to_objectfile(command: Dict[str, str],
   cmd = command['command']
 
   cmd_parts = cmd.split()
-  obj_index = cmd_parts.index('-o') + 1
+  try:
+    obj_index = cmd_parts.index('-o') + 1
+  except ValueError:
+    logging.info('Command has no -o option: %s', cmd)
+    return TrainingIRExtractor(None, None, None)
   obj_rel_path = cmd_parts[obj_index]
   # TODO(mtrofin): is the obj_base_dir correct for thinlto index bc files?
   return TrainingIRExtractor(
