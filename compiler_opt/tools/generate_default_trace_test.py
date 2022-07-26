@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for generate_default_trace."""
-
+import json
 import os
 from unittest import mock
 
@@ -67,8 +67,8 @@ class GenerateDefaultTraceTest(absltest.TestCase):
     module_names = ['a', 'b', 'c', 'd']
 
     with tf.io.gfile.GFile(
-        os.path.join(tmp_dir.full_path, 'module_paths'), 'w') as f:
-      f.write('\n'.join(module_names))
+        os.path.join(tmp_dir.full_path, 'corpus_description.json'), 'w') as f:
+      json.dump({'modules': module_names, 'has_thinlto': False}, f)
 
     for module_name in module_names:
       with tf.io.gfile.GFile(

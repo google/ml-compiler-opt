@@ -44,6 +44,8 @@ from absl import app
 from absl import flags
 from absl import logging
 
+from compiler_opt.rl import constant
+
 flags.DEFINE_string(
     'input', None,
     'Input file - either compile_commands.json or a linker parameter list')
@@ -333,13 +335,25 @@ def main(argv):
   with multiprocessing.Pool(FLAGS.num_workers) as pool:
     relative_output_paths = pool.map(extract_artifacts, objs)
 
-    # Write all Non-None relative paths to FLAGS.output_dir/module_paths.
-    with open(
-        os.path.join(FLAGS.output_dir, 'module_paths'), 'w',
-        encoding='utf-8') as f:
-      for path in relative_output_paths:
-        if path is not None:
-          f.write(path + '\n')
+  # This comes first rather than later so global_command_override is at the top
+  # of the .json after being written
+  if FLAGS.thinlto_build == 'local':
+    corpus_description = {
+        'global_command_override': constant.UNSPECIFIED_OVERRIDE
+    }
+  else:
+    corpus_description = {}
+
+  corpus_description.update({
+      'has_thinlto': FLAGS.thinlto_build is not None,
+      'modules': [path for path in relative_output_paths if path is not None]
+  })
+
+  with open(
+      os.path.join(FLAGS.output_dir, 'corpus_description.json'),
+      'w',
+      encoding='utf-8') as f:
+    json.dump(corpus_description, f, indent=2)
 
     logging.info('Converted %d files out of %d',
                  len(objs) - relative_output_paths.count(None), len(objs))

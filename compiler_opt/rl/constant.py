@@ -23,6 +23,9 @@ BASE_MODULE_DIR = 'compiler_opt.rl'
 # Delta to add when computing reward.
 DELTA = 0.01
 
+# Default of global_command_override in corpus_description.json
+UNSPECIFIED_OVERRIDE = ['<UNSPECIFIED>']
+
 
 @gin.constants_from_enum
 class AgentName(enum.Enum):

@@ -14,6 +14,7 @@
 # limitations under the License.
 """Tests for the ModuleSpec dataclass and its utility functions."""
 # pylint: disable=protected-access
+import json
 import os
 
 import tensorflow as tf
@@ -25,20 +26,19 @@ class CommandParsingTest(tf.test.TestCase):
 
   def test_thinlto_file(self):
     data = ['-cc1', '-foo', '-bar=baz']
-    argfile = self.create_tempfile(content='\0'.join(data))
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            ir_file='my_file.bc', cmd_file=argfile.full_path),
-        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc'])
+            module_path=module_path, has_thinlto=False),
+        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc'])
     self.assertEqual(
         corpus._load_and_parse_command(
-            ir_file='my_file.bc',
-            cmd_file=argfile.full_path,
-            thinlto_file='the_index.bc'),
-        [
-            '-cc1', '-foo', '-bar=baz', '-x', 'ir', 'my_file.bc',
-            '-fthinlto-index=the_index.bc', '-mllvm', '-thinlto-assume-merged'
-        ])
+            module_path=module_path, has_thinlto=True), [
+                '-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc',
+                '-fthinlto-index=' + module_path + '.thinlto.bc', '-mllvm',
+                '-thinlto-assume-merged'
+            ])
 
   def test_deletion(self):
     delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
@@ -48,24 +48,26 @@ class CommandParsingTest(tf.test.TestCase):
         '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
         '-split-dwarf-output', 'somepath/some.dwo'
     ]
-    argfile = self.create_tempfile(content='\0'.join(data))
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            ir_file='hi.bc',
-            cmd_file=argfile.full_path,
+            module_path=module_path,
+            has_thinlto=False,
             delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc'])
+        ['-cc1', '-x', 'ir', module_path + '.bc'])
 
   def test_addition(self):
     additional_flags = ('-fix-all-bugs',)
     data = ['-cc1']
-    argfile = self.create_tempfile(content='\0'.join(data))
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            ir_file='hi.bc',
-            cmd_file=argfile.full_path,
+            module_path=module_path,
+            has_thinlto=False,
             additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc', '-fix-all-bugs'])
+        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
 
   def test_modification(self):
     delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
@@ -76,51 +78,36 @@ class CommandParsingTest(tf.test.TestCase):
         '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
         '-split-dwarf-output', 'somepath/some.dwo'
     ]
-    argfile = self.create_tempfile(content='\0'.join(data))
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
     self.assertEqual(
         corpus._load_and_parse_command(
-            ir_file='hi.bc',
-            cmd_file=argfile.full_path,
+            module_path=module_path,
+            has_thinlto=False,
             delete_flags=delete_compilation_flags,
             additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', 'hi.bc', '-fix-all-bugs'])
+        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
 
-
-class LoadModulePathsTest(tf.test.TestCase):
-
-  def test_exists(self):
-    data = ['1', '2', '3']
-    tempdir = self.create_tempdir()
-    tempdir.create_file(file_path='module_paths', content='\n'.join(data))
-    read_data = corpus._load_module_paths(tempdir.full_path)
-    self.assertEqual([os.path.join(tempdir.full_path, p) for p in data],
-                     read_data)
-
-  def test_empty(self):
-    tempdir = self.create_tempdir()
-    tempdir.create_file(file_path='module_paths')
-    self.assertRaises(ValueError, corpus._load_module_paths, tempdir.full_path)
-
-  def test_not_exists_file(self):
-    tempdir = self.create_tempdir()
-    self.assertRaises(FileNotFoundError, corpus._load_module_paths,
-                      tempdir.full_path)
-
-  def test_not_exists_dir(self):
-    self.assertRaises(FileNotFoundError, corpus._load_module_paths,
-                      '/this#path$cant:possibly^exist')
-
-
-class HasThinLTOIndexTest(tf.test.TestCase):
-
-  def test_exists(self):
-    tempdir = self.create_tempdir()
-    tempdir.create_file(file_path='a.thinlto.bc')
-    self.assertTrue(corpus._has_thinlto_index(iter([tempdir.full_path + '/a'])))
-
-  def test_not_exists(self):
-    self.assertFalse(
-        corpus._has_thinlto_index(iter(['this#file$cant:possibly^exist'])))
+  def test_override(self):
+    cmd_override = ('-fix-all-bugs',)
+    data = ['-cc1', '-fthinlto-index=bad']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
+    self.assertEqual(
+        corpus._load_and_parse_command(
+            module_path=module_path,
+            has_thinlto=False,
+            cmd_override=cmd_override,
+            additional_flags=('-add-bugs',),
+            delete_flags=('-fthinlto-index',)),
+        ['-fix-all-bugs', '-x', 'ir', module_path + '.bc', '-add-bugs'])
+    self.assertEqual(
+        corpus._load_and_parse_command(
+            module_path=os.path.join('this!path#cant$exist/'
+                                     'hi'),
+            has_thinlto=False,
+            cmd_override=cmd_override),
+        ['-fix-all-bugs', '-x', 'ir', 'this!path#cant$exist/hi.bc'])
 
 
 class ModuleSpecTest(tf.test.TestCase):
@@ -131,9 +118,10 @@ class ModuleSpecTest(tf.test.TestCase):
     self.assertEqual(ms.exec_cmd, ('-cc1', '-fix-all-bugs'))
 
   def test_get_without_thinlto(self):
-    data = ['1', '2']
+    corpus_description = {'modules': ['1', '2'], 'has_thinlto': False}
     tempdir = self.create_tempdir()
-    tempdir.create_file('module_paths', content='\n'.join(data))
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
     tempdir.create_file('1.bc')
     tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
     tempdir.create_file('2.bc')
@@ -144,18 +132,19 @@ class ModuleSpecTest(tf.test.TestCase):
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
-    self.assertEqual(ms1.name, tempdir.full_path + '/1')
+    self.assertEqual(ms1.name, '1')
     self.assertEqual(ms1.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc', '-add'))
 
-    self.assertEqual(ms2.name, tempdir.full_path + '/2')
+    self.assertEqual(ms2.name, '2')
     self.assertEqual(ms2.exec_cmd,
                      ('-O3', '-x', 'ir', tempdir.full_path + '/2.bc', '-add'))
 
   def test_get_with_thinlto(self):
-    data = ['1', '2']
+    corpus_description = {'modules': ['1', '2'], 'has_thinlto': True}
     tempdir = self.create_tempdir()
-    tempdir.create_file('module_paths', content='\n'.join(data))
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
     tempdir.create_file('1.bc')
     tempdir.create_file('1.thinlto.bc')
     tempdir.create_file(
@@ -171,15 +160,51 @@ class ModuleSpecTest(tf.test.TestCase):
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
-    self.assertEqual(ms1.name, tempdir.full_path + '/1')
+    self.assertEqual(ms1.name, '1')
     self.assertEqual(ms1.exec_cmd,
                      ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
-    self.assertEqual(ms2.name, tempdir.full_path + '/2')
+    self.assertEqual(ms2.name, '2')
     self.assertEqual(ms2.exec_cmd,
                      ('-x', 'ir', tempdir.full_path + '/2.bc',
+                      '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
+                      '-mllvm', '-thinlto-assume-merged', '-add'))
+
+  def test_get_with_override(self):
+    corpus_description = {
+        'modules': ['1', '2'],
+        'has_thinlto': True,
+        'global_command_override': ['-O3', '-qrs']
+    }
+    tempdir = self.create_tempdir()
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
+    tempdir.create_file('1.bc')
+    tempdir.create_file('1.thinlto.bc')
+    tempdir.create_file(
+        '1.cmd', content='\0'.join(['-cc1', '-fthinlto-index=xyz']))
+    tempdir.create_file('2.bc')
+    tempdir.create_file('2.thinlto.bc')
+    tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
+
+    ms_list = corpus.build_modulespecs_from_datapath(
+        tempdir.full_path,
+        additional_flags=('-add',),
+        delete_flags=('-fthinlto-index',))
+    self.assertEqual(len(ms_list), 2)
+    ms1 = ms_list[0]
+    ms2 = ms_list[1]
+    self.assertEqual(ms1.name, '1')
+    self.assertEqual(ms1.exec_cmd,
+                     ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/1.bc',
+                      '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
+                      '-mllvm', '-thinlto-assume-merged', '-add'))
+
+    self.assertEqual(ms2.name, '2')
+    self.assertEqual(ms2.exec_cmd,
+                     ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 

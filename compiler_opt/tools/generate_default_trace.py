@@ -156,7 +156,8 @@ def main(_):
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
   sizes_and_specs = [
-      (os.path.getsize(m.name + '.bc'), i) for i, m in enumerate(module_specs)
+      (os.path.getsize(os.path.join(_DATA_PATH.value, m.name) + '.bc'), i)
+      for i, m in enumerate(module_specs)
   ]
   sizes_and_specs.sort(reverse=True)
   module_specs = [module_specs[i] for _, i in sizes_and_specs]
