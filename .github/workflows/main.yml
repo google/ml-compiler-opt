@@ -22,18 +22,6 @@ jobs:
           pip install -r dev-requirements.txt
           pip install -r ./compiler_opt/benchmark/requirements.txt
           pylint --version
-      - name: Type check
+      - name: Pre-submit checks
         run: |
-          pytype -j auto .
-      - name: Test
-        run: |
-          pytest
-      - name: Lint
-        run: |
-          pylint --rcfile .pylintrc --recursive yes .
-      - name: Check License Header
-        run: |
-          ./check-license.sh
-      - name: yapf formatting check
-        run: |
-          yapf . -drp
+          python ./presubmit.py --read_only --vverbose
