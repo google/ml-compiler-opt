@@ -109,14 +109,15 @@ class CommandParsingTest(tf.test.TestCase):
             cmd_override=cmd_override),
         ['-fix-all-bugs', '-x', 'ir', 'this!path#cant$exist/hi.bc'])
 
-  def test_add_cc1(self):
+  def test_cc1_exists(self):
     data = ['-fix-all-bugs', '-xyz']
     argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
     module_path = argfile.full_path[:-4]
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path, has_thinlto=False),
-        ['-cc1', '-fix-all-bugs', '-xyz', '-x', 'ir', module_path + '.bc'])
+    self.assertRaises(
+        ValueError,
+        corpus._load_and_parse_command,
+        module_path=module_path,
+        has_thinlto=False)
 
 
 class ModuleSpecTest(tf.test.TestCase):
@@ -134,7 +135,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('1.bc')
     tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
     tempdir.create_file('2.bc')
-    tempdir.create_file('2.cmd', content='\0'.join(['-O3']))
+    tempdir.create_file('2.cmd', content='\0'.join(['-cc1', '-O3']))
 
     ms_list = corpus.build_modulespecs_from_datapath(
         tempdir.full_path, additional_flags=('-add',))
@@ -161,7 +162,8 @@ class ModuleSpecTest(tf.test.TestCase):
         '1.cmd', content='\0'.join(['-cc1', '-fthinlto-index=xyz']))
     tempdir.create_file('2.bc')
     tempdir.create_file('2.thinlto.bc')
-    tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
+    tempdir.create_file(
+        '2.cmd', content='\0'.join(['-cc1', '-fthinlto-index=abc']))
 
     ms_list = corpus.build_modulespecs_from_datapath(
         tempdir.full_path,

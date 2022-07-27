@@ -127,6 +127,6 @@ def _load_and_parse_command(
 
   # The options read from a .cmd file must be run with -cc1
   if not cmd_override and cmdline[0] != '-cc1':
-    cmdline = ['-cc1'] + cmdline
+    raise ValueError('-cc1 flag not present in .cmd file.')
 
   return cmdline
