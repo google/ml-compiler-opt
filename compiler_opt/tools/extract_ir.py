@@ -227,8 +227,6 @@ class TrainingIRExtractor:
               llvm_objcopy_path: Optional[str] = None,
               cmd_filter: Optional[str] = None,
               thinlto_build: Optional[str] = None) -> Optional[str]:
-    if self._obj_relative_path is None:
-      return None
     if thinlto_build == 'local':
       return self._extract_lld_artifacts()
     return self._extract_clang_artifacts(
@@ -237,8 +235,8 @@ class TrainingIRExtractor:
         is_thinlto=thinlto_build == 'distributed')
 
 
-def convert_compile_command_to_objectfile(command: Dict[str, str],
-                                          output_dir: str):
+def convert_compile_command_to_objectfile(
+    command: Dict[str, str], output_dir: str) -> Optional[TrainingIRExtractor]:
   obj_base_dir = command['directory']
   cmd = command['command']
 
@@ -246,8 +244,9 @@ def convert_compile_command_to_objectfile(command: Dict[str, str],
   try:
     obj_index = cmd_parts.index('-o') + 1
   except ValueError:
+    # This could happen if there are non-clang commands in compile_commands.json
     logging.info('Command has no -o option: %s', cmd)
-    return TrainingIRExtractor(None, None, None)
+    return None
   obj_rel_path = cmd_parts[obj_index]
   # TODO(mtrofin): is the obj_base_dir correct for thinlto index bc files?
   return TrainingIRExtractor(
@@ -258,10 +257,12 @@ def convert_compile_command_to_objectfile(command: Dict[str, str],
 
 def load_from_compile_commands(json_array: List[Dict[str, str]],
                                output_dir: str) -> List[TrainingIRExtractor]:
-  return [
+  objs = [
       convert_compile_command_to_objectfile(cmd, output_dir)
       for cmd in json_array
   ]
+  # Filter out None, in case there were non-clang commands in the .json
+  return [obj for obj in objs if obj is not None]
 
 
 def load_from_lld_params(params_array: List[str], obj_base_dir: str,
