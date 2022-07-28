@@ -1,2 +1,1 @@
--r ../../requirements.txt
 joblib==1.1.0
