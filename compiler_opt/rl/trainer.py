@@ -21,7 +21,7 @@ from absl import logging
 import gin
 import tensorflow as tf
 from compiler_opt.rl import random_net_distillation
-from tf_agents.agents import TFAgent
+from tf_agents.agents import tf_agent
 from tf_agents.policies import policy_loader
 
 from tf_agents.utils import common as common_utils
@@ -47,7 +47,7 @@ class Trainer(object):
   def __init__(
       self,
       root_dir: str,
-      agent: TFAgent,
+      agent: tf_agent.TFAgent,
       random_network_distillation: Optional[
           random_net_distillation.RandomNetworkDistillation] = None,
       warmstart_policy_dir: Optional[str] = None,

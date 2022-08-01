@@ -18,7 +18,7 @@ import json
 import os
 
 import tensorflow as tf
-from tf_agents.policies import TFPolicy
+from tf_agents.policies import tf_policy
 from tf_agents.policies import policy_saver
 
 from typing import Dict, Tuple
@@ -77,14 +77,14 @@ class PolicySaver(object):
   ```
   """
 
-  def __init__(self, policy_dict: Dict[str, TFPolicy]):
+  def __init__(self, policy_dict: Dict[str, tf_policy.TFPolicy]):
     """Initialize the PolicySaver object.
 
     Args:
       policy_dict: A dict mapping from policy name to policy.
     """
     self._policy_saver_dict: Dict[str, Tuple[
-        policy_saver.PolicySaver, TFPolicy]] = {
+        policy_saver.PolicySaver, tf_policy.TFPolicy]] = {
             policy_name: (policy_saver.PolicySaver(
                 policy, batch_size=1, use_nest_path_signatures=False), policy)
             for policy_name, policy in policy_dict.items()
