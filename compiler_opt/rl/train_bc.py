@@ -30,8 +30,8 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
-from tf_agents.agents import TFAgent
-from tf_agents.policies import TFPolicy
+from tf_agents.agents import tf_agent
+from tf_agents.policies import tf_policy
 
 from typing import Dict
 
@@ -63,13 +63,12 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  tf_agent: TFAgent = agent_creators.create_agent(agent_name, time_step_spec,
-                                                  action_spec,
-                                                  preprocessing_layer_creator)
-  llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=tf_agent)
-  policy_dict: Dict[str, TFPolicy] = {
-      'saved_policy': tf_agent.policy,
-      'saved_collect_policy': tf_agent.collect_policy,
+  agent: tf_agent.TFAgent = agent_creators.create_agent(
+      agent_name, time_step_spec, action_spec, preprocessing_layer_creator)
+  llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=agent)
+  policy_dict: Dict[str, tf_policy.TFPolicy] = {
+      'saved_policy': agent.policy,
+      'saved_collect_policy': agent.collect_policy,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 

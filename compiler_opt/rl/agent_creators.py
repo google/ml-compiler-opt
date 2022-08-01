@@ -19,7 +19,7 @@ from typing import Callable
 import gin
 import tensorflow as tf
 
-from tf_agents.agents import TFAgent
+from tf_agents.agents import tf_agent
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.ppo import ppo_agent
@@ -29,10 +29,10 @@ from compiler_opt.rl import constant
 from compiler_opt.rl import constant_value_network
 
 
-def _create_behavioral_cloning_agent(time_step_spec: types.NestedTensorSpec,
-                                     action_spec: types.NestedTensorSpec,
-                                     preprocessing_layers: types.NestedLayer,
-                                     policy_network: types.Network) -> TFAgent:
+def _create_behavioral_cloning_agent(
+    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
+    preprocessing_layers: types.NestedLayer,
+    policy_network: types.Network) -> tf_agent.TFAgent:
   """Creates a behavioral_cloning_agent."""
 
   network = policy_network(
@@ -48,7 +48,7 @@ def _create_behavioral_cloning_agent(time_step_spec: types.NestedTensorSpec,
 def _create_dqn_agent(time_step_spec: types.NestedTensorSpec,
                       action_spec: types.NestedTensorSpec,
                       preprocessing_layers: types.NestedLayer,
-                      policy_network: types.Network) -> TFAgent:
+                      policy_network: types.Network) -> tf_agent.TFAgent:
   """Creates a dqn_agent."""
   network = policy_network(
       time_step_spec.observation,
@@ -62,7 +62,7 @@ def _create_dqn_agent(time_step_spec: types.NestedTensorSpec,
 def _create_ppo_agent(time_step_spec: types.NestedTensorSpec,
                       action_spec: types.NestedTensorSpec,
                       preprocessing_layers: types.NestedLayer,
-                      policy_network: types.Network) -> TFAgent:
+                      policy_network: types.Network) -> tf_agent.TFAgent:
   """Creates a ppo_agent."""
 
   actor_network = policy_network(
@@ -87,7 +87,7 @@ def create_agent(agent_name: constant.AgentName,
                  action_spec: types.NestedTensorSpec,
                  preprocessing_layer_creator: Callable[[types.TensorSpec],
                                                        tf.keras.layers.Layer],
-                 policy_network: types.Network) -> TFAgent:
+                 policy_network: types.Network) -> tf_agent.TFAgent:
   """Creates a tfa.agents.TFAgent object.
 
   Args:
