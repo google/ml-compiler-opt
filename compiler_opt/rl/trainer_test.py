@@ -92,7 +92,10 @@ class TrainerTest(tf.test.TestCase):
         tf.compat.v1.train.AdamOptimizer(),
         num_outer_dims=2)
     test_trainer = trainer.Trainer(
-        root_dir=self.get_temp_dir(), agent=test_agent, summary_log_interval=1)
+        root_dir=self.get_temp_dir(),
+        agent=test_agent,
+        summary_log_interval=1,
+        summary_export_interval=10)
     self.assertEqual(0, test_trainer._global_step.numpy())
 
     dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
@@ -100,12 +103,13 @@ class TrainerTest(tf.test.TestCase):
 
     with mock.patch.object(
         tf.summary, 'scalar', autospec=True) as mock_scalar_summary:
-      test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
+      test_trainer.train(dataset_iter, monitor_dict, num_iterations=100)
       self.assertEqual(
           10,
           sum(1 for c in mock_scalar_summary.mock_calls
               if c[2]['name'] == 'test'))
-      self.assertEqual(10, test_trainer._global_step.numpy())
+      self.assertEqual(100, test_trainer._global_step.numpy())
+      self.assertEqual(100, test_trainer.global_step_numpy())
 
   def test_training_with_multiple_times(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
