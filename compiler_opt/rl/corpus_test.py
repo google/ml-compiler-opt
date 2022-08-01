@@ -244,11 +244,11 @@ class CorpusTest(tf.test.TestCase):
     tempdir.create_file('1.bc')
     tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
 
+    corp = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(
         corpus._build_modulespecs_from_datapath(
-            tempdir.full_path, additional_flags=('-add',)),
-        corpus.Corpus(tempdir.full_path,
-                      additional_flags=('-add',))._module_specs)
+            tempdir.full_path, additional_flags=('-add',)), corp._module_specs)
+    self.assertEqual(len(corp), 1)
 
   def test_sample(self):
     corp = corpus.Corpus(

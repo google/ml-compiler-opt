@@ -149,7 +149,7 @@ def main(_):
     corp.filter(m)
 
   # Sampling if needed.
-  sampled_modules = int(corp.size * _SAMPLING_RATE.value)
+  sampled_modules = int(len(corp) * _SAMPLING_RATE.value)
   module_specs = corp.sample(k=sampled_modules)
 
   # sort files by size, to process the large files upfront, hopefully while

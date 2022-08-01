@@ -50,8 +50,7 @@ class Corpus:
           data_path=data_path,
           additional_flags=additional_flags,
           delete_flags=delete_flags)
-    self._root_dir = data_path
-    self.size = len(self._module_specs)
+    self.root_dir = data_path
     self._module_specs.sort(key=lambda m: m.size, reverse=True)
 
   def sample(self, k: int) -> List[ModuleSpec]:
@@ -68,6 +67,9 @@ class Corpus:
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
     self._module_specs = [ms for ms in self._module_specs if p.match(ms.name)]
+
+  def __len__(self):
+    return len(self._module_specs)
 
 
 def _build_modulespecs_from_datapath(
