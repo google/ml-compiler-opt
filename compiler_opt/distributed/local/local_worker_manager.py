@@ -35,6 +35,7 @@ import multiprocessing.connection
 import queue  # pylint: disable=unused-import
 import threading
 
+import gin
 from absl import logging
 # pylint: disable=unused-import
 from compiler_opt.distributed.worker import Worker
@@ -60,12 +61,19 @@ class TaskResult:
 
 
 def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
-              worker_class: 'type[Worker]', *args, **kwargs):
+              worker_class: 'type[Worker]', threads: int, *args, **kwargs):
   """Worker process entrypoint."""
   # Note: the out_q is typed as taking only TaskResult objects, not
   # Optional[TaskResult], despite that being the type it is used on the Stub
   # side. This is because the `None` value is only injected by the Stub itself.
-  pool = concurrent.futures.ThreadPoolExecutor()
+
+  # `threads` is defaulted to 1 in LocalWorkerPool's constructor.
+  # A setting of 1 does not inhibit the while loop below from running since
+  # that runs on the main thread of the process. Urgent tasks will still
+  # process near-immediately. `threads` only controls how many threads are
+  # spawned at a time which execute given tasks. In the typical clang-spawning
+  # jobs, this effectively limits the number of clang instances spawned.
+  pool = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   obj = worker_class(*args, **kwargs)
 
   def make_ondone(msgid):
@@ -101,7 +109,7 @@ def _run(*args, **kwargs):
     raise e
 
 
-def _make_stub(cls: 'type[Worker]', *args, **kwargs):
+def _make_stub(cls: 'type[Worker]', pool_threads: int, *args, **kwargs):
 
   class _Stub():
     """Client stub to a worker hosted by a process."""
@@ -118,6 +126,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
               worker_class=cls,
               in_q=self._send,
               out_q=self._receive,
+              threads=pool_threads,
               *args,
               **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
@@ -208,16 +217,25 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
   return _Stub()
 
 
+@gin.configurable
 class LocalWorkerPool(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self, worker_class: 'type[Worker]', count: Optional[int], *args,
+  def __init__(self,
+               worker_class: 'type[Worker]',
+               count: Optional[int],
+               *args,
+               pool_threads: int = 1,
                **kwargs):
     if not count:
       count = multiprocessing.cpu_count()
     self._stubs = [
-        _make_stub(worker_class, *args, **kwargs) for _ in range(count)
+        _make_stub(worker_class, pool_threads, *args, **kwargs)
+        for _ in range(count // pool_threads)
     ]
+    # Make sure there's always `count` worker threads, not a rounded `count`
+    if (remainder := count % pool_threads) != 0:
+      self._stubs.append(_make_stub(worker_class, remainder, *args, **kwargs))
 
   def __enter__(self):
     return self._stubs
