@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
+import random
+import re
 
 from absl import logging
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 
 import json
 import os
@@ -30,9 +32,45 @@ class ModuleSpec:
   """
   name: str
   exec_cmd: Tuple[str, ...] = ()
+  size: int = 0
 
 
-def build_modulespecs_from_datapath(
+class Corpus:
+  """Represents a corpus. Comes along with some utility functions."""
+
+  def __init__(self,
+               data_path: str,
+               additional_flags: Tuple[str, ...] = (),
+               delete_flags: Tuple[str, ...] = (),
+               module_specs: Optional[List[ModuleSpec]] = None):
+    if module_specs is not None:
+      self._module_specs = module_specs
+    else:
+      self._module_specs = _build_modulespecs_from_datapath(
+          data_path=data_path,
+          additional_flags=additional_flags,
+          delete_flags=delete_flags)
+    self._root_dir = data_path
+    self.size = len(self._module_specs)
+    self._module_specs.sort(key=lambda m: m.size, reverse=True)
+
+  def sample(self, k: int) -> List[ModuleSpec]:
+    """Samples `k` module_specs, sorting by size descending."""
+    k = min(len(self._module_specs), k)
+    if k < 1:
+      raise ValueError('Attempting to sample <1 module specs from corpus.')
+    return list(
+        sorted(
+            random.sample(self._module_specs, k=k),
+            key=lambda m: m.size,
+            reverse=True))
+
+  def filter(self, p: re.Pattern):
+    """Filters module specs, keeping those which match the provided pattern."""
+    self._module_specs = [ms for ms in self._module_specs if p.match(ms.name)]
+
+
+def _build_modulespecs_from_datapath(
     data_path: str,
     additional_flags: Tuple[str, ...] = (),
     delete_flags: Tuple[str, ...] = ()
@@ -65,14 +103,17 @@ def build_modulespecs_from_datapath(
   module_specs: List[ModuleSpec] = []
 
   # This takes ~7s for 30k modules
-  for module_path in module_paths:
+  for rel_module_path in module_paths:
+    full_module_path = os.path.join(data_path, rel_module_path)
     exec_cmd = _load_and_parse_command(
-        module_path=os.path.join(data_path, module_path),
+        module_path=full_module_path,
         has_thinlto=has_thinlto,
         additional_flags=additional_flags,
         delete_flags=delete_flags,
         cmd_override=cmd_override)
-    module_specs.append(ModuleSpec(name=module_path, exec_cmd=tuple(exec_cmd)))
+    size = os.path.getsize(full_module_path + '.bc')
+    module_specs.append(
+        ModuleSpec(name=rel_module_path, exec_cmd=tuple(exec_cmd), size=size))
 
   return module_specs
 

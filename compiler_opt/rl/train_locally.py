@@ -99,7 +99,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
   logging.info('Loading module specs from corpus.')
-  module_specs = corpus.build_modulespecs_from_datapath(
+  corp = corpus.Corpus(
       FLAGS.data_path, problem_config.flags_to_add(),
       problem_config.flags_to_delete())
   logging.info('Done loading module specs from corpus.')
@@ -136,7 +136,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       count=FLAGS.num_workers,
       moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
-        module_specs=module_specs,
+        corp=corp,
         num_modules=num_modules,
         worker_pool=worker_pool,
         parser=sequence_example_iterator_fn,

@@ -16,6 +16,7 @@
 # pylint: disable=protected-access
 import json
 import os
+import re
 
 import tensorflow as tf
 
@@ -137,7 +138,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-cc1', '-O3']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
@@ -165,7 +166,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file(
         '2.cmd', content='\0'.join(['-cc1', '-fthinlto-index=abc']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
@@ -201,7 +202,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.thinlto.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
@@ -219,6 +220,72 @@ class ModuleSpecTest(tf.test.TestCase):
                      ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
+
+  def test_size(self):
+    corpus_description = {'modules': ['1'], 'has_thinlto': False}
+    tempdir = self.create_tempdir()
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
+    bc_file = tempdir.create_file('1.bc')
+    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
+    self.assertEqual(
+        os.path.getsize(bc_file.full_path),
+        corpus._build_modulespecs_from_datapath(
+            tempdir.full_path, additional_flags=('-add',))[0].size)
+
+
+class CorpusTest(tf.test.TestCase):
+
+  def test_constructor(self):
+    corpus_description = {'modules': ['1'], 'has_thinlto': False}
+    tempdir = self.create_tempdir()
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
+    tempdir.create_file('1.bc')
+    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
+
+    self.assertEqual(
+        corpus._build_modulespecs_from_datapath(
+            tempdir.full_path, additional_flags=('-add',)),
+        corpus.Corpus(tempdir.full_path,
+                      additional_flags=('-add',))._module_specs)
+
+  def test_sample(self):
+    corp = corpus.Corpus(
+        '',
+        module_specs=[
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
+        ])
+    sample = corp.sample(4)
+    self.assertEqual(sample[0].name, 'largest')
+    self.assertEqual(sample[1].name, 'middle')
+    self.assertEqual(sample[2].name, 'small')
+    self.assertEqual(sample[3].name, 'smol')
+
+  def test_filter(self):
+    corp = corpus.Corpus(
+        '',
+        module_specs=[
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='small', size=100)
+        ])
+
+    corp.filter(re.compile(r'.+l'))
+    sample = corp.sample(999)
+    self.assertEqual(sample[0].name, 'middle')
+    self.assertEqual(sample[1].name, 'small')
+    self.assertEqual(sample[2].name, 'smol')
+
+  def test_sample_zero(self):
+    corp = corpus.Corpus('', module_specs=[corpus.ModuleSpec(name='smol')])
+
+    self.assertRaises(ValueError, corp.sample, 0)
+    self.assertRaises(ValueError, corp.sample, -213213213)
 
 
 if __name__ == '__main__':

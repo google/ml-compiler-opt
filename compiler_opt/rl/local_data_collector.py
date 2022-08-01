@@ -16,7 +16,6 @@
 
 import concurrent.futures
 import itertools
-import random
 import time
 from typing import Callable, Dict, Iterator, List, Tuple, Optional
 
@@ -34,7 +33,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      module_specs: List[corpus.ModuleSpec],
+      corp: corpus.Corpus,
       num_modules: int,
       worker_pool: List[compilation_runner.CompilationRunnerStub],
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
@@ -44,7 +43,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._module_specs = module_specs
+    self._corpus = corp
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
@@ -108,7 +107,7 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_modules = random.sample(self._module_specs, k=self._num_modules)
+    sampled_modules = self._corpus.sample(k=self._num_modules)
     results = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():
