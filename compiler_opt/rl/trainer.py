@@ -114,9 +114,6 @@ class Trainer(object):
     self._checkpointer.initialize_or_restore()
 
     self._start_time = time.time()
-    self._last_checkpoint_step = 0
-    self._last_log_step = 0
-    self._summary_last_log_step = 0
 
   def _initialize_metrics(self):
     """Initializes metrics."""
@@ -126,8 +123,7 @@ class Trainer(object):
 
   def _update_metrics(self, experience, monitor_dict):
     """Updates metrics and exports to Tensorboard."""
-    if (self._global_step.numpy() >=
-        self._summary_last_log_step + self._summary_log_interval):
+    if tf.math.equal(self._global_step % self._summary_log_interval, 0):
       is_action = ~experience.is_boundary()
 
       self._data_action_mean.update_state(
@@ -136,6 +132,10 @@ class Trainer(object):
           experience.reward, sample_weight=is_action)
       self._num_trajectories.update_state(experience.is_first())
 
+    # Check earlier rather than later if we should record summaries.
+    # TF also checks it, but much later. Needed to avoid looping through
+    # the dict so gave the if a bigger scope
+    if tf.summary.should_record_summaries():
       with tf.name_scope('default/'):
         tf.summary.scalar(
             name='data_action_mean',
@@ -158,28 +158,23 @@ class Trainer(object):
       tf.summary.histogram(
           name='reward', data=experience.reward, step=self._global_step)
 
-      self._summary_last_log_step = self._global_step.numpy()
-
   def _reset_metrics(self):
     """Reset num_trajectories."""
     self._num_trajectories.reset_states()
 
   def _log_experiment(self, loss):
     """Log training info."""
-    global_step_val = self._global_step.numpy()
-    if global_step_val - self._last_log_step >= self._log_interval:
+    if tf.math.equal(self._global_step % self._log_interval, 0):
+      global_step_val = self._global_step.numpy()
       logging.info('step = %d, loss = %g', global_step_val, loss)
       time_acc = time.time() - self._start_time
-      steps_per_sec = (global_step_val - self._last_log_step) / time_acc
+      steps_per_sec = self._log_interval / time_acc
       logging.info('%.3f steps/sec', steps_per_sec)
-      self._last_log_step = global_step_val
       self._start_time = time.time()
 
   def _save_checkpoint(self):
-    if (self._global_step.numpy() - self._last_checkpoint_step >=
-        self._checkpoint_interval):
+    if tf.math.equal(self._global_step % self._checkpoint_interval, 0):
       self._checkpointer.save(global_step=self._global_step)
-      self._last_checkpoint_step = self._global_step.numpy()
 
   def global_step_numpy(self):
     return self._global_step.numpy()
