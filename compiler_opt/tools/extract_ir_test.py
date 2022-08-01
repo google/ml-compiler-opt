@@ -34,12 +34,16 @@ class ExtractIrTest(absltest.TestCase):
             'command': '-cc1 -c /some/path/lib/foo/bar.cc -o lib/bar.o',
             'file': '/some/path/lib/foo/bar.cc'
         }, '/corpus/destination/path')
+    self.assertIsNotNone(obj)
+    # pytype: disable=attribute-error
+    # Pytype complains about obj being None
     self.assertEqual(obj.input_obj(), '/output/directory/lib/bar.o')
     self.assertEqual(obj.relative_output_path(), 'lib/bar.o')
     self.assertEqual(obj.cmd_file(), '/corpus/destination/path/lib/bar.o.cmd')
     self.assertEqual(obj.bc_file(), '/corpus/destination/path/lib/bar.o.bc')
     self.assertEqual(obj.thinlto_index_file(),
                      '/corpus/destination/path/lib/bar.o.thinlto.bc')
+    # pytype: enable=attribute-error
 
   def test_arr_conversion(self):
     res = extract_ir.load_from_compile_commands([{
