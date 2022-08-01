@@ -135,8 +135,8 @@ export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
 
 mkdir ~/tensorflow
 export TENSORFLOW_C_LIB_PATH=~/tensorflow
-wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz
-tar xfz libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH}"
+wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
+tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH}"
 ```
 
 ## Build LLVM
