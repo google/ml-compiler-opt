@@ -35,7 +35,6 @@ import multiprocessing.connection
 import queue  # pylint: disable=unused-import
 import threading
 
-import gin
 from absl import logging
 # pylint: disable=unused-import
 from compiler_opt.distributed.worker import Worker
@@ -61,7 +60,7 @@ class TaskResult:
 
 
 def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
-              worker_class: 'type[Worker]', threads: int, *args, **kwargs):
+              worker_class: 'type[Worker]', *args, **kwargs):
   """Worker process entrypoint."""
   # Note: the out_q is typed as taking only TaskResult objects, not
   # Optional[TaskResult], despite that being the type it is used on the Stub
@@ -73,7 +72,7 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
   # process near-immediately. `threads` only controls how many threads are
   # spawned at a time which execute given tasks. In the typical clang-spawning
   # jobs, this effectively limits the number of clang instances spawned.
-  pool = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
+  pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
   obj = worker_class(*args, **kwargs)
 
   def make_ondone(msgid):
@@ -129,7 +128,6 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
               worker_class=cls,
               in_q=self._send,
               out_q=self._receive,
-              threads=1,
               *args,
               **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
@@ -223,16 +221,12 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 class LocalWorkerPool(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self,
-               worker_class: 'type[Worker]',
-               count: Optional[int],
-               *args,
+  def __init__(self, worker_class: 'type[Worker]', count: Optional[int], *args,
                **kwargs):
     if not count:
       count = multiprocessing.cpu_count()
     self._stubs = [
-        _make_stub(worker_class, *args, **kwargs)
-        for _ in range(count)
+        _make_stub(worker_class, *args, **kwargs) for _ in range(count)
     ]
 
   def __enter__(self):
