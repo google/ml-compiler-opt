@@ -20,7 +20,7 @@ readonly CPUINFO_REPOSITORY="https://github.com/pytorch/cpuinfo"
 readonly CPUINFO_TAG="5e63739504f0f8e18e941bd63b2d6d42536c7d90"
 
 readonly RUY_REPOSITORY="https://github.com/google/ruy"
-readonly RUY_TAG="841ea4172ba904fe3536789497f9565f2ef64129"
+readonly RUY_TAG="97ebb72aa0655c0af98896b317476a5d0dacad9c"
 
 readonly ABSEIL_REPOSITORY="https://github.com/abseil/abseil-cpp"
 readonly ABSEIL_TAG="dc370a82467cb35066475537b797197aee3e5164"
