@@ -97,6 +97,20 @@ userdel buildbot
 groupadd buildbot
 useradd buildbot -g buildbot -m -d /var/lib/buildbot
 
+if [[ "${HOSTNAME}" == ml-opt-dev* ]]
+then
+  echo "Building TFLite"
+  curdir="${PWD}"
+  rm -rf /tmp/tflitebuild
+  mkdir -p /tmp/tflitebuild
+  cd /tmp/tflitebuild
+  curl https://raw.githubusercontent.com/google/ml-compiler-opt/main/buildbot/build_tflite.sh | bash -s
+  cd "${curdir}"
+  echo "Done building TFLite"
+else
+  echo "NOT building TFLite - this is a release only bot."
+fi
+
 wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt -P /tmp \
   || on_error "failed to get python requirements file"
 
