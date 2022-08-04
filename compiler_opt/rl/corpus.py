@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
+import itertools
 import random
 import re
 
@@ -53,16 +54,18 @@ class Corpus:
     self.root_dir = data_path
     self._module_specs.sort(key=lambda m: m.size, reverse=True)
 
-  def sample(self, k: int) -> List[ModuleSpec]:
+  def sample(self,
+             k: int,
+             sort: bool = False,
+             sampler=random.sample) -> List[ModuleSpec]:
     """Samples `k` module_specs, sorting by size descending."""
     k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    return list(
-        sorted(
-            random.sample(self._module_specs, k=k),
-            key=lambda m: m.size,
-            reverse=True))
+    sampled_specs = sampler(self._module_specs, k=k)
+    if not sort:
+      return sampled_specs
+    return list(sorted(sampled_specs, key=lambda m: m.size, reverse=True))
 
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
@@ -70,6 +73,25 @@ class Corpus:
 
   def __len__(self):
     return len(self._module_specs)
+
+
+def sampler_bucket_round_robin(module_specs: List[ModuleSpec],
+                               k) -> List[ModuleSpec]:
+  n = 20
+
+  def _sampler():
+    """Generator yielding module_specs sampled randomly from n buckets, in
+    randomized-round-robin order. The buckets are sequential sections of
+    module_specs of roughly equal lengths."""
+    bucket_size_float = len(module_specs) / n
+    bucket_ranges = [(round(bucket_size_float * (i - 1)),
+                      round(bucket_size_float) * i) for i in range(1, n + 1)]
+    while True:
+      random.shuffle(bucket_ranges)
+      for start, end in bucket_ranges:
+        yield module_specs[random.randrange(start, end)]
+
+  return list(itertools.islice(_sampler(), k))
 
 
 def _build_modulespecs_from_datapath(

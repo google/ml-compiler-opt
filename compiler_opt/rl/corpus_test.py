@@ -259,7 +259,8 @@ class CorpusTest(tf.test.TestCase):
             corpus.ModuleSpec(name='largest', size=500),
             corpus.ModuleSpec(name='small', size=100)
         ])
-    sample = corp.sample(4)
+    sample = corp.sample(4, sort=True)
+    self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'largest')
     self.assertEqual(sample[1].name, 'middle')
     self.assertEqual(sample[2].name, 'small')
@@ -276,7 +277,8 @@ class CorpusTest(tf.test.TestCase):
         ])
 
     corp.filter(re.compile(r'.+l'))
-    sample = corp.sample(999)
+    sample = corp.sample(999, sort=True)
+    self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')
     self.assertEqual(sample[2].name, 'smol')

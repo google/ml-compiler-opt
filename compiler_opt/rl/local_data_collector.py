@@ -107,7 +107,7 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_modules = self._corpus.sample(k=self._num_modules)
+    sampled_modules = self._corpus.sample(k=self._num_modules, sort=False)
     results = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():

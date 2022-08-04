@@ -150,7 +150,7 @@ def main(_):
 
   # Sampling if needed.
   sampled_modules = int(len(corp) * _SAMPLING_RATE.value)
-  module_specs = corp.sample(k=sampled_modules)
+  module_specs = corp.sample(k=sampled_modules, sort=True)
 
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
