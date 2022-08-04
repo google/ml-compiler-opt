@@ -74,6 +74,7 @@ flags.DEFINE_enum(
     '-mllvm -lto-embed-bitcode=post-merge-pre-opt passed in the distributed '
     'case, or -Wl,--save-temps=import and -Wl,--thinlto-emit-index-files '
     'passed in the local case.')
+flags.mark_flags_as_required(['output_dir'])
 
 FLAGS = flags.FLAGS
 
@@ -317,7 +318,6 @@ def extract_artifacts(obj: TrainingIRExtractor) -> Optional[str]:
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
-  flags.mark_flags_as_required(['output_dir'])
 
   objs = []
   if FLAGS.input is not None and FLAGS.thinlto_build == 'local':
