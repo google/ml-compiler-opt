@@ -22,8 +22,8 @@ Gradient.
 For more details about MLGO, please refer to our paper
 [MLGO: a Machine Learning Guided Compiler Optimizations Framework](https://arxiv.org/abs/2101.04808).
 
-For more details about how to contribute to the project, please refer to 
-[contributions](docs/contributing.md). 
+For more details about how to contribute to the project, please refer to
+[contributions](docs/contributing.md).
 
 ## Pretrained models
 
