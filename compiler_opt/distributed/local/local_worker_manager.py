@@ -59,14 +59,10 @@ class TaskResult:
   value: Any
 
 
-def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
+def _run_impl(pipe: multiprocessing.connection.Connection,
               worker_class: 'type[Worker]', *args, **kwargs):
   """Worker process entrypoint."""
-  # Note: the out_q is typed as taking only TaskResult objects, not
-  # Optional[TaskResult], despite that being the type it is used on the Stub
-  # side. This is because the `None` value is only injected by the Stub itself.
 
-  # `threads` is defaulted to 1 in LocalWorkerPool's constructor.
   # A setting of 1 does not inhibit the while loop below from running since
   # that runs on the main thread of the process. Urgent tasks will still
   # process near-immediately. `threads` only controls how many threads are
@@ -75,27 +71,34 @@ def _run_impl(in_q: 'queue.Queue[Task]', out_q: 'queue.Queue[TaskResult]',
   pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
   obj = worker_class(*args, **kwargs)
 
+  # Pipes are not thread safe
+  pipe_lock = threading.Lock()
+
+  def send(task_result: TaskResult):
+    with pipe_lock:
+      pipe.send(task_result)
+
   def make_ondone(msgid):
 
     def on_done(f: concurrent.futures.Future):
       if f.exception():
-        out_q.put(TaskResult(msgid=msgid, success=False, value=f.exception()))
+        send(TaskResult(msgid=msgid, success=False, value=f.exception()))
       else:
-        out_q.put(TaskResult(msgid=msgid, success=True, value=f.result()))
+        send(TaskResult(msgid=msgid, success=True, value=f.result()))
 
     return on_done
 
   # Run forever. The stub will just kill the runner when done.
   while True:
-    task = in_q.get()
+    task: Task = pipe.recv()
     the_func = getattr(obj, task.func_name)
     application = functools.partial(the_func, *task.args, **task.kwargs)
     if task.is_urgent:
       try:
         res = application()
-        out_q.put(TaskResult(msgid=task.msgid, success=True, value=res))
+        send(TaskResult(msgid=task.msgid, success=True, value=res))
       except BaseException as e:  # pylint: disable=broad-except
-        out_q.put(TaskResult(msgid=task.msgid, success=False, value=e))
+        send(TaskResult(msgid=task.msgid, success=False, value=e))
     else:
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
 
@@ -114,9 +117,9 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
     """Client stub to a worker hosted by a process."""
 
     def __init__(self):
-      self._send: 'queue.Queue[Task]' = multiprocessing.get_context().Queue()
-      self._receive: 'queue.Queue[Optional[TaskResult]]' = \
-        multiprocessing.get_context().Queue()
+      parent_pipe, child_pipe = multiprocessing.get_context().Pipe()
+      self._pipe = parent_pipe
+      self._pipe_lock = threading.Lock()
 
       # this is the process hosting one worker instance.
       # we set aside 1 thread to coordinate running jobs, and the main thread
@@ -124,23 +127,20 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # achieves concurrency through multiprocessing, not multithreading.
       self._process = multiprocessing.Process(
           target=functools.partial(
-              _run,
-              worker_class=cls,
-              in_q=self._send,
-              out_q=self._receive,
-              *args,
-              **kwargs))
+              _run, worker_class=cls, pipe=child_pipe, *args, **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
       # when we stop.
       self._lock = threading.Lock()
       self._map: Dict[int, concurrent.futures.Future] = {}
 
-      # thread drainig the receive queue
+      # thread draining the pipe
       self._pump = threading.Thread(target=self._msg_pump)
 
+      # Set the state of this worker to "dead" if the process dies naturally.
       def observer():
         self._process.join()
-        self._receive.put(None)
+        # Feed the parent pipe a poison pill, this kills msg_pump
+        child_pipe.send(None)
 
       self._observer = threading.Thread(target=observer)
 
@@ -156,8 +156,8 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def _msg_pump(self):
       while True:
-        task_result = self._receive.get()
-        if task_result is None:
+        task_result: Optional[TaskResult] = self._pipe.recv()
+        if task_result is None:  # Poison pill fed by observer
           break
         with self._lock:
           future = self._map[task_result.msgid]
@@ -189,13 +189,14 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
           if self._is_stopped():
             result_future.set_exception(concurrent.futures.CancelledError())
           else:
-            self._send.put(
-                Task(
-                    msgid=msgid,
-                    func_name=name,
-                    args=args,
-                    kwargs=kwargs,
-                    is_urgent=cls.is_priority_method(name)))
+            with self._pipe_lock:
+              self._pipe.send(
+                  Task(
+                      msgid=msgid,
+                      func_name=name,
+                      args=args,
+                      kwargs=kwargs,
+                      is_urgent=cls.is_priority_method(name)))
             self._map[msgid] = result_future
         return result_future
 
@@ -203,6 +204,8 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def shutdown(self):
       try:
+        # Killing the process triggers observer exit, which triggers msg_pump
+        # exit
         self._process.kill()
       except:  # pylint: disable=bare-except
         pass

@@ -159,7 +159,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
             **expected_monitor_dict_subset
         })
 
-        collector.close_pool()
+      collector.close_pool()
 
   def test_local_data_collector_task_management(self):
 
