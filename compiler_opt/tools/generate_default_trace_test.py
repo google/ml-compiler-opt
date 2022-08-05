@@ -60,9 +60,16 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
 
 
 class GenerateDefaultTraceTest(absltest.TestCase):
+  def setUp(self):
+    with gin.unlock_config():
+      gin.parse_config_files_and_bindings(
+          config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
+          bindings=None)
+    return super().setUp()
 
   @mock.patch('compiler_opt.tools.generate_default_trace.get_runner')
   def test_api(self, mock_get_runner):
+
     tmp_dir = self.create_tempdir()
     module_names = ['a', 'b', 'c', 'd']
 
@@ -92,10 +99,6 @@ class GenerateDefaultTraceTest(absltest.TestCase):
       generate_default_trace.main(None)
 
   def test_get_runner(self):
-    with gin.unlock_config():
-      gin.parse_config_files_and_bindings(
-          config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
-          bindings=None)
     runner = generate_default_trace.get_runner()
     self.assertIsInstance(runner, compilation_runner.CompilationRunner)
 
