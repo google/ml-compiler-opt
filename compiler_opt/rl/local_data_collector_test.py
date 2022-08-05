@@ -101,15 +101,17 @@ class LocalDataCollectorTest(tf.test.TestCase):
     def create_test_iterator_fn():
 
       def _test_iterator_fn(data_list):
-        assert data_list in (
-            [_get_sequence_example(feature_value=1).SerializeToString()] * 9,
-            [_get_sequence_example(feature_value=2).SerializeToString()] * 9)
-        if data_list == [
-            _get_sequence_example(feature_value=1).SerializeToString()
-        ] * 9:
-          return iter(tf.data.Dataset.from_tensor_slices([1, 2, 3]))
-        else:
-          return iter(tf.data.Dataset.from_tensor_slices([4, 5, 6]))
+        expected_example = _get_sequence_example(
+            feature_value=1).SerializeToString()
+
+        for d in data_list:
+          if d != expected_example:
+            # This value will fail this testcase.
+            return iter(tf.data.Dataset.from_tensor_slices([4, 5, 6]))
+        # This value will pass this test, if it makes it out of collect_data.
+        # If data_list is empty, this is also returned, though this would only
+        # happen if all workers are unresponsive, which is highly unlikely.
+        return iter(tf.data.Dataset.from_tensor_slices([1, 2, 3]))
 
       return _test_iterator_fn
 
