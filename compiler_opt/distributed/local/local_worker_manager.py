@@ -204,8 +204,8 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
     def shutdown(self):
       try:
-        # Killing the process triggers observer death, which triggers msg_pump
-        # death
+        # Killing the process triggers observer exit, which triggers msg_pump
+        # exit
         self._process.kill()
       except:  # pylint: disable=bare-except
         pass
