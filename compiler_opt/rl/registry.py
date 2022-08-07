@@ -33,6 +33,7 @@ from compiler_opt.rl import problem_configuration
 # to trigger gin registration.
 import compiler_opt.rl.inlining  # pylint: disable=unused-import
 import compiler_opt.rl.regalloc  # pylint: disable=unused-import
+import compiler_opt.rl.unroll  # pylint: disable=unused-import
 
 types = tfa.typing.types
 
