@@ -89,14 +89,15 @@ class Sleeper(compilation_runner.CompilationRunner):
         sequence_examples=[], reward_stats={}, rewards=[], keys=[])
 
 
+class MyRunner(compilation_runner.CompilationRunner):
+
+  def collect_data(self, *args, **kwargs):
+    return mock_collect_data(*args, **kwargs)
+
+
 class LocalDataCollectorTest(tf.test.TestCase):
 
   def test_local_data_collector(self):
-
-    class MyRunner(compilation_runner.CompilationRunner):
-
-      def collect_data(self, *args, **kwargs):
-        return mock_collect_data(*args, **kwargs)
 
     def create_test_iterator_fn():
 
