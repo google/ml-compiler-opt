@@ -226,7 +226,7 @@ class LocalWorkerPool(AbstractContextManager):
   def __init__(self, worker_class: 'type[Worker]', count: Optional[int], *args,
                **kwargs):
     if not count:
-      count = multiprocessing.cpu_count()
+      count = multiprocessing.get_context().cpu_count()
     self._stubs = [
         _make_stub(worker_class, *args, **kwargs) for _ in range(count)
     ]
