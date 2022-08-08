@@ -19,10 +19,10 @@ Each worker object is hosted by a separate process. Each worker object may
 handle a number of concurrent requests. The client is given a stub object that
 exposes the same methods as the worker, just that they return Futures.
 
-There is a pair of queues between a stub and its corresponding process/worker.
-One queue is used to place tasks (method calls), the other to receive results.
-Tasks and results are correlated by a monotonically incrementing counter
-maintained by the stub.
+There is a bidirectional pipe between a stub and its corresponding
+process/worker. One direction is used to place tasks (method calls), the other
+to place results. Tasks and results are correlated by a monotonically
+incrementing counter maintained by the stub.
 
 The worker process dequeues tasks promptly and either re-enqueues them to a
 local thread pool, or, if the task is 'urgent', it executes it promptly.
@@ -31,8 +31,6 @@ import concurrent.futures
 import dataclasses
 import functools
 import multiprocessing
-import multiprocessing.connection
-import queue  # pylint: disable=unused-import
 import threading
 
 from absl import logging
@@ -40,6 +38,7 @@ from absl import logging
 from compiler_opt.distributed.worker import Worker
 
 from contextlib import AbstractContextManager
+from multiprocessing import connection
 from typing import Any, Callable, Dict, Optional
 
 
@@ -59,8 +58,8 @@ class TaskResult:
   value: Any
 
 
-def _run_impl(pipe: multiprocessing.connection.Connection,
-              worker_class: 'type[Worker]', *args, **kwargs):
+def _run_impl(pipe: connection.Connection, worker_class: 'type[Worker]', *args,
+              **kwargs):
   """Worker process entrypoint."""
 
   # A setting of 1 does not inhibit the while loop below from running since
@@ -113,7 +112,7 @@ def _run(*args, **kwargs):
 
 def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 
-  class _Stub():
+  class _Stub:
     """Client stub to a worker hosted by a process."""
 
     def __init__(self):
@@ -125,7 +124,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # we set aside 1 thread to coordinate running jobs, and the main thread
       # to handle high priority requests. The expectation is that the user
       # achieves concurrency through multiprocessing, not multithreading.
-      self._process = multiprocessing.Process(
+      self._process = multiprocessing.get_context().Process(
           target=functools.partial(
               _run, worker_class=cls, pipe=child_pipe, *args, **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
@@ -235,7 +234,7 @@ class LocalWorkerPool(AbstractContextManager):
   def __enter__(self):
     return self._stubs
 
-  def __exit__(self, *args, **kwargs):
+  def __exit__(self, *args):
     # first, trigger killing the worker process and exiting of the msg pump,
     # which will also clear out any pending futures.
     for s in self._stubs:
