@@ -19,7 +19,7 @@ import re
 
 from absl import logging
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Any, Optional
+from typing import List, Dict, Tuple, Any
 
 import json
 import os
@@ -42,17 +42,23 @@ class Corpus:
   def __init__(self,
                data_path: str,
                additional_flags: Tuple[str, ...] = (),
-               delete_flags: Tuple[str, ...] = (),
-               module_specs: Optional[List[ModuleSpec]] = None):
-    if module_specs is not None:
-      self._module_specs = module_specs
-    else:
-      self._module_specs = _build_modulespecs_from_datapath(
-          data_path=data_path,
-          additional_flags=additional_flags,
-          delete_flags=delete_flags)
+               delete_flags: Tuple[str, ...] = ()):
+    self._module_specs = _build_modulespecs_from_datapath(
+        data_path=data_path,
+        additional_flags=additional_flags,
+        delete_flags=delete_flags)
     self.root_dir = data_path
     self._module_specs.sort(key=lambda m: m.size, reverse=True)
+
+  @classmethod
+  def from_module_specs(cls, module_specs):
+    """Construct a Corpus from module specs. Mostly for testing purposes."""
+    corp = cls.__new__(cls)  # Avoid calling __init__
+    super(cls, corp).__init__()
+    corp._module_specs = list(module_specs)  # Don't mutate the original list.
+    corp._module_specs.sort(key=lambda m: m.size, reverse=True)
+    corp.root_dir = None
+    return corp
 
   def sample(self,
              k: int,

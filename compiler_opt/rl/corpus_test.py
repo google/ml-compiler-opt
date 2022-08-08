@@ -251,14 +251,12 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(len(corp), 1)
 
   def test_sample(self):
-    corp = corpus.Corpus(
-        '',
-        module_specs=[
-            corpus.ModuleSpec(name='smol', size=1),
-            corpus.ModuleSpec(name='middle', size=200),
-            corpus.ModuleSpec(name='largest', size=500),
-            corpus.ModuleSpec(name='small', size=100)
-        ])
+    corp = corpus.Corpus.from_module_specs(module_specs=[
+        corpus.ModuleSpec(name='smol', size=1),
+        corpus.ModuleSpec(name='middle', size=200),
+        corpus.ModuleSpec(name='largest', size=500),
+        corpus.ModuleSpec(name='small', size=100)
+    ])
     sample = corp.sample(4, sort=True)
     self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'largest')
@@ -267,14 +265,12 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(sample[3].name, 'smol')
 
   def test_filter(self):
-    corp = corpus.Corpus(
-        '',
-        module_specs=[
-            corpus.ModuleSpec(name='smol', size=1),
-            corpus.ModuleSpec(name='largest', size=500),
-            corpus.ModuleSpec(name='middle', size=200),
-            corpus.ModuleSpec(name='small', size=100)
-        ])
+    corp = corpus.Corpus.from_module_specs(module_specs=[
+        corpus.ModuleSpec(name='smol', size=1),
+        corpus.ModuleSpec(name='largest', size=500),
+        corpus.ModuleSpec(name='middle', size=200),
+        corpus.ModuleSpec(name='small', size=100)
+    ])
 
     corp.filter(re.compile(r'.+l'))
     sample = corp.sample(999, sort=True)
@@ -284,7 +280,8 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(sample[2].name, 'smol')
 
   def test_sample_zero(self):
-    corp = corpus.Corpus('', module_specs=[corpus.ModuleSpec(name='smol')])
+    corp = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='smol')])
 
     self.assertRaises(ValueError, corp.sample, 0)
     self.assertRaises(ValueError, corp.sample, -213213213)
