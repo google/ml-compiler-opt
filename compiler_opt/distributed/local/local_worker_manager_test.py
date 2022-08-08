@@ -24,30 +24,46 @@ from compiler_opt.distributed.local import local_worker_manager
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 
+class JobNormal(Worker):
+  """Test worker."""
+
+  def __init__(self):
+    self._token = 0
+
+  @classmethod
+  def is_priority_method(cls, method_name: str) -> bool:
+    return method_name == 'priority_method'
+
+  def priority_method(self):
+    return f'priority {self._token}'
+
+  def get_token(self):
+    return self._token
+
+  def set_token(self, value):
+    self._token = value
+
+
+class JobFail(Worker):
+
+  def __init__(self, wont_be_passed):
+    self._arg = wont_be_passed
+
+  def method(self):
+    return self._arg
+
+
+class JobSlow(Worker):
+
+  def method(self):
+    time.sleep(3600)
+
+
 class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_pool(self):
 
-    class Job(Worker):
-      """Test worker."""
-
-      def __init__(self):
-        self._token = 0
-
-      @classmethod
-      def is_priority_method(cls, method_name: str) -> bool:
-        return method_name == 'priority_method'
-
-      def priority_method(self):
-        return f'priority {self._token}'
-
-      def get_token(self):
-        return self._token
-
-      def set_token(self, value):
-        self._token = value
-
-    with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
+    with local_worker_manager.LocalWorkerPool(JobNormal, 2) as pool:
       p1 = pool[0]
       p2 = pool[1]
       set_futures = [p1.set_token(1), p2.set_token(2)]
@@ -66,15 +82,7 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_failure(self):
 
-    class Job(Worker):
-
-      def __init__(self, wont_be_passed):
-        self._arg = wont_be_passed
-
-      def method(self):
-        return self._arg
-
-    with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
+    with local_worker_manager.LocalWorkerPool(JobFail, 2) as pool:
       with self.assertRaises(concurrent.futures.CancelledError):
         # this will fail because we didn't pass the arg to the ctor, so the
         # worker hosting process will crash.
@@ -82,12 +90,7 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_worker_crash_while_waiting(self):
 
-    class Job(Worker):
-
-      def method(self):
-        time.sleep(3600)
-
-    with local_worker_manager.LocalWorkerPool(Job, 2) as pool:
+    with local_worker_manager.LocalWorkerPool(JobSlow, 2) as pool:
       p = pool[0]
       f = p.method()
       self.assertFalse(f.done())
