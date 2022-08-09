@@ -60,6 +60,7 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
 
 
 class GenerateDefaultTraceTest(absltest.TestCase):
+
   def setUp(self):
     with gin.unlock_config():
       gin.parse_config_files_and_bindings(
