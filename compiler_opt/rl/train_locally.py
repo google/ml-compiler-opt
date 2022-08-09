@@ -68,9 +68,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
-               moving_average_decay_rate=1,
-               additional_compilation_flags=(),
-               delete_compilation_flags=()):
+               moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
   problem_config = registry.get_configuration()
@@ -102,7 +100,8 @@ def train_eval(agent_name=constant.AgentName.PPO,
 
   logging.info('Loading module specs from corpus.')
   module_specs = corpus.build_modulespecs_from_datapath(
-      FLAGS.data_path, additional_compilation_flags, delete_compilation_flags)
+      FLAGS.data_path, problem_config.flags_to_add(),
+      problem_config.flags_to_delete())
   logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
