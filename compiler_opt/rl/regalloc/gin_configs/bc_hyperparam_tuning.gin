@@ -1,0 +1,13 @@
+extend_command_with_gin_files.gin_files = ['compiler_opt/rl/regalloc/gin_configs/behavioral_cloning_nn_agent.gin']
+
+run_tuning.hparams_to_configure = [
+    ('train_eval.batch_size', 'int', 16, 512),
+    ('tf.train.AdamOptimizer.learning_rate', 'float', 0.0, 0.05)
+]
+
+run_tuning.layer_count = (1,3)
+
+run_tuning.per_layer_hparams = [
+    ('RegAllocNetwork.dropout_layer_params', 'float', 0.0, 0.9),
+    ('RegAllocNetwork.fc_layer_params', 'int', 40, 160)
+]
