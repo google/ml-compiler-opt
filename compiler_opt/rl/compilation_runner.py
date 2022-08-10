@@ -17,6 +17,7 @@
 import abc
 import dataclasses
 import json
+import os
 import subprocess
 import threading
 from typing import Dict, List, Optional, Tuple
@@ -30,6 +31,8 @@ import tensorflow as tf
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
     'Max duration (in seconds) after which we cancel any compilation job.')
+_QUIET = flags.DEFINE_bool(
+    'quiet', True, 'Whether or not to compile quietly (hiding info logging)')
 
 
 def _calculate_reward(policy: float, baseline: float) -> float:
@@ -152,8 +155,14 @@ def start_cancellable_process(
     TimeoutExpired: if the process times out.
     ProcessKilledError: if the process was killed via the cancellation token.
   """
+  command_env = os.environ.copy()
+  # Disable tensorflow info messages during data collection
+  if _QUIET.value:
+    command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
   with subprocess.Popen(
-      cmdline, stdout=(subprocess.PIPE if want_output else None)) as p:
+      cmdline,
+      env=command_env,
+      stdout=(subprocess.PIPE if want_output else None)) as p:
     if cancellation_manager:
       cancellation_manager.register_process(p)
 
