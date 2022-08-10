@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
-import itertools
 import random
 import re
 
@@ -53,12 +52,12 @@ class Corpus:
   @classmethod
   def from_module_specs(cls, module_specs: List[ModuleSpec]):
     """Construct a Corpus from module specs. Mostly for testing purposes."""
-    corp = cls.__new__(cls)  # Avoid calling __init__
-    super(cls, corp).__init__()
-    corp._module_specs = list(module_specs)  # Don't mutate the original list.
-    corp._module_specs.sort(key=lambda m: m.size, reverse=True)
-    corp.root_dir = None
-    return corp
+    cps = cls.__new__(cls)  # Avoid calling __init__
+    super(cls, cps).__init__()
+    cps._module_specs = list(module_specs)  # Don't mutate the original list.
+    cps._module_specs.sort(key=lambda m: m.size, reverse=True)
+    cps.root_dir = None
+    return cps
 
   def sample(self,
              k: int,

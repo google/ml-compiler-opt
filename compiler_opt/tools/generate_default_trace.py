@@ -138,7 +138,7 @@ def main(_):
   config = registry.get_configuration()
 
   logging.info('Loading module specs from corpus.')
-  corp = corpus.Corpus(
+  cps = corpus.Corpus(
       _DATA_PATH.value,
       additional_flags=config.flags_to_add(),
       delete_flags=config.flags_to_delete())
@@ -146,11 +146,11 @@ def main(_):
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
-    corp.filter(m)
+    cps.filter(m)
 
   # Sampling if needed.
-  sampled_modules = int(len(corp) * _SAMPLING_RATE.value)
-  module_specs = corp.sample(k=sampled_modules, sort=True)
+  sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
+  module_specs = cps.sample(k=sampled_modules, sort=True)
 
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel

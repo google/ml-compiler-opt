@@ -244,20 +244,20 @@ class CorpusTest(tf.test.TestCase):
     tempdir.create_file('1.bc')
     tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
 
-    corp = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
+    cps = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(
         corpus._build_modulespecs_from_datapath(
-            tempdir.full_path, additional_flags=('-add',)), corp._module_specs)
-    self.assertEqual(len(corp), 1)
+            tempdir.full_path, additional_flags=('-add',)), cps._module_specs)
+    self.assertEqual(len(cps), 1)
 
   def test_sample(self):
-    corp = corpus.Corpus.from_module_specs(module_specs=[
+    cps = corpus.Corpus.from_module_specs(module_specs=[
         corpus.ModuleSpec(name='smol', size=1),
         corpus.ModuleSpec(name='middle', size=200),
         corpus.ModuleSpec(name='largest', size=500),
         corpus.ModuleSpec(name='small', size=100)
     ])
-    sample = corp.sample(4, sort=True)
+    sample = cps.sample(4, sort=True)
     self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'largest')
     self.assertEqual(sample[1].name, 'middle')
@@ -265,34 +265,34 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(sample[3].name, 'smol')
 
   def test_filter(self):
-    corp = corpus.Corpus.from_module_specs(module_specs=[
+    cps = corpus.Corpus.from_module_specs(module_specs=[
         corpus.ModuleSpec(name='smol', size=1),
         corpus.ModuleSpec(name='largest', size=500),
         corpus.ModuleSpec(name='middle', size=200),
         corpus.ModuleSpec(name='small', size=100)
     ])
 
-    corp.filter(re.compile(r'.+l'))
-    sample = corp.sample(999, sort=True)
+    cps.filter(re.compile(r'.+l'))
+    sample = cps.sample(999, sort=True)
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')
     self.assertEqual(sample[2].name, 'smol')
 
   def test_sample_zero(self):
-    corp = corpus.Corpus.from_module_specs(
+    cps = corpus.Corpus.from_module_specs(
         module_specs=[corpus.ModuleSpec(name='smol')])
 
-    self.assertRaises(ValueError, corp.sample, 0)
-    self.assertRaises(ValueError, corp.sample, -213213213)
+    self.assertRaises(ValueError, cps.sample, 0)
+    self.assertRaises(ValueError, cps.sample, -213213213)
 
   def test_bucket_sample(self):
-    corp = corpus.Corpus.from_module_specs(
+    cps = corpus.Corpus.from_module_specs(
         module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
     # Odds of passing once by pure luck with random.sample: 1.779e-07
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = corp.sample(
+      sample = cps.sample(
           k=20, sampler=corpus.sampler_bucket_round_robin, sort=True)
       self.assertLen(sample, 20)
       for idx, s in enumerate(sample):
@@ -303,12 +303,12 @@ class CorpusTest(tf.test.TestCase):
     # Make sure we can sample everything, even if it's not divisible by the
     # internal `n` in sampler_bucket_round_robin
     # Create corpus with a prime number of modules
-    corp = corpus.Corpus.from_module_specs(
+    cps = corpus.Corpus.from_module_specs(
         module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(101)])
 
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = corp.sample(
+      sample = cps.sample(
           k=101, sampler=corpus.sampler_bucket_round_robin, sort=True)
       self.assertLen(sample, 101)
       for idx, s in enumerate(sample):

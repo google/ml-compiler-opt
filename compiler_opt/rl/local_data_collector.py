@@ -33,7 +33,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      corp: corpus.Corpus,
+      cps: corpus.Corpus,
       num_modules: int,
       worker_pool: List[compilation_runner.CompilationRunnerStub],
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
@@ -43,7 +43,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._corpus = corp
+    self._corpus = cps
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
