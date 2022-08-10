@@ -47,11 +47,11 @@ class Corpus:
         data_path=data_path,
         additional_flags=additional_flags,
         delete_flags=delete_flags)
-    self.root_dir = data_path
+    self._root_dir = data_path
     self._module_specs.sort(key=lambda m: m.size, reverse=True)
 
   @classmethod
-  def from_module_specs(cls, module_specs):
+  def from_module_specs(cls, module_specs: List[ModuleSpec]):
     """Construct a Corpus from module specs. Mostly for testing purposes."""
     corp = cls.__new__(cls)  # Avoid calling __init__
     super(cls, corp).__init__()
@@ -69,9 +69,9 @@ class Corpus:
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
     sampled_specs = sampler(self._module_specs, k=k)
-    if not sort:
-      return sampled_specs
-    return list(sorted(sampled_specs, key=lambda m: m.size, reverse=True))
+    if sort:
+      sampled_specs.sort(key=lambda m: m.size, reverse=True)
+    return sampled_specs
 
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
@@ -82,22 +82,37 @@ class Corpus:
 
 
 def sampler_bucket_round_robin(module_specs: List[ModuleSpec],
-                               k) -> List[ModuleSpec]:
+                               k: int) -> List[ModuleSpec]:
+  """Return a list of module_specs sampled randomly from n buckets, in
+  randomized-round-robin order. The buckets are sequential sections of
+  module_specs of roughly equal lengths."""
   n = 20
 
-  def _sampler():
-    """Generator yielding module_specs sampled randomly from n buckets, in
-    randomized-round-robin order. The buckets are sequential sections of
-    module_specs of roughly equal lengths."""
-    bucket_size_float = len(module_specs) / n
-    bucket_ranges = [(round(bucket_size_float * (i - 1)),
-                      round(bucket_size_float) * i) for i in range(1, n + 1)]
-    while True:
-      random.shuffle(bucket_ranges)
-      for start, end in bucket_ranges:
-        yield module_specs[random.randrange(start, end)]
+  bucket_size_int, remainder = divmod(len(module_specs), n)
+  # Calculate "front-heavy" buckets. Being front-heavy is necessary in case
+  # k == len(module_specs)- to prevent encountering a bucket where everything
+  # has been selected while there's another bucket with a non-selected item.
+  bucket_ranges = []
+  start, end = 0, bucket_size_int
+  for i in range(n):
+    if i < remainder:
+      end += 1
+    bucket_ranges.append((start, end))
+    start, end = end, end + bucket_size_int
 
-  return list(itertools.islice(_sampler(), k))
+  ret = []
+  selected = set()
+  selected_add = selected.add  # borrowed trick from random.sample
+  rand_between = random.randrange
+
+  while True:
+    for start, end in bucket_ranges:
+      if len(ret) == k:
+        return ret
+      while (j := rand_between(start, end)) in selected:
+        pass
+      selected_add(j)
+      ret.append(module_specs[j])
 
 
 def _build_modulespecs_from_datapath(

@@ -85,7 +85,7 @@ class LocalDataCollector(data_collector.DataCollector):
     jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
             for module_spec in sampled_modules]
 
-    # Naive load balancing.
+    # TODO: Issue #91. Naive load balancing.
     ret = []
     for i in range(len(jobs)):
       ret.append(self._worker_pool[i % len(self._worker_pool)].collect_data(

@@ -286,6 +286,35 @@ class CorpusTest(tf.test.TestCase):
     self.assertRaises(ValueError, corp.sample, 0)
     self.assertRaises(ValueError, corp.sample, -213213213)
 
+  def test_bucket_sample(self):
+    corp = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+    # Odds of passing once by pure luck with random.sample: 1.779e-07
+    # Try 32 times, for good measure.
+    for i in range(32):
+      sample = corp.sample(
+          k=20, sampler=corpus.sampler_bucket_round_robin, sort=True)
+      self.assertLen(sample, 20)
+      for idx, s in enumerate(sample):
+        # Each bucket should be size 5, since n=20 in the sampler
+        self.assertEqual(s.size // 5, 19 - idx)
+
+  def test_bucket_sample_all(self):
+    # Make sure we can sample everything, even if it's not divisible by the
+    # internal `n` in sampler_bucket_round_robin
+    # Create corpus with a prime number of modules
+    corp = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(101)])
+
+    # Try 32 times, for good measure.
+    for i in range(32):
+      sample = corp.sample(
+          k=101, sampler=corpus.sampler_bucket_round_robin, sort=True)
+      self.assertLen(sample, 101)
+      for idx, s in enumerate(sample):
+        # Each bucket should be size 5, since n=20 in the sampler
+        self.assertEqual(s.size, 100 - idx)
+
 
 if __name__ == '__main__':
   tf.test.main()
