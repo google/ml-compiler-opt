@@ -293,7 +293,7 @@ class CorpusTest(tf.test.TestCase):
     # Try 32 times, for good measure.
     for i in range(32):
       sample = cps.sample(
-          k=20, sampler=corpus.sampler_bucket_round_robin, sort=True)
+          k=20, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
       self.assertLen(sample, 20)
       for idx, s in enumerate(sample):
         # Each bucket should be size 5, since n=20 in the sampler
@@ -309,7 +309,7 @@ class CorpusTest(tf.test.TestCase):
     # Try 32 times, for good measure.
     for i in range(32):
       sample = cps.sample(
-          k=101, sampler=corpus.sampler_bucket_round_robin, sort=True)
+          k=101, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
       self.assertLen(sample, 101)
       for idx, s in enumerate(sample):
         # Each bucket should be size 5, since n=20 in the sampler

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ModuleSpec definition and utility command line parsing functions."""
+import math
 import random
 import re
 
@@ -33,6 +34,51 @@ class ModuleSpec:
   name: str
   exec_cmd: Tuple[str, ...] = ()
   size: int = 0
+
+
+class SamplerBucketRoundRobin:
+  """Calls return a list of module_specs sampled randomly from n buckets, in
+  randomized-round-robin order. The buckets are sequential sections of
+  module_specs of roughly equal lengths."""
+
+  def __init__(self):
+    self._ranges = {}
+
+  def __call__(self,
+               module_specs: List[ModuleSpec],
+               k: int,
+               n: int = 20) -> List[ModuleSpec]:
+    """
+    Args:
+      module_specs: list of module_specs to sample from
+      k: number of modules to sample
+      n: number of buckets to use
+    """
+    # Credits to yundi@ for the highly optimized algo
+    # Essentially, split module_specs into k buckets, then define the order of
+    # visiting the k buckets such that it approximates the behaviour of having
+    # n buckets.
+    specs_len = len(module_specs)
+    if (specs_len, k, n) not in self._ranges:
+      quotient, remainder = divmod(k, n)
+      # rev_map maps from bucket # (implicitly via index) to order of visiting.
+      # lower values should be visited first, and earlier indices before later.
+      rev_map = list(range(quotient)) * n + list(range(remainder))
+      # mapping defines the order in which buckets should be visited.
+      mapping = [t[0] for t in sorted(enumerate(rev_map), key=lambda x: x[1])]
+
+      # generate the buckets ranges, in the order which they should be visited.
+      bucket_size_float = specs_len / k
+      self._ranges[(specs_len, k, n)] = tuple(
+          (math.floor(bucket_size_float * i),
+           math.floor(bucket_size_float * (i + 1))) for i in mapping)
+
+    rand_between = random.randrange
+
+    return [
+        module_specs[rand_between(start, end)]
+        for start, end in self._ranges[(specs_len, k, n)]
+    ]
 
 
 class Corpus:
@@ -62,8 +108,8 @@ class Corpus:
   def sample(self,
              k: int,
              sort: bool = False,
-             sampler=random.sample) -> List[ModuleSpec]:
-    """Samples `k` module_specs, sorting by size descending."""
+             sampler=SamplerBucketRoundRobin()) -> List[ModuleSpec]:
+    """Samples `k` module_specs, optionally sorting by size descending."""
     k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
@@ -78,40 +124,6 @@ class Corpus:
 
   def __len__(self):
     return len(self._module_specs)
-
-
-def sampler_bucket_round_robin(module_specs: List[ModuleSpec],
-                               k: int) -> List[ModuleSpec]:
-  """Return a list of module_specs sampled randomly from n buckets, in
-  randomized-round-robin order. The buckets are sequential sections of
-  module_specs of roughly equal lengths."""
-  n = 20
-
-  bucket_size_int, remainder = divmod(len(module_specs), n)
-  # Calculate "front-heavy" buckets. Being front-heavy is necessary in case
-  # k == len(module_specs)- to prevent encountering a bucket where everything
-  # has been selected while there's another bucket with a non-selected item.
-  bucket_ranges = []
-  start, end = 0, bucket_size_int
-  for i in range(n):
-    if i < remainder:
-      end += 1
-    bucket_ranges.append((start, end))
-    start, end = end, end + bucket_size_int
-
-  ret = []
-  selected = set()
-  selected_add = selected.add  # borrowed trick from random.sample
-  rand_between = random.randrange
-
-  while True:
-    for start, end in bucket_ranges:
-      if len(ret) == k:
-        return ret
-      while (j := rand_between(start, end)) in selected:
-        pass
-      selected_add(j)
-      ret.append(module_specs[j])
 
 
 def _build_modulespecs_from_datapath(
