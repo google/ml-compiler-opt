@@ -24,6 +24,7 @@ from tf_agents.policies import policy_saver
 from typing import Dict, Tuple
 
 OUTPUT_SIGNATURE = 'output_spec.json'
+TFLITE_MODEL_NAME = 'model.tflite'
 
 _TYPE_CONVERSION_DICT = {
     tf.float32: 'float',
@@ -158,3 +159,44 @@ class PolicySaver(object):
     for policy_name, (saver, _) in self._policy_saver_dict.items():
       self._save_policy(saver, os.path.join(root_dir, policy_name))
       self._write_output_signature(saver, os.path.join(root_dir, policy_name))
+
+
+def convert_saved_model(sm_dir: str, tflite_model_path: str):
+  """Convert a saved model to tflite.
+
+  Args:
+    sm_dir: path to the saved model to convert
+
+    tflite_model_path: desired output file path. Directory structure will
+    be created by this function, as needed.
+  """
+  tf.io.gfile.makedirs(os.path.dirname(tflite_model_path))
+  converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
+  converter.target_spec.supported_ops = [
+      tf.lite.OpsSet.TFLITE_BUILTINS,
+  ]
+  tfl_model = converter.convert()
+  with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
+    f.write(tfl_model)
+
+
+def convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str):
+  """Convert a mlgo saved model to mlgo tflite.
+
+  Args:
+    mlgo_model_dir: path to the mlgo saved model dir. It is expected to contain
+    the saved model files (i.e. saved_model.pb, the variables dir) and the
+    output_spec.json file
+
+    tflite_model_dir: path to a directory where the tflite model will be placed.
+    The model will be named model.tflite. Alongside it will be placed a copy of
+    the output_spec.json file.
+  """
+  tf.io.gfile.makedirs(tflite_model_dir)
+  convert_saved_model(mlgo_model_dir,
+                      os.path.join(tflite_model_dir, TFLITE_MODEL_NAME))
+
+  json_file = 'output_spec.json'
+  src_json = os.path.join(mlgo_model_dir, json_file)
+  dest_json = os.path.join(tflite_model_dir, json_file)
+  tf.io.gfile.copy(src_json, dest_json)
