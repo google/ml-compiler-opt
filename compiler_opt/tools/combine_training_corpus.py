@@ -71,8 +71,7 @@ def main(argv):
   # Assume other configs the same as the last corpus_decsription loaded.
   corpus_description['modules'] = module_names
 
-  with tf.io.gfile.GFile(
-      os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
+  with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
     json.dump(corpus_description, f, indent=2)
 
 
