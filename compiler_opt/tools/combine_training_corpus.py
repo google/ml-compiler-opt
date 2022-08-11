@@ -37,6 +37,7 @@ import os
 from absl import app
 from absl import flags
 from absl import logging
+
 import tensorflow as tf
 
 flags.DEFINE_string('root_dir', '', 'root dir of module paths to combine.')
