@@ -68,6 +68,7 @@ Conventions
 """
 
 import abc
+import gin
 from typing import Callable, Iterable, Tuple
 
 import tensorflow as tf
@@ -105,13 +106,14 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
 
   # List of flags to add to clang compilation command. The flag names should
   # match the actual flags provided to clang. An example for AFDO reinjection:
-  # return ['-fprofile-sample-use=/path/to/gwp.afdo',
-  #  '-fprofile-remapping-file=/path/to/prof_remap.txt']
-  def flags_to_add(self) -> Tuple[str, ...]:
-    return ()
+  # return ('-fprofile-sample-use=/path/to/gwp.afdo',
+  #  '-fprofile-remapping-file=/path/to/prof_remap.txt')
+  @gin.configurable(module='problem_config')
+  def flags_to_add(self, add_flags=()) -> Tuple[str, ...]:
+    return add_flags
 
+  @gin.configurable(module='problem_config')
   # List of flags to remove from clang compilation command. The flag names
   # should match the actual flags provided to clang.'
-  def flags_to_delete(self) -> Tuple[str, ...]:
-    return ('-split-dwarf-file', '-split-dwarf-output', '-fthinlto-index',
-            '-fprofile-sample-use', '-fprofile-remapping-file')
+  def flags_to_delete(self, delete_flags=()) -> Tuple[str, ...]:
+    return delete_flags
