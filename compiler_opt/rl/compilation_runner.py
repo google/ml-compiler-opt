@@ -230,11 +230,12 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
   """The interface of a stub to CompilationRunner, for type checkers."""
 
   @abc.abstractmethod
-  def collect_results(self,
-                      module_spec: corpus.ModuleSpec,
-                      tf_policy_path: str,
-                      collect_default_result: bool,
-                      reward_only: bool = False) -> Tuple[Dict, Dict]:
+  def collect_results(
+      self,
+      module_spec: corpus.ModuleSpec,
+      tf_policy_path: str,
+      collect_default_result: bool,
+      reward_only: bool = False) -> Tuple[Optional[Dict], Optional[Dict]]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -290,11 +291,12 @@ class CompilationRunner(Worker):
       return []
     return [v[1] for v in result.values()]
 
-  def collect_results(self,
-                      module_spec: corpus.ModuleSpec,
-                      tf_policy_path: str,
-                      collect_default_result: bool,
-                      reward_only: bool = False) -> Tuple[Dict, Dict]:
+  def collect_results(
+      self,
+      module_spec: corpus.ModuleSpec,
+      tf_policy_path: str,
+      collect_default_result: bool,
+      reward_only: bool = False) -> Tuple[Optional[Dict], Optional[Dict]]:
     """Collect data for the given IR file and policy.
 
     Args:
