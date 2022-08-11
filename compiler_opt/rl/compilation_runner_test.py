@@ -164,6 +164,29 @@ class CompilationRunnerTest(tf.test.TestCase):
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner._compile_fn')
+  def test_reward_only(self, mock_compile_fn):
+    mock_compile_fn.side_effect = _mock_compile_fn
+    runner = compilation_runner.CompilationRunner(
+        moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
+    default_result, policy_result = runner.collect_results(
+        module_spec=corpus.ModuleSpec(name='dummy'),
+        tf_policy_path='policy_path',
+        collect_default_result=True,
+        reward_only=True)
+    self.assertEqual(2, mock_compile_fn.call_count)
+
+    self.assertIsNotNone(default_result)
+    self.assertIsNotNone(policy_result)
+
+    self.assertEqual(
+        [_DEFAULT_REWARD],
+        compilation_runner.CompilationRunner.get_rewards(default_result))
+    self.assertEqual(
+        [_POLICY_REWARD],
+        compilation_runner.CompilationRunner.get_rewards(policy_result))
+
+  @mock.patch(constant.BASE_MODULE_DIR +
+              '.compilation_runner.CompilationRunner._compile_fn')
   def test_given_default_size(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
