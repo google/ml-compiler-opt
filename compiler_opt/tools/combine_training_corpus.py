@@ -31,19 +31,19 @@ generates combinedcorpus/module_path file. In this way corpus1 and
 corpus2 are combined into combinedcorpus.
 """
 
+import json
 import os
 
 from absl import app
 from absl import flags
 from absl import logging
-
 import tensorflow as tf
 
 flags.DEFINE_string('root_dir', '', 'root dir of module paths to combine.')
 
 FLAGS = flags.FLAGS
 
-_FILE_NAME = 'module_paths'
+_FILE_NAME = 'corpus_description.json'
 
 
 def main(argv):
@@ -62,12 +62,17 @@ def main(argv):
       continue
 
     with tf.io.gfile.GFile(path, 'r') as f:
-      module_names.extend(
-          [os.path.join(sub_dir, name.rstrip('\n')) for name in f])
+      corpus_description = json.load(f)
+      module_names.extend([
+          os.path.join(sub_dir, name) for name in corpus_description['modules']
+      ])
 
-  with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
-    for module in module_names:
-      f.write(module + '\n')
+  # Assume other configs the same as the last corpus_decsription loaded.
+  corpus_description['modules'] = module_names
+
+  with tf.io.gfile.GFile(
+      os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
+    json.dump(corpus_description, f, indent=2)
 
 
 if __name__ == '__main__':
