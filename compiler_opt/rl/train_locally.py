@@ -45,7 +45,7 @@ from compiler_opt.rl import trainer
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_string('data_path', None,
-                    'Path to CNS folder containing IR files.')
+                    'Path to directory containing the corpus.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -98,7 +98,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  logging.info('Loading module specs from corpus.')
+  logging.info('Loading module specs from corpus at %s.', FLAGS.data_path)
   module_specs = corpus.build_modulespecs_from_datapath(
       FLAGS.data_path, problem_config.flags_to_add(),
       problem_config.flags_to_delete())
