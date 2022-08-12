@@ -287,8 +287,6 @@ class CompilationRunner(Worker):
 
   @staticmethod
   def get_rewards(result: Dict) -> List[float]:
-    if len(result) == 0:
-      return []
     return [v[1] for v in result.values()]
 
   def collect_results(
