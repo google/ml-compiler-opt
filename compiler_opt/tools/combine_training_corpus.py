@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Combine multiple training corpus into a single training corpus. 
+r"""Combine multiple training corpus into a single training corpus.
 
 Currently only support the case that multiple corpus share the same
 configurables except the "modules" field.
@@ -35,7 +35,6 @@ and corpus2 are combined into combinedcorpus.
 """
 
 import json
-from multiprocessing.sharedctypes import Value
 import os
 
 from absl import app
@@ -78,7 +77,6 @@ def main(argv):
       elif corpus_description != output_corpus_description:
         raise ValueError('Input corpora differ more than modules.')
 
-  # Assume other configs the same as the last corpus_decsription loaded.
   output_corpus_description['modules'] = module_names
 
   with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
