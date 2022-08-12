@@ -12,7 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Combine multiple training corpus into a single training corpus.
+r"""Combine multiple training corpus into a single training corpus. 
+
+Currently only support the case that multiple corpus share the same
+configurables except the "modules" field.
 
 Usage: we'd like to combine training corpus corpus1 and corpus2 into
 combinedcorpus; we first structure the files as follows:
@@ -27,11 +30,12 @@ python3 \
 compiler_opt/tools/combine_training_corpus.py \
   --root_dir=$PATH_TO_combinedcorpus
 
-generates combinedcorpus/module_path file. In this way corpus1 and
-corpus2 are combined into combinedcorpus.
+generates combinedcorpus/corpus_description.json file. In this way corpus1
+and corpus2 are combined into combinedcorpus.
 """
 
 import json
+from multiprocessing.sharedctypes import Value
 import os
 
 from absl import app
@@ -52,6 +56,7 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
 
   module_names = []
+  output_corpus_description = None
 
   for sub_dir in tf.io.gfile.listdir(FLAGS.root_dir):
     path = os.path.join(FLAGS.root_dir, sub_dir, _FILE_NAME)
@@ -67,12 +72,17 @@ def main(argv):
       module_names.extend([
           os.path.join(sub_dir, name) for name in corpus_description['modules']
       ])
+      del corpus_description['modules']
+      if output_corpus_description is None:
+        output_corpus_description = corpus_description
+      elif corpus_description != output_corpus_description:
+        raise ValueError('Input corpora differ more than modules.')
 
   # Assume other configs the same as the last corpus_decsription loaded.
-  corpus_description['modules'] = module_names
+  output_corpus_description['modules'] = module_names
 
   with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
-    json.dump(corpus_description, f, indent=2)
+    json.dump(output_corpus_description, f, indent=2)
 
 
 if __name__ == '__main__':
