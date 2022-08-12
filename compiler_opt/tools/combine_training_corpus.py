@@ -55,7 +55,7 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
 
   module_names = []
-  output_corpus_description = None
+  output_corpus_description = {}
 
   for sub_dir in tf.io.gfile.listdir(FLAGS.root_dir):
     path = os.path.join(FLAGS.root_dir, sub_dir, _FILE_NAME)
@@ -72,7 +72,7 @@ def main(argv):
           os.path.join(sub_dir, name) for name in corpus_description['modules']
       ])
       del corpus_description['modules']
-      if output_corpus_description is None:
+      if len(output_corpus_description) == 0:
         output_corpus_description = corpus_description
       elif corpus_description != output_corpus_description:
         raise ValueError('Input corpora differ more than modules.')
