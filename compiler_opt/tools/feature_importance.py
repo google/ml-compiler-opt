@@ -23,9 +23,14 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import constant
 from compiler_opt.rl import registry
 
+import tensorflow as tf
+
 _DATA_PATH = flags.DEFINE_multi_string(
   'data_path', [],
   'Path to TFRecord file(s) containing trace data.')
+_MODEL_PATH = flags.DEFINE_string(
+  'model_path', '',
+  'Path to the model to explain')
 _GIN_FILES = flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files.')
 _GIN_BINDINGS = flags.DEFINE_multi_string(
@@ -49,9 +54,52 @@ def main(_):
   
   dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
 
-  experience = next(dataset_iter)
+  observation = next(dataset_iter)
 
-  logging.info(experience)
+  # observation keys
+  # 0 - step_type or next_step_type
+  # 1 - actual observation
+  # 2 - action
+  # 3 - policy_thing (not needed)
+  # 4 - step_type or next_step_type
+  # 5 - reward
+  # 6 - discount
+
+  real_observation = observation[1]
+  real_observation.update({
+    'step_type': observation[0],
+    'reward': observation[5],
+    'discount': observation[6]
+  })
+
+  for key in real_observation:
+    real_observation[key] = tf.squeeze(real_observation[key], axis=0)
+
+  logging.info(real_observation)
+
+  #flattened_observation = tf.nest.flatten(observation)[0].numpy()
+
+  #logging.info(flattened_observation)
+
+  saved_policy = tf.saved_model.load(_MODEL_PATH.value)
+  #output = model_to_evaluate(observation).numpy()
+  #logging.info(output)
+
+  #logging.info(list(model_to_evaluate.signatures.keys()))
+
+  #evaluator = model_to_evaluate.signatures['action']
+  #output = evaluator(observation)
+
+  #get_initial_state_fn = saved_policy.signatures['get_initial_state']
+  action_fn = saved_policy.signatures['action']
+
+  #logging.info(action_fn.structured_outputs)
+
+  #logging.info(policy_state_dict)
+
+  output = action_fn(**real_observation)
+  logging.info(output)
+  tf.print(output)
 
 if __name__ == '__main__':
   app.run(main)
