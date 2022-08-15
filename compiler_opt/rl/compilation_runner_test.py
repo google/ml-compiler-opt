@@ -17,6 +17,7 @@
 import os
 import string
 import subprocess
+import threading
 import time
 from unittest import mock
 
@@ -213,9 +214,9 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertEqual(1, mock_compile_fn.call_count)
 
   def test_start_subprocess_output(self):
-    ct = compilation_runner.WorkerCancellationManager()
+    cm = compilation_runner.WorkerCancellationManager(100)
     output = compilation_runner.start_cancellable_process(
-        ['ls', '-l'], timeout=100, cancellation_manager=ct, want_output=True)
+        ['ls', '-l'], cancellation_manager=cm, want_output=True)
     if output:
       output_str = output.decode('utf-8')
     else:
@@ -227,13 +228,30 @@ class CompilationRunnerTest(tf.test.TestCase):
                                  'test_timeout_kills_test_file')
     if os.path.exists(sentinel_file):
       os.remove(sentinel_file)
-    with self.assertRaises(subprocess.TimeoutExpired):
+    with self.assertRaises(compilation_runner.ProcessKilledError):
+      cm = compilation_runner.WorkerCancellationManager(0.5)
       compilation_runner.start_cancellable_process(
           ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file],
-          timeout=0.5,
-          cancellation_manager=None)
+          cancellation_manager=cm)
     time.sleep(2)
     self.assertFalse(os.path.exists(sentinel_file))
+
+  def test_pause_resume(self):
+    # This also makes sure timeouts are restored properly.
+    cm = compilation_runner.WorkerCancellationManager(1)
+    start_time = time.time()
+
+    def stop_and_start():
+      time.sleep(0.25)
+      cm.pause_all_processes()
+      time.sleep(2)
+      cm.resume_all_processes()
+
+    threading.Thread(target=stop_and_start).start()
+    compilation_runner.start_cancellable_process(['sleep', '0.5'],
+                                                 cancellation_manager=cm)
+    # should be at least 2 seconds due to the pause.
+    self.assertGreater(time.time() - start_time, 2)
 
 
 if __name__ == '__main__':

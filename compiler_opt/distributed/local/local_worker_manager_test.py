@@ -58,25 +58,6 @@ class JobSlow(Worker):
     time.sleep(3600)
 
 
-class JobCounter(Worker):
-  """Test worker."""
-
-  def __init__(self):
-    self.times = []
-
-  @classmethod
-  def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'get_times'
-
-  def start(self):
-    while True:
-      self.times.append(time.time())
-      time.sleep(0.05)
-
-  def get_times(self):
-    return self.times
-
-
 class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_pool(self):
@@ -117,34 +98,6 @@ class LocalWorkerManagerTest(absltest.TestCase):
       finally:
         with self.assertRaises(concurrent.futures.CancelledError):
           _ = f.result()
-
-  def test_pause_resume(self):
-
-    with local_worker_manager.LocalWorkerPool(JobCounter, 1) as pool:
-      p = pool[0]
-
-      # Fill the q for 1 second
-      p.start()
-      time.sleep(1)
-
-      # Then pause the process for 1 second
-      p.pause()
-      time.sleep(1)
-
-      # Then resume the process and wait 1 more second
-      p.resume()
-      time.sleep(1)
-
-      times = p.get_times().result()
-
-      # If pause/resume worked, there should be a gap of at least 0.5 seconds.
-      # Otherwise, this will throw an exception.
-      self.assertNotEmpty(times)
-      last_time = times[0]
-      for cur_time in times:
-        if cur_time - last_time > 0.5:
-          return
-      raise ValueError('Failed to find a 2 second gap in times.')
 
 
 if __name__ == '__main__':

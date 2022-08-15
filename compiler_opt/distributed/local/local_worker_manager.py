@@ -32,9 +32,7 @@ import dataclasses
 import functools
 import multiprocessing
 import threading
-import os
 import psutil
-import signal
 
 from absl import logging
 # pylint: disable=unused-import
@@ -134,7 +132,6 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       # when we stop.
       self._lock = threading.Lock()
       self._map: Dict[int, concurrent.futures.Future] = {}
-      self.is_paused = False
 
       # thread draining the pipe
       self._pump = threading.Thread(target=self._msg_pump)
@@ -214,24 +211,9 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       try:
         # Killing the process triggers observer exit, which triggers msg_pump
         # exit
-        self.resume()
         self._process.kill()
       except:  # pylint: disable=bare-except
         pass
-
-    def pause(self):
-      if self.is_paused:
-        return
-      self.is_paused = True
-      # used to send the STOP signal; does not actually kill the process
-      os.kill(self._process.pid, signal.SIGSTOP)
-
-    def resume(self):
-      if not self.is_paused:
-        return
-      self.is_paused = False
-      # used to send the CONTINUE signal; does not actually kill the process
-      os.kill(self._process.pid, signal.SIGCONT)
 
     def set_nice(self, val: int):
       """Sets the nice-ness of the process, this modifies how the OS

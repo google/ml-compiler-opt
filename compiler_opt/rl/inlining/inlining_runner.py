@@ -90,12 +90,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
         command_line.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
       compilation_runner.start_cancellable_process(command_line,
-                                                   self._compilation_timeout,
                                                    cancellation_manager)
       command_line = [self._llvm_size_path, output_native_path]
       output_bytes = compilation_runner.start_cancellable_process(
           command_line,
-          timeout=self._compilation_timeout,
           cancellation_manager=cancellation_manager,
           want_output=True)
       if not output_bytes:

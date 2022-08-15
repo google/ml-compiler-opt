@@ -18,9 +18,11 @@ import abc
 import dataclasses
 import json
 import os
+import signal
 import subprocess
 import threading
-from typing import Dict, List, Optional, Tuple
+import time
+from typing import Dict, List, Optional, Tuple, Union
 
 from absl import flags
 from compiler_opt.distributed.worker import Worker, WorkerFuture
@@ -102,13 +104,22 @@ class WorkerCancellationManager:
   managing resources.
   """
 
-  def __init__(self):
+  @dataclasses.dataclass
+  class ProcData:
+    process: 'subprocess.Popen[bytes]'
+    timeout: threading.Timer
+    time_left: float
+    start_time: float
+
+  def __init__(self, timeout: float = _COMPILATION_TIMEOUT.value):
     # the queue is filled only by workers, and drained only by the single
     # consumer. we use _done to manage access to the queue. We can then assume
     # empty() is accurate and get() never blocks.
-    self._processes = set()
+    self._processes: Dict[int, WorkerCancellationManager.ProcData] = {}
     self._done = False
+    self._paused = False
     self._lock = threading.Lock()
+    self._timeout = timeout
 
   def enable(self):
     with self._lock:
@@ -118,7 +129,13 @@ class WorkerCancellationManager:
     """Register a process for potential cancellation."""
     with self._lock:
       if not self._done:
-        self._processes.add(p)
+        self._processes[p.pid] = self.ProcData(
+            process=p,
+            timeout=threading.Timer(self._timeout,
+                                    kill_process_ignore_exceptions, (p,)),
+            time_left=self._timeout,
+            start_time=time.time())
+        self._processes[p.pid].timeout.start()
         return
     kill_process_ignore_exceptions(p)
 
@@ -126,18 +143,56 @@ class WorkerCancellationManager:
     """Cancel any pending work."""
     with self._lock:
       self._done = True
-    for p in self._processes:
-      kill_process_ignore_exceptions(p)
+    for pdata in self._processes.values():
+      kill_process_ignore_exceptions(pdata.process)
+
+  def pause_all_processes(self):
+    with self._lock:
+      if self._paused:
+        return
+      self._paused = True
+
+      cur_time = time.time()
+      for pid, pdata in self._processes.items():
+        pdata.timeout.cancel()
+        pdata.time_left -= cur_time - pdata.start_time
+        if pdata.time_left > 0:
+          # used to send the STOP signal; does not actually kill the process
+          os.kill(pid, signal.SIGSTOP)
+        else:
+          #  In case we cancelled right after the timeout expired,
+          #  but before actually killing the process.
+          kill_process_ignore_exceptions(pdata.process)
+
+  def resume_all_processes(self):
+    with self._lock:
+      if not self._paused:
+        return
+      self._paused = False
+
+      cur_time = time.time()
+      for pid, pdata in self._processes.items():
+        pdata.timeout = threading.Timer(pdata.time_left,
+                                        kill_process_ignore_exceptions,
+                                        (pdata.process,))
+        pdata.timeout.start()
+        pdata.start_time = cur_time
+        # used to send the CONTINUE signal; does not actually kill the process
+        os.kill(pid, signal.SIGCONT)
 
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
-      if not self._done:
-        self._processes.remove(p)
+      if p.pid in self._processes:
+        self._processes[p.pid].timeout.cancel()
+        del self._processes[p.pid]
+
+  def __del__(self):
+    if len(self._processes) > 0:
+      raise RuntimeError('Cancellation manager deleted while containing items.')
 
 
 def start_cancellable_process(
     cmdline: List[str],
-    timeout: float,
     cancellation_manager: Optional[WorkerCancellationManager],
     want_output: bool = False) -> Optional[bytes]:
   """Start a cancellable process.
@@ -166,14 +221,10 @@ def start_cancellable_process(
     if cancellation_manager:
       cancellation_manager.register_process(p)
 
-    try:
-      retcode = p.wait(timeout=timeout)
-    except subprocess.TimeoutExpired as e:
-      kill_process_ignore_exceptions(p)
-      raise e
-    finally:
-      if cancellation_manager:
-        cancellation_manager.unregister_process(p)
+    retcode = p.wait()
+
+    if cancellation_manager:
+      cancellation_manager.unregister_process(p)
     if retcode != 0:
       raise ProcessKilledError(
       ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
@@ -249,12 +300,16 @@ class CompilationRunner(Worker):
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'cancel_all_work'
+    return method_name in {
+        'cancel_all_work', 'pause_all_work', 'resume_all_work'
+    }
 
-  def __init__(self,
-               clang_path: Optional[str] = None,
-               launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1):
+  def __init__(
+      self,
+      clang_path: Optional[str] = None,
+      launcher_path: Optional[str] = None,
+      moving_average_decay_rate: float = 1,
+      cancellation_manager: Optional[WorkerCancellationManager] = None):
     """Initialization of CompilationRunner class.
 
     Args:
@@ -265,8 +320,8 @@ class CompilationRunner(Worker):
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
-    self._compilation_timeout = _COMPILATION_TIMEOUT.value
-    self._cancellation_manager = WorkerCancellationManager()
+    self._cancellation_manager = (
+        cancellation_manager or WorkerCancellationManager())
 
   # re-allow the cancellation manager accept work.
   def enable(self):
@@ -274,6 +329,12 @@ class CompilationRunner(Worker):
 
   def cancel_all_work(self):
     self._cancellation_manager.kill_all_processes()
+
+  def pause_all_work(self):
+    self._cancellation_manager.pause_all_processes()
+
+  def resume_all_work(self):
+    self._cancellation_manager.resume_all_processes()
 
   def collect_data(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,

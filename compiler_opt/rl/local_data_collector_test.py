@@ -80,9 +80,13 @@ def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
+  def __init__(self):
+    super().__init__(
+        cancellation_manager=compilation_runner.WorkerCancellationManager(3600))
+
   def collect_data(self, module_spec, tf_policy_path, reward_stat):
     _ = module_spec, tf_policy_path, reward_stat
-    compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
+    compilation_runner.start_cancellable_process(['sleep', '3600s'],
                                                  self._cancellation_manager)
 
     return compilation_runner.CompilationResult(
