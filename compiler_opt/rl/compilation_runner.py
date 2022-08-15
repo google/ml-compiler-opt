@@ -22,7 +22,7 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from absl import flags
 from compiler_opt.distributed.worker import Worker, WorkerFuture
@@ -135,7 +135,10 @@ class WorkerCancellationManager:
                                     kill_process_ignore_exceptions, (p,)),
             time_left=self._timeout,
             start_time=time.time())
-        self._processes[p.pid].timeout.start()
+        if self._paused:
+          os.kill(p.pid, signal.SIGSTOP)
+        else:
+          self._processes[p.pid].timeout.start()
         return
     kill_process_ignore_exceptions(p)
 
