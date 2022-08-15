@@ -25,6 +25,8 @@ from compiler_opt.rl import constant
 from compiler_opt.rl import registry
 
 import tensorflow as tf
+import shap
+import numpy
 
 _DATA_PATH = flags.DEFINE_multi_string(
   'data_path', [],
@@ -37,6 +39,28 @@ _GIN_FILES = flags.DEFINE_multi_string(
 _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
+
+def get_input_signature(example_input):
+  input_signature = {}
+  for input in example_input:
+    input_signature[input] = tf.shape(example_input[input]).numpy()
+  return input_signature
+
+def get_signature_total_size(input_signature):
+  total_size = 0
+  for input in input_signature:
+    total_size += numpy.prod(input_signature[input])
+  return total_size
+
+def pack_flat_array_into_input(flat_array, signature_spec):
+  output_input_dict = {}
+  current_index = 0
+  for needed_input in signature_spec:
+    part_size = numpy.prod(signature_spec[needed_input])
+    needed_subset = flat_array[current_index:part_size]
+    current_index += part_size
+    output_input_dict[needed_input] = tf.constant(needed_subset)
+  return output_input_dict
 
 def main(_):
   gin.parse_config_files_and_bindings(
@@ -71,8 +95,13 @@ def main(_):
   saved_policy = tf.saved_model.load(_MODEL_PATH.value)
   action_fn = saved_policy.signatures['action']
 
-  output = action_fn(**observation)
-  tf.print(output)
+  #output = action_fn(**observation)
+  
+  #explainer = shap.DeepExplainer()
+
+  input_sig = get_input_signature(observation)
+  logging.info(input_sig)
+  logging.info(get_signature_total_size(input_sig))
 
 if __name__ == '__main__':
   app.run(main)
