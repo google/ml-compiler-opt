@@ -313,6 +313,17 @@ rm -rf $OUTPUT_DIR && \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
 
+You may also start a tensorboard to monitor the training process with 
+
+```shell
+tensorboard --logdir=$OUTPUT_DIR
+```
+
+Mainly check the reward_distribution section for the model performance. It
+includes the average reward and the percentile of the reward distributions
+during training. Positive reward means an improvement against the heuristic,
+and negative reward means a regression.
+
 ### Evaluate trained policy on a corpus (Optional)
 
 Optionally, if you are interested in seeing how the trained policy (`$OUTPUT_DIR/saved_policy`)
