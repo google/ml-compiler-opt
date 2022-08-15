@@ -301,8 +301,8 @@ class CorpusTest(tf.test.TestCase):
 
   def test_bucket_sample_all(self):
     # Make sure we can sample everything, even if it's not divisible by the
-    # internal `n` in sampler_bucket_round_robin
-    # Create corpus with a prime number of modules
+    # `n` in SamplerBucketRoundRobin.
+    # Create corpus with a prime number of modules.
     cps = corpus.Corpus.from_module_specs(
         module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(101)])
 
@@ -312,8 +312,19 @@ class CorpusTest(tf.test.TestCase):
           k=101, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
       self.assertLen(sample, 101)
       for idx, s in enumerate(sample):
-        # Each bucket should be size 5, since n=20 in the sampler
+        # Since everything is sampled, it should be in perfect order.
         self.assertEqual(s.size, 100 - idx)
+
+  def test_bucket_sample_small(self):
+    # Make sure we can sample even when k < n.
+    cps = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+
+    # Try all 19 possible values 0 < i < n
+    for i in range(1, 20):
+      sample = cps.sample(
+          k=i, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      self.assertLen(sample, i)
 
 
 if __name__ == '__main__':

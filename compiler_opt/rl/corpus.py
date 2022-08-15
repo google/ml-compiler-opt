@@ -38,8 +38,8 @@ class ModuleSpec:
 
 class SamplerBucketRoundRobin:
   """Calls return a list of module_specs sampled randomly from n buckets, in
-  randomized-round-robin order. The buckets are sequential sections of
-  module_specs of roughly equal lengths."""
+  round-robin order. The buckets are sequential sections of module_specs of
+  roughly equal lengths."""
 
   def __init__(self):
     self._ranges = {}
@@ -54,16 +54,16 @@ class SamplerBucketRoundRobin:
       k: number of modules to sample
       n: number of buckets to use
     """
-    # Credits to yundi@ for the highly optimized algo
+    # Credits to yundi@ for the highly optimized algo.
     # Essentially, split module_specs into k buckets, then define the order of
     # visiting the k buckets such that it approximates the behaviour of having
     # n buckets.
     specs_len = len(module_specs)
     if (specs_len, k, n) not in self._ranges:
-      quotient, remainder = divmod(k, n)
+      quotient = k // n
       # rev_map maps from bucket # (implicitly via index) to order of visiting.
       # lower values should be visited first, and earlier indices before later.
-      rev_map = list(range(quotient)) * n + list(range(remainder))
+      rev_map = [i % quotient for i in range(k)] if quotient else [0] * k
       # mapping defines the order in which buckets should be visited.
       mapping = [t[0] for t in sorted(enumerate(rev_map), key=lambda x: x[1])]
 
@@ -73,10 +73,8 @@ class SamplerBucketRoundRobin:
           (math.floor(bucket_size_float * i),
            math.floor(bucket_size_float * (i + 1))) for i in mapping)
 
-    rand_between = random.randrange
-
     return [
-        module_specs[rand_between(start, end)]
+        module_specs[random.randrange(start, end)]
         for start, end in self._ranges[(specs_len, k, n)]
     ]
 
@@ -110,6 +108,8 @@ class Corpus:
              sort: bool = False,
              sampler=SamplerBucketRoundRobin()) -> List[ModuleSpec]:
     """Samples `k` module_specs, optionally sorting by size descending."""
+    # Note: sampler is intentionally defaulted to a mutable object, as the
+    # only mutable attribute of SamplerBucketRoundRobin is its range cache.
     k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')

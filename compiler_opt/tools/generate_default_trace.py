@@ -150,16 +150,9 @@ def main(_):
 
   # Sampling if needed.
   sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
-  module_specs = cps.sample(k=sampled_modules, sort=True)
-
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  sizes_and_specs = [
-      (os.path.getsize(os.path.join(_DATA_PATH.value, m.name) + '.bc'), i)
-      for i, m in enumerate(module_specs)
-  ]
-  sizes_and_specs.sort(reverse=True)
-  module_specs = [module_specs[i] for _, i in sizes_and_specs]
+  module_specs = cps.sample(k=sampled_modules, sort=True)
 
   worker_count = (
       min(os.cpu_count(), _NUM_WORKERS.value)
