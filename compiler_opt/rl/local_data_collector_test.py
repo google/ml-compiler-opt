@@ -116,7 +116,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          module_specs=[corpus.ModuleSpec(name='dummy')] * 100,
+          cps=corpus.Corpus.from_module_specs(
+              module_specs=[corpus.ModuleSpec(name='dummy')] * 100),
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
@@ -177,7 +178,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          module_specs=[corpus.ModuleSpec(name='dummy')] * 200,
+          cps=corpus.Corpus.from_module_specs(
+              module_specs=[corpus.ModuleSpec(name='dummy')] * 200),
           num_modules=4,
           worker_pool=lwp,
           parser=parser,

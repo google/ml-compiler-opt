@@ -18,7 +18,6 @@ import contextlib
 import functools
 import os
 import queue
-import random
 import re
 import subprocess
 from typing import Dict, List, Optional, Union, Tuple  # pylint:disable=unused-import
@@ -139,7 +138,7 @@ def main(_):
   config = registry.get_configuration()
 
   logging.info('Loading module specs from corpus.')
-  module_specs = corpus.build_modulespecs_from_datapath(
+  cps = corpus.Corpus(
       _DATA_PATH.value,
       additional_flags=config.flags_to_add(),
       delete_flags=config.flags_to_delete())
@@ -147,21 +146,13 @@ def main(_):
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
-    module_specs = [ms for ms in module_specs if m.match(ms.name)]
+    cps.filter(m)
 
   # Sampling if needed.
-  if _SAMPLING_RATE.value < 1:
-    sampled_modules = int(len(module_specs) * _SAMPLING_RATE.value)
-    module_specs = random.sample(module_specs, k=sampled_modules)
-
+  sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  sizes_and_specs = [
-      (os.path.getsize(os.path.join(_DATA_PATH.value, m.name) + '.bc'), i)
-      for i, m in enumerate(module_specs)
-  ]
-  sizes_and_specs.sort(reverse=True)
-  module_specs = [module_specs[i] for _, i in sizes_and_specs]
+  module_specs = cps.sample(k=sampled_modules, sort=True)
 
   worker_count = (
       min(os.cpu_count(), _NUM_WORKERS.value)
