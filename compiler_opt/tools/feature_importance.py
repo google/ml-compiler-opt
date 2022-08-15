@@ -14,6 +14,7 @@
 # limitations under the License.
 """A tool for analyzing which features a model uses to make a decision."""
 
+from email.contentmanager import raw_data_manager
 from absl import app
 from absl import flags
 from absl import logging
@@ -54,51 +55,23 @@ def main(_):
   
   dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
 
-  observation = next(dataset_iter)
+  raw_trajectory = next(dataset_iter)
 
-  # observation keys
-  # 0 - step_type or next_step_type
-  # 1 - actual observation
-  # 2 - action
-  # 3 - policy_thing (not needed)
-  # 4 - step_type or next_step_type
-  # 5 - reward
-  # 6 - discount
-
-  real_observation = observation[1]
-  real_observation.update({
-    'step_type': observation[0],
-    'reward': observation[5],
-    'discount': observation[6]
+  observation = raw_trajectory.observation
+  observation.update({
+    'step_type': raw_trajectory.step_type,
+    'reward': raw_trajectory.reward,
+    'discount': raw_trajectory.discount
   })
-
-  for key in real_observation:
-    real_observation[key] = tf.squeeze(real_observation[key], axis=0)
-
-  logging.info(real_observation)
-
-  #flattened_observation = tf.nest.flatten(observation)[0].numpy()
-
-  #logging.info(flattened_observation)
+  
+  # remove batch size dimension
+  for key in observation:
+    observation[key] = tf.squeeze(observation[key], axis=0)
 
   saved_policy = tf.saved_model.load(_MODEL_PATH.value)
-  #output = model_to_evaluate(observation).numpy()
-  #logging.info(output)
-
-  #logging.info(list(model_to_evaluate.signatures.keys()))
-
-  #evaluator = model_to_evaluate.signatures['action']
-  #output = evaluator(observation)
-
-  #get_initial_state_fn = saved_policy.signatures['get_initial_state']
   action_fn = saved_policy.signatures['action']
 
-  #logging.info(action_fn.structured_outputs)
-
-  #logging.info(policy_state_dict)
-
-  output = action_fn(**real_observation)
-  logging.info(output)
+  output = action_fn(**observation)
   tf.print(output)
 
 if __name__ == '__main__':
