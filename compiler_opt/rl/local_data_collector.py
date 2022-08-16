@@ -23,6 +23,7 @@ from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
+from compiler_opt.distributed.local import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
@@ -55,7 +56,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # with the training phase - i.e. whatever happens between successive data
     # collection calls. Subsequent runs will wait for these to finish.
     self._reset_workers: Optional[concurrent.futures.Future] = None
-    self._current_work: List[Tuple[corpus.ModuleSpec, worker.WorkerFuture]] = []
+    self._current_futures: List[worker.WorkerFuture] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
   def close_pool(self):
@@ -85,12 +86,15 @@ class LocalDataCollector(data_collector.DataCollector):
     jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
             for module_spec in sampled_modules]
 
-    # TODO: Issue #91. Naive load balancing.
-    ret = []
-    for i in range(len(jobs)):
-      ret.append(self._worker_pool[i % len(self._worker_pool)].collect_data(
-          *(jobs[i])))
-    return ret
+    def assignment_factory(job):
+
+      def assignment(w):
+        return w.collect_data(*job)
+
+      return assignment
+
+    self.assignments = [assignment_factory(job) for job in jobs]
+    return buffered_scheduler.schedule(self.assignments, self._worker_pool)
 
   def collect_data(
       self, policy_path: str
@@ -108,22 +112,20 @@ class LocalDataCollector(data_collector.DataCollector):
       information is viewable in TensorBoard.
     """
     sampled_modules = self._corpus.sample(k=self._num_modules, sort=False)
-    results = self._schedule_jobs(policy_path, sampled_modules)
+    self._current_futures = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
 
       def get_num_finished_work():
-        finished_work = sum(res.done() for res in results)
+        finished_work = sum(res.done() for res in self._current_futures)
         return finished_work
 
       return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
-    self._current_work = list(zip(sampled_modules, results))
-    finished_work = [
-        (spec, res) for spec, res in self._current_work if res.done()
-    ]
+    current_work = list(zip(sampled_modules, self._current_futures))
+    finished_work = [(spec, res) for spec, res in current_work if res.done()]
     successful_work = [(spec, res.result())
                        for spec, res in finished_work
                        if not worker.get_exception(res)]
@@ -139,7 +141,7 @@ class LocalDataCollector(data_collector.DataCollector):
       # now that the workers killed pending compilations, make sure the workers
       # drained their working queues first - they should all complete quickly
       # since the cancellation manager is killing immediately any process starts
-      worker.wait_for(results)
+      worker.wait_for(self._current_futures)
       worker.wait_for([wkr.enable() for wkr in self._worker_pool])
 
     self._reset_workers = self._pool.submit(wrapup)
