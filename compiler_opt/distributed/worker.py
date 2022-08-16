@@ -14,9 +14,8 @@
 # limitations under the License.
 """Common abstraction for a worker contract."""
 
-import concurrent.futures
 import time
-from typing import Iterable, Optional, TypeVar
+from typing import Iterable, Optional, TypeVar, Protocol
 
 
 class Worker:
@@ -29,7 +28,18 @@ class Worker:
 
 T = TypeVar('T')
 
-WorkerFuture = concurrent.futures.Future
+
+# Dask's Futures are limited. This captures that.
+class WorkerFuture(Protocol[T]):
+
+  def result(self) -> T:
+    raise NotImplementedError()
+
+  def done(self) -> bool:
+    raise NotImplementedError()
+
+  def add_done_callback(self, fn) -> None:
+    raise NotImplementedError
 
 
 def wait_for(futures: Iterable[WorkerFuture]):

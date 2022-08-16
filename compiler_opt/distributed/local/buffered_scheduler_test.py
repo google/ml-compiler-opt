@@ -29,66 +29,65 @@ class BufferedSchedulerTest(absltest.TestCase):
     call_count = [0] * 4
     locks = [threading.Lock() for _ in range(4)]
 
-    def assignee_factory(i):
+    def wkr_factory(i):
 
-      def assignee():
+      def wkr():
         with locks[i]:
           call_count[i] += 1
 
-      return assignee
+      return wkr
 
-    assignees = [assignee_factory(i) for i in range(4)]
+    wkrs = [wkr_factory(i) for i in range(4)]
 
-    def assignment(assignee):
+    def job(wkr):
       future = concurrent.futures.Future()
 
       def task():
-        assignee()
+        wkr()
         future.set_result(0)
 
       threading.Timer(interval=0.10, function=task).start()
       return future
 
-    assignments = [assignment] * 20
+    work = [job] * 20
 
-    worker.wait_for(buffered_scheduler.schedule(assignments, assignees))
+    worker.wait_for(buffered_scheduler.schedule(work, wkrs))
     self.assertEqual(sum(call_count), 20)
 
   def test_balances(self):
     call_count = [0] * 4
     locks = [threading.Lock() for _ in range(4)]
 
-    def assignee_factory(i):
+    def wkr_factory(i):
 
-      def assignee():
+      def wkr():
         with locks[i]:
           call_count[i] += 1
 
-      return assignee
+      return wkr
 
-    def slow_assignee():
+    def slow_wkr():
       with locks[0]:
         call_count[0] += 1
       time.sleep(1)
 
-    assignees = [slow_assignee] + [assignee_factory(i) for i in range(1, 4)]
+    wkrs = [slow_wkr] + [wkr_factory(i) for i in range(1, 4)]
 
-    def assignment(assignee):
+    def job(wkr):
       future = concurrent.futures.Future()
 
       def task():
-        assignee()
+        wkr()
         future.set_result(0)
 
       threading.Timer(interval=0.10, function=task).start()
       return future
 
-    assignments = [assignment] * 20
+    work = [job] * 20
 
-    worker.wait_for(
-        buffered_scheduler.schedule(assignments, assignees, buffer=2))
+    worker.wait_for(buffered_scheduler.schedule(work, wkrs, buffer=2))
     self.assertEqual(sum(call_count), 20)
-    # since buffer=2, 2 tasks get assigned to the slow assignee, the rest
+    # since buffer=2, 2 tasks get assigned to the slow wkr, the rest
     # should've been assigned elsewhere if load balancing works.
     self.assertEqual(call_count[0], 2)
 
@@ -104,7 +103,7 @@ class BufferedSchedulerTest(absltest.TestCase):
 
     t = threading.Thread(target=None)
 
-    def time_able_assignment(_):
+    def time_able_job(_):
       nonlocal t
       future = concurrent.futures.Future()
 
@@ -115,13 +114,18 @@ class BufferedSchedulerTest(absltest.TestCase):
       t = threading.Thread(target=task, daemon=True)
       return future
 
-    assignments = [time_able_assignment, should_not_deadlock]
+    work = [time_able_job, should_not_deadlock]
 
-    futures = buffered_scheduler.schedule(assignments, [None], buffer=1)
-    # At this point, time_able_assignment has a done_callback to
-    # should_not_deadlock, so we can go ahead and complete the assignment.
+    futures = buffered_scheduler.schedule(work, [None], buffer=1)
+    # At this point, time_able_job has a done_callback to
+    # should_not_deadlock, so we can go ahead and complete the job.
     t.start()
-    time.sleep(1)  # If >1s, it's probably deadlocked.
+    # Sleep for up to 1 second.
+    for _ in range(10):
+      if futures[0].done() and futures[1].done():
+        break
+      time.sleep(0.1)
+    # If >1s, and it's still not done, it's probably deadlocked.
     self.assertTrue(futures[0].done())
     self.assertTrue(futures[1].done())
     t.join()
