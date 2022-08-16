@@ -161,10 +161,10 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
         with self._lock:
           future = self._map[task_result.msgid]
           del self._map[task_result.msgid]
-          if task_result.success:
-            future.set_result(task_result.value)
-          else:
-            future.set_exception(task_result.value)
+        if task_result.success:
+          future.set_result(task_result.value)
+        else:
+          future.set_exception(task_result.value)
 
       # clear out pending futures and mark ourselves as "stopped" by null-ing
       # the map
