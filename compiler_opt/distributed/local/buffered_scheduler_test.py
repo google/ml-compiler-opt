@@ -46,7 +46,7 @@ class BufferedSchedulerTest(absltest.TestCase):
         assignee()
         future.set_result(0)
 
-      threading.Timer(interval=1, function=task).start()
+      threading.Timer(interval=0.10, function=task).start()
       return future
 
     assignments = [assignment] * 20
@@ -69,7 +69,7 @@ class BufferedSchedulerTest(absltest.TestCase):
     def slow_assignee():
       with locks[0]:
         call_count[0] += 1
-      time.sleep(2)
+      time.sleep(1)
 
     assignees = [slow_assignee] + [assignee_factory(i) for i in range(1, 4)]
 
@@ -80,7 +80,7 @@ class BufferedSchedulerTest(absltest.TestCase):
         assignee()
         future.set_result(0)
 
-      threading.Timer(interval=0.20, function=task).start()
+      threading.Timer(interval=0.10, function=task).start()
       return future
 
     assignments = [assignment] * 20
