@@ -75,8 +75,8 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
 
       # This potentially causes a deadlock if chain_work is called via a
       # future.set_result() context which holds a resource that is also required
-      # to complete the call work[i](wkr) call above. See test_deadlock for an
-      # example.
+      # to complete the call work[i](wkr) call above. For an example, see:
+      # https://gist.github.com/Northbadge/a57f2d4e0a71e8f3934bdb47e59e343e
       # A fix/workaround would be using threading below, but that introduces
       # overhead of creating a new thread.
       results[i].add_done_callback(lambda _: chain_work(wkr))
