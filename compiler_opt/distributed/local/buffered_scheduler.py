@@ -74,7 +74,6 @@ def schedule(assignments: List[Callable[[T], concurrent.futures.Future]],
       # which is required to successfully completed the callback.
       results[i].add_done_callback(lambda _: threading.Thread(
           target=chain_assignments, args=(assignee,)).start())
-      # results[i].add_done_callback(lambda _: chain_assignments(assignee))
 
   for _ in range(buffer):
     for a in assignees:
