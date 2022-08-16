@@ -102,7 +102,7 @@ class CompilationRunnerTest(tf.test.TestCase):
       self.assertProtoEquals(x, y)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_policy(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -132,7 +132,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0.1998002], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_default(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -163,7 +163,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_given_default_size(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -198,7 +198,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0.199800], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_exception_handling(self, mock_compile_fn):
     mock_compile_fn.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')

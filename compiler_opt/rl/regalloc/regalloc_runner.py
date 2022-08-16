@@ -43,7 +43,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
 
   # TODO: refactor file_paths parameter to ensure correctness during
   # construction
-  def _compile_fn(
+  def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
       reward_only: bool, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]

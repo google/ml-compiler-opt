@@ -298,7 +298,7 @@ class CompilationRunner(Worker):
       ValueError if example under default policy and ml policy does not match.
     """
     if reward_stat is None:
-      default_result = self._compile_fn(
+      default_result = self.compile_fn(
           module_spec,
           tf_policy_path='',
           reward_only=bool(tf_policy_path),
@@ -308,7 +308,7 @@ class CompilationRunner(Worker):
       }
 
     if tf_policy_path:
-      policy_result = self._compile_fn(
+      policy_result = self.compile_fn(
           module_spec,
           tf_policy_path,
           reward_only=False,
@@ -346,7 +346,7 @@ class CompilationRunner(Worker):
         rewards=rewards,
         keys=keys)
 
-  def _compile_fn(
+  def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
       reward_only: bool,
       cancellation_manager: Optional[WorkerCancellationManager]

@@ -45,7 +45,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
     super().__init__(*args, **kwargs)
     self._llvm_size_path = llvm_size_path
 
-  def _compile_fn(
+  def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
       reward_only: bool, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
