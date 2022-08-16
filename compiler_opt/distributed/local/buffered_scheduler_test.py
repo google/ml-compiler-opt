@@ -91,44 +91,44 @@ class BufferedSchedulerTest(absltest.TestCase):
     # should've been assigned elsewhere if load balancing works.
     self.assertEqual(call_count[0], 2)
 
-  def test_deadlock(self):
-    lock = threading.Lock()
-
-    def should_not_deadlock(_):
-      with lock:
-        pass
-      future = concurrent.futures.Future()
-      future.set_result(0)
-      return future
-
-    t = threading.Thread(target=None)
-
-    def time_able_job(_):
-      nonlocal t
-      future = concurrent.futures.Future()
-
-      def task():
-        with lock:
-          future.set_result(0)
-
-      t = threading.Thread(target=task, daemon=True)
-      return future
-
-    work = [time_able_job, should_not_deadlock]
-
-    futures = buffered_scheduler.schedule(work, [None], buffer=1)
-    # At this point, time_able_job has a done_callback to
-    # should_not_deadlock, so we can go ahead and complete the job.
-    t.start()
-    # Sleep for up to 1 second.
-    for _ in range(10):
-      if futures[0].done() and futures[1].done():
-        break
-      time.sleep(0.1)
-    # If >1s, and it's still not done, it's probably deadlocked.
-    self.assertTrue(futures[0].done())
-    self.assertTrue(futures[1].done())
-    t.join()
+  # def test_deadlock(self):
+  #   lock = threading.Lock()
+  #
+  #   def should_not_deadlock(_):
+  #     with lock:
+  #       pass
+  #     future = concurrent.futures.Future()
+  #     future.set_result(0)
+  #     return future
+  #
+  #   t = threading.Thread(target=None)
+  #
+  #   def time_able_job(_):
+  #     nonlocal t
+  #     future = concurrent.futures.Future()
+  #
+  #     def task():
+  #       with lock:
+  #         future.set_result(0)
+  #
+  #     t = threading.Thread(target=task, daemon=True)
+  #     return future
+  #
+  #   work = [time_able_job, should_not_deadlock]
+  #
+  #   futures = buffered_scheduler.schedule(work, [None], buffer=1)
+  #   # At this point, time_able_job has a done_callback to
+  #   # should_not_deadlock, so we can go ahead and complete the job.
+  #   t.start()
+  #   # Sleep for up to 1 second.
+  #   for _ in range(10):
+  #     if futures[0].done() and futures[1].done():
+  #       break
+  #     time.sleep(0.1)
+  #   # If >1s, and it's still not done, it's probably deadlocked.
+  #   self.assertTrue(futures[0].done())
+  #   self.assertTrue(futures[1].done())
+  #   t.join()
 
 
 if __name__ == '__main__':

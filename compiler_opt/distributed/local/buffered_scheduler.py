@@ -32,6 +32,8 @@ class DeadlockDetected(Exception):
 
 def raise_deadlock(*args, **kwargs):
   # This is raised if attempting to call .result() on _NEVER_FUTURE
+  # "Deadlock" here refers to blocking indefinitely, as the actual .result()
+  # would block indefinitely.
   raise DeadlockDetected()
 
 
@@ -60,7 +62,7 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
   idx_lock = threading.Lock()
 
   # Simple atomic increment and get.
-  # Used to iterate over work like a thread-safe queue.
+  # Used to iterate over `work` like a thread-safe queue without making a copy.
   def fetch_idx():
     nonlocal idx
     with idx_lock:
@@ -71,13 +73,13 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
     if (i := fetch_idx()) < len(work):
       results[i] = work[i](wkr)
 
-      # It is necessary for the done callback to execute on a separate thread,
-      # which is on an anonymous/fresh callstack. This is to prevent a potential
-      # deadlock arising from the current thread holding resources (e.g. a lock)
-      # which is required to successfully completed the callback.
-      # See: test_deadlock
-      results[i].add_done_callback(
-          lambda _: threading.Thread(target=chain_work, args=(wkr,)).start())
+      # This potentially causes a deadlock if chain_work is called via a
+      # future.set_result() context which holds a resource that is also required
+      # to complete the call work[i](wkr) call above. See test_deadlock for an
+      # example.
+      # A fix/workaround would be using threading below, but that introduces
+      # overhead of creating a new thread.
+      results[i].add_done_callback(lambda _: chain_work(wkr))
 
   for _ in range(buffer):
     for w in workers:
