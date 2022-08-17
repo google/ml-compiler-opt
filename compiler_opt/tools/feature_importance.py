@@ -26,6 +26,7 @@ from compiler_opt.rl import registry
 import tensorflow as tf
 import shap
 import numpy
+import json
 
 _DATA_PATH = flags.DEFINE_multi_string(
     'data_path', [], 'Path to TFRecord file(s) containing trace data.')
@@ -34,7 +35,7 @@ _MODEL_PATH = flags.DEFINE_string('model_path', '',
 _OUTPUT_FILE = flags.DEFINE_string(
     'output_file', '', 'The path to the output file containing the SHAP values')
 _NUM_EXAMPLES = flags.DEFINE_integer(
-    'num_examples', '', 'The number of examples to process from the trace')
+    'num_examples', 1, 'The number of examples to process from the trace')
 _GIN_FILES = flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files.')
 _GIN_BINDINGS = flags.DEFINE_multi_string(
@@ -144,7 +145,14 @@ def main(_):
   explainer = shap.KernelExplainer(run_model, numpy.zeros((1, total_size)))
   shap_values = explainer.shap_values(dataset, nsamples=1000)
 
-  numpy.savetxt(_OUTPUT_FILE.value, shap_values)
+  output_file_data = {
+    'expected_values': explainer.expected_value,
+    'shap_values': shap_values.tolist(),
+    'data': dataset.tolist()
+  }
+
+  with open(_OUTPUT_FILE.value, 'w') as output_file:
+    json.dump(output_file_data, output_file)
 
 
 if __name__ == '__main__':
