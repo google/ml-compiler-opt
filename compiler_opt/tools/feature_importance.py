@@ -51,6 +51,14 @@ def get_input_signature(example_input):
   return input_signature
 
 
+def get_feature_names_from_signature(signature):
+  output_names = []
+  for input_key in signature:
+    for i in range(0, numpy.prod(signature[input_key][0])):
+      output_names.append(f'{input_key}_{i}')
+  return output_names
+
+
 def get_signature_total_size(input_signature):
   total_size = 0
   for input_key in input_signature:
@@ -145,13 +153,16 @@ def main(_):
   explainer = shap.KernelExplainer(run_model, numpy.zeros((1, total_size)))
   shap_values = explainer.shap_values(dataset, nsamples=1000)
 
+  feature_names = get_feature_names_from_signature(input_sig)
+
   output_file_data = {
-    'expected_values': explainer.expected_value,
-    'shap_values': shap_values.tolist(),
-    'data': dataset.tolist()
+      'expected_values': explainer.expected_value,
+      'shap_values': shap_values.tolist(),
+      'data': dataset.tolist(),
+      'feature_names': feature_names
   }
 
-  with open(_OUTPUT_FILE.value, 'w') as output_file:
+  with open(_OUTPUT_FILE.value, 'w', encoding='utf-8') as output_file:
     json.dump(output_file_data, output_file)
 
 

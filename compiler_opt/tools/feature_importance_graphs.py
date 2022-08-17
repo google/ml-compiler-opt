@@ -19,22 +19,32 @@ import numpy
 import shap
 import json
 
+
 def load_shap_values(file_name):
-  with open(file_name) as file_to_load:
+  with open(file_name, encoding='utf-8') as file_to_load:
     data = json.load(file_to_load)
+    if data['expected_values'] is not list:
+      data['expected_values'] = [data['expected_values']]
     return {
-      'expected_values': numpy.asarray(data['expected_values']),
-      'shap_values': numpy.asarray(data['shap_values']),
-      'data': numpy.asarray(data['data'])
+        'expected_values': numpy.asarray(data['expected_values']),
+        'shap_values': numpy.asarray(data['shap_values']),
+        'data': numpy.asarray(data['data']),
+        'feature_names': data['feature_names']
     }
+
 
 def init_shap_for_notebook():
   shap.initjs()
 
+
 def graph_individual_example(data, index=0):
-  return shap.force_plot(data['expected_values'],
-                  data['shap_values'][index,:],
-                  data['data'][index,:])
+  return shap.force_plot(
+      data['expected_values'],
+      data['shap_values'][index, :],
+      data['data'][index, :],
+      feature_names=data['feature_names'])
+
 
 def graph_summary_plot(data):
-  return shap.summary_plot(data['shap_values'], data['data'])
+  return shap.summary_plot(
+      data['shap_values'], data['data'], feature_names=data['feature_names'])
