@@ -3,4 +3,3 @@ pytype==2022.06.06
 pylint==2.14.1
 pytest==7.1.2
 yapf==0.32.0
-shap==0.41.0
