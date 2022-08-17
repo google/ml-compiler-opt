@@ -19,26 +19,10 @@
 import concurrent.futures
 import threading
 
-from typing import List, Callable, TypeVar
+from typing import List, Callable, TypeVar, Optional
 
 from compiler_opt.distributed import worker
 
-
-class DeadlockDetected(Exception):
-
-  def __init__(self):
-    Exception.__init__(self)
-
-
-def raise_deadlock(*args, **kwargs):
-  # This is raised if attempting to call .result() on _NEVER_FUTURE
-  # "Deadlock" here refers to blocking indefinitely, as the actual .result()
-  # would block indefinitely.
-  raise DeadlockDetected()
-
-
-_NEVER_FUTURE = concurrent.futures.Future()  # A Future that never completes.
-_NEVER_FUTURE.result = raise_deadlock
 T = TypeVar('T')
 
 
@@ -53,13 +37,14 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
     workers: List of workers that are the singular argument to callable.
     buffer: Number of work to maintain on each worker.
   Returns:
-    A list of Futures that should be stored AS IS. Treat as a reference-to-list.
+    A list of Futures.
   """
-  # Create "fake" futures to be returned first, these futures will be replaced
-  # with "real" futures later on.
-  results: List[worker.WorkerFuture] = [_NEVER_FUTURE] * len(work)
+  # Create futures to be returned first, these futures aren't bound to
+  # anything now, but they will be later.
+  results = [concurrent.futures.Future() for _ in range(len(work))]
   idx = -1
   idx_lock = threading.Lock()
+  done = False
 
   # Simple atomic increment and get.
   # Used to iterate over `work` like a thread-safe queue without making a copy.
@@ -69,19 +54,29 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
       idx += 1
       return idx
 
-  def chain_work(wkr):
-    if (i := fetch_idx()) < len(work):
-      results[i] = work[i](wkr)
+  def chain_work(wkr: T,
+                 future: Optional[concurrent.futures.Future] = None,
+                 future_idx: int = 0):
+    nonlocal done
+    if future is not None:
+      if (e := future.exception()) is not None:
+        results[future_idx].set_exception(e)
+      else:
+        results[future_idx].set_result(future.result())
 
+    if not done and (i := fetch_idx()) < len(work):
       # This potentially causes a deadlock if chain_work is called via a
       # future.set_result() context which holds a resource that is also required
-      # to complete the call work[i](wkr) call above. For an example, see:
+      # to complete the call work[i](wkr) call below. For an example, see:
       # https://gist.github.com/Northbadge/a57f2d4e0a71e8f3934bdb47e59e343e
       # A fix/workaround would be using threading below, but that introduces
       # overhead of creating a new thread.
-      results[i].add_done_callback(lambda _: chain_work(wkr))
+      work[i](wkr).add_done_callback(lambda f: chain_work(wkr, f, i))
+    else:
+      done = True
 
-  for _ in range(buffer):
+  # Use min() in case buffer is huge for some reason.
+  for _ in range(min(buffer, (len(work) // len(workers)) + 1)):
     for w in workers:
       chain_work(w)
 

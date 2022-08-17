@@ -86,15 +86,15 @@ class LocalDataCollector(data_collector.DataCollector):
     jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
             for module_spec in sampled_modules]
 
-    def assignment_factory(job):
+    def work_factory(job):
 
-      def assignment(w):
+      def work(w):
         return w.collect_data(*job)
 
-      return assignment
+      return work
 
-    self.assignments = [assignment_factory(job) for job in jobs]
-    return buffered_scheduler.schedule(self.assignments, self._worker_pool)
+    work = [work_factory(job) for job in jobs]
+    return buffered_scheduler.schedule(work, self._worker_pool, buffer=10)
 
   def collect_data(
       self, policy_path: str

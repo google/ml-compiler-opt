@@ -14,7 +14,6 @@
 # limitations under the License.
 """Common abstraction for a worker contract."""
 
-import time
 from typing import Iterable, Optional, TypeVar, Protocol
 
 
@@ -45,8 +44,10 @@ class WorkerFuture(Protocol[T]):
 def wait_for(futures: Iterable[WorkerFuture]):
   """Dask futures don't support more than result() and done()."""
   for f in futures:
-    while not f.done():
-      time.sleep(0.1)
+    try:
+      _ = f.result()
+    except:  # pylint: disable=bare-except
+      pass
 
 
 def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
