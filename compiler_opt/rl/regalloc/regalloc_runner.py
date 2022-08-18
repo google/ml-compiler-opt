@@ -87,6 +87,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       if tf_policy_path:
         command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
       compilation_runner.start_cancellable_process(command_line,
+                                                   self._compilation_timeout,
                                                    cancellation_manager)
 
       sequence_example = struct_pb2.Struct()

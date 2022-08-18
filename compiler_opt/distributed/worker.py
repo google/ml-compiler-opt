@@ -14,7 +14,7 @@
 # limitations under the License.
 """Common abstraction for a worker contract."""
 
-from typing import Iterable, Optional, TypeVar, Protocol, runtime_checkable
+from typing import Iterable, Optional, Protocol, TypeVar
 
 
 class Worker(Protocol):
@@ -23,17 +23,6 @@ class Worker(Protocol):
   def is_priority_method(cls, method_name: str) -> bool:
     _ = method_name
     return False
-
-
-@runtime_checkable
-class ContextAwareWorker(Worker, Protocol):
-  """ContextAwareWorkers use set_context to modify internal state, this allows
-  it to behave differently when run remotely vs locally. The user of a
-  ContextAwareWorker can check for this with isinstance(obj, ContextAwareWorker)
-  """
-
-  def set_context(self, local: bool) -> None:
-    return
 
 
 T = TypeVar('T')

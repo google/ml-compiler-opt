@@ -31,8 +31,8 @@ import concurrent.futures
 import dataclasses
 import functools
 import multiprocessing
-import threading
 import psutil
+import threading
 
 from absl import logging
 # pylint: disable=unused-import
@@ -40,7 +40,7 @@ from compiler_opt.distributed.worker import Worker
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
-from typing import Any, Callable, Dict, Optional, List
+from typing import Any, Callable, Dict, List, Optional
 
 
 @dataclasses.dataclass(frozen=True)
