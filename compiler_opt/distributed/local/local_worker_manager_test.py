@@ -15,7 +15,6 @@
 """Test for local worker manager."""
 
 import concurrent.futures
-import multiprocessing
 import time
 
 from absl.testing import absltest

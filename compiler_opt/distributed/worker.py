@@ -14,10 +14,10 @@
 # limitations under the License.
 """Common abstraction for a worker contract."""
 
-from typing import Iterable, Optional, TypeVar, Protocol
+from typing import Iterable, Optional, Protocol, TypeVar
 
 
-class Worker:
+class Worker(Protocol):
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:

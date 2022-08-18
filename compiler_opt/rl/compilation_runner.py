@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import json
 import os
+import signal
 import subprocess
 import threading
 from typing import Dict, List, Optional, Tuple
@@ -108,6 +109,7 @@ class WorkerCancellationManager:
     # empty() is accurate and get() never blocks.
     self._processes = set()
     self._done = False
+    self._paused = False
     self._lock = threading.Lock()
 
   def enable(self):
@@ -129,10 +131,33 @@ class WorkerCancellationManager:
     for p in self._processes:
       kill_process_ignore_exceptions(p)
 
+  def pause_all_processes(self):
+    with self._lock:
+      if self._paused:
+        return
+      self._paused = True
+
+      for p in self._processes:
+        # used to send the STOP signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGSTOP)
+
+  def resume_all_processes(self):
+    with self._lock:
+      if not self._paused:
+        return
+      self._paused = False
+
+      for p in self._processes:
+        # used to send the CONTINUE signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGCONT)
+
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
-      if not self._done:
-        self._processes.remove(p)
+      self._processes.remove(p)
+
+  def __del__(self):
+    if len(self._processes) > 0:
+      raise RuntimeError('Cancellation manager deleted while containing items.')
 
 
 def start_cancellable_process(
@@ -174,6 +199,7 @@ def start_cancellable_process(
     finally:
       if cancellation_manager:
         cancellation_manager.unregister_process(p)
+
     if retcode != 0:
       raise ProcessKilledError(
       ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
@@ -249,7 +275,9 @@ class CompilationRunner(Worker):
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'cancel_all_work'
+    return method_name in {
+        'cancel_all_work', 'pause_all_work', 'resume_all_work'
+    }
 
   def __init__(self,
                clang_path: Optional[str] = None,
@@ -274,6 +302,12 @@ class CompilationRunner(Worker):
 
   def cancel_all_work(self):
     self._cancellation_manager.kill_all_processes()
+
+  def pause_all_work(self):
+    self._cancellation_manager.pause_all_processes()
+
+  def resume_all_work(self):
+    self._cancellation_manager.resume_all_processes()
 
   def collect_data(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
