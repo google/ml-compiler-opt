@@ -153,7 +153,8 @@ class WorkerCancellationManager:
 
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
-      self._processes.remove(p)
+      if p in self._processes:
+        self._processes.remove(p)
 
   def __del__(self):
     if len(self._processes) > 0:
