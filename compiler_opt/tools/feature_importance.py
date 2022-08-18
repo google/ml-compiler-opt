@@ -26,27 +26,30 @@ from compiler_opt.rl import registry
 import tensorflow as tf
 import shap
 import numpy
+import numpy.typing
 import json
 
 from tf_agents.typing import types
-from typing import Dict, Tuple, List
-import numpy.typing
+from typing import Dict, Tuple
 
 SignatureType = Dict[str, Tuple[numpy.typing.ArrayLike, tf.dtypes.DType]]
 
-_DATA_PATH = flags.DEFINE_multi_string(
-    'data_path', [], 'Path to TFRecord file(s) containing trace data.')
-_MODEL_PATH = flags.DEFINE_string('model_path', '',
-                                  'Path to the model to explain')
-_OUTPUT_FILE = flags.DEFINE_string(
-    'output_file', '', 'The path to the output file containing the SHAP values')
-_NUM_EXAMPLES = flags.DEFINE_integer(
-    'num_examples', 1, 'The number of examples to process from the trace')
-_GIN_FILES = flags.DEFINE_multi_string(
-    'gin_files', [], 'List of paths to gin configuration files.')
-_GIN_BINDINGS = flags.DEFINE_multi_string(
-    'gin_bindings', [],
-    'Gin bindings to override the values set in the config files.')
+# only create flags if running as a script to prevent interference with pytest
+if __name__ == '__main__':
+  _DATA_PATH = flags.DEFINE_multi_string(
+      'data_path', [], 'Path to TFRecord file(s) containing trace data.')
+  _MODEL_PATH = flags.DEFINE_string('model_path', '',
+                                    'Path to the model to explain')
+  _OUTPUT_FILE = flags.DEFINE_string(
+      'output_file', '',
+      'The path to the output file containing the SHAP values')
+  _NUM_EXAMPLES = flags.DEFINE_integer(
+      'num_examples', 1, 'The number of examples to process from the trace')
+  _GIN_FILES = flags.DEFINE_multi_string(
+      'gin_files', [], 'List of paths to gin configuration files.')
+  _GIN_BINDINGS = flags.DEFINE_multi_string(
+      'gin_bindings', [],
+      'Gin bindings to override the values set in the config files.')
 
 
 def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
