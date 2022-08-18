@@ -30,6 +30,7 @@ import json
 
 from tf_agents.typing import types
 from typing import Dict, Tuple, List
+import numpy.typing
 
 SignatureType = Dict[str, Tuple[numpy.typing.ArrayLike, tf.dtypes.DType]]
 
@@ -54,14 +55,6 @@ def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
     input_signature[input_key] = (tf.shape(example_input[input_key]).numpy(),
                                   example_input[input_key].dtype)
   return input_signature
-
-
-def get_feature_names_from_signature(signature: SignatureType) -> List[str]:
-  output_names = []
-  for input_key in signature:
-    for i in range(0, numpy.prod(signature[input_key][0])):
-      output_names.append(f'{input_key}_{i}')
-  return output_names
 
 
 def get_signature_total_size(input_signature: SignatureType) -> int:
