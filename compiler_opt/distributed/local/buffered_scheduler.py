@@ -19,7 +19,7 @@
 import concurrent.futures
 import threading
 
-from typing import List, Callable, TypeVar, Optional
+from typing import List, Callable, TypeVar
 
 from compiler_opt.distributed import worker
 
@@ -44,7 +44,6 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
   results = [concurrent.futures.Future() for _ in range(len(work))]
   idx = -1
   idx_lock = threading.Lock()
-  done = False
 
   # Simple atomic increment and get.
   # Used to iterate over `work` like a thread-safe queue without making a copy.
@@ -54,26 +53,26 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
       idx += 1
       return idx
 
-  def chain_work(wkr: T,
-                 future: Optional[concurrent.futures.Future] = None,
-                 future_idx: int = 0):
-    nonlocal done
-    if future is not None:
-      if (e := future.exception()) is not None:
-        results[future_idx].set_exception(e)
-      else:
-        results[future_idx].set_result(future.result())
+  def make_result_handler(wkr: T, result_future: concurrent.futures.Future):
 
-    if not done and (i := fetch_idx()) < len(work):
+    def handler(worker_future: concurrent.futures.Future):
+      if (e := worker_future.exception()) is not None:
+        result_future.set_exception(e)
+      else:
+        result_future.set_result(worker_future.result())
+      chain_work(wkr)
+
+    return handler
+
+  def chain_work(wkr: T):
+    if (i := fetch_idx()) < len(work):
       # This potentially causes a deadlock if chain_work is called via a
       # future.set_result() context which holds a resource that is also required
       # to complete the call work[i](wkr) call below. For an example, see:
       # https://gist.github.com/Northbadge/a57f2d4e0a71e8f3934bdb47e59e343e
       # A fix/workaround would be using threading below, but that introduces
       # overhead of creating a new thread.
-      work[i](wkr).add_done_callback(lambda f: chain_work(wkr, f, i))
-    else:
-      done = True
+      work[i](wkr).add_done_callback(make_result_handler(wkr, results[i]))
 
   # Use min() in case buffer is huge for some reason.
   for _ in range(min(buffer, (len(work) // len(workers)) + 1)):
