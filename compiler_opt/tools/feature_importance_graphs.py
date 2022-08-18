@@ -19,8 +19,12 @@ import numpy
 import shap
 import json
 
+from typing import Dict, List, Union, Optional
 
-def load_shap_values(file_name):
+DataType = Dict[str, Union[numpy.typing.ArrayLike, List[str]]]
+
+
+def load_shap_values(file_name: str) -> DataType:
   with open(file_name, encoding='utf-8') as file_to_load:
     data = json.load(file_to_load)
     if data['expected_values'] is not list:
@@ -37,7 +41,7 @@ def init_shap_for_notebook():
   shap.initjs()
 
 
-def graph_individual_example(data, index=0):
+def graph_individual_example(data: DataType, index: Optional[int]):
   return shap.force_plot(
       data['expected_values'],
       data['shap_values'][index, :],
@@ -45,6 +49,6 @@ def graph_individual_example(data, index=0):
       feature_names=data['feature_names'])
 
 
-def graph_summary_plot(data):
+def graph_summary_plot(data: DataType):
   return shap.summary_plot(
       data['shap_values'], data['data'], feature_names=data['feature_names'])

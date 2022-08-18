@@ -48,8 +48,7 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
     'Gin bindings to override the values set in the config files.')
 
 
-def get_input_signature(
-    example_input: types.NestedTensorSpec) -> SignatureType:
+def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
   input_signature = {}
   for input_key in example_input:
     input_signature[input_key] = (tf.shape(example_input[input_key]).numpy(),
