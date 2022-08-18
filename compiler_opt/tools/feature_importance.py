@@ -105,6 +105,23 @@ def process_raw_trajectory(raw_trajectory):
 
   return observation
 
+def collapse_values(input_signature, shap_values):
+  output_shap_values = numpy.empty((_NUM_EXAMPLES.value, len(input_signature)))
+  for i in range(0, _NUM_EXAMPLES.value):
+    current_index = 0
+    current_feature = 0
+    for input_key in input_signature:
+      part_size = numpy.prod(input_signature[input_key][0])
+      output_shap_values[i, current_feature] = numpy.sum(shap_values[i, current_index:current_index + part_size])
+      current_feature += 1
+      current_index += part_size
+  return output_shap_values
+
+def get_max_part_size(input_signature):
+  part_sizes = numpy.empty(len(input_signature))
+  for index, input_key in enumerate(input_signature):
+    part_sizes[index] = numpy.prod(input_signature[input_key][0])
+  return numpy.max(part_sizes)
 
 def main(_):
   gin.parse_config_files_and_bindings(
@@ -152,12 +169,19 @@ def main(_):
 
   explainer = shap.KernelExplainer(run_model, numpy.zeros((1, total_size)))
   shap_values = explainer.shap_values(dataset, nsamples=1000)
+  processed_shap_values = collapse_values(input_sig, shap_values)
+  
+  # if we have more than one value per feature, just set the dataset to zeros
+  # as summing across a dimension produces data that doesn't really mean
+  # anything
+  if get_max_part_size(input_sig) > 1:
+    dataset = numpy.zeros(processed_shap_values.shape)
 
-  feature_names = get_feature_names_from_signature(input_sig)
+  feature_names = list(input_sig.keys())
 
   output_file_data = {
       'expected_values': explainer.expected_value,
-      'shap_values': shap_values.tolist(),
+      'shap_values': processed_shap_values.tolist(),
       'data': dataset.tolist(),
       'feature_names': feature_names
   }
