@@ -188,7 +188,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       collector.collect_data(policy_path='policy')
       collector._join_pending_jobs()
       killed = 0
-      for _, w in collector._current_work:
+      for w in collector._current_futures:
         self.assertRaises(compilation_runner.ProcessKilledError, w.result)
         killed += 1
       self.assertEqual(killed, 4)

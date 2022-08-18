@@ -161,6 +161,11 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
         with self._lock:
           future = self._map[task_result.msgid]
           del self._map[task_result.msgid]
+        # The following will trigger any callbacks defined on the future, as a
+        # direct function call. If those callbacks were set by the scheduler,
+        # it's important that self._lock isn't being held when they are being
+        # called, otherwise a deadlock could arise from __get_attr__ trying to
+        # acquire the lock.
         if task_result.success:
           future.set_result(task_result.value)
         else:
