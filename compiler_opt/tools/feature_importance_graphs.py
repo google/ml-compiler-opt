@@ -25,6 +25,13 @@ DataType = Dict[str, Union[numpy.typing.ArrayLike, List[str]]]
 
 
 def load_shap_values(file_name: str) -> DataType:
+  """Loads a set of shap values created with the feature_importance.py script
+  into a dictionary that can then be used for creating graphs
+
+  Args:
+    file_name: The name of the file in which the shap values are stored. What
+      the --output_path flag was set to in the feature importance script.
+  """
   with open(file_name, encoding='utf-8') as file_to_load:
     data = json.load(file_to_load)
     if data['expected_values'] is not list:
@@ -38,10 +45,18 @@ def load_shap_values(file_name: str) -> DataType:
 
 
 def init_shap_for_notebook():
+  """Initalizes some JS code for interactive feature importance plots."""
   shap.initjs()
 
 
 def graph_individual_example(data: DataType, index: Optional[int]):
+  """Creates a force plot for an example
+
+  Args:
+    data: An object containing all the shap values and other information
+      necessary to create the plot. Should be created with load_shap_values.
+    index: The index of the example that you wish to plot.
+  """
   return shap.force_plot(
       data['expected_values'],
       data['shap_values'][index, :],
@@ -50,5 +65,11 @@ def graph_individual_example(data: DataType, index: Optional[int]):
 
 
 def graph_summary_plot(data: DataType):
+  """Creates a summary plot of the entire dataset given
+
+  Args:
+    data: An object containing all the shap values necessary to create the
+      plot. Should come from load_shap_values
+  """
   return shap.summary_plot(
       data['shap_values'], data['data'], feature_names=data['feature_names'])

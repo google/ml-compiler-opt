@@ -12,7 +12,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""A tool for analyzing which features a model uses to make a decision."""
+"""A tool for analyzing which features a model uses to make a decision.
+
+This script allows for processing a set of examples generated from a trace
+created through generate_default_trace into a set of shap values which
+represent how much that specific feature contributes to the final output of
+the model. These values can then be imported into an IPython notebook and
+graphed with the help of the feature_importance_graphs.py module in the same
+folder.
+
+Usage:
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/feature_importance.py \
+    --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin \
+    --gin_bindings=config_registry.get_configuration.implementation=\
+      @configs.RegallocEvictionConfig \
+    --data_path=/default_trace \
+    --model_path=/warmstart/saved_policy \
+    --num_examples=5 \
+    --output_file=./explanation_data.json
+
+The type of trace that is performed (ie if it is just tracing the default
+heuristic or if it is a trace of a ML model) doesn't matter as the only data
+that matters re the input features. The num_examples flag sets the number of
+examples that get processed into shap values. Increasing this value will
+potentially allow you to reach better conclusions depending upon how you're
+viewing the data, but increasing it will also increase the runtime of this
+script quite significantly as the process is not multithreaded.
+"""
 
 from absl import app
 from absl import flags
@@ -53,6 +79,18 @@ if __name__ == '__main__':
 
 
 def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
+  """Gets the signature of an observation
+
+  This function takes in an example input and returns a signature of that
+  input containing all of the info needed to restructure a flat array back into
+  the original format later on. This function returns a dictionary with the
+  same keys as the original input but with the items being tuples where the
+  first value is the shape of that feature and the second is its data type.
+
+  Args:
+    example_input: a nested tensor spec (dictionary of tensors) that serves
+      as an example for generating the signature.
+  """
   input_signature = {}
   for input_key in example_input:
     input_signature[input_key] = (tf.shape(example_input[input_key]).numpy(),
@@ -61,6 +99,11 @@ def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
 
 
 def get_signature_total_size(input_signature: SignatureType) -> int:
+  """Gets the total number of elements in a single problem instance
+
+  Args:
+    input_signature: An input signature to calculate the number of elements in
+  """
   total_size = 0
   for input_key in input_signature:
     total_size += numpy.prod(input_signature[input_key][0])
@@ -70,6 +113,14 @@ def get_signature_total_size(input_signature: SignatureType) -> int:
 def pack_flat_array_into_input(
     flat_array: numpy.typing.ArrayLike,
     signature_spec: SignatureType) -> types.NestedTensorSpec:
+  """Packs a flat array into a nested tensor spec to feed into a model
+
+  Args:
+    flat_array: The data to be packed back into the specified nested tensor
+      specification
+    signature_spec: A signature that is used to create the correct structure
+      for all of the values in the flat array
+  """
   output_input_dict = {}
   current_index = 0
   for needed_input in signature_spec:
@@ -84,6 +135,14 @@ def pack_flat_array_into_input(
 
 def flatten_input(to_flatten: types.NestedTensorSpec,
                   array_size: int) -> numpy.typing.ArrayLike:
+  """Flattens problem instance data into a flat array for shap
+
+  Args:
+    to_flatten: A nested tensor spec of data that needs to be flattend into
+      an array
+    array_size: An integer representing the size of the output array. Used for
+      allocating the flat array to place all the data in.
+  """
   output_array = numpy.empty(array_size)
   input_index = 0
   for input_key in to_flatten:
@@ -97,6 +156,13 @@ def flatten_input(to_flatten: types.NestedTensorSpec,
 
 def process_raw_trajectory(
     raw_trajectory: types.ForwardRef) -> types.NestedTensorSpec:
+  """Processes the raw example data into a nested tensor spec that can be
+  easily fed into a model.
+
+  Args:
+    raw_trajectory: Raw data representing an individual problem instance from
+      a trace.
+  """
   observation = raw_trajectory.observation
   observation.update({
       'step_type': raw_trajectory.step_type,
