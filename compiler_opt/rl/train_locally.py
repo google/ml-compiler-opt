@@ -29,14 +29,15 @@ from tf_agents.agents import tf_agent
 from tf_agents.system import system_multiprocessing as multiprocessing
 from typing import List
 
+from compiler_opt.distributed.local import cpu_affinity
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_reader
-from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
+from compiler_opt.rl import local_validation_data_collector
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
@@ -46,6 +47,8 @@ flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_string('data_path', None,
                     'Path to directory containing the corpus.')
+flags.DEFINE_string('validation_data_path', None,
+                    'Path to directory containing the validation corpus.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -103,6 +106,17 @@ def train_eval(agent_name=constant.AgentName.PPO,
                       problem_config.flags_to_delete())
   logging.info('Done loading module specs from corpus.')
 
+  val_cps = None
+  if FLAGS.validation_data_path is not None:
+    logging.info('Loading module specs from validation corpus at %s.',
+                 FLAGS.validation_data_path)
+    val_cps = corpus.Corpus(FLAGS.validation_data_path,
+                            problem_config.flags_to_add(),
+                            problem_config.flags_to_delete())
+    logging.info('Done loading module specs from validation corpus.')
+  else:
+    logging.info('Validation corpus data path not specified.')
+
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
       agent_name=agent_name,
       time_step_spec=time_step_spec,
@@ -129,11 +143,19 @@ def train_eval(agent_name=constant.AgentName.PPO,
         }
     logging.info('Loaded Reward Stat Map from disk, containing %d modules',
                  len(reward_stat_map))
-
+  val_pool_args = {'worker_class': problem_config.get_runner_type()}
   with LocalWorkerPool(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
-      moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
+      moving_average_decay_rate=moving_average_decay_rate
+  ) as worker_pool, LocalWorkerPool(
+      worker_class=local_validation_data_collector.LocalValidationDataCollector,
+      count=1,
+      cps=val_cps,
+      worker_pool_args=val_pool_args,
+      reward_stat_map=reward_stat_map,
+      max_cpus=FLAGS.num_workers) as validation_collector_pool:
+
     data_collector = local_data_collector.LocalDataCollector(
         cps=cps,
         num_modules=num_modules,
@@ -141,6 +163,10 @@ def train_eval(agent_name=constant.AgentName.PPO,
         parser=sequence_example_iterator_fn,
         reward_stat_map=reward_stat_map)
 
+    validation_collector = validation_collector_pool[0]
+
+    if val_cps is not None:
+      cpu_affinity.set_and_get(is_main_process=True, max_cpus=FLAGS.num_workers)
     # Repeat for num_policy_iterations iterations.
     t1 = time.time()
     while (llvm_trainer.global_step_numpy() <
@@ -154,10 +180,24 @@ def train_eval(agent_name=constant.AgentName.PPO,
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))
+      # Pausing is done before saving to give the validation collector's
+      # children time to receive the stop signal, minimizing the risk of it
+      # executing simultaneously with the main data_collector's children.
+      if val_cps is not None:
+        validation_collector.pause_children()
+        time.sleep(15)
       saver.save(policy_path)
 
+      policy_fullpath = os.path.join(policy_path, deploy_policy_name)
       dataset_iter, monitor_dict = data_collector.collect_data(
-          policy_path=os.path.join(policy_path, deploy_policy_name))
+          policy_path=policy_fullpath)
+      if val_cps is not None:
+        validation_dict_maybe = validation_collector.collect_data_async(
+            policy_path=policy_fullpath,
+            step=llvm_trainer.global_step_numpy()).result()
+        if validation_dict_maybe is not None:
+          llvm_trainer.write_validation_data(validation_dict_maybe)
+
       llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
       data_collector.on_dataset_consumed(dataset_iter)

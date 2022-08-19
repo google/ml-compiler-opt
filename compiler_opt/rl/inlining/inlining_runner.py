@@ -71,6 +71,8 @@ class InliningRunner(compilation_runner.CompilationRunner):
       cancelled work.
       RuntimeError: if llvm-size produces unexpected output.
     """
+    if cancellation_manager is None:
+      cancellation_manager = self._cancellation_manager
     working_dir = tempfile.mkdtemp()
 
     log_path = os.path.join(working_dir, 'log')
