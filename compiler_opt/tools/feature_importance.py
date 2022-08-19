@@ -56,7 +56,7 @@ import numpy.typing
 import json
 
 from tf_agents.typing import types
-from typing import Dict, Tuple
+from typing import Callable, Dict, Tuple
 
 SignatureType = Dict[str, Tuple[numpy.typing.ArrayLike, tf.dtypes.DType]]
 
@@ -180,6 +180,13 @@ def process_raw_trajectory(
 def collapse_values(
     input_signature: SignatureType,
     shap_values: numpy.typing.ArrayLike) -> numpy.typing.ArrayLike:
+  """Collapses shap values so that there is only a single value per feature
+
+  Args:
+    input_signature: The signature of the model input. Used to determine what
+      (if any) features need to be collapsed.
+    shap_values: A numpy array of shap values that need to be processed.
+  """
   output_shap_values = numpy.empty((_NUM_EXAMPLES.value, len(input_signature)))
   for i in range(0, _NUM_EXAMPLES.value):
     current_index = 0
@@ -194,10 +201,41 @@ def collapse_values(
 
 
 def get_max_part_size(input_signature: SignatureType) -> int:
+  """Gets the size (as a single scalar) of the largest feature in terms of
+  the number of elements.
+
+  Args:
+    input_signature: The input signature that we want to find the largest
+      feature in.
+  """
   part_sizes = numpy.empty(len(input_signature))
   for index, input_key in enumerate(input_signature):
     part_sizes[index] = numpy.prod(input_signature[input_key][0])
   return numpy.max(part_sizes)
+
+
+def create_run_model_function(action_fn: Callable,
+                              input_sig: SignatureType) -> Callable:
+  """Returns a function that takes in a flattend input array and returns the
+  model output as a scalar.
+
+  Args:
+    action_fn: The action function from the tensorflow saved model saved
+      through tf_agents
+    input_sig: The input signature for the model currently under analysis.
+      Used to pack the flat array back into a nested tensor spec.
+  """
+
+  def run_model(flat_input_array):
+    output = numpy.empty(flat_input_array.shape[0])
+    for index, flat_input in enumerate(flat_input_array):
+      input_dict = pack_flat_array_into_input(flat_input, input_sig)
+      model_output = action_fn(**input_dict).items()
+      # get the value of the first item as a numpy array
+      output[index] = list(model_output)[0][1].numpy()[0]
+    return output
+
+  return run_model
 
 
 def main(_):
@@ -225,14 +263,7 @@ def main(_):
   observation = process_raw_trajectory(raw_trajectory)
   input_sig = get_input_signature(observation)
 
-  def run_model(flat_input_array):
-    output = numpy.empty(flat_input_array.shape[0])
-    for index, flat_input in enumerate(flat_input_array):
-      input_dict = pack_flat_array_into_input(flat_input, input_sig)
-      model_output = action_fn(**input_dict).items()
-      # get the value of the first item as a numpy array
-      output[index] = list(model_output)[0][1].numpy()[0]
-    return output
+  run_model = create_run_model_function(action_fn, input_sig)
 
   total_size = get_signature_total_size(input_sig)
   flattened_input = flatten_input(observation, total_size)
