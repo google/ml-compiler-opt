@@ -16,6 +16,7 @@
 notebooks"""
 
 import numpy
+import numpy.typing
 import shap
 import json
 
