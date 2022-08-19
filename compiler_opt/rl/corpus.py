@@ -122,8 +122,7 @@ class Corpus:
     """Filters module specs, keeping those which match the provided pattern."""
     self._module_specs = [ms for ms in self._module_specs if p.match(ms.name)]
 
-  @property
-  def modules(self):
+  def get_modules_copy(self):
     return list(self._module_specs)
 
   def __len__(self):
