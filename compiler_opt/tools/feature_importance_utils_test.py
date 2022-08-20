@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for the feature_importance.py script"""
+"""Tests for the feature_importance_utils.py module"""
 
 from absl.testing import absltest
 
-from compiler_opt.tools import feature_importance
+from compiler_opt.tools import feature_importance_utils
 
 import tensorflow as tf
 import numpy
@@ -32,22 +32,27 @@ test_tensor_spec = {
 class FeatureImportanceTest(absltest.TestCase):
 
   def test_get_input_signature(self):
-    input_signature = feature_importance.get_input_signature(test_tensor_spec)
+    input_signature = feature_importance_utils.get_input_signature(
+        test_tensor_spec)
     self.assertListEqual(list(input_signature.keys()), ['test1', 'test2'])
     self.assertListEqual(input_signature['test1'][0].tolist(), [2])
     self.assertEqual(input_signature['test1'][1], tf.int64)
 
   def test_get_signature_total_size(self):
-    input_signature = feature_importance.get_input_signature(test_tensor_spec)
-    total_size = feature_importance.get_signature_total_size(input_signature)
+    input_signature = feature_importance_utils.get_input_signature(
+        test_tensor_spec)
+    total_size = feature_importance_utils.get_signature_total_size(
+        input_signature)
     self.assertEqual(total_size, 4)
 
   def test_packing_flattening(self):
-    input_signature = feature_importance.get_input_signature(test_tensor_spec)
-    total_size = feature_importance.get_signature_total_size(input_signature)
-    flattened_input = feature_importance.flatten_input(test_tensor_spec,
-                                                       total_size)
-    packed_input = feature_importance.pack_flat_array_into_input(
+    input_signature = feature_importance_utils.get_input_signature(
+        test_tensor_spec)
+    total_size = feature_importance_utils.get_signature_total_size(
+        input_signature)
+    flattened_input = feature_importance_utils.flatten_input(
+        test_tensor_spec, total_size)
+    packed_input = feature_importance_utils.pack_flat_array_into_input(
         flattened_input, input_signature)
     self.assertListEqual(list(packed_input.keys()), ['test1', 'test2'])
     self.assertTrue(
@@ -69,7 +74,8 @@ class FeatureImportanceTest(absltest.TestCase):
         'discount': tf.constant([[3]])
     }
     trajectory = SimpleNamespace(**pre_trajectory)
-    processed_trajectory = feature_importance.process_raw_trajectory(trajectory)
+    processed_trajectory = feature_importance_utils.process_raw_trajectory(
+        trajectory)
     self.assertListEqual(
         list(processed_trajectory.keys()),
         ['test1', 'test2', 'step_type', 'reward', 'discount'])
@@ -90,7 +96,7 @@ class FeatureImportanceTest(absltest.TestCase):
         'test1': tf.constant([1, 2, 3, 4]),
         'test2': tf.constant([1, 2])
     }
-    input_signature = feature_importance.get_input_signature(
+    input_signature = feature_importance_utils.get_input_signature(
         ragged_nested_tensor_spec)
-    max_part_size = feature_importance.get_max_part_size(input_signature)
+    max_part_size = feature_importance_utils.get_max_part_size(input_signature)
     self.assertEqual(max_part_size, 4)
