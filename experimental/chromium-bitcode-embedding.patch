@@ -1,0 +1,93 @@
+diff --git a/build/config/clang/clang.gni b/build/config/clang/clang.gni
+index 1e662184872b3..4aed699d271b4 100644
+--- a/build/config/clang/clang.gni
++++ b/build/config/clang/clang.gni
+@@ -15,4 +15,7 @@ declare_args() {
+       default_toolchain != "//build/toolchain/cros:target"
+ 
+   clang_base_path = default_clang_base_path
++
++  # Specifies whether or not bitcode should be embedded in all compiled targets
++  clang_embed_bitcode = false
+ }
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index 0272bf80f31fe..87ace0ffd345b 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -527,7 +527,7 @@ config("compiler") {
+     ldflags += [ "-Wl,-z,keep-text-section-prefix" ]
+   }
+ 
+-  if (is_clang && !is_nacl && current_os != "zos") {
++  if (is_clang && !is_nacl && current_os != "zos" && !clang_embed_bitcode) {
+     cflags += [ "-fcrash-diagnostics-dir=" + clang_diagnostic_dir ]
+ 
+     # TODO(hans): Remove this once Clang generates better optimized debug info
+@@ -817,6 +817,9 @@ config("compiler") {
+   if (is_official_build) {
+     rustflags += [ "-Ccodegen-units=1" ]
+   }
++  if (is_clang && clang_embed_bitcode) {
++    cflags += [ "-Xclang", "-fembed-bitcode=all" ]
++  }
+ }
+ 
+ # The BUILDCONFIG file sets this config on targets by default, which means when
+@@ -1964,7 +1967,8 @@ if (is_win) {
+         "-Wl,-no_function_starts",
+       ]
+     }
+-  } else if (current_os != "aix" && current_os != "zos") {
++  } else if (current_os != "aix" && current_os != "zos" &&
++             !clang_embed_bitcode) {
+     # Non-Mac Posix flags.
+     # Aix does not support these.
+ 
+@@ -2322,7 +2326,7 @@ config("symbols") {
+       cflags += [ "-g2" ]
+     }
+ 
+-    if (!is_nacl && is_clang && !is_tsan && !is_asan) {
++    if (!is_nacl && is_clang && !is_tsan && !is_asan && !clang_embed_bitcode) {
+       # gcc generates dwarf-aranges by default on -g1 and -g2. On clang it has
+       # to be manually enabled.
+       #
+@@ -2364,7 +2368,7 @@ config("symbols") {
+         !(is_android && !use_debug_fission && current_cpu != "x64" &&
+           current_cpu != "arm64")
+     if (_enable_gdb_index) {
+-      if (is_clang) {
++      if (is_clang && !clang_embed_bitcode) {
+         # This flag enables the GNU-format pubnames and pubtypes sections,
+         # which lld needs in order to generate a correct GDB index.
+         # TODO(pcc): Try to make lld understand non-GNU-format pubnames
+@@ -2446,7 +2450,7 @@ config("minimal_symbols") {
+       cflags += [ "-g1" ]
+     }
+ 
+-    if (!is_nacl && is_clang && !is_tsan && !is_asan) {
++    if (!is_nacl && is_clang && !is_tsan && !is_asan && !clang_embed_bitcode) {
+       # See comment for -gdwarf-aranges in config("symbols").
+       cflags += [ "-gdwarf-aranges" ]
+     }
+diff --git a/third_party/dav1d/BUILD.gn b/third_party/dav1d/BUILD.gn
+index bb14440154ec2..71687164a7bbc 100644
+--- a/third_party/dav1d/BUILD.gn
++++ b/third_party/dav1d/BUILD.gn
+@@ -4,6 +4,7 @@
+ 
+ import("dav1d_generated.gni")
+ 
++import("//build/config/clang/clang.gni")
+ import("//build/config/compiler/compiler.gni")
+ import("//build/config/sanitizers/sanitizers.gni")
+ import("//third_party/nasm/nasm_assemble.gni")
+@@ -28,7 +29,7 @@ if (is_win) {
+ # the stack alignment, so we must use the platform's default alignment in those
+ # cases; https://crbug.com/928743.
+ if (current_cpu == "x86" || current_cpu == "x64") {
+-  if (use_thin_lto || is_win) {
++  if (use_thin_lto || is_win || clang_embed_bitcode) {
+     needs_stack_alignment = false
+     # The defaults are stack_alignment=4 for x86 and stack_alignment=16 for x64.
+   } else {
