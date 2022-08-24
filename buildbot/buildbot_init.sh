@@ -95,7 +95,10 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 userdel buildbot
 groupadd buildbot
-useradd buildbot -g buildbot -m -d /var/lib/buildbot
+useradd buildbot -g buildbot -m -d /b/home
+rm -rf /var/lib/buildbot
+ln -s /b/home /var/lib/buildbot
+chmod 777 /var/lib/buildbot
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
@@ -156,6 +159,7 @@ chown buildbot:buildbot $BOT_DIR
 chown buildbot:buildbot $TENSORFLOW_API_PATH
 
 rm -f /b/buildbot.tac
+
 
 WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
