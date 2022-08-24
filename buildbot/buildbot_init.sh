@@ -120,15 +120,15 @@ sudo -u buildbot python3 -m pip install --upgrade pip
 sudo -u buildbot python3 -m pip install --user -r /tmp/requirements.txt
 python3 -m pip install buildbot-worker==2.9.0
 
-TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
+TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../ /var/lib/buildbot/.local/lib/python3.7
+sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
 
 # location we want
-sudo -u buildbot ln -s ${TF_PIP}/../ /tmp/tf-aot
+sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
 
-export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
+export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
 if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
 then
