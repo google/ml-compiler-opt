@@ -203,4 +203,5 @@ class PolicySaver(object):
       # This is not quite the most efficient way to do this - we save the model
       # just to load it again and save it as tflite - but it's the minimum,
       # temporary step so we can validate more thoroughly our use of tflite.
-      convert_saved_model(saved_model_dir, saved_model_dir)
+      convert_saved_model(saved_model_dir,
+                          os.path.join(saved_model_dir, TFLITE_MODEL_NAME))
