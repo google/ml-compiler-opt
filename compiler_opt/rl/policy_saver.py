@@ -83,6 +83,7 @@ def convert_saved_model(sm_dir: str, tflite_model_path: str):
   converter.target_spec.supported_ops = [
       tf.lite.OpsSet.TFLITE_BUILTINS,
   ]
+  converter.allow_custom_ops = True
   tfl_model = converter.convert()
   with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
     f.write(tfl_model)
