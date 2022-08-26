@@ -114,6 +114,8 @@ class PolicySaverTest(tf.test.TestCase):
       self.assertTrue(
           tf.io.gfile.exists(os.path.join(root_dir, sub_dir, 'saved_model.pb')))
       self.assertTrue(
+          tf.io.gfile.exists(os.path.join(root_dir, sub_dir, 'model.tflite')))
+      self.assertTrue(
           tf.io.gfile.exists(
               os.path.join(root_dir, sub_dir,
                            'variables/variables.data-00000-of-00001')))
