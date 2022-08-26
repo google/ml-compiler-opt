@@ -76,7 +76,7 @@ def convert_saved_model(sm_dir: str, tflite_model_path: str):
     sm_dir: path to the saved model to convert
 
     tflite_model_path: desired output file path. Directory structure will
-    be created by this function, as needed.
+      be created by this function, as needed.
   """
   tf.io.gfile.makedirs(os.path.dirname(tflite_model_path))
   converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
@@ -94,12 +94,12 @@ def convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str):
 
   Args:
     mlgo_model_dir: path to the mlgo saved model dir. It is expected to contain
-    the saved model files (i.e. saved_model.pb, the variables dir) and the
-    output_spec.json file
+      the saved model files (i.e. saved_model.pb, the variables dir) and the
+      output_spec.json file
 
     tflite_model_dir: path to a directory where the tflite model will be placed.
-    The model will be named model.tflite. Alongside it will be placed a copy of
-    the output_spec.json file.
+      The model will be named model.tflite. Alongside it will be placed a copy
+      of the output_spec.json file.
   """
   tf.io.gfile.makedirs(tflite_model_dir)
   convert_saved_model(mlgo_model_dir,
