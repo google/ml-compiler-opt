@@ -18,6 +18,7 @@ grpcio==1.39.0
 gym==0.19.0
 h5py==3.6.0
 idna==3.2
+keras-nightly==2.11.0.dev2022082307
 libclang==13.0.0
 markdown==3.3.4
 numpy==1.22.1
@@ -35,13 +36,12 @@ rsa==4.7.2
 scipy==1.7.1
 setuptools==57.4.0
 six==1.16.0
-tensorboard==2.7.0
-tensorboard-data-server==0.6.1
-tensorboard-plugin-wit==1.8.0
+tb-nightly==2.11.0a20220823
+tensorboard-plugin-wit==1.8.1
 tf-nightly==2.11.0.dev20220823
-tensorflow-estimator==2.7.0
-tensorflow-io-gcs-filesystem==0.23.1
-tensorflow-probability==0.15.0
+tf-estimator-nightly==2.11.0.dev2022082308
+tensorflow-io-gcs-filesystem-nightly==0.26.0.dev20220816191153
+tfp-nightly==0.17.0.dev20220823
 termcolor==1.1.0
 tf-agents-nightly==0.14.0.dev20220823
 typing-extensions==4.0.1
