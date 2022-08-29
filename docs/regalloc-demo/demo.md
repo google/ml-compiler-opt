@@ -1,0 +1,363 @@
+## Overview
+
+In this demo we will look at:
+
+* Building LLVM with the correct settings to allow for model training
+* Collecting a training corpus for the regalloc model based on Chromium
+* Training the regalloc model on the collected corpus
+* Compiling the trained model into LLVM
+
+## Preliminaries
+
+This guide assumes that you're placing everything in the root directory
+(ie you're working in a docker container based on the Dockerfile in
+`./experimental/docker/development.Dockerfile`). If you want to do something
+else, make sure that you adjust the paths in the commands below accordingly.
+
+## Get repositories
+
+### ml-compiler-opt (this repository)
+
+Clone the github repo:
+
+```bash
+git clone https://github.com/google/ml-compiler-opt
+```
+
+### LLVM
+
+Grabbing LLVM should be as simple as running the below command, but if
+something goes awry, make sure to check the
+[official documentation](https://llvm.org/docs/GettingStarted.html).
+
+```bash
+git clone https://github.com/llvm/llvm-project.git
+```
+
+### Chromium
+
+Grabbing Chromium is a bit more involved. The 
+[official documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md)
+for Linux based systems (the only platform currently supported by MLGO) is
+available at that link. However, cloning the code should be as simple as
+downloading depot_tools and adding them to your `$PATH`:
+
+```bash
+git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+export PATH="$PATH:/depot_tools"
+```
+
+Creating a folder for Chromium and cloning it using the `fetch` utility:
+```bash
+mkdir chromium
+cd chromium
+fetch --nohooks --no-history chromium
+```
+
+**Note:** Running `fetch` with the `--no-history` flag makes your local
+checkout significantly smaller and speeds up the underlying git clone by a
+significant amount. However, if you actually need the history for any
+reason (eg to revert to a previous commit or to work on the Chromium side
+with MLGO stuff), make sure to omit this flag to do a full checkout.
+
+The fetch command will take at least a couple minutes on a fast internet
+connection and much longer on slower ones.
+
+Next, we need to modify the `.gclient` file that `fetch` creates in the
+directory that you run it in to make sure that the Chromium PGO profiles
+get checked out:
+
+```bash
+sed -i 's/"custom_vars": {},/"custom_vars": { "checkout_pgo_profiles" : True },/' .gclient
+```
+
+This `sed` command will set the necessary variable correctly. After this,
+you can move into the `src` directory that `fetch` created that contains
+the actual Chromium codebase. Now, we need to apply the bitcode embedding
+patch contained in this repository.
+
+```bash
+git apply /ml-compiler-opt/experimental/chromium-bitcode-embedding.patch
+```
+
+This will make a `clang_embed_bitcode` flag available in the gn configuration.
+
+## Install Dependencies
+
+If you're working in a Debian based docker container, it will most likely
+not come by default with `sudo`. It isn't stricly necessary to install,
+but it makes it easier to copypaste the installation commands below and it
+also enables the use of the Chromium dependency auto-installation script:
+
+```bash
+apt-get install sudo
+```
+
+First, install some base dependencies that will be needed when building
+LLVM:
+
+```bash
+sudo apt-get install cmake ninja-build lld
+```
+
+Now, install the Chromium dependencies using the auto-installation script:
+```bash
+/chromium/src/build/install-build-deps.sh
+```
+
+**Note:** These installation commands are all designed to be run on Debian
+based distros. However, adapating to other distros with alternative package
+management systems should not be too difficult. The packages for the first
+command should be very similarly named and the
+[official Chromium documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md)
+has info on dependency installation for their build process on other common
+distros.
+
+Also make sure that you install the Python dependencies for the
+ml-compiler-opt repository:
+
+```bash
+pip3 install -r /ml-compiler-opt/requirements.txt
+```
+
+If you plan on doing development work on this checkout of ml-compiler-opt,
+use the `/ml-compiler-opt/requirements-ci.txt` requirements file to install
+some additional development dependencies.
+
+## Building Chromium
+
+To build Chromium, make sure you are in the `/chromium/src` directory and then
+run the following command to open a CLI text editor that will allow you to
+configure build settings:
+
+```bash
+gn args ./out/Release
+```
+
+Then, use the following configuration options:
+
+```
+is_official_build=true
+use_thin_lto=false
+is_cfi=false
+clang_embed_bitcode=true
+is_debug=false
+symbol_level=0
+enable_nacl=false
+```
+
+Immedaitely after closing the editor, `gn` will generate all of the files
+necessary so that `ninja` can execute all the necessary compilation steps.
+However, to extract a corpus for ML training, we also need a database of
+compilation commands. This can be obtained by running the following command:
+
+```
+gn gen ./out/Release --export-compile-commands
+```
+
+Then you can build Chromium with the `autoninja` utility:
+
+```bash
+autoninja -C ./out/Release
+```
+
+A full Chromium compile will take at least an hour on pretty well specced
+hardware (ie 96 thread work station) and much longer on lower specced
+hardware.
+
+TODO(boomanaiden154): Investigate the source of this assertion error.
+
+**Note:** If the build fails in the last couple steps tripping an assertion in
+the linker, you can safely ignore this. Preparing a corpus for ML training
+only requires the object files that get fed to the linker.
+
+## Building LLVM
+
+To build LLVM to train ML models, we first need to build TFLite and some
+dependencies so that we can embed it within LLVM to load and execute models
+on the fly during reinforcement learning. There is a script within this
+repository that clones and builds everything automatically and prepares
+a CMake cache file that can be passed to CMake during the LLVM build
+configuration. Running the script looks like this:
+
+```bash
+mkdir tflite
+cd tflite
+/ml-compiler-opt/buildbot/build_tflite.sh
+```
+
+This script should only take a couple minutes to execute as all the libraries
+that it pulls and builds are relatively small.
+
+Now, create a new folder to do an LLVM build and configure it using CMake:
+```bash
+mkdir llvm-build
+cd llvm-build
+cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_PROJECTS="clang" \
+  -C /tflite/tflite.cmake \
+  /llvm-project/llvm
+```
+
+Now you can run the actual build with the following command:
+```bash
+cmake --build .
+```
+
+## ML training
+
+All of the following example commands assume you are working from within
+your checkout of the ml-compiler-opt repository:
+
+```bash
+cd /ml-compiler-opt
+```
+
+To start off training, we need to extract a per-object bitcode/compilation
+flag corpus. This can be done with the following script:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
+  --cmd_filter="^-O2|-O3" \
+  --input=/chromium/src/out/Release/compile_commands.json \
+  --input_type=json \
+  --llvm_objcopy_path=/llvm-build/bin/llvm-objcopy \
+  --output_dir=corpus
+```
+
+### Collect the Default Trace and Generate Vocab
+
+Before we run reinforcement training, it is best to train the model using
+behavioral cloning on the default heuristic. First off, we need to collect
+a trace of the decisions the default heuristic is making:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/generate_default_trace.py \
+  --data_path=/corpus \
+  --output_path=/default_trace \
+  --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin \
+  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
+  --sampling_rate=0.2
+```
+
+This will compile 20% of the corpus and save all of the regalloc eviction
+problem instances it encounters into the `/default_trace` file.
+
+After we have collected a default trace, an optional step is to regenerate the
+vocab that is used to normalize some of the values that get fed to the ML
+model:
+
+```bash
+rm -rf ./compiler_opt/rl/regalloc/vocab
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/sparse_bucket_generator.py \
+  --input=/default_trace \
+  --output_dir=./compiler_opt/rl/regalloc/vocab \
+  --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin
+```
+
+This isn't completely necessary as there are already default values stored
+within the repository in the `./compiler_opt/rl/regalloc/vocab` folder,
+but it definitely doesn't hurt to regenerate them. If adding/modifying
+features, it is necessary to regenerate the vocab.
+
+Now that the vocab is present (or has been regenerated) and we have a default
+trace, we can start to train the model using behavioral cloning to mimic the
+default heuristic:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/rl/train_bc.py \
+  --root_dir=/warmstart \
+  --data_path=/default_trace \
+  --gin_files=compiler_opt/rl/regalloc/gin_configs/behavioral_cloning_nn_agent.gin
+```
+
+This script shouldn't take too long to run on decently powerful hardware.
+It will output a trained model in the directory specified by the `--rootdir`
+flag, in this case `/warmstart`.
+
+## Reinforcement Learning
+
+Now that we have a model that has been warmstarted based on the default
+heuristic, we can now proceed with RL learning so that the model can
+improve beyond the performance of the default heuristic:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/rl/train_locally.py \
+  --root_dir=/output_model \
+  --data_path=/corpus \
+  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
+  --gin_files=compiler_opt/rl/regalloc/gin_configs/ppo_nn_agent.gin \
+  --gin_bindings=train_eval.warmstart_policy_dir=\"/warmstart/saved_policy\"
+```
+
+This script will take quite a while to run. Probably most of the day on pretty
+powerful hardware (~100+ vCPUs), and potentially many days on less powerful
+hardware.
+
+## Evaluting the Policy
+
+If you interested in seeing how the trained policy performs, you can go
+through two different avenues. You can run the `generate_default_trace.py`
+script to get info on the reward (reduction in number of instructions) over
+a specific corpus. However, this still doesn't tell the whole story for the
+regalloc case and actual benchmarking is needed. There is also some tooling
+available in this repository to run benchmarks in Chromium and the
+llvm-test-suite using performance counters to track instructions executed,
+loads, and stores, all of which are metrics that show how the model is
+performing.
+
+### Evaluating the Model With Reward Metrics
+
+To evaluate a trained policy (for example looking at the output from
+RL training in `/output_model/saved_policy`), run the
+`generate_default_trace.py` script with some flags to tell it to output
+performance data:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/generate_default_trace.py \
+  --data_path=/corpus \
+  --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin \
+  --gin_bindings=config_registry.get_configuration.implementation=@configs.RegallocEvictionConfig \
+  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
+  --output_performance_path=/performance_data.csv \
+  --policy_path=/output_model/saved_policy
+```
+
+This will collect reward data over the entire corpus. If you want it to run
+faster and don't care about collecting data over the whole corpus, you can
+set the `--sample_rate` flag to a desired value to only operate over a portion
+of the corpus.
+
+### Evaluating the Model With Benchmarking
+
+See the documentation available [here](../benchmarking.md)
+
+## Deploying the New Policy
+
+To compile the model into LLVM using Tensorflow AOT compilation,
+create a new folder and run a CMake configuration with the following
+commands:
+
+```bash
+mkdir llvm-release-build
+cd llvm-release-build
+cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DTENSORFLOW_AOT_PATH=$(python3 -c "import tensorflow; import os; print(os.path.dirname(tensorflow.__file__))") \
+  -DLLVM_ENABLE_PROJECTS="clang" \
+  -DLLVM_RAEVICT_MODEL_PATH="/output_model/saved_policy" \
+  /llvm-project/llvm
+```
+
+Then run the actual build:
+
+```bash
+cmake --build .
+```
+
+Now, you should have a build of clang in `/llvm-release-build/bin` that
+you can use to compile projects using the ML regalloc eviction heuristic.
+To compile with the ML regalloc eviction heuristic, all you need to do
+is make sure to pass the `-mllvm -regalloc-enable-advisor=release` flag
+to `clang` whenever you're compiling something.
