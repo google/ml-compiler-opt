@@ -176,6 +176,12 @@ class Trainer(object):
     if tf.math.equal(self._global_step % self._checkpoint_interval, 0):
       self._checkpointer.save(global_step=self._global_step)
 
+  def write_validation_data(self, monitor_dict):
+    with tf.name_scope('validation/'):
+      for step, d in monitor_dict.items():
+        for key, value in d.items():
+          tf.summary.scalar(name=key, data=value, step=int(step))
+
   def global_step_numpy(self):
     return self._global_step.numpy()
 
