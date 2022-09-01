@@ -40,9 +40,8 @@ def _get_test_settings():
   for problem in ('inlining', 'regalloc'):
     for algorithm in ('ppo', 'behavioral_cloning'):
       test_name = '%s_%s' % (problem, algorithm)
-      gin_file = (
-          'compiler_opt/rl/%s/gin_configs/%s_nn_agent.gin'
-          % (problem, algorithm))
+      gin_file = ('compiler_opt/rl/%s/gin_configs/%s_nn_agent.gin' %
+                  (problem, algorithm))
       gin_binding = ('generate_test_model.agent_name=%constant.AgentName.' +
                      agent_name_dict[algorithm])
       test_setting.append((test_name, gin_file, gin_binding))
