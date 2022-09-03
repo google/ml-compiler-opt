@@ -24,6 +24,8 @@ from typing import Iterable
 from typing import List
 from typing import Tuple
 
+from absl import logging
+
 # For each benchmark, and for each counter, capture the recorded values.
 PerBenchmarkResults = Dict[str, Dict[str, List[float]]]
 
@@ -130,9 +132,16 @@ class BenchmarkComparison:
   """Analysis of 2 benchmark runs."""
 
   def __init__(self, base_report: BenchmarkReport, exp_report: BenchmarkReport):
+    base_names_set = set(base_report.names())
+    exp_names_set = set(exp_report.names())
     if base_report.suite_name() != exp_report.suite_name():
       raise ValueError('cannot compare different suites')
-    if set(base_report.names()) != set(exp_report.names()):
+    if base_names_set != exp_names_set:
+      diff_base_exp = base_names_set.difference(exp_names_set)
+      diff_exp_base = exp_names_set.difference(base_names_set)
+      diff_set = diff_base_exp.union(diff_exp_base)
+      logging.info('The following tests differ between the test suites: %s',
+                   diff_set)
       raise ValueError('suite runs have different benchmark names')
     if set(base_report.counters()) != set(exp_report.counters()):
       raise ValueError(
