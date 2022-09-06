@@ -21,7 +21,7 @@ virtualenv "${VENV_PATH}" -p python3 --system-site-packages
 source "${VENV_PATH}"/bin/activate
 
 # Download pre-requisite packages.
-pip3 install -r dev-requirements.txt -q
+pip3 install -r requirements-dev.txt -q
 
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
 
