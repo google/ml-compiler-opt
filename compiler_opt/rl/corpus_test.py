@@ -246,8 +246,10 @@ class CorpusTest(tf.test.TestCase):
 
     cps = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(
-        corpus._build_modulespecs_from_datapath(
-            tempdir.full_path, additional_flags=('-add',)), cps._module_specs)
+        tuple(
+            corpus._build_modulespecs_from_datapath(
+                tempdir.full_path, additional_flags=('-add',))),
+        cps.module_specs)
     self.assertEqual(len(cps), 1)
 
   def test_sample(self):
