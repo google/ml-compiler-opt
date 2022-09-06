@@ -86,7 +86,7 @@ class Corpus:
                data_path: str,
                additional_flags: Tuple[str, ...] = (),
                delete_flags: Tuple[str, ...] = ()):
-    self.module_specs = tuple(
+    self._module_specs = tuple(
         sorted(
             _build_modulespecs_from_datapath(
                 data_path=data_path,
@@ -101,7 +101,7 @@ class Corpus:
     """Construct a Corpus from module specs. Mostly for testing purposes."""
     cps = cls.__new__(cls)  # Avoid calling __init__
     super(cls, cps).__init__()
-    cps.module_specs = tuple(
+    cps._module_specs = tuple(
         sorted(module_specs, key=lambda m: m.size, reverse=True))
     cps.root_dir = None
     return cps
@@ -113,21 +113,25 @@ class Corpus:
     """Samples `k` module_specs, optionally sorting by size descending."""
     # Note: sampler is intentionally defaulted to a mutable object, as the
     # only mutable attribute of SamplerBucketRoundRobin is its range cache.
-    k = min(len(self.module_specs), k)
+    k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    sampled_specs = sampler(self.module_specs, k=k)
+    sampled_specs = sampler(self._module_specs, k=k)
     if sort:
       sampled_specs.sort(key=lambda m: m.size, reverse=True)
     return sampled_specs
 
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
-    self.module_specs = tuple(
-        ms for ms in self.module_specs if p.match(ms.name))
+    self._module_specs = tuple(
+        ms for ms in self._module_specs if p.match(ms.name))
+
+  @property
+  def module_specs(self):
+    return self._module_specs
 
   def __len__(self):
-    return len(self.module_specs)
+    return len(self._module_specs)
 
 
 def _build_modulespecs_from_datapath(
