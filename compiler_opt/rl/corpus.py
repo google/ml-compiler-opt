@@ -19,7 +19,7 @@ import re
 
 from absl import logging
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Any
+from typing import Iterable, List, Dict, Tuple, Any
 
 import json
 import os
@@ -45,7 +45,7 @@ class SamplerBucketRoundRobin:
     self._ranges = {}
 
   def __call__(self,
-               module_specs: List[ModuleSpec],
+               module_specs: Tuple[ModuleSpec],
                k: int,
                n: int = 20) -> List[ModuleSpec]:
     """
@@ -86,20 +86,23 @@ class Corpus:
                data_path: str,
                additional_flags: Tuple[str, ...] = (),
                delete_flags: Tuple[str, ...] = ()):
-    self._module_specs = _build_modulespecs_from_datapath(
-        data_path=data_path,
-        additional_flags=additional_flags,
-        delete_flags=delete_flags)
+    self.module_specs = tuple(
+        sorted(
+            _build_modulespecs_from_datapath(
+                data_path=data_path,
+                additional_flags=additional_flags,
+                delete_flags=delete_flags),
+            key=lambda m: m.size,
+            reverse=True))
     self._root_dir = data_path
-    self._module_specs.sort(key=lambda m: m.size, reverse=True)
 
   @classmethod
-  def from_module_specs(cls, module_specs: List[ModuleSpec]):
+  def from_module_specs(cls, module_specs: Iterable[ModuleSpec]):
     """Construct a Corpus from module specs. Mostly for testing purposes."""
     cps = cls.__new__(cls)  # Avoid calling __init__
     super(cls, cps).__init__()
-    cps._module_specs = list(module_specs)  # Don't mutate the original list.
-    cps._module_specs.sort(key=lambda m: m.size, reverse=True)
+    cps.module_specs = tuple(
+        sorted(module_specs, key=lambda m: m.size, reverse=True))
     cps.root_dir = None
     return cps
 
@@ -110,23 +113,21 @@ class Corpus:
     """Samples `k` module_specs, optionally sorting by size descending."""
     # Note: sampler is intentionally defaulted to a mutable object, as the
     # only mutable attribute of SamplerBucketRoundRobin is its range cache.
-    k = min(len(self._module_specs), k)
+    k = min(len(self.module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    sampled_specs = sampler(self._module_specs, k=k)
+    sampled_specs = sampler(self.module_specs, k=k)
     if sort:
       sampled_specs.sort(key=lambda m: m.size, reverse=True)
     return sampled_specs
 
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
-    self._module_specs = [ms for ms in self._module_specs if p.match(ms.name)]
-
-  def get_modules_copy(self):
-    return list(self._module_specs)
+    self.module_specs = tuple(
+        ms for ms in self.module_specs if p.match(ms.name))
 
   def __len__(self):
-    return len(self._module_specs)
+    return len(self.module_specs)
 
 
 def _build_modulespecs_from_datapath(
