@@ -32,6 +32,11 @@ from compiler_opt.rl import local_data_collector
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
+_policy_str = 'policy'.encode(encoding='utf-8')
+
+_mock_policy = compilation_runner.Policy(
+    output_spec=bytes(), policy=_policy_str)
+
 
 def _get_sequence_example(feature_value):
   sequence_example_text = string.Template("""
@@ -47,9 +52,9 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
+def mock_collect_data(module_spec, policy, reward_stat):
   assert module_spec.name == 'dummy'
-  assert tf_policy_dir == 'policy'
+  assert policy.policy == _policy_str
   assert reward_stat is None or reward_stat == {
       'default':
           compilation_runner.RewardStat(
@@ -80,8 +85,8 @@ def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, module_spec, tf_policy_path, reward_stat):
-    _ = module_spec, tf_policy_path, reward_stat
+  def collect_data(self, module_spec, policy, reward_stat):
+    _ = module_spec, policy, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
 
@@ -123,7 +128,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           parser=create_test_iterator_fn(),
           reward_stat_map=collections.defaultdict(lambda: None))
 
-      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
       data = list(data_iterator)
       self.assertEqual([1, 2, 3], data)
       expected_monitor_dict_subset = {
@@ -142,7 +147,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
             **expected_monitor_dict_subset
         })
 
-      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
       data = list(data_iterator)
       self.assertEqual([4, 5, 6], data)
       expected_monitor_dict_subset = {
@@ -185,7 +190,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           parser=parser,
           reward_stat_map=collections.defaultdict(lambda: None),
           exit_checker_ctor=QuickExiter)
-      collector.collect_data(policy_path='policy')
+      collector.collect_data(policy=_mock_policy)
       collector._join_pending_jobs()
       killed = 0
       for w in collector._current_futures:

@@ -19,6 +19,7 @@ import time
 from typing import Dict, Iterator, Tuple, Sequence
 
 import numpy as np
+from compiler_opt.rl import compilation_runner
 from tf_agents.trajectories import trajectory
 
 # Deadline for data collection.
@@ -51,7 +52,7 @@ class DataCollector(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, policy_path: str
+      self, policy: compilation_runner.Policy
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 

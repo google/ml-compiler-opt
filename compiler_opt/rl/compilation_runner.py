@@ -20,12 +20,13 @@ import json
 import os
 import signal
 import subprocess
+import tempfile
 import threading
 from typing import Dict, List, Optional, Tuple
 
 from absl import flags
 from compiler_opt.distributed.worker import Worker, WorkerFuture
-from compiler_opt.rl import constant
+from compiler_opt.rl import constant, policy_saver
 from compiler_opt.rl import corpus
 import tensorflow as tf
 
@@ -46,6 +47,38 @@ def _calculate_reward(policy: float, baseline: float) -> float:
 class RewardStat:
   default_reward: float
   moving_average_reward: float
+
+
+@dataclasses.dataclass(frozen=True)
+class Policy:
+  """Serialized mlgo policy, used to pass a policy to workers.
+
+  A policy has 2 components, both being file contents:
+    - the content of the output_spec.json file;
+    - the content of the tflite policy.
+  """
+
+  output_spec: bytes
+  policy: bytes
+
+  def to_filesystem(self, location: str):
+    os.makedirs(location, exist_ok=True)
+    output_sig = os.path.join(location, policy_saver.OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, policy_saver.TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='wb') as f:
+      f.write(self.output_spec)
+    with tf.io.gfile.GFile(policy_path, mode='wb') as f:
+      f.write(self.policy)
+
+  @staticmethod
+  def from_filesystem(location: str):
+    output_sig = os.path.join(location, policy_saver.OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, policy_saver.TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='rb') as f:
+      output_spec = f.read()
+    with tf.io.gfile.GFile(policy_path, mode='rb') as f:
+      policy = f.read()
+    return Policy(output_spec=output_spec, policy=policy)
 
 
 class DataClassJSONEncoder(json.JSONEncoder):
@@ -257,8 +290,10 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]
+      self,
+      module_spec: corpus.ModuleSpec,
+      policy: Optional[Policy] = None,
+      reward_stat: Optional[Dict[str, RewardStat]] = None
   ) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
 
@@ -314,13 +349,15 @@ class CompilationRunner(Worker):
     self._cancellation_manager.resume_all_processes()
 
   def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]) -> CompilationResult:
+      self,
+      module_spec: corpus.ModuleSpec,
+      policy: Optional[Policy] = None,
+      reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
       module_spec: a ModuleSpec.
-      tf_policy_path: path to the tensorflow policy.
+      policy: serialized policy.
       reward_stat: reward stat of this module, None if unknown.
 
     Returns:
@@ -333,18 +370,24 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    if reward_stat is None:
-      default_result = self.compile_fn(
-          module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
-      reward_stat = {
-          k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
-      }
+    with tempfile.TemporaryDirectory() as tempdir:
+      tf_policy_path = ''
+      if policy is not None:
+        tf_policy_path = os.path.join(tempdir, 'policy')
+        policy.to_filesystem(tf_policy_path)
 
-    if tf_policy_path:
-      policy_result = self.compile_fn(
-          module_spec, tf_policy_path, reward_only=False)
-    else:
-      policy_result = default_result
+      if reward_stat is None:
+        default_result = self.compile_fn(
+            module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
+        reward_stat = {
+            k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
+        }
+
+      if tf_policy_path:
+        policy_result = self.compile_fn(
+            module_spec, tf_policy_path, reward_only=False)
+      else:
+        policy_result = default_result
 
     sequence_example_list = []
     rewards = []
