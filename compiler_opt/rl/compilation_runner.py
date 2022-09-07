@@ -335,20 +335,14 @@ class CompilationRunner(Worker):
     """
     if reward_stat is None:
       default_result = self.compile_fn(
-          module_spec,
-          tf_policy_path='',
-          reward_only=bool(tf_policy_path),
-          cancellation_manager=self._cancellation_manager)
+          module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
       reward_stat = {
           k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
       }
 
     if tf_policy_path:
       policy_result = self.compile_fn(
-          module_spec,
-          tf_policy_path,
-          reward_only=False,
-          cancellation_manager=self._cancellation_manager)
+          module_spec, tf_policy_path, reward_only=False)
     else:
       policy_result = default_result
 
@@ -384,17 +378,13 @@ class CompilationRunner(Worker):
 
   def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_only: bool,
-      cancellation_manager: Optional[WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
       module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
-      cancellation_manager: a WorkerCancellationManager to handle early
-        termination
 
     Returns:
       A dict mapping from example identifier to tuple containing:
