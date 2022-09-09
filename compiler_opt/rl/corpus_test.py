@@ -274,8 +274,9 @@ class CorpusTest(tf.test.TestCase):
         corpus.ModuleSpec(name='small', size=100)
     ])
 
-    cps.filter(re.compile(r'.+l'))
-    sample = cps.sample(999, sort=True)
+    new_cps = cps.filter(re.compile(r'.+l'))
+    self.assertLen(cps.module_specs, 4)
+    sample = new_cps.sample(999, sort=True)
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')

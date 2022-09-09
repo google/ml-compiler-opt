@@ -146,7 +146,7 @@ def main(_):
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
-    cps.filter(m)
+    cps = cps.filter(m)
 
   # Sampling if needed.
   sampled_modules = int(len(cps) * _SAMPLING_RATE.value)

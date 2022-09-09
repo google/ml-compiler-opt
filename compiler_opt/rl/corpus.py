@@ -123,8 +123,8 @@ class Corpus:
 
   def filter(self, p: re.Pattern):
     """Filters module specs, keeping those which match the provided pattern."""
-    self._module_specs = tuple(
-        ms for ms in self._module_specs if p.match(ms.name))
+    return Corpus.from_module_specs(
+        (ms for ms in self._module_specs if p.match(ms.name)))
 
   @property
   def module_specs(self):
