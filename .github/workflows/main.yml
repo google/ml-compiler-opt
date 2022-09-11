@@ -23,7 +23,8 @@ jobs:
             _ver="['3.8', '3.9', '3.10']"
             _cache="1"
           else 
-            _ver="['3.8']"
+            # 3.8 instead of '3.8' to make github act work.
+            _ver="[3.8]"
             _cache="0"
           fi
           echo "::set-output name=version_matrix::$_ver"
