@@ -1,0 +1,26 @@
+diff --git a/build/config/clang/clang.gni b/build/config/clang/clang.gni
+index 1e662184872b3..4aed699d271b4 100644
+--- a/build/config/clang/clang.gni
++++ b/build/config/clang/clang.gni
+@@ -15,4 +15,7 @@ declare_args() {
+       default_toolchain != "//build/toolchain/cros:target"
+ 
+   clang_base_path = default_clang_base_path
++
++  # Specifies whether or not bitcode should be embedded in all compiled targets
++  clang_embed_bitcode = false
+ }
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index 0272bf80f31fe..87ace0ffd345b 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -817,6 +817,9 @@ config("compiler") {
+   if (is_official_build) {
+     rustflags += [ "-Ccodegen-units=1" ]
+   }
++  if (is_clang && clang_embed_bitcode) {
++    cflags += [ "-Xclang", "-fembed-bitcode=all" ]
++  }
+ }
+ 
+ # The BUILDCONFIG file sets this config on targets by default, which means when
