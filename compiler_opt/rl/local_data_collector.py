@@ -16,7 +16,6 @@
 
 import concurrent.futures
 import itertools
-import random
 import time
 from typing import Callable, Dict, Iterator, List, Tuple, Optional
 
@@ -24,6 +23,7 @@ from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
+from compiler_opt.distributed.local import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
@@ -34,7 +34,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      module_specs: List[corpus.ModuleSpec],
+      cps: corpus.Corpus,
       num_modules: int,
       worker_pool: List[compilation_runner.CompilationRunnerStub],
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
@@ -44,7 +44,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._module_specs = module_specs
+    self._corpus = cps
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
@@ -56,7 +56,7 @@ class LocalDataCollector(data_collector.DataCollector):
     # with the training phase - i.e. whatever happens between successive data
     # collection calls. Subsequent runs will wait for these to finish.
     self._reset_workers: Optional[concurrent.futures.Future] = None
-    self._current_work: List[Tuple[corpus.ModuleSpec, worker.WorkerFuture]] = []
+    self._current_futures: List[worker.WorkerFuture] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
 
   def close_pool(self):
@@ -86,12 +86,15 @@ class LocalDataCollector(data_collector.DataCollector):
     jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
             for module_spec in sampled_modules]
 
-    # Naive load balancing.
-    ret = []
-    for i in range(len(jobs)):
-      ret.append(self._worker_pool[i % len(self._worker_pool)].collect_data(
-          *(jobs[i])))
-    return ret
+    def work_factory(job):
+
+      def work(w):
+        return w.collect_data(*job)
+
+      return work
+
+    work = [work_factory(job) for job in jobs]
+    return buffered_scheduler.schedule(work, self._worker_pool, buffer=10)
 
   def collect_data(
       self, policy_path: str
@@ -108,23 +111,21 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_modules = random.sample(self._module_specs, k=self._num_modules)
-    results = self._schedule_jobs(policy_path, sampled_modules)
+    sampled_modules = self._corpus.sample(k=self._num_modules, sort=False)
+    self._current_futures = self._schedule_jobs(policy_path, sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
 
       def get_num_finished_work():
-        finished_work = sum(res.done() for res in results)
+        finished_work = sum(res.done() for res in self._current_futures)
         return finished_work
 
       return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
-    self._current_work = list(zip(sampled_modules, results))
-    finished_work = [
-        (spec, res) for spec, res in self._current_work if res.done()
-    ]
+    current_work = list(zip(sampled_modules, self._current_futures))
+    finished_work = [(spec, res) for spec, res in current_work if res.done()]
     successful_work = [(spec, res.result())
                        for spec, res in finished_work
                        if not worker.get_exception(res)]
@@ -140,7 +141,7 @@ class LocalDataCollector(data_collector.DataCollector):
       # now that the workers killed pending compilations, make sure the workers
       # drained their working queues first - they should all complete quickly
       # since the cancellation manager is killing immediately any process starts
-      worker.wait_for(results)
+      worker.wait_for(self._current_futures)
       worker.wait_for([wkr.enable() for wkr in self._worker_pool])
 
     self._reset_workers = self._pool.submit(wrapup)

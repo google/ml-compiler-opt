@@ -16,6 +16,7 @@
 # pylint: disable=protected-access
 import json
 import os
+import re
 
 import tensorflow as tf
 
@@ -137,7 +138,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-cc1', '-O3']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
@@ -165,7 +166,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file(
         '2.cmd', content='\0'.join(['-cc1', '-fthinlto-index=abc']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
@@ -201,7 +202,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.thinlto.bc')
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
-    ms_list = corpus.build_modulespecs_from_datapath(
+    ms_list = corpus._build_modulespecs_from_datapath(
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
@@ -219,6 +220,114 @@ class ModuleSpecTest(tf.test.TestCase):
                      ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
+
+  def test_size(self):
+    corpus_description = {'modules': ['1'], 'has_thinlto': False}
+    tempdir = self.create_tempdir()
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
+    bc_file = tempdir.create_file('1.bc')
+    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
+    self.assertEqual(
+        os.path.getsize(bc_file.full_path),
+        corpus._build_modulespecs_from_datapath(
+            tempdir.full_path, additional_flags=('-add',))[0].size)
+
+
+class CorpusTest(tf.test.TestCase):
+
+  def test_constructor(self):
+    corpus_description = {'modules': ['1'], 'has_thinlto': False}
+    tempdir = self.create_tempdir()
+    tempdir.create_file(
+        'corpus_description.json', content=json.dumps(corpus_description))
+    tempdir.create_file('1.bc')
+    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
+
+    cps = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
+    self.assertEqual(
+        tuple(
+            corpus._build_modulespecs_from_datapath(
+                tempdir.full_path, additional_flags=('-add',))),
+        cps.module_specs)
+    self.assertEqual(len(cps), 1)
+
+  def test_sample(self):
+    cps = corpus.Corpus.from_module_specs(module_specs=[
+        corpus.ModuleSpec(name='smol', size=1),
+        corpus.ModuleSpec(name='middle', size=200),
+        corpus.ModuleSpec(name='largest', size=500),
+        corpus.ModuleSpec(name='small', size=100)
+    ])
+    sample = cps.sample(4, sort=True)
+    self.assertLen(sample, 4)
+    self.assertEqual(sample[0].name, 'largest')
+    self.assertEqual(sample[1].name, 'middle')
+    self.assertEqual(sample[2].name, 'small')
+    self.assertEqual(sample[3].name, 'smol')
+
+  def test_filter(self):
+    cps = corpus.Corpus.from_module_specs(module_specs=[
+        corpus.ModuleSpec(name='smol', size=1),
+        corpus.ModuleSpec(name='largest', size=500),
+        corpus.ModuleSpec(name='middle', size=200),
+        corpus.ModuleSpec(name='small', size=100)
+    ])
+
+    new_cps = cps.filter(re.compile(r'.+l'))
+    self.assertLen(cps.module_specs, 4)
+    sample = new_cps.sample(999, sort=True)
+    self.assertLen(sample, 3)
+    self.assertEqual(sample[0].name, 'middle')
+    self.assertEqual(sample[1].name, 'small')
+    self.assertEqual(sample[2].name, 'smol')
+
+  def test_sample_zero(self):
+    cps = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='smol')])
+
+    self.assertRaises(ValueError, cps.sample, 0)
+    self.assertRaises(ValueError, cps.sample, -213213213)
+
+  def test_bucket_sample(self):
+    cps = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+    # Odds of passing once by pure luck with random.sample: 1.779e-07
+    # Try 32 times, for good measure.
+    for i in range(32):
+      sample = cps.sample(
+          k=20, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      self.assertLen(sample, 20)
+      for idx, s in enumerate(sample):
+        # Each bucket should be size 5, since n=20 in the sampler
+        self.assertEqual(s.size // 5, 19 - idx)
+
+  def test_bucket_sample_all(self):
+    # Make sure we can sample everything, even if it's not divisible by the
+    # `n` in SamplerBucketRoundRobin.
+    # Create corpus with a prime number of modules.
+    cps = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(101)])
+
+    # Try 32 times, for good measure.
+    for i in range(32):
+      sample = cps.sample(
+          k=101, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      self.assertLen(sample, 101)
+      for idx, s in enumerate(sample):
+        # Since everything is sampled, it should be in perfect order.
+        self.assertEqual(s.size, 100 - idx)
+
+  def test_bucket_sample_small(self):
+    # Make sure we can sample even when k < n.
+    cps = corpus.Corpus.from_module_specs(
+        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+
+    # Try all 19 possible values 0 < i < n
+    for i in range(1, 20):
+      sample = cps.sample(
+          k=i, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      self.assertLen(sample, i)
 
 
 if __name__ == '__main__':

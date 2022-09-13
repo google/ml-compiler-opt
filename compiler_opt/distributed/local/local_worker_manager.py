@@ -31,6 +31,7 @@ import concurrent.futures
 import dataclasses
 import functools
 import multiprocessing
+import psutil
 import threading
 
 from absl import logging
@@ -39,7 +40,7 @@ from compiler_opt.distributed.worker import Worker
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 
 @dataclasses.dataclass(frozen=True)
@@ -161,10 +162,15 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
         with self._lock:
           future = self._map[task_result.msgid]
           del self._map[task_result.msgid]
-          if task_result.success:
-            future.set_result(task_result.value)
-          else:
-            future.set_exception(task_result.value)
+        # The following will trigger any callbacks defined on the future, as a
+        # direct function call. If those callbacks were set by the scheduler,
+        # it's important that self._lock isn't being held when they are being
+        # called, otherwise a deadlock could arise from __get_attr__ trying to
+        # acquire the lock.
+        if task_result.success:
+          future.set_result(task_result.value)
+        else:
+          future.set_exception(task_result.value)
 
       # clear out pending futures and mark ourselves as "stopped" by null-ing
       # the map
@@ -209,6 +215,18 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
       except:  # pylint: disable=bare-except
         pass
 
+    def set_nice(self, val: int):
+      """Sets the nice-ness of the process, this modifies how the OS
+      schedules it. Only works on Unix, since val is presumed to be an int.
+      """
+      psutil.Process(self._process.pid).nice(val)
+
+    def set_affinity(self, val: List[int]):
+      """Sets the CPU affinity of the process, this modifies which cores the OS
+      schedules it on.
+      """
+      psutil.Process(self._process.pid).cpu_affinity(val)
+
     def join(self):
       self._observer.join()
       self._pump.join()
@@ -242,3 +260,11 @@ class LocalWorkerPool(AbstractContextManager):
     # now wait for the message pumps to indicate they exit.
     for s in self._stubs:
       s.join()
+
+  def __del__(self):
+    self.__exit__()
+
+  @property
+  def stubs(self):
+    # Return a shallow copy, to avoid something messing the internal list up
+    return list(self._stubs)

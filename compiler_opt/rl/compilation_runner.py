@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import json
 import os
+import signal
 import subprocess
 import threading
 from typing import Dict, List, Optional, Tuple
@@ -108,6 +109,7 @@ class WorkerCancellationManager:
     # empty() is accurate and get() never blocks.
     self._processes = set()
     self._done = False
+    self._paused = False
     self._lock = threading.Lock()
 
   def enable(self):
@@ -129,10 +131,34 @@ class WorkerCancellationManager:
     for p in self._processes:
       kill_process_ignore_exceptions(p)
 
+  def pause_all_processes(self):
+    with self._lock:
+      if self._paused:
+        return
+      self._paused = True
+
+      for p in self._processes:
+        # used to send the STOP signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGSTOP)
+
+  def resume_all_processes(self):
+    with self._lock:
+      if not self._paused:
+        return
+      self._paused = False
+
+      for p in self._processes:
+        # used to send the CONTINUE signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGCONT)
+
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
-      if not self._done:
+      if p in self._processes:
         self._processes.remove(p)
+
+  def __del__(self):
+    if len(self._processes) > 0:
+      raise RuntimeError('Cancellation manager deleted while containing items.')
 
 
 def start_cancellable_process(
@@ -174,6 +200,7 @@ def start_cancellable_process(
     finally:
       if cancellation_manager:
         cancellation_manager.unregister_process(p)
+
     if retcode != 0:
       raise ProcessKilledError(
       ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
@@ -249,12 +276,15 @@ class CompilationRunner(Worker):
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'cancel_all_work'
+    return method_name in {
+        'cancel_all_work', 'pause_all_work', 'resume_all_work'
+    }
 
   def __init__(self,
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1):
+               moving_average_decay_rate: float = 1,
+               compilation_timeout=None):
     """Initialization of CompilationRunner class.
 
     Args:
@@ -265,7 +295,9 @@ class CompilationRunner(Worker):
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
-    self._compilation_timeout = _COMPILATION_TIMEOUT.value
+    # Avoid reading the flag during the first interpretation of this module.
+    self._compilation_timeout = (
+        compilation_timeout or _COMPILATION_TIMEOUT.value)
     self._cancellation_manager = WorkerCancellationManager()
 
   # re-allow the cancellation manager accept work.
@@ -274,6 +306,12 @@ class CompilationRunner(Worker):
 
   def cancel_all_work(self):
     self._cancellation_manager.kill_all_processes()
+
+  def pause_all_work(self):
+    self._cancellation_manager.pause_all_processes()
+
+  def resume_all_work(self):
+    self._cancellation_manager.resume_all_processes()
 
   def collect_data(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
@@ -284,8 +322,6 @@ class CompilationRunner(Worker):
       module_spec: a ModuleSpec.
       tf_policy_path: path to the tensorflow policy.
       reward_stat: reward stat of this module, None if unknown.
-      cancellation_token: a CancellationToken through which workers may be
-      signaled early termination
 
     Returns:
       A CompilationResult. In particular:
@@ -298,21 +334,15 @@ class CompilationRunner(Worker):
       ValueError if example under default policy and ml policy does not match.
     """
     if reward_stat is None:
-      default_result = self._compile_fn(
-          module_spec,
-          tf_policy_path='',
-          reward_only=bool(tf_policy_path),
-          cancellation_manager=self._cancellation_manager)
+      default_result = self.compile_fn(
+          module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
       reward_stat = {
           k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
       }
 
     if tf_policy_path:
-      policy_result = self._compile_fn(
-          module_spec,
-          tf_policy_path,
-          reward_only=False,
-          cancellation_manager=self._cancellation_manager)
+      policy_result = self.compile_fn(
+          module_spec, tf_policy_path, reward_only=False)
     else:
       policy_result = default_result
 
@@ -346,19 +376,15 @@ class CompilationRunner(Worker):
         rewards=rewards,
         keys=keys)
 
-  def _compile_fn(
+  def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_only: bool,
-      cancellation_manager: Optional[WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
       module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
-      cancellation_manager: a WorkerCancellationManager to handle early
-        termination
 
     Returns:
       A dict mapping from example identifier to tuple containing:

@@ -17,7 +17,7 @@
 import io
 import os
 import tempfile
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import gin
 import tensorflow as tf
@@ -45,19 +45,15 @@ class InliningRunner(compilation_runner.CompilationRunner):
     super().__init__(*args, **kwargs)
     self._llvm_size_path = llvm_size_path
 
-  def _compile_fn(
+  def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_only: bool, cancellation_manager: Optional[
-          compilation_runner.WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
       module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return native size.
-      cancellation_manager: handler for early termination by killing any running
-      processes
 
     Returns:
       A dict mapping from example identifier to tuple containing:
@@ -71,6 +67,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
       cancelled work.
       RuntimeError: if llvm-size produces unexpected output.
     """
+
     working_dir = tempfile.mkdtemp()
 
     log_path = os.path.join(working_dir, 'log')
@@ -91,12 +88,12 @@ class InliningRunner(compilation_runner.CompilationRunner):
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
       compilation_runner.start_cancellable_process(command_line,
                                                    self._compilation_timeout,
-                                                   cancellation_manager)
+                                                   self._cancellation_manager)
       command_line = [self._llvm_size_path, output_native_path]
       output_bytes = compilation_runner.start_cancellable_process(
           command_line,
           timeout=self._compilation_timeout,
-          cancellation_manager=cancellation_manager,
+          cancellation_manager=self._cancellation_manager,
           want_output=True)
       if not output_bytes:
         raise RuntimeError(f'Empty llvm-size output: {" ".join(command_line)}')

@@ -17,6 +17,7 @@
 import os
 import string
 import subprocess
+import threading
 import time
 from unittest import mock
 
@@ -75,10 +76,8 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _mock_compile_fn(file_paths, tf_policy_path, reward_only,
-                     cancellation_manager):  # pylint: disable=unused-argument
+def _mock_compile_fn(file_paths, tf_policy_path, reward_only):  # pylint: disable=unused-argument
   del file_paths
-  del cancellation_manager
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
     native_size = _POLICY_REWARD
@@ -102,7 +101,7 @@ class CompilationRunnerTest(tf.test.TestCase):
       self.assertProtoEquals(x, y)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_policy(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -132,7 +131,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0.1998002], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_default(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -163,7 +162,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_given_default_size(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
@@ -198,7 +197,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertAllClose([0.199800], data.rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_exception_handling(self, mock_compile_fn):
     mock_compile_fn.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')
@@ -213,9 +212,9 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertEqual(1, mock_compile_fn.call_count)
 
   def test_start_subprocess_output(self):
-    ct = compilation_runner.WorkerCancellationManager()
+    cm = compilation_runner.WorkerCancellationManager()
     output = compilation_runner.start_cancellable_process(
-        ['ls', '-l'], timeout=100, cancellation_manager=ct, want_output=True)
+        ['ls', '-l'], timeout=100, cancellation_manager=cm, want_output=True)
     if output:
       output_str = output.decode('utf-8')
     else:
@@ -234,6 +233,23 @@ class CompilationRunnerTest(tf.test.TestCase):
           cancellation_manager=None)
     time.sleep(2)
     self.assertFalse(os.path.exists(sentinel_file))
+
+  def test_pause_resume(self):
+    cm = compilation_runner.WorkerCancellationManager()
+    start_time = time.time()
+
+    def stop_and_start():
+      time.sleep(0.25)
+      cm.pause_all_processes()
+      time.sleep(1)
+      cm.resume_all_processes()
+
+    threading.Thread(target=stop_and_start).start()
+    compilation_runner.start_cancellable_process(['sleep', '0.5'],
+                                                 30,
+                                                 cancellation_manager=cm)
+    # should be at least 1 second due to the pause.
+    self.assertGreater(time.time() - start_time, 1)
 
 
 if __name__ == '__main__':

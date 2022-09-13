@@ -95,7 +95,10 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 userdel buildbot
 groupadd buildbot
-useradd buildbot -g buildbot -m -d /var/lib/buildbot
+useradd buildbot -g buildbot -m -d /b/home
+rm -rf /var/lib/buildbot
+ln -s /b/home /var/lib/buildbot
+chmod 777 /var/lib/buildbot
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
@@ -120,15 +123,15 @@ sudo -u buildbot python3 -m pip install --upgrade pip
 sudo -u buildbot python3 -m pip install --user -r /tmp/requirements.txt
 python3 -m pip install buildbot-worker==2.9.0
 
-TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
+TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../ /var/lib/buildbot/.local/lib/python3.7
+sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
 
 # location we want
-sudo -u buildbot ln -s ${TF_PIP}/../ /tmp/tf-aot
+sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
 
-export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
+export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
 if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
 then
@@ -156,6 +159,7 @@ chown buildbot:buildbot $BOT_DIR
 chown buildbot:buildbot $TENSORFLOW_API_PATH
 
 rm -f /b/buildbot.tac
+
 
 WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"
