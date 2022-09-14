@@ -96,8 +96,8 @@ class Corpus:
     Args:
       data_path: corpus directory.
       additional_flags: list of flags to append to the command line
-      delete_flags: list of flags to remove (both `-flag=<value' and
-        '-flag <value>` are supported).
+      delete_flags: list of flags to remove (both `-flag=<value` and
+        `-flag <value>` are supported).
       replace_flags: list of flags to be replaced. The key in the dictionary
         is the flag. The value is a string that will be `format`-ed with a
         `context` object - see `ReplaceContext`.
