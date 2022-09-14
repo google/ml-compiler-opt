@@ -14,7 +14,7 @@
 # limitations under the License.
 """Tests for the ModuleSpec dataclass and its utility functions."""
 # pylint: disable=protected-access
-import json
+from dataclasses import dataclass
 import os
 import re
 
@@ -25,292 +25,211 @@ from compiler_opt.rl import corpus
 
 class CommandParsingTest(tf.test.TestCase):
 
-  def test_thinlto_file(self):
-    data = ['-cc1', '-foo', '-bar=baz']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path, has_thinlto=False),
-        ['-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc'])
-    data = ['-cc1', '-foo', '-bar=baz', '-fthinlto-index=some/path/here']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path, has_thinlto=True), [
-                '-cc1', '-foo', '-bar=baz',
-                '-fthinlto-index=' + module_path + '.thinlto.bc', '-x', 'ir',
-                module_path + '.bc', '-mllvm', '-thinlto-assume-merged'
-            ])
-
   def test_deletion(self):
-    delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
-                                '-fthinlto-index', '-fprofile-sample-use',
-                                '-fprofile-remapping-file')
-    data = [
-        '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
-        '-split-dwarf-output', 'somepath/some.dwo'
-    ]
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
     self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            delete_flags=delete_compilation_flags),
-        ['-cc1', '-x', 'ir', module_path + '.bc'])
+        ['-cc1'],
+        corpus._localize_cmdline(
+            orig_options=('-cc1', '-fthinlto-index=bad', '-split-dwarf-file',
+                          '/tmp/foo.dwo', '-split-dwarf-output',
+                          'somepath/some.dwo'),
+            delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                          '-fthinlto-index', '-fprofile-sample-use',
+                          '-fprofile-remapping-file')))
+
+    # OK to not match deletion flags
+    self.assertEqual(['-cc1'],
+                     corpus._localize_cmdline(
+                         orig_options=('-cc1',),
+                         delete_flags=('-split-dwarf-file',
+                                       '-split-dwarf-output', '-fthinlto-index',
+                                       '-fprofile-sample-use',
+                                       '-fprofile-remapping-file')))
 
   def test_addition(self):
-    additional_flags = ('-fix-all-bugs',)
-    data = ['-cc1']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
     self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
+        ['-cc1', '-fix-all-bugs', '-something=/hello/there.txt'],
+        corpus._localize_cmdline(
+            context=corpus.Corpus.ReplaceContext(
+                module_full_path='/hello/there.txt'),
+            orig_options=('-cc1',),
+            additional_flags=('-fix-all-bugs',
+                              '-something={context.module_full_path}')))
 
   def test_replacement(self):
-    replace_flags = {'-replace-me': '{context.full_path_prefix}.replaced'}
-    data = ['-cc1']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
+
+    @dataclass(frozen=True)
+    class ToyContext:
+      some_field: str
+
     # if we expect to be able to replace a flag, and it's not in the original
     # cmdline, raise.
-    self.assertRaises(
+    with self.assertRaises(
         ValueError,
-        corpus._load_and_parse_command,
-        module_path=module_path,
-        has_thinlto=False,
-        replace_flags=replace_flags)
-    data = ['-cc1', '-replace-me=some_value']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    # the flag can be replaced in non-thinlto cases; and in the case of thinlto
-    # it does not interfere with the thinlto one
+        msg='flags that were expected to be replaced were not found'):
+      corpus._localize_cmdline(
+          orig_options=('-cc1',),
+          replace_flags={'-replace-me': '{context.some_field}.replaced'})
+
+    # it also raises if the context is invalid
+    self.assertRaises(
+        KeyError,
+        corpus._localize_cmdline,
+        orig_options=('-cc1', '-replace-me=blah'),
+        replace_flags={'-replace-me': '{something_that_doesnt_exist}'})
+
     self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            replace_flags=replace_flags), [
-                '-cc1', '-replace-me=' + module_path + '.replaced', '-x', 'ir',
-                module_path + '.bc'
-            ])
+        ['-cc1', '-replace-me=some_other_value.replaced'],
+        corpus._localize_cmdline(
+            context=ToyContext(some_field='some_other_value'),
+            orig_options=('-cc1', '-replace-me=some_value'),
+            replace_flags={'-replace-me': '{context.some_field}.replaced'}))
     # variant without '='
-    data = ['-cc1', '-replace-me', 'some_value']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
     self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            replace_flags=replace_flags), [
-                '-cc1', '-replace-me', module_path + '.replaced', '-x', 'ir',
-                module_path + '.bc'
-            ])
-    data = ['-cc1', '-replace-me', 'some_value', '-fthinlto-index=blah']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=True,
-            replace_flags=replace_flags), [
-                '-cc1', '-replace-me', module_path + '.replaced',
-                '-fthinlto-index=' + module_path + '.thinlto.bc', '-x', 'ir',
-                module_path + '.bc', '-mllvm', '-thinlto-assume-merged'
-            ])
-
-  def test_modification(self):
-    delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
-                                '-fthinlto-index', '-fprofile-sample-use',
-                                '-fprofile-remapping-file')
-    additional_flags = ('-fix-all-bugs',)
-    data = [
-        '-cc1', '-fthinlto-index=bad', '-split-dwarf-file', '/tmp/foo.dwo',
-        '-split-dwarf-output', 'somepath/some.dwo'
-    ]
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            delete_flags=delete_compilation_flags,
-            additional_flags=additional_flags),
-        ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
-
-  def test_override(self):
-    cmd_override = ('-fix-all-bugs',)
-    data = ['-cc1', '-fthinlto-index=bad']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=module_path,
-            has_thinlto=False,
-            cmd_override=cmd_override,
-            additional_flags=('-add-bugs',),
-            delete_flags=('-fthinlto-index',)),
-        ['-fix-all-bugs', '-x', 'ir', module_path + '.bc', '-add-bugs'])
-    self.assertEqual(
-        corpus._load_and_parse_command(
-            module_path=os.path.join('this!path#cant$exist/'
-                                     'hi'),
-            has_thinlto=False,
-            cmd_override=cmd_override),
-        ['-fix-all-bugs', '-x', 'ir', 'this!path#cant$exist/hi.bc'])
-
-  def test_cc1_exists(self):
-    data = ['-fix-all-bugs', '-xyz']
-    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
-    module_path = argfile.full_path[:-4]
-    self.assertRaises(
-        ValueError,
-        corpus._load_and_parse_command,
-        module_path=module_path,
-        has_thinlto=False)
+        ['-cc1', '-replace-me', 'some_other_value.replaced'],
+        corpus._localize_cmdline(
+            context=ToyContext(some_field='some_other_value'),
+            orig_options=('-cc1', '-replace-me', 'some_value'),
+            replace_flags={'-replace-me': '{context.some_field}.replaced'}))
 
 
 class ModuleSpecTest(tf.test.TestCase):
 
-  def test_cmd(self):
-    ms = corpus.ModuleSpec(exec_cmd=('-cc1', '-fix-all-bugs'), name='dummy')
-    self.assertEqual(ms.name, 'dummy')
-    self.assertEqual(ms.exec_cmd, ('-cc1', '-fix-all-bugs'))
-
-  def test_get_without_thinlto(self):
-    corpus_description = {'modules': ['1', '2'], 'has_thinlto': False}
-    tempdir = self.create_tempdir()
-    tempdir.create_file(
-        'corpus_description.json', content=json.dumps(corpus_description))
-    tempdir.create_file('1.bc')
-    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
-    tempdir.create_file('2.bc')
-    tempdir.create_file('2.cmd', content='\0'.join(['-cc1', '-O3']))
-
-    ms_list = corpus._build_modulespecs_from_datapath(
-        tempdir.full_path, additional_flags=('-add',))
-    self.assertEqual(len(ms_list), 2)
-    ms1 = ms_list[0]
-    ms2 = ms_list[1]
-    self.assertEqual(ms1.name, '1')
-    self.assertEqual(ms1.exec_cmd,
-                     ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc', '-add'))
-
-    self.assertEqual(ms2.name, '2')
-    self.assertEqual(
-        ms2.exec_cmd,
-        ('-cc1', '-O3', '-x', 'ir', tempdir.full_path + '/2.bc', '-add'))
-
-  def test_get_with_thinlto(self):
-    corpus_description = {'modules': ['1', '2'], 'has_thinlto': True}
-    tempdir = self.create_tempdir()
-    tempdir.create_file(
-        'corpus_description.json', content=json.dumps(corpus_description))
-    tempdir.create_file('1.bc')
-    tempdir.create_file('1.thinlto.bc')
-    tempdir.create_file(
-        '1.cmd', content='\0'.join(['-cc1', '-fthinlto-index=xyz']))
-    tempdir.create_file('2.bc')
-    tempdir.create_file('2.thinlto.bc')
-    tempdir.create_file(
-        '2.cmd', content='\0'.join(['-cc1', '-fthinlto-index=abc']))
-
-    self.assertRaises(
-        ValueError,
-        corpus._build_modulespecs_from_datapath,
-        tempdir.full_path,
-        additional_flags=('-add',),
-        delete_flags=('-fthinlto-index',))
-    ms_list = corpus._build_modulespecs_from_datapath(
-        tempdir.full_path, additional_flags=('-add',))
-    self.assertEqual(len(ms_list), 2)
-    ms1 = ms_list[0]
-    ms2 = ms_list[1]
-    self.assertEqual(ms1.name, '1')
-    self.assertEqual(ms1.exec_cmd,
-                     ('-cc1', '-fthinlto-index=' + tempdir.full_path +
-                      '/1.thinlto.bc', '-x', 'ir', tempdir.full_path + '/1.bc',
-                      '-mllvm', '-thinlto-assume-merged', '-add'))
-
-    self.assertEqual(ms2.name, '2')
-    self.assertEqual(ms2.exec_cmd,
-                     ('-cc1', '-fthinlto-index=' + tempdir.full_path +
-                      '/2.thinlto.bc', '-x', 'ir', tempdir.full_path + '/2.bc',
-                      '-mllvm', '-thinlto-assume-merged', '-add'))
-
-  def test_get_with_override(self):
-    corpus_description = {
-        'modules': ['1', '2'],
-        'has_thinlto': True,
-        'global_command_override': ['-O3', '-qrs']
-    }
-    tempdir = self.create_tempdir()
-    tempdir.create_file(
-        'corpus_description.json', content=json.dumps(corpus_description))
-    tempdir.create_file('1.bc')
-    tempdir.create_file('1.thinlto.bc')
-    tempdir.create_file(
-        '1.cmd', content='\0'.join(['-cc1', '-fthinlto-index=xyz']))
-    tempdir.create_file('2.bc')
-    tempdir.create_file('2.thinlto.bc')
-    tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
-
-    ms_list = corpus._build_modulespecs_from_datapath(
-        tempdir.full_path, additional_flags=('-add',))
-    self.assertEqual(len(ms_list), 2)
-    ms1 = ms_list[0]
-    ms2 = ms_list[1]
-    self.assertEqual(ms1.name, '1')
-    self.assertEqual(ms1.exec_cmd,
-                     ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/1.bc',
-                      '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
-                      '-mllvm', '-thinlto-assume-merged', '-add'))
-
-    self.assertEqual(ms2.name, '2')
-    self.assertEqual(ms2.exec_cmd,
-                     ('-O3', '-qrs', '-x', 'ir', tempdir.full_path + '/2.bc',
-                      '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
-                      '-mllvm', '-thinlto-assume-merged', '-add'))
-
-  def test_size(self):
-    corpus_description = {'modules': ['1'], 'has_thinlto': False}
-    tempdir = self.create_tempdir()
-    tempdir.create_file(
-        'corpus_description.json', content=json.dumps(corpus_description))
-    bc_file = tempdir.create_file('1.bc')
-    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
-    self.assertEqual(
-        os.path.getsize(bc_file.full_path),
-        corpus._build_modulespecs_from_datapath(
-            tempdir.full_path, additional_flags=('-add',))[0].size)
+  def test_loadable_spec(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='smth', size=1)])
+    lms = cps.load_corpus_element(cps.contents[0])
+    corpdir2 = self.create_tempdir()
+    ms = lms.to_module_spec(corpdir2)
+    bc_loc = os.path.join(corpdir2, 'smth', 'input.bc')
+    self.assertEqual(('-cc1', '-x', 'ir', f'{bc_loc}'), ms.exec_cmd)
+    with tf.io.gfile.GFile(bc_loc, 'rb') as f:
+      self.assertEqual(f.readlines(), [bytes([1])])
 
 
 class CorpusTest(tf.test.TestCase):
 
   def test_constructor(self):
-    corpus_description = {'modules': ['1'], 'has_thinlto': False}
-    tempdir = self.create_tempdir()
-    tempdir.create_file(
-        'corpus_description.json', content=json.dumps(corpus_description))
-    tempdir.create_file('1.bc')
-    tempdir.create_file('1.cmd', content='\0'.join(['-cc1']))
-
-    cps = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
-    self.assertEqual(
-        tuple(
-            corpus._build_modulespecs_from_datapath(
-                tempdir.full_path, additional_flags=('-add',))),
-        cps.module_specs)
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='1', size=1)],
+        additional_flags=('-add',))
+    self.assertEqual((corpus.CorpusElement(
+        name='1', size=1, command_line=('-cc1',), has_thinlto=False),),
+                     cps.contents)
     self.assertEqual(len(cps), 1)
+    self.assertEqual(cps._additional_flags,
+                     ('-x', 'ir', '{context.module_full_path}', '-add'))
+
+  def test_invalid_args(self):
+    with self.assertRaises(
+        ValueError, msg='-cc1 flag not present in .cmd file'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-hi',))
+
+    with self.assertRaises(
+        ValueError, msg='do not use add/delete flags to replace'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-cc1',),
+          additional_flags=('-fsomething',),
+          replace_flags={'-fsomething': 'does not matter'})
+
+    with self.assertRaises(
+        ValueError, msg='do not use add/delete flags to replace'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-cc1',),
+          additional_flags=('-fsomething=new_value',),
+          replace_flags={'-fsomething': 'does not matter'})
+
+    with self.assertRaises(
+        ValueError, msg='do not use add/delete flags to replace'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-cc1',),
+          delete_flags=('-fsomething',),
+          replace_flags={'-fsomething': 'does not matter'})
+
+    with self.assertRaises(
+        ValueError, msg='do not use add/delete flags to replace'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-cc1',),
+          additional_flags=('-fsomething',),
+          delete_flags=('-fsomething',))
+
+    with self.assertRaises(
+        ValueError, msg='do not use add/delete flags to replace'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.CorpusElement(name='smol', size=1)],
+          cmdline=('-cc1',),
+          additional_flags=('-fsomething=value',),
+          delete_flags=('-fsomething',))
+
+  def test_empty_module_list(self):
+    location = self.create_tempdir()
+    with self.assertRaises(
+        ValueError,
+        msg=f'{location}\'s corpus_description contains no modules.'):
+      corpus.create_corpus_for_testing(
+          location=self.create_tempdir(), elements=[], cmdline=('-hello',))
+
+  def test_ctor_thinlto(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='smol', size=1)],
+        cmdline=('-cc1', '-fthinlto-index=foo'),
+        is_thinlto=True)
+    self.assertTrue('-fthinlto-index' in cps._replace_flags)
+    self.assertEqual(cps._replace_flags['-fthinlto-index'],
+                     '{context.thinlto_full_path}')
+    self.assertEqual(cps._additional_flags,
+                     ('-x', 'ir', '{context.module_full_path}', '-mllvm',
+                      '-thinlto-assume-merged'))
+
+  def test_cmd_override_thinlto(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='smol', size=1)],
+        cmdline=(),
+        cmdline_is_override=True,
+        is_thinlto=True)
+    self.assertFalse('-fthinlto-index' in cps._replace_flags)
+    self.assertEqual(cps._additional_flags,
+                     ('-x', 'ir', '{context.module_full_path}',
+                      '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
+                      '-thinlto-assume-merged'))
+
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='smol', size=1)],
+        cmdline=('-something',),
+        cmdline_is_override=True,
+        is_thinlto=True)
+    self.assertFalse('-fthinlto-index' in cps._replace_flags)
+    self.assertEqual(cps._additional_flags,
+                     ('-x', 'ir', '{context.module_full_path}',
+                      '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
+                      '-thinlto-assume-merged'))
+    self.assertEqual(cps.contents[0].command_line, ('-something',))
 
   def test_sample(self):
-    cps = corpus.Corpus.from_module_specs(module_specs=[
-        corpus.ModuleSpec(name='smol', size=1),
-        corpus.ModuleSpec(name='middle', size=200),
-        corpus.ModuleSpec(name='largest', size=500),
-        corpus.ModuleSpec(name='small', size=100)
-    ])
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.CorpusElement(name='smol', size=1),
+            corpus.CorpusElement(name='middle', size=200),
+            corpus.CorpusElement(name='largest', size=500),
+            corpus.CorpusElement(name='small', size=100)
+        ])
     sample = cps.sample(4, sort=True)
     self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'largest')
@@ -319,36 +238,39 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(sample[3].name, 'smol')
 
   def test_filter(self):
-    cps = corpus.Corpus.from_module_specs(module_specs=[
-        corpus.ModuleSpec(name='smol', size=1),
-        corpus.ModuleSpec(name='largest', size=500),
-        corpus.ModuleSpec(name='middle', size=200),
-        corpus.ModuleSpec(name='small', size=100)
-    ])
-
-    new_cps = cps.filter(re.compile(r'.+l'))
-    self.assertLen(cps.module_specs, 4)
-    sample = new_cps.sample(999, sort=True)
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.CorpusElement(name='smol', size=1),
+            corpus.CorpusElement(name='middle', size=200),
+            corpus.CorpusElement(name='largest', size=500),
+            corpus.CorpusElement(name='small', size=100)
+        ],
+        module_filter=re.compile(r'.+l'))
+    sample = cps.sample(999, sort=True)
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')
     self.assertEqual(sample[2].name, 'smol')
 
   def test_sample_zero(self):
-    cps = corpus.Corpus.from_module_specs(
-        module_specs=[corpus.ModuleSpec(name='smol')])
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[corpus.CorpusElement(name='smol', size=1)])
 
     self.assertRaises(ValueError, cps.sample, 0)
     self.assertRaises(ValueError, cps.sample, -213213213)
 
   def test_bucket_sample(self):
-    cps = corpus.Corpus.from_module_specs(
-        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.CorpusElement(name=f'{i}', size=i) for i in range(100)
+        ])
     # Odds of passing once by pure luck with random.sample: 1.779e-07
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = cps.sample(
-          k=20, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      sample = cps.sample(k=20, sort=True)
       self.assertLen(sample, 20)
       for idx, s in enumerate(sample):
         # Each bucket should be size 5, since n=20 in the sampler
@@ -358,13 +280,15 @@ class CorpusTest(tf.test.TestCase):
     # Make sure we can sample everything, even if it's not divisible by the
     # `n` in SamplerBucketRoundRobin.
     # Create corpus with a prime number of modules.
-    cps = corpus.Corpus.from_module_specs(
-        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(101)])
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.CorpusElement(name=f'{i}', size=i) for i in range(101)
+        ])
 
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = cps.sample(
-          k=101, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      sample = cps.sample(k=101, sort=True)
       self.assertLen(sample, 101)
       for idx, s in enumerate(sample):
         # Since everything is sampled, it should be in perfect order.
@@ -372,13 +296,15 @@ class CorpusTest(tf.test.TestCase):
 
   def test_bucket_sample_small(self):
     # Make sure we can sample even when k < n.
-    cps = corpus.Corpus.from_module_specs(
-        module_specs=[corpus.ModuleSpec(name='', size=i) for i in range(100)])
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.CorpusElement(name=f'{i}', size=i) for i in range(100)
+        ])
 
     # Try all 19 possible values 0 < i < n
     for i in range(1, 20):
-      sample = cps.sample(
-          k=i, sampler=corpus.SamplerBucketRoundRobin(), sort=True)
+      sample = cps.sample(k=i, sort=True)
       self.assertLen(sample, i)
 
 

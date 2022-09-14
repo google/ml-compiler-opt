@@ -24,7 +24,7 @@ import tempfile
 import threading
 from typing import Dict, List, Optional, Tuple
 
-from absl import flags
+from absl import flags, logging
 from compiler_opt.distributed.worker import Worker, WorkerFuture
 from compiler_opt.rl import constant
 from compiler_opt.rl import policy_saver
@@ -187,6 +187,8 @@ def start_cancellable_process(
   # Disable tensorflow info messages during data collection
   if _QUIET.value:
     command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
+  else:
+    logging.info(cmdline)
   with subprocess.Popen(
       cmdline,
       env=command_env,
@@ -260,7 +262,7 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def collect_data(
       self,
-      module_spec: corpus.ModuleSpec,
+      loaded_module_spec: corpus.LoadedModuleSpec,
       policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None
   ) -> WorkerFuture[CompilationResult]:
@@ -319,7 +321,7 @@ class CompilationRunner(Worker):
 
   def collect_data(
       self,
-      module_spec: corpus.ModuleSpec,
+      loaded_module_spec: corpus.LoadedModuleSpec,
       policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
@@ -340,6 +342,7 @@ class CompilationRunner(Worker):
       ValueError if example under default policy and ml policy does not match.
     """
     with tempfile.TemporaryDirectory() as tempdir:
+      module_spec = loaded_module_spec.to_module_spec(tempdir)
       tf_policy_path = ''
       if policy is not None:
         tf_policy_path = os.path.join(tempdir, 'policy')
