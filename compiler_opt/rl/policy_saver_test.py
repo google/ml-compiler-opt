@@ -14,6 +14,7 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.policy_saver."""
 
+import filecmp
 import json
 import os
 
@@ -142,6 +143,27 @@ class PolicySaverTest(tf.test.TestCase):
     self.assertTrue(
         tf.io.gfile.exists(
             os.path.join(tflite_dir, policy_saver.OUTPUT_SIGNATURE)))
+
+  def test_policy_serialization(self):
+    sm_dir = os.path.join(self.get_temp_dir(), 'model')
+    orig_dir = os.path.join(self.get_temp_dir(), 'orig_model')
+    dest_dir = os.path.join(self.get_temp_dir(), 'dest_model')
+    _gen_test_model(sm_dir)
+    policy_saver.convert_mlgo_model(sm_dir, orig_dir)
+
+    serialized_policy = policy_saver.Policy.from_filesystem(orig_dir)
+    serialized_policy.to_filesystem(dest_dir)
+
+    self.assertTrue(
+        filecmp.cmp(
+            os.path.join(orig_dir, policy_saver.TFLITE_MODEL_NAME),
+            os.path.join(dest_dir, policy_saver.TFLITE_MODEL_NAME),
+            shallow=False))
+    self.assertTrue(
+        filecmp.cmp(
+            os.path.join(orig_dir, policy_saver.OUTPUT_SIGNATURE),
+            os.path.join(dest_dir, policy_saver.OUTPUT_SIGNATURE),
+            shallow=False))
 
 
 if __name__ == '__main__':

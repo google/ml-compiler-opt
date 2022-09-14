@@ -27,6 +27,7 @@ from compiler_opt.distributed.local import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
+from compiler_opt.rl import policy_saver
 
 
 class LocalDataCollector(data_collector.DataCollector):
@@ -78,12 +79,13 @@ class LocalDataCollector(data_collector.DataCollector):
                  time.time() - t1)
 
   def _schedule_jobs(
-      self, policy_path: str, sampled_modules: List[corpus.ModuleSpec]
+      self, policy: policy_saver.Policy,
+      sampled_modules: List[corpus.ModuleSpec]
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
-    jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
+    jobs = [(module_spec, policy, self._reward_stat_map[module_spec.name])
             for module_spec in sampled_modules]
 
     def work_factory(job):
@@ -97,7 +99,7 @@ class LocalDataCollector(data_collector.DataCollector):
     return buffered_scheduler.schedule(work, self._worker_pool, buffer=10)
 
   def collect_data(
-      self, policy_path: str
+      self, policy: policy_saver.Policy
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
@@ -112,7 +114,7 @@ class LocalDataCollector(data_collector.DataCollector):
       information is viewable in TensorBoard.
     """
     sampled_modules = self._corpus.sample(k=self._num_modules, sort=False)
-    self._current_futures = self._schedule_jobs(policy_path, sampled_modules)
+    self._current_futures = self._schedule_jobs(policy, sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)

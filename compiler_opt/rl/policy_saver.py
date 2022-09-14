@@ -14,6 +14,7 @@
 # limitations under the License.
 """util function to save the policy and model config file."""
 
+import dataclasses
 import json
 import os
 
@@ -108,6 +109,46 @@ def convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str):
   src_json = os.path.join(mlgo_model_dir, OUTPUT_SIGNATURE)
   dest_json = os.path.join(tflite_model_dir, OUTPUT_SIGNATURE)
   tf.io.gfile.copy(src_json, dest_json)
+
+
+@dataclasses.dataclass(frozen=True)
+class Policy:
+  """Serialized mlgo policy, used to pass a policy to workers.
+
+  A policy has 2 components, both being file contents:
+    - the content of the output_spec.json file;
+    - the content of the tflite policy.
+
+  To construct from a directory accessible by tf.io.gfile:
+
+  policy = Policy.from_filesystem(that_dir)
+
+  To make available to the compiler in a directory:
+
+  policy.to_filesystem(that_dir)
+  """
+
+  output_spec: bytes
+  policy: bytes
+
+  def to_filesystem(self, location: str):
+    os.makedirs(location, exist_ok=True)
+    output_sig = os.path.join(location, OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='wb') as f:
+      f.write(self.output_spec)
+    with tf.io.gfile.GFile(policy_path, mode='wb') as f:
+      f.write(self.policy)
+
+  @staticmethod
+  def from_filesystem(location: str):
+    output_sig = os.path.join(location, OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='rb') as f:
+      output_spec = f.read()
+    with tf.io.gfile.GFile(policy_path, mode='rb') as f:
+      policy = f.read()
+    return Policy(output_spec=output_spec, policy=policy)
 
 
 class PolicySaver(object):
