@@ -26,7 +26,8 @@ from typing import Dict, List, Optional, Tuple
 
 from absl import flags
 from compiler_opt.distributed.worker import Worker, WorkerFuture
-from compiler_opt.rl import constant, policy_saver
+from compiler_opt.rl import constant
+from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
 import tensorflow as tf
 
@@ -47,38 +48,6 @@ def _calculate_reward(policy: float, baseline: float) -> float:
 class RewardStat:
   default_reward: float
   moving_average_reward: float
-
-
-@dataclasses.dataclass(frozen=True)
-class Policy:
-  """Serialized mlgo policy, used to pass a policy to workers.
-
-  A policy has 2 components, both being file contents:
-    - the content of the output_spec.json file;
-    - the content of the tflite policy.
-  """
-
-  output_spec: bytes
-  policy: bytes
-
-  def to_filesystem(self, location: str):
-    os.makedirs(location, exist_ok=True)
-    output_sig = os.path.join(location, policy_saver.OUTPUT_SIGNATURE)
-    policy_path = os.path.join(location, policy_saver.TFLITE_MODEL_NAME)
-    with tf.io.gfile.GFile(output_sig, mode='wb') as f:
-      f.write(self.output_spec)
-    with tf.io.gfile.GFile(policy_path, mode='wb') as f:
-      f.write(self.policy)
-
-  @staticmethod
-  def from_filesystem(location: str):
-    output_sig = os.path.join(location, policy_saver.OUTPUT_SIGNATURE)
-    policy_path = os.path.join(location, policy_saver.TFLITE_MODEL_NAME)
-    with tf.io.gfile.GFile(output_sig, mode='rb') as f:
-      output_spec = f.read()
-    with tf.io.gfile.GFile(policy_path, mode='rb') as f:
-      policy = f.read()
-    return Policy(output_spec=output_spec, policy=policy)
 
 
 class DataClassJSONEncoder(json.JSONEncoder):
@@ -292,7 +261,7 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
   def collect_data(
       self,
       module_spec: corpus.ModuleSpec,
-      policy: Optional[Policy] = None,
+      policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None
   ) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
@@ -351,7 +320,7 @@ class CompilationRunner(Worker):
   def collect_data(
       self,
       module_spec: corpus.ModuleSpec,
-      policy: Optional[Policy] = None,
+      policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 

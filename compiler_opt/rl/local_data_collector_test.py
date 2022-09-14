@@ -28,14 +28,14 @@ from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
+from compiler_opt.rl import policy_saver
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
 _policy_str = 'policy'.encode(encoding='utf-8')
 
-_mock_policy = compilation_runner.Policy(
-    output_spec=bytes(), policy=_policy_str)
+_mock_policy = policy_saver.Policy(output_spec=bytes(), policy=_policy_str)
 
 
 def _get_sequence_example(feature_value):

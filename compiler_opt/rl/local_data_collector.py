@@ -27,6 +27,7 @@ from compiler_opt.distributed.local import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
+from compiler_opt.rl import policy_saver
 
 
 class LocalDataCollector(data_collector.DataCollector):
@@ -78,7 +79,7 @@ class LocalDataCollector(data_collector.DataCollector):
                  time.time() - t1)
 
   def _schedule_jobs(
-      self, policy: compilation_runner.Policy,
+      self, policy: policy_saver.Policy,
       sampled_modules: List[corpus.ModuleSpec]
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
@@ -98,7 +99,7 @@ class LocalDataCollector(data_collector.DataCollector):
     return buffered_scheduler.schedule(work, self._worker_pool, buffer=10)
 
   def collect_data(
-      self, policy: compilation_runner.Policy
+      self, policy: policy_saver.Policy
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 

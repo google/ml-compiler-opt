@@ -31,6 +31,7 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -96,7 +97,7 @@ def worker(policy_path: Optional[str],
   try:
     runner = get_runner()
     m = re.compile(key_filter) if key_filter else None
-    policy = compilation_runner.Policy.from_filesystem(
+    policy = policy_saver.Policy.from_filesystem(
         policy_path) if policy_path else None
     while True:
       try:

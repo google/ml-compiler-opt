@@ -157,7 +157,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       saver.save(policy_path)
 
       dataset_iter, monitor_dict = data_collector.collect_data(
-          policy=compilation_runner.Policy.from_filesystem(
+          policy=policy_saver.Policy.from_filesystem(
               os.path.join(policy_path, deploy_policy_name)))
       llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 

@@ -30,6 +30,7 @@ from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
@@ -91,7 +92,7 @@ def _mock_compile_fn(file_paths, tf_policy_path, reward_only):  # pylint: disabl
     return {'default': (sequence_example, native_size)}
 
 
-_mock_policy = compilation_runner.Policy(bytes(), bytes())
+_mock_policy = policy_saver.Policy(bytes(), bytes())
 
 
 class CompilationRunnerTest(tf.test.TestCase):
