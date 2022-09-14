@@ -236,18 +236,20 @@ def _load_and_parse_command(
 
   context = Corpus.ReplaceContext(full_path_prefix=module_path)
   replace_flags = replace_flags.copy() if replace_flags else {}
+  fthinlto_index_flag = '-fthinlto-index'
+
   if has_thinlto:
     additional_flags = ('-mllvm', '-thinlto-assume-merged') + additional_flags
     if cmd_override:
       additional_flags = (
-          f'-fthinlto-index={context.full_path_prefix}.thinlto.bc',
+          f'{fthinlto_index_flag}={context.full_path_prefix}.thinlto.bc',
       ) + additional_flags
     else:
-      fthinlto_index = '-fthinlto-index'
-      if fthinlto_index in replace_flags:
+      if fthinlto_index_flag in replace_flags:
         raise ValueError(
             '-fthinlto-index must be handled by the infrastructure')
-      replace_flags[fthinlto_index] = '{context.full_path_prefix}.thinlto.bc'
+      replace_flags[
+          fthinlto_index_flag] = '{context.full_path_prefix}.thinlto.bc'
 
   additional_flags = ('-x', 'ir', module_path + '.bc') + additional_flags
 
