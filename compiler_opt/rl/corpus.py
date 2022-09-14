@@ -19,7 +19,7 @@ import re
 
 from absl import logging
 from dataclasses import dataclass
-from typing import Iterable, List, Dict, Tuple, Any
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import json
 import os
@@ -82,16 +82,36 @@ class SamplerBucketRoundRobin:
 class Corpus:
   """Represents a corpus. Comes along with some utility functions."""
 
+  @dataclass(frozen=True)
+  class ReplaceContext:
+    """Context for 'replace' rules."""
+    full_path_prefix: str
+
   def __init__(self,
                data_path: str,
                additional_flags: Tuple[str, ...] = (),
-               delete_flags: Tuple[str, ...] = ()):
+               delete_flags: Tuple[str, ...] = (),
+               replace_flags: Optional[Dict[str, str]] = None):
+    """
+    Args:
+      data_path: corpus directory.
+      additional_flags: list of flags to append to the command line
+      delete_flags: list of flags to remove (both `-flag=<value` and
+        `-flag <value>` are supported).
+      replace_flags: list of flags to be replaced. The key in the dictionary
+        is the flag. The value is a string that will be `format`-ed with a
+        `context` object - see `ReplaceContext`.
+        We verify that flags in replace_flags are present, and do not appear
+        in the additional_flags nor delete_flags.
+        Thinlto index is handled this way, too.
+    """
     self._module_specs = tuple(
         sorted(
             _build_modulespecs_from_datapath(
                 data_path=data_path,
                 additional_flags=additional_flags,
-                delete_flags=delete_flags),
+                delete_flags=delete_flags,
+                replace_flags=replace_flags),
             key=lambda m: m.size,
             reverse=True))
     self._root_dir = data_path
@@ -137,8 +157,8 @@ class Corpus:
 def _build_modulespecs_from_datapath(
     data_path: str,
     additional_flags: Tuple[str, ...] = (),
-    delete_flags: Tuple[str, ...] = ()
-) -> List[ModuleSpec]:
+    delete_flags: Tuple[str, ...] = (),
+    replace_flags: Optional[Dict[str, str]] = None) -> List[ModuleSpec]:
   # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
   # {additional|delete}_flags here
   with open(
@@ -174,6 +194,7 @@ def _build_modulespecs_from_datapath(
         has_thinlto=has_thinlto,
         additional_flags=additional_flags,
         delete_flags=delete_flags,
+        replace_flags=replace_flags,
         cmd_override=cmd_override)
     size = os.path.getsize(full_module_path + '.bc')
     module_specs.append(
@@ -187,7 +208,8 @@ def _load_and_parse_command(
     has_thinlto: bool,
     additional_flags: Tuple[str, ...] = (),
     delete_flags: Tuple[str, ...] = (),
-    cmd_override: Tuple[str, ...] = ()
+    replace_flags: Optional[Dict[str, str]] = None,
+    cmd_override: Tuple[str, ...] = (),
 ) -> List[str]:
   """Cleans up base command line.
 
@@ -211,6 +233,30 @@ def _load_and_parse_command(
   else:
     with open(module_path + '.cmd', encoding='utf-8') as f:
       option_iterator = iter(f.read().split('\0'))
+
+  context = Corpus.ReplaceContext(full_path_prefix=module_path)
+  replace_flags = replace_flags.copy() if replace_flags else {}
+  if has_thinlto:
+    additional_flags = ('-mllvm', '-thinlto-assume-merged') + additional_flags
+    if cmd_override:
+      additional_flags = (
+          f'-fthinlto-index={context.full_path_prefix}.thinlto.bc',
+      ) + additional_flags
+    else:
+      fthinlto_index = '-fthinlto-index'
+      if fthinlto_index in replace_flags:
+        raise ValueError(
+            '-fthinlto-index must be handled by the infrastructure')
+      replace_flags[fthinlto_index] = '{context.full_path_prefix}.thinlto.bc'
+
+  additional_flags = ('-x', 'ir', module_path + '.bc') + additional_flags
+
+  matched_replace_flags = set()
+  # don't user add/remove for replace
+  if set(additional_flags).intersection(
+      set(replace_flags)) or set(delete_flags).intersection(set(replace_flags)):
+    raise ValueError('do not use add/delete flags to replace')
+
   option = next(option_iterator, None)
 
   while option is not None:
@@ -218,16 +264,28 @@ def _load_and_parse_command(
       if '=' not in option:
         next(option_iterator, None)
     else:
-      cmdline.append(option)
+      matching_replace = [
+          flag for flag in replace_flags if option.startswith(flag)
+      ]
+      if not matching_replace:
+        cmdline.append(option)
+      else:
+        assert len(matching_replace) == 1
+        flag = matching_replace[0]
+        if flag in matched_replace_flags:
+          raise ValueError(f'{flag} was matched twice')
+        matched_replace_flags.add(flag)
+
+        if '=' not in option:
+          next(option_iterator, None)
+          cmdline.extend([option, replace_flags[flag].format(context=context)])
+        else:
+          cmdline.append(flag + '=' +
+                         replace_flags[flag].format(context=context))
+
     option = next(option_iterator, None)
-  cmdline.extend(['-x', 'ir', module_path + '.bc'])
-
-  if has_thinlto:
-    cmdline.extend([
-        f'-fthinlto-index={module_path}.thinlto.bc', '-mllvm',
-        '-thinlto-assume-merged'
-    ])
-
+  if len(matched_replace_flags) != len(replace_flags):
+    raise ValueError('flags that were expected to be replaced were not found')
   cmdline.extend(additional_flags)
 
   # The options read from a .cmd file must be run with -cc1
