@@ -31,6 +31,7 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -75,7 +76,8 @@ def get_runner() -> compilation_runner.CompilationRunner:
   return problem_config.get_runner_type()(moving_average_decay_rate=0)
 
 
-def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
+def worker(policy_path: Optional[str],
+           work_queue: 'queue.Queue[corpus.ModuleSpec]',
            results_queue: 'queue.Queue[ResultsQueueEntry]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -95,7 +97,8 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
   try:
     runner = get_runner()
     m = re.compile(key_filter) if key_filter else None
-
+    policy = policy_saver.Policy.from_filesystem(
+        policy_path) if policy_path else None
     while True:
       try:
         module_spec = work_queue.get_nowait()
@@ -103,9 +106,7 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
         return
       try:
         data = runner.collect_data(
-            module_spec=module_spec,
-            tf_policy_path=policy_path,
-            reward_stat=None)
+            module_spec=module_spec, policy=policy, reward_stat=None)
         if not m:
           results_queue.put(
               (module_spec.name, data.serialized_sequence_examples,
@@ -146,7 +147,7 @@ def main(_):
 
   if _MODULE_FILTER.value:
     m = re.compile(_MODULE_FILTER.value)
-    cps.filter(m)
+    cps = cps.filter(m)
 
   # Sampling if needed.
   sampled_modules = int(len(cps) * _SAMPLING_RATE.value)

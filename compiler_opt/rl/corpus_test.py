@@ -33,12 +33,14 @@ class CommandParsingTest(tf.test.TestCase):
         corpus._load_and_parse_command(
             module_path=module_path, has_thinlto=False),
         ['-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc'])
+    data = ['-cc1', '-foo', '-bar=baz', '-fthinlto-index=some/path/here']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
     self.assertEqual(
         corpus._load_and_parse_command(
             module_path=module_path, has_thinlto=True), [
-                '-cc1', '-foo', '-bar=baz', '-x', 'ir', module_path + '.bc',
-                '-fthinlto-index=' + module_path + '.thinlto.bc', '-mllvm',
-                '-thinlto-assume-merged'
+                '-cc1', '-foo', '-bar=baz',
+                '-fthinlto-index=' + module_path + '.thinlto.bc', '-x', 'ir',
+                module_path + '.bc', '-mllvm', '-thinlto-assume-merged'
             ])
 
   def test_deletion(self):
@@ -69,6 +71,54 @@ class CommandParsingTest(tf.test.TestCase):
             has_thinlto=False,
             additional_flags=additional_flags),
         ['-cc1', '-x', 'ir', module_path + '.bc', '-fix-all-bugs'])
+
+  def test_replacement(self):
+    replace_flags = {'-replace-me': '{context.full_path_prefix}.replaced'}
+    data = ['-cc1']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    module_path = argfile.full_path[:-4]
+    # if we expect to be able to replace a flag, and it's not in the original
+    # cmdline, raise.
+    self.assertRaises(
+        ValueError,
+        corpus._load_and_parse_command,
+        module_path=module_path,
+        has_thinlto=False,
+        replace_flags=replace_flags)
+    data = ['-cc1', '-replace-me=some_value']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    # the flag can be replaced in non-thinlto cases; and in the case of thinlto
+    # it does not interfere with the thinlto one
+    self.assertEqual(
+        corpus._load_and_parse_command(
+            module_path=module_path,
+            has_thinlto=False,
+            replace_flags=replace_flags), [
+                '-cc1', '-replace-me=' + module_path + '.replaced', '-x', 'ir',
+                module_path + '.bc'
+            ])
+    # variant without '='
+    data = ['-cc1', '-replace-me', 'some_value']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    self.assertEqual(
+        corpus._load_and_parse_command(
+            module_path=module_path,
+            has_thinlto=False,
+            replace_flags=replace_flags), [
+                '-cc1', '-replace-me', module_path + '.replaced', '-x', 'ir',
+                module_path + '.bc'
+            ])
+    data = ['-cc1', '-replace-me', 'some_value', '-fthinlto-index=blah']
+    argfile = self.create_tempfile(content='\0'.join(data), file_path='hi.cmd')
+    self.assertEqual(
+        corpus._load_and_parse_command(
+            module_path=module_path,
+            has_thinlto=True,
+            replace_flags=replace_flags), [
+                '-cc1', '-replace-me', module_path + '.replaced',
+                '-fthinlto-index=' + module_path + '.thinlto.bc', '-x', 'ir',
+                module_path + '.bc', '-mllvm', '-thinlto-assume-merged'
+            ])
 
   def test_modification(self):
     delete_compilation_flags = ('-split-dwarf-file', '-split-dwarf-output',
@@ -166,23 +216,27 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file(
         '2.cmd', content='\0'.join(['-cc1', '-fthinlto-index=abc']))
 
-    ms_list = corpus._build_modulespecs_from_datapath(
+    self.assertRaises(
+        ValueError,
+        corpus._build_modulespecs_from_datapath,
         tempdir.full_path,
         additional_flags=('-add',),
         delete_flags=('-fthinlto-index',))
+    ms_list = corpus._build_modulespecs_from_datapath(
+        tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
     self.assertEqual(ms1.name, '1')
     self.assertEqual(ms1.exec_cmd,
-                     ('-cc1', '-x', 'ir', tempdir.full_path + '/1.bc',
-                      '-fthinlto-index=' + tempdir.full_path + '/1.thinlto.bc',
+                     ('-cc1', '-fthinlto-index=' + tempdir.full_path +
+                      '/1.thinlto.bc', '-x', 'ir', tempdir.full_path + '/1.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
     self.assertEqual(ms2.name, '2')
     self.assertEqual(ms2.exec_cmd,
-                     ('-cc1', '-x', 'ir', tempdir.full_path + '/2.bc',
-                      '-fthinlto-index=' + tempdir.full_path + '/2.thinlto.bc',
+                     ('-cc1', '-fthinlto-index=' + tempdir.full_path +
+                      '/2.thinlto.bc', '-x', 'ir', tempdir.full_path + '/2.bc',
                       '-mllvm', '-thinlto-assume-merged', '-add'))
 
   def test_get_with_override(self):
@@ -203,9 +257,7 @@ class ModuleSpecTest(tf.test.TestCase):
     tempdir.create_file('2.cmd', content='\0'.join(['-fthinlto-index=abc']))
 
     ms_list = corpus._build_modulespecs_from_datapath(
-        tempdir.full_path,
-        additional_flags=('-add',),
-        delete_flags=('-fthinlto-index',))
+        tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(len(ms_list), 2)
     ms1 = ms_list[0]
     ms2 = ms_list[1]
@@ -246,8 +298,10 @@ class CorpusTest(tf.test.TestCase):
 
     cps = corpus.Corpus(tempdir.full_path, additional_flags=('-add',))
     self.assertEqual(
-        corpus._build_modulespecs_from_datapath(
-            tempdir.full_path, additional_flags=('-add',)), cps._module_specs)
+        tuple(
+            corpus._build_modulespecs_from_datapath(
+                tempdir.full_path, additional_flags=('-add',))),
+        cps.module_specs)
     self.assertEqual(len(cps), 1)
 
   def test_sample(self):
@@ -272,8 +326,9 @@ class CorpusTest(tf.test.TestCase):
         corpus.ModuleSpec(name='small', size=100)
     ])
 
-    cps.filter(re.compile(r'.+l'))
-    sample = cps.sample(999, sort=True)
+    new_cps = cps.filter(re.compile(r'.+l'))
+    self.assertLen(cps.module_specs, 4)
+    sample = new_cps.sample(999, sort=True)
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')

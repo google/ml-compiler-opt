@@ -20,12 +20,14 @@ import json
 import os
 import signal
 import subprocess
+import tempfile
 import threading
 from typing import Dict, List, Optional, Tuple
 
 from absl import flags
 from compiler_opt.distributed.worker import Worker, WorkerFuture
 from compiler_opt.rl import constant
+from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
 import tensorflow as tf
 
@@ -257,8 +259,10 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]
+      self,
+      module_spec: corpus.ModuleSpec,
+      policy: Optional[policy_saver.Policy] = None,
+      reward_stat: Optional[Dict[str, RewardStat]] = None
   ) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
 
@@ -314,13 +318,15 @@ class CompilationRunner(Worker):
     self._cancellation_manager.resume_all_processes()
 
   def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]) -> CompilationResult:
+      self,
+      module_spec: corpus.ModuleSpec,
+      policy: Optional[policy_saver.Policy] = None,
+      reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
       module_spec: a ModuleSpec.
-      tf_policy_path: path to the tensorflow policy.
+      policy: serialized policy.
       reward_stat: reward stat of this module, None if unknown.
 
     Returns:
@@ -333,24 +339,24 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    if reward_stat is None:
-      default_result = self.compile_fn(
-          module_spec,
-          tf_policy_path='',
-          reward_only=bool(tf_policy_path),
-          cancellation_manager=self._cancellation_manager)
-      reward_stat = {
-          k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
-      }
+    with tempfile.TemporaryDirectory() as tempdir:
+      tf_policy_path = ''
+      if policy is not None:
+        tf_policy_path = os.path.join(tempdir, 'policy')
+        policy.to_filesystem(tf_policy_path)
 
-    if tf_policy_path:
-      policy_result = self.compile_fn(
-          module_spec,
-          tf_policy_path,
-          reward_only=False,
-          cancellation_manager=self._cancellation_manager)
-    else:
-      policy_result = default_result
+      if reward_stat is None:
+        default_result = self.compile_fn(
+            module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
+        reward_stat = {
+            k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
+        }
+
+      if tf_policy_path:
+        policy_result = self.compile_fn(
+            module_spec, tf_policy_path, reward_only=False)
+      else:
+        policy_result = default_result
 
     sequence_example_list = []
     rewards = []
@@ -384,17 +390,13 @@ class CompilationRunner(Worker):
 
   def compile_fn(
       self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_only: bool,
-      cancellation_manager: Optional[WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
       module_spec: a ModuleSpec.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
-      cancellation_manager: a WorkerCancellationManager to handle early
-        termination
 
     Returns:
       A dict mapping from example identifier to tuple containing:
