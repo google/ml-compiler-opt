@@ -1,2 +1,3 @@
 -r requirements-dev.txt
 -r ./compiler_opt/benchmark/requirements.txt
+-r ./compiler_opt/tools/requirements.txt
