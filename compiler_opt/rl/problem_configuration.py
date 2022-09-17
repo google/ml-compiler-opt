@@ -69,7 +69,7 @@ Conventions
 
 import abc
 import gin
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 import tensorflow as tf
 import tf_agents as tfa
@@ -124,5 +124,5 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
   # }
   # return replace_flags
   @gin.configurable(module='problem_config')
-  def flags_to_replace(self, replace_flags=()) -> Tuple[str, ...]:
+  def flags_to_replace(self, replace_flags=None) -> Optional[Dict[str, str]]:
     return replace_flags
