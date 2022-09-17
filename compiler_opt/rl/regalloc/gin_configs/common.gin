@@ -6,8 +6,6 @@ clang_path=None
 runners.RegAllocRunner.clang_path=%clang_path
 runners.RegAllocRunner.launcher_path=%launcher_path
 
-add_flags=()
-delete_flags=('-split-dwarf-file','-split-dwarf-output','-fthinlto-index','-fprofile-sample-use','-fprofile-remapping-file',)
-
-problem_config.flags_to_add.add_flags=%add_flags
-problem_config.flags_to_delete.delete_flags=%delete_flags
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+problem_config.flags_to_replace.replace_flags={}

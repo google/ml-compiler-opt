@@ -142,7 +142,8 @@ def main(_):
   cps = corpus.Corpus(
       _DATA_PATH.value,
       additional_flags=config.flags_to_add(),
-      delete_flags=config.flags_to_delete())
+      delete_flags=config.flags_to_delete(),
+      replace_flags=config.flags_to_replace())
   logging.info('Done loading module specs from corpus.')
 
   if _MODULE_FILTER.value:

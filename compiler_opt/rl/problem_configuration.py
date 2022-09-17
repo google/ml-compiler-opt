@@ -104,16 +104,25 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
   # TODO(b/233935329): The following clang flags need to be tied to a corpus
   # rather than to a training tool invocation.
 
-  # List of flags to add to clang compilation command. The flag names should
-  # match the actual flags provided to clang. An example for AFDO reinjection:
-  # return ('-fprofile-sample-use=/path/to/gwp.afdo',
-  #  '-fprofile-remapping-file=/path/to/prof_remap.txt')
+  # List of flags to add to clang compilation command.
   @gin.configurable(module='problem_config')
   def flags_to_add(self, add_flags=()) -> Tuple[str, ...]:
     return add_flags
 
-  @gin.configurable(module='problem_config')
   # List of flags to remove from clang compilation command. The flag names
   # should match the actual flags provided to clang.'
+  @gin.configurable(module='problem_config')
   def flags_to_delete(self, delete_flags=()) -> Tuple[str, ...]:
     return delete_flags
+
+  # List of flags to replace in the clang compilation command. The flag names
+  # should match the actual flags provided to clang. An example for AFDO
+  # reinjection:
+  # replace_flags={
+  #     '-fprofile-sample-use':'/path/to/gwp.afdo',
+  #     '-fprofile-remapping-file':'/path/to/prof_remap.txt'
+  # }
+  # return replace_flags
+  @gin.configurable(module='problem_config')
+  def flags_to_replace(self, replace_flags=()) -> Tuple[str, ...]:
+    return replace_flags
