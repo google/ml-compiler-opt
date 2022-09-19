@@ -111,6 +111,7 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
 
   # List of flags to remove from clang compilation command. The flag names
   # should match the actual flags provided to clang.'
+
   @gin.configurable(module='problem_config')
   def flags_to_delete(self, delete_flags=()) -> Tuple[str, ...]:
     return delete_flags
