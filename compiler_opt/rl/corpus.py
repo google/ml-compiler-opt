@@ -183,7 +183,7 @@ def _build_modulespecs_from_datapath(
       logging.warning('Additional flags are specified together with override.')
     if len(delete_flags) > 0:
       logging.warning('Delete flags are specified together with override.')
-    if len(replace_flags) > 0:
+    if replace_flags:
       logging.warning('Replace flags are specified together with override.')
 
   module_specs: List[ModuleSpec] = []
