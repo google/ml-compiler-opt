@@ -1,1 +1,18 @@
+# directly required packages
+
 shap==0.41.0
+
+# subdependencies
+
+joblib==1.2.0
+llvmlite==0.39.1
+numba==0.56.2
+pandas==1.5.0
+python-dateutil==2.8.2
+pytz==2022.2.1
+scikit-learn==1.1.2
+scipy==1.9.1
+shap==0.41.0
+slicer==0.0.7
+threadpoolctl==3.1.0
+tqdm==4.64.1

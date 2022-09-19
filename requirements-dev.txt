@@ -1,4 +1,14 @@
 -r requirements.txt
+
+# directly required packages
+
+pytype==2022.06.06
+pylint==2.14.1
+pytest==7.1.2
+yapf==0.32.0
+
+# subdependencies
+
 astroid==2.11.7
 attrs==22.1.0
 dill==0.3.5.1
@@ -15,13 +25,9 @@ platformdirs==2.5.2
 pluggy==1.0.0
 py==1.11.0
 pydot==1.4.2
-pylint==2.14.1
-pytest==7.1.2
-pytype==2022.6.6
 PyYAML==6.0
 tabulate==0.8.10
 toml==0.10.2
 tomli==2.0.1
 tomlkit==0.11.4
 typing-inspect==0.8.0
-yapf==0.32.0

@@ -1,1 +1,5 @@
-joblib==1.1.0
+# directly required packages
+
+joblib==1.2.0
+
+# no additional subdependencies
