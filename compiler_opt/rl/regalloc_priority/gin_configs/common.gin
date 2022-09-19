@@ -1,0 +1,7 @@
+config_registry.get_configuration.implementation=@configs.RegallocPriorityConfig
+
+launcher_path=None
+clang_path=None
+
+runners.RegAllocPriorityRunner.clang_path=%clang_path
+runners.RegAllocPriorityRunner.launcher_path=%launcher_path
