@@ -99,8 +99,11 @@ def train_eval(agent_name=constant.AgentName.PPO,
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
   logging.info('Loading module specs from corpus at %s.', FLAGS.data_path)
-  cps = corpus.Corpus(FLAGS.data_path, problem_config.flags_to_add(),
-                      problem_config.flags_to_delete())
+  cps = corpus.Corpus(
+    FLAGS.data_path,
+    additional_flags=problem_config.flags_to_add(),
+    delete_flags=problem_config.flags_to_delete(),
+    replace_flags=problem_config.flags_to_replace())
   logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(

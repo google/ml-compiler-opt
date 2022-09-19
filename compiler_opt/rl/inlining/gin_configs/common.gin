@@ -7,3 +7,9 @@ clang_path=None
 runners.InliningRunner.llvm_size_path=%llvm_size_path
 runners.InliningRunner.clang_path=%clang_path
 runners.InliningRunner.launcher_path=%launcher_path
+
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+# For AFDO profile reinjection elide overlapping flags from delete_flags and set
+# problem_config.flags_to_replace.replace_flags={'-fprofile-sample-use':'/path/to/gwp.afdo','-fprofile-remapping-file':'/path/to/prof_remap.txt'}
+problem_config.flags_to_replace.replace_flags={}
