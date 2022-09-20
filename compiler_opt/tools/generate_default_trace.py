@@ -176,7 +176,7 @@ def main(_):
       results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
       work_queue: 'queue.Queue[corpus.LoadedModuleSpec]' = m.Queue()
       for corpus_element in corpus_elements:
-        work_queue.put(cps.load_corpus_element(corpus_element))
+        work_queue.put(cps.load_module_spec(corpus_element))
 
       # pylint:disable=g-complex-comprehension
       processes = [

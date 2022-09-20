@@ -44,12 +44,12 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   # TODO: refactor file_paths parameter to ensure correctness during
   # construction
   def compile_fn(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
-      module_spec: a ModuleSpec.
+      command_line: the fully qualified command line.
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return reward.
 
@@ -73,17 +73,17 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
 
     result = {}
     try:
-      command_line = []
+      cmdline = []
       if self._launcher_path:
-        command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] + list(module_spec.exec_cmd) + [
+        cmdline.append(self._launcher_path)
+      cmdline.extend([self._clang_path] + list(command_line) + [
           '-mllvm', '-regalloc-enable-advisor=development', '-mllvm',
           '-regalloc-training-log=' + log_path, '-o', output_native_path
       ])
 
       if tf_policy_path:
-        command_line.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
-      compilation_runner.start_cancellable_process(command_line,
+        cmdline.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
+      compilation_runner.start_cancellable_process(cmdline,
                                                    self._compilation_timeout,
                                                    self._cancellation_manager)
 

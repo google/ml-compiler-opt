@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for the ModuleSpec dataclass and its utility functions."""
+"""Tests for corpus and related concepts."""
 # pylint: disable=protected-access
 from dataclasses import dataclass
 import os
@@ -97,12 +97,12 @@ class ModuleSpecTest(tf.test.TestCase):
   def test_loadable_spec(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='smth', size=1)])
-    lms = cps.load_corpus_element(cps.contents[0])
+        elements=[corpus.ModuleSpec(name='smth', size=1)])
+    lms = cps.load_module_spec(cps.contents[0])
     corpdir2 = self.create_tempdir()
-    ms = lms.to_module_spec(corpdir2)
+    fqcmd = lms.build_command_line(corpdir2)
     bc_loc = os.path.join(corpdir2, 'smth', 'input.bc')
-    self.assertEqual(('-cc1', '-x', 'ir', f'{bc_loc}'), ms.exec_cmd)
+    self.assertEqual(('-cc1', '-x', 'ir', f'{bc_loc}'), fqcmd)
     with tf.io.gfile.GFile(bc_loc, 'rb') as f:
       self.assertEqual(f.readlines(), [bytes([1])])
 
@@ -112,9 +112,9 @@ class CorpusTest(tf.test.TestCase):
   def test_constructor(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='1', size=1)],
+        elements=[corpus.ModuleSpec(name='1', size=1)],
         additional_flags=('-add',))
-    self.assertEqual((corpus.CorpusElement(
+    self.assertEqual((corpus.ModuleSpec(
         name='1', size=1, command_line=('-cc1',), has_thinlto=False),),
                      cps.contents)
     self.assertEqual(len(cps), 1)
@@ -126,14 +126,14 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='-cc1 flag not present in .cmd file'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-hi',))
 
     with self.assertRaises(
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-cc1',),
           additional_flags=('-fsomething',),
           replace_flags={'-fsomething': 'does not matter'})
@@ -142,7 +142,7 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-cc1',),
           additional_flags=('-fsomething=new_value',),
           replace_flags={'-fsomething': 'does not matter'})
@@ -151,7 +151,7 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-cc1',),
           delete_flags=('-fsomething',),
           replace_flags={'-fsomething': 'does not matter'})
@@ -160,7 +160,7 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-cc1',),
           additional_flags=('-fsomething',),
           delete_flags=('-fsomething',))
@@ -169,7 +169,7 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[corpus.CorpusElement(name='smol', size=1)],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
           cmdline=('-cc1',),
           additional_flags=('-fsomething=value',),
           delete_flags=('-fsomething',))
@@ -185,7 +185,7 @@ class CorpusTest(tf.test.TestCase):
   def test_ctor_thinlto(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='smol', size=1)],
+        elements=[corpus.ModuleSpec(name='smol', size=1)],
         cmdline=('-cc1', '-fthinlto-index=foo'),
         is_thinlto=True)
     self.assertTrue('-fthinlto-index' in cps._replace_flags)
@@ -198,7 +198,7 @@ class CorpusTest(tf.test.TestCase):
   def test_cmd_override_thinlto(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='smol', size=1)],
+        elements=[corpus.ModuleSpec(name='smol', size=1)],
         cmdline=(),
         cmdline_is_override=True,
         is_thinlto=True)
@@ -210,7 +210,7 @@ class CorpusTest(tf.test.TestCase):
 
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='smol', size=1)],
+        elements=[corpus.ModuleSpec(name='smol', size=1)],
         cmdline=('-something',),
         cmdline_is_override=True,
         is_thinlto=True)
@@ -225,10 +225,10 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.CorpusElement(name='smol', size=1),
-            corpus.CorpusElement(name='middle', size=200),
-            corpus.CorpusElement(name='largest', size=500),
-            corpus.CorpusElement(name='small', size=100)
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
         ])
     sample = cps.sample(4, sort=True)
     self.assertLen(sample, 4)
@@ -241,10 +241,10 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.CorpusElement(name='smol', size=1),
-            corpus.CorpusElement(name='middle', size=200),
-            corpus.CorpusElement(name='largest', size=500),
-            corpus.CorpusElement(name='small', size=100)
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
         ],
         module_filter=re.compile(r'.+l'))
     sample = cps.sample(999, sort=True)
@@ -256,7 +256,7 @@ class CorpusTest(tf.test.TestCase):
   def test_sample_zero(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.CorpusElement(name='smol', size=1)])
+        elements=[corpus.ModuleSpec(name='smol', size=1)])
 
     self.assertRaises(ValueError, cps.sample, 0)
     self.assertRaises(ValueError, cps.sample, -213213213)
@@ -264,9 +264,7 @@ class CorpusTest(tf.test.TestCase):
   def test_bucket_sample(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.CorpusElement(name=f'{i}', size=i) for i in range(100)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(100)])
     # Odds of passing once by pure luck with random.sample: 1.779e-07
     # Try 32 times, for good measure.
     for i in range(32):
@@ -282,9 +280,7 @@ class CorpusTest(tf.test.TestCase):
     # Create corpus with a prime number of modules.
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.CorpusElement(name=f'{i}', size=i) for i in range(101)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(101)])
 
     # Try 32 times, for good measure.
     for i in range(32):
@@ -298,9 +294,7 @@ class CorpusTest(tf.test.TestCase):
     # Make sure we can sample even when k < n.
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.CorpusElement(name=f'{i}', size=i) for i in range(100)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(100)])
 
     # Try all 19 possible values 0 < i < n
     for i in range(1, 20):

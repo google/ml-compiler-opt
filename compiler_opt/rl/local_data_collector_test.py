@@ -109,9 +109,9 @@ class DeterministicSampler(corpus.Sampler):
     self._cur_pos = 0
 
   def __call__(self,
-               module_specs: Tuple[corpus.CorpusElement],
+               module_specs: Tuple[corpus.ModuleSpec],
                k: int,
-               n: int = 20) -> List[corpus.CorpusElement]:
+               n: int = 20) -> List[corpus.ModuleSpec]:
     ret = []
     for _ in range(k):
       ret.append(module_specs[self._cur_pos % len(module_specs)])
@@ -147,7 +147,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           cps=corpus.create_corpus_for_testing(
               location=self.create_tempdir(),
               elements=[
-                  corpus.CorpusElement(name=f'dummy{i}', size=i)
+                  corpus.ModuleSpec(name=f'dummy{i}', size=i)
                   for i in range(100)
               ],
               sampler=sampler),
@@ -219,7 +219,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           cps=corpus.create_corpus_for_testing(
               location=self.create_tempdir(),
               elements=[
-                  corpus.CorpusElement(name=f'dummy{i}', size=1)
+                  corpus.ModuleSpec(name=f'dummy{i}', size=1)
                   for i in range(200)
               ]),
           num_modules=4,

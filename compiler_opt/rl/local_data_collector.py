@@ -67,7 +67,7 @@ class LocalDataCollector(data_collector.DataCollector):
     t1 = time.time()
     sample = self._corpus.sample(k=self._num_modules, sort=False)
     ret = [
-        self._prefetch_pool.submit(self._corpus.load_corpus_element, element)
+        self._prefetch_pool.submit(self._corpus.load_module_spec, element)
         for element in sample
     ]
     logging.info('prefetching took %d', time.time() - t1)

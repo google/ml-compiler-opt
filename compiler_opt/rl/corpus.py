@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""ModuleSpec definition and utility command line parsing functions."""
+"""Corpus and related concepts."""
 import abc
 import math
 import random
@@ -28,14 +28,9 @@ import tensorflow as tf
 
 from compiler_opt.rl import constant
 
-
-@dataclass(frozen=True)
-class ModuleSpec:
-  """Dataclass describing an input module and its compilation command options.
-  """
-  name: str
-  exec_cmd: Tuple[str, ...]
-  size: int
+# Alias to better self-document APIs. Represents a complete, ready to use
+# command line, where all the flags reference existing, local files.
+FullyQualifiedCmdLine = Tuple[str, ...]
 
 
 def _localize_cmdline(
@@ -88,7 +83,7 @@ class LoadedModuleSpec:
   A LoadedModuleSpec can be passed to a remote location. There, given a local
   directory, to_module_spec can be called, resulting in the data being saved
   under that directory, the final compiler command line fully computed, and a
-  ready-to-use ModuleSpec returned.
+  ready-to-use FullyQualifiedCmdLine returned.
   """
   name: str
   module: bytes
@@ -113,7 +108,8 @@ class LoadedModuleSpec:
         module_full_path=module_path, thinlto_full_path=thinlto_index_path)
     return context
 
-  def to_module_spec(self, local_dir: str) -> ModuleSpec:
+  def build_command_line(self, local_dir: str) -> FullyQualifiedCmdLine:
+    """Different LoadedModuleSpec objects must get different `local_dir`s."""
     context = self._create_files_and_get_context(local_dir)
     cmdline = _localize_cmdline(
         context=context,
@@ -121,12 +117,11 @@ class LoadedModuleSpec:
         additional_flags=self.additional_flags,
         delete_flags=self.delete_flags,
         replace_flags=self.replace_flags)
-    return ModuleSpec(
-        name=self.name, exec_cmd=tuple(cmdline), size=len(self.module))
+    return tuple(cmdline)
 
 
 @dataclass(frozen=True)
-class CorpusElement:
+class ModuleSpec:
   """Metadata of a compilation unit.
   This contains the necessary information to enable corpus operations like
   sampling or filtering, as well as to enable the corpus create
@@ -143,9 +138,9 @@ class Sampler(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def __call__(self,
-               module_specs: Tuple[CorpusElement],
+               module_specs: Tuple[ModuleSpec],
                k: int,
-               n: int = 20) -> List[CorpusElement]:
+               n: int = 20) -> List[ModuleSpec]:
     """
     Args:
       module_specs: list of module_specs to sample from
@@ -164,9 +159,9 @@ class SamplerBucketRoundRobin(Sampler):
     self._ranges = {}
 
   def __call__(self,
-               module_specs: Tuple[CorpusElement],
+               module_specs: Tuple[ModuleSpec],
                k: int,
-               n: int = 20) -> List[CorpusElement]:
+               n: int = 20) -> List[ModuleSpec]:
     """
     Args:
       module_specs: list of module_specs to sample from
@@ -199,7 +194,39 @@ class SamplerBucketRoundRobin(Sampler):
 
 
 class Corpus:
-  """Represents a corpus. Comes along with some utility functions."""
+  """Represents a corpus.
+
+  A corpus is created from a corpus_description.json file, produced by
+  extract_ir.py (for example).
+
+  To use the corpus:
+  - call sample to get a subset of modules (using the Sampler provided at
+  initialization time). This returns a list of ModuleSpec objects
+  - convert the ModuleSpecs to LoadedModuleSpecs. This loads the contents of the
+  modules in memory (hence this lazy approach). The caller may want to perform
+  this step with a threadpool
+  - pass the LoadedModuleSpecs to Workers
+  - to use a LoadedModuleSpec, create a unique directory (i.e. tempdir) and
+  pass it to to_module_spec
+
+  Example:
+
+  corpus = Corpus(...)
+
+  samples = corpus.sample(10)
+  with ThreadPoolExecutor() as tp:
+    futures = [tp.submit(corpus.load_module_spec, s) for s in samples]
+    ...
+    lms = [f.result() for f in futures]
+    ...(pass lms values to workers)
+
+  On the worker side:
+  lm: LoadedModuleSpec = ...
+  with tempfile.mkdir() as tempdir:
+    final_cmd_line = lm.build_command_line(tempdir)
+    ...(prepend executable to final_cmd_line, run it)
+
+  """
 
   @dataclass(frozen=True)
   class ReplaceContext:
@@ -264,6 +291,8 @@ class Corpus:
             'Additional flags are specified together with override.')
       if len(delete_flags) > 0:
         logging.warning('Delete flags are specified together with override.')
+      if replace_flags:
+        logging.warning('Replace flags are specified together with override.')
 
     def get_cmdline(name: str):
       if cmd_override_was_specified:
@@ -277,7 +306,7 @@ class Corpus:
           return ret
 
     contents = [
-        CorpusElement(
+        ModuleSpec(
             name=name,
             size=os.path.getsize(os.path.join(data_path, name + '.bc')),
             command_line=get_cmdline(name),
@@ -315,7 +344,7 @@ class Corpus:
     self._delete_flags = delete_flags
     self._replace_flags = replace_flags
 
-  def sample(self, k: int, sort: bool = False) -> List[CorpusElement]:
+  def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
     """Samples `k` module_specs, optionally sorting by size descending.
 
     Use load_corpus_element to get LoadedModuleSpecs - this allows the user
@@ -331,22 +360,21 @@ class Corpus:
       sampled_specs.sort(key=lambda m: m.size, reverse=True)
     return sampled_specs
 
-  def load_corpus_element(self,
-                          corpus_element: CorpusElement) -> LoadedModuleSpec:
+  def load_module_spec(self, module_spec: ModuleSpec) -> LoadedModuleSpec:
     with tf.io.gfile.GFile(
-        os.path.join(self._base_dir, corpus_element.name + '.bc'), 'rb') as f:
+        os.path.join(self._base_dir, module_spec.name + '.bc'), 'rb') as f:
       module_bytes = f.read()
     thinlto_bytes = None
-    if corpus_element.has_thinlto:
+    if module_spec.has_thinlto:
       with tf.io.gfile.GFile(
-          os.path.join(self._base_dir, corpus_element.name + '.thinlto.bc'),
+          os.path.join(self._base_dir, module_spec.name + '.thinlto.bc'),
           'rb') as f:
         thinlto_bytes = f.read()
     return LoadedModuleSpec(
-        name=corpus_element.name,
+        name=module_spec.name,
         module=module_bytes,
         thinlto_index=thinlto_bytes,
-        orig_options=corpus_element.command_line,
+        orig_options=module_spec.command_line,
         additional_flags=self._additional_flags,
         delete_flags=self._delete_flags,
         replace_flags=self._replace_flags)
@@ -360,7 +388,7 @@ class Corpus:
 
 
 def create_corpus_for_testing(location: str,
-                              elements: List[CorpusElement],
+                              elements: List[ModuleSpec],
                               cmdline: Tuple[str, ...] = ('-cc1',),
                               cmdline_is_override=False,
                               is_thinlto=False,
