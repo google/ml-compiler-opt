@@ -16,7 +16,6 @@
 
 import abc
 import dataclasses
-import json
 import os
 import signal
 import subprocess
@@ -48,14 +47,6 @@ def _calculate_reward(policy: float, baseline: float) -> float:
 class RewardStat:
   default_reward: float
   moving_average_reward: float
-
-
-class DataClassJSONEncoder(json.JSONEncoder):
-
-  def default(self, o):
-    if dataclasses.is_dataclass(o):
-      return dataclasses.asdict(o)
-    return super().default(o)
 
 
 def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
