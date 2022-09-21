@@ -153,7 +153,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       t1 = t2
       with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
         json.dump(
-            reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
+            reward_stat_map, f, cls=constant.DataClassJSONEncoder)
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))
