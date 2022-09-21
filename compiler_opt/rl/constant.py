@@ -15,9 +15,9 @@
 """Constants for policy training."""
 
 import dataclasses
-import json
 import enum
 import gin
+import json
 
 BASE_DIR = 'compiler_opt/rl'
 BASE_MODULE_DIR = 'compiler_opt.rl'
@@ -35,6 +35,7 @@ class AgentName(enum.Enum):
   BEHAVIORAL_CLONE = 0
   DQN = 1
   PPO = 2
+
 
 class DataClassJSONEncoder(json.JSONEncoder):
 

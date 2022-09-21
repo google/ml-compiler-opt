@@ -152,8 +152,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
       logging.info('Last iteration took: %f', t2 - t1)
       t1 = t2
       with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
-        json.dump(
-            reward_stat_map, f, cls=constant.DataClassJSONEncoder)
+        json.dump(reward_stat_map, f, cls=constant.DataClassJSONEncoder)
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))
