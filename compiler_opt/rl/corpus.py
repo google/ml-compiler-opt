@@ -38,7 +38,7 @@ def _apply_cmdline_filters(
     orig_options: Tuple[str, ...],
     additional_flags: Tuple[str, ...] = (),
     delete_flags: Tuple[str, ...] = (),
-    replace_flags: Optional[Dict[str, str]] = None) -> List[str]:
+    replace_flags: Optional[Dict[str, str]] = None) -> Tuple[str]:
   option_iterator = iter(orig_options)
   matched_replace_flags = set()
   replace_flags = replace_flags if replace_flags is not None else {}
@@ -72,7 +72,7 @@ def _apply_cmdline_filters(
   if len(matched_replace_flags) != len(replace_flags):
     raise ValueError('flags that were expected to be replaced were not found')
   cmdline.extend(additional_flags)
-  return cmdline
+  return tuple(cmdline)
 
 
 @dataclass(frozen=True)
@@ -88,9 +88,6 @@ class LoadedModuleSpec:
   loaded_ir: bytes
   loaded_thinlto_index: Optional[bytes] = None
   orig_options: Tuple[str, ...] = ()
-  additional_flags: Tuple[str, ...] = ()
-  delete_flags: Tuple[str, ...] = ()
-  replace_flags: Optional[Dict[str, str]] = None
 
   def _create_files_and_get_context(self, local_dir: str):
     root_dir = os.path.join(local_dir, self.name)
@@ -110,12 +107,7 @@ class LoadedModuleSpec:
   def build_command_line(self, local_dir: str) -> FullyQualifiedCmdLine:
     """Different LoadedModuleSpec objects must get different `local_dir`s."""
     context = self._create_files_and_get_context(local_dir)
-    cmdline = _apply_cmdline_filters(
-        orig_options=self.orig_options,
-        additional_flags=self.additional_flags,
-        delete_flags=self.delete_flags,
-        replace_flags=self.replace_flags)
-    return tuple(option.format(context=context) for option in cmdline)
+    return tuple(option.format(context=context) for option in self.orig_options)
 
 
 @dataclass(frozen=True)
@@ -292,34 +284,6 @@ class Corpus:
       if replace_flags:
         logging.warning('Replace flags are specified together with override.')
 
-    def get_cmdline(name: str):
-      if cmd_override_was_specified:
-        return cmd_override
-      else:
-        with tf.io.gfile.GFile(os.path.join(data_path, name + '.cmd')) as f:
-          ret = tuple(f.read().split('\0'))
-          # The options read from a .cmd file must be run with -cc1
-          if ret[0] != '-cc1':
-            raise ValueError('-cc1 flag not present in .cmd file.')
-          return ret
-
-    if module_filter:
-      module_paths = [
-          name for name in module_paths if module_filter.match(name)
-      ]
-
-    # perform concurrently because fetching file size may be slow (remote)
-    with concurrent.futures.ThreadPoolExecutor() as tp:
-      contents = tp.map(
-          lambda name: ModuleSpec(
-              name=name,
-              size=tf.io.gfile.GFile(os.path.join(data_path, name + '.bc')).
-              size(),
-              command_line=get_cmdline(name),
-              has_thinlto=has_thinlto), module_paths)
-    self._module_specs = tuple(
-        sorted(contents, key=lambda m: m.size, reverse=True))
-
     replace_flags = replace_flags.copy() if replace_flags else {}
     fthinlto_index_flag = '-fthinlto-index'
 
@@ -344,9 +308,37 @@ class Corpus:
             set(replace_flags)) or add_keys.intersection(set(delete_flags)):
       raise ValueError('do not use add/delete flags to replace')
 
-    self._additional_flags = additional_flags
-    self._delete_flags = delete_flags
-    self._replace_flags = replace_flags
+    if module_filter:
+      module_paths = [
+          name for name in module_paths if module_filter.match(name)
+      ]
+
+    def get_cmdline(name: str):
+      if cmd_override_was_specified:
+        ret = cmd_override
+      else:
+        with tf.io.gfile.GFile(os.path.join(data_path, name + '.cmd')) as f:
+          ret = tuple(f.read().split('\0'))
+          # The options read from a .cmd file must be run with -cc1
+          if ret[0] != '-cc1':
+            raise ValueError('-cc1 flag not present in .cmd file.')
+      return _apply_cmdline_filters(
+          orig_options=ret,
+          additional_flags=additional_flags,
+          delete_flags=delete_flags,
+          replace_flags=replace_flags)
+
+    # perform concurrently because fetching file size may be slow (remote)
+    with concurrent.futures.ThreadPoolExecutor() as tp:
+      contents = tp.map(
+          lambda name: ModuleSpec(
+              name=name,
+              size=tf.io.gfile.GFile(os.path.join(data_path, name + '.bc')).
+              size(),
+              command_line=get_cmdline(name),
+              has_thinlto=has_thinlto), module_paths)
+    self._module_specs = tuple(
+        sorted(contents, key=lambda m: m.size, reverse=True))
 
   def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
     """Samples `k` module_specs, optionally sorting by size descending.
@@ -378,10 +370,7 @@ class Corpus:
         name=module_spec.name,
         loaded_ir=module_bytes,
         loaded_thinlto_index=thinlto_bytes,
-        orig_options=module_spec.command_line,
-        additional_flags=self._additional_flags,
-        delete_flags=self._delete_flags,
-        replace_flags=self._replace_flags)
+        orig_options=module_spec.command_line)
 
   @property
   def module_specs(self):

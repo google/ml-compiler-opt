@@ -26,7 +26,7 @@ class CommandParsingTest(tf.test.TestCase):
 
   def test_deletion(self):
     self.assertEqual(
-        ['-cc1'],
+        ('-cc1',),
         corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-fthinlto-index=bad', '-split-dwarf-file',
                           '/tmp/foo.dwo', '-split-dwarf-output',
@@ -36,17 +36,17 @@ class CommandParsingTest(tf.test.TestCase):
                           '-fprofile-remapping-file')))
 
     # OK to not match deletion flags
-    self.assertEqual(['-cc1'],
-                     corpus._apply_cmdline_filters(
-                         orig_options=('-cc1',),
-                         delete_flags=('-split-dwarf-file',
-                                       '-split-dwarf-output', '-fthinlto-index',
-                                       '-fprofile-sample-use',
-                                       '-fprofile-remapping-file')))
+    self.assertEqual(
+        ('-cc1',),
+        corpus._apply_cmdline_filters(
+            orig_options=('-cc1',),
+            delete_flags=('-split-dwarf-file', '-split-dwarf-output',
+                          '-fthinlto-index', '-fprofile-sample-use',
+                          '-fprofile-remapping-file')))
 
   def test_addition(self):
     self.assertEqual(
-        ['-cc1', '-fix-all-bugs', '-something={context.module_full_path}'],
+        ('-cc1', '-fix-all-bugs', '-something={context.module_full_path}'),
         corpus._apply_cmdline_filters(
             orig_options=('-cc1',),
             additional_flags=('-fix-all-bugs',
@@ -64,13 +64,13 @@ class CommandParsingTest(tf.test.TestCase):
           replace_flags={'-replace-me': '{context.some_field}.replaced'})
 
     self.assertEqual(
-        ['-cc1', '-replace-me={context.some_field}.replaced'],
+        ('-cc1', '-replace-me={context.some_field}.replaced'),
         corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-replace-me=some_value'),
             replace_flags={'-replace-me': '{context.some_field}.replaced'}))
     # variant without '='
     self.assertEqual(
-        ['-cc1', '-replace-me', '{context.some_field}.replaced'],
+        ('-cc1', '-replace-me', '{context.some_field}.replaced'),
         corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-replace-me', 'some_value'),
             replace_flags={'-replace-me': '{context.some_field}.replaced'}))
@@ -98,12 +98,12 @@ class CorpusTest(tf.test.TestCase):
         location=self.create_tempdir(),
         elements=[corpus.ModuleSpec(name='1', size=1)],
         additional_flags=('-add',))
-    self.assertEqual((corpus.ModuleSpec(
-        name='1', size=1, command_line=('-cc1',), has_thinlto=False),),
-                     cps.module_specs)
+    self.assertEqual(cps.module_specs, (corpus.ModuleSpec(
+        name='1',
+        size=1,
+        command_line=('-cc1', '-x', 'ir', '{context.module_full_path}', '-add'),
+        has_thinlto=False),))
     self.assertEqual(len(cps), 1)
-    self.assertEqual(cps._additional_flags,
-                     ('-x', 'ir', '{context.module_full_path}', '-add'))
 
   def test_invalid_args(self):
     with self.assertRaises(
@@ -172,10 +172,9 @@ class CorpusTest(tf.test.TestCase):
         elements=[corpus.ModuleSpec(name='smol', size=1)],
         cmdline=('-cc1', '-fthinlto-index=foo'),
         is_thinlto=True)
-    self.assertTrue('-fthinlto-index' in cps._replace_flags)
-    self.assertEqual(cps._replace_flags['-fthinlto-index'],
-                     '{context.thinlto_full_path}')
-    self.assertEqual(cps._additional_flags,
+    self.assertIn('-fthinlto-index={context.thinlto_full_path}',
+                  cps.module_specs[0].command_line)
+    self.assertEqual(cps.module_specs[0].command_line[-5:],
                      ('-x', 'ir', '{context.module_full_path}', '-mllvm',
                       '-thinlto-assume-merged'))
 
@@ -186,8 +185,8 @@ class CorpusTest(tf.test.TestCase):
         cmdline=(),
         cmdline_is_override=True,
         is_thinlto=True)
-    self.assertFalse('-fthinlto-index' in cps._replace_flags)
-    self.assertEqual(cps._additional_flags,
+    self.assertNotIn('-fthinlto-index', cps.module_specs[0].command_line)
+    self.assertEqual(cps.module_specs[0].command_line[-6:],
                      ('-x', 'ir', '{context.module_full_path}',
                       '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
                       '-thinlto-assume-merged'))
@@ -198,12 +197,13 @@ class CorpusTest(tf.test.TestCase):
         cmdline=('-something',),
         cmdline_is_override=True,
         is_thinlto=True)
-    self.assertFalse('-fthinlto-index' in cps._replace_flags)
-    self.assertEqual(cps._additional_flags,
+    self.assertTrue('-fthinlto-index={context.thinlto_full_path}' in
+                    cps.module_specs[0].command_line)
+    self.assertEqual(cps.module_specs[0].command_line[-6:],
                      ('-x', 'ir', '{context.module_full_path}',
                       '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
                       '-thinlto-assume-merged'))
-    self.assertEqual(cps.module_specs[0].command_line, ('-something',))
+    self.assertIn('-something', cps.module_specs[0].command_line)
 
   def test_sample(self):
     cps = corpus.create_corpus_for_testing(
