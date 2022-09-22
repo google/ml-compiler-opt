@@ -77,7 +77,7 @@ def get_runner() -> compilation_runner.CompilationRunner:
 
 
 def worker(policy_path: Optional[str],
-           work_queue: 'queue.Queue[corpus.ModuleSpec]',
+           work_queue: 'queue.Queue[corpus.LoadedModuleSpec]',
            results_queue: 'queue.Queue[ResultsQueueEntry]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -101,15 +101,17 @@ def worker(policy_path: Optional[str],
         policy_path) if policy_path else None
     while True:
       try:
-        module_spec = work_queue.get_nowait()
+        loaded_module_spec = work_queue.get_nowait()
       except queue.Empty:
         return
       try:
         data = runner.collect_data(
-            module_spec=module_spec, policy=policy, reward_stat=None)
+            loaded_module_spec=loaded_module_spec,
+            policy=policy,
+            reward_stat=None)
         if not m:
           results_queue.put(
-              (module_spec.name, data.serialized_sequence_examples,
+              (loaded_module_spec.name, data.serialized_sequence_examples,
                data.reward_stats))
           continue
         new_reward_stats = {}
@@ -121,10 +123,10 @@ def worker(policy_path: Optional[str],
           new_reward_stats[k] = data.reward_stats[k]
           new_sequence_examples.append(sequence_example)
         results_queue.put(
-            (module_spec.name, new_sequence_examples, new_reward_stats))
+            (loaded_module_spec.name, new_sequence_examples, new_reward_stats))
       except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
               RuntimeError):
-        logging.error('Failed to compile %s.', module_spec.name)
+        logging.error('Failed to compile %s.', loaded_module_spec.name)
         results_queue.put(None)
   except BaseException as e:  # pylint: disable=broad-except
     results_queue.put(e)
@@ -139,22 +141,22 @@ def main(_):
   config = registry.get_configuration()
 
   logging.info('Loading module specs from corpus.')
+  module_filter = re.compile(
+      _MODULE_FILTER.value) if _MODULE_FILTER.value else None
+
   cps = corpus.Corpus(
-      _DATA_PATH.value,
+      data_path=_DATA_PATH.value,
+      module_filter=module_filter,
       additional_flags=config.flags_to_add(),
       delete_flags=config.flags_to_delete(),
       replace_flags=config.flags_to_replace())
   logging.info('Done loading module specs from corpus.')
 
-  if _MODULE_FILTER.value:
-    m = re.compile(_MODULE_FILTER.value)
-    cps = cps.filter(m)
-
   # Sampling if needed.
   sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  module_specs = cps.sample(k=sampled_modules, sort=True)
+  corpus_elements = cps.sample(k=sampled_modules, sort=True)
 
   worker_count = (
       min(os.cpu_count(), _NUM_WORKERS.value)
@@ -172,9 +174,9 @@ def main(_):
       ctx = multiprocessing.get_context()
       m = ctx.Manager()
       results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
-      work_queue: 'queue.Queue[corpus.ModuleSpec]' = m.Queue()
-      for module_spec in module_specs:
-        work_queue.put(module_spec)
+      work_queue: 'queue.Queue[corpus.LoadedModuleSpec]' = m.Queue()
+      for corpus_element in corpus_elements:
+        work_queue.put(cps.load_module_spec(corpus_element))
 
       # pylint:disable=g-complex-comprehension
       processes = [
@@ -189,7 +191,7 @@ def main(_):
         p.start()
 
       total_successful_examples = 0
-      total_work = len(module_specs)
+      total_work = len(corpus_elements)
       total_failed_examples = 0
       total_training_examples = 0
       for _ in range(total_work):
@@ -217,7 +219,7 @@ def main(_):
                 (f'{module_name},{key},{value.default_reward},'
                  f'{value.moving_average_reward}\n'))
 
-      print((f'{total_successful_examples} of {len(module_specs)} modules '
+      print((f'{total_successful_examples} of {len(corpus_elements)} modules '
              f'succeeded, and {total_training_examples} trainining examples '
              'written'))
       for p in processes:

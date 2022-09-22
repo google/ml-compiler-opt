@@ -32,6 +32,7 @@ from compiler_opt.rl import policy_saver
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
+from typing import List, Tuple
 
 _policy_str = 'policy'.encode(encoding='utf-8')
 
@@ -52,8 +53,9 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(module_spec, policy, reward_stat):
-  assert module_spec.name == 'dummy'
+def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
+                      reward_stat):
+  assert loaded_module_spec.name.startswith('dummy')
   assert policy.policy == _policy_str
   assert reward_stat is None or reward_stat == {
       'default':
@@ -85,8 +87,8 @@ def mock_collect_data(module_spec, policy, reward_stat):
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, module_spec, policy, reward_stat):
-    _ = module_spec, policy, reward_stat
+  def collect_data(self, loaded_module_spec, policy, reward_stat):
+    _ = loaded_module_spec, policy, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
 
@@ -98,6 +100,26 @@ class MyRunner(compilation_runner.CompilationRunner):
 
   def collect_data(self, *args, **kwargs):
     return mock_collect_data(*args, **kwargs)
+
+
+class DeterministicSampler(corpus.Sampler):
+  """A corpus sampler that returns modules in order, and can also be reset."""
+
+  def __init__(self):
+    self._cur_pos = 0
+
+  def __call__(self,
+               module_specs: Tuple[corpus.ModuleSpec],
+               k: int,
+               n: int = 20) -> List[corpus.ModuleSpec]:
+    ret = []
+    for _ in range(k):
+      ret.append(module_specs[self._cur_pos % len(module_specs)])
+      self._cur_pos += 1
+    return ret
+
+  def reset(self):
+    self._cur_pos = 0
 
 
 class LocalDataCollectorTest(tf.test.TestCase):
@@ -119,14 +141,25 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
       return _test_iterator_fn
 
+    sampler = DeterministicSampler()
     with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          cps=corpus.Corpus.from_module_specs(
-              module_specs=[corpus.ModuleSpec(name='dummy')] * 100),
+          cps=corpus.create_corpus_for_testing(
+              location=self.create_tempdir(),
+              elements=[
+                  corpus.ModuleSpec(name=f'dummy{i}', size=i)
+                  for i in range(100)
+              ],
+              sampler=sampler),
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
           reward_stat_map=collections.defaultdict(lambda: None))
+
+      # reset the sampler, so the next time we collect, we collect the same
+      # modules. We do it before the collect_data call, because that's when
+      # we'll re-sample to prefetch the next batch.
+      sampler.reset()
 
       data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
       data = list(data_iterator)
@@ -146,9 +179,9 @@ class LocalDataCollectorTest(tf.test.TestCase):
             **monitor_dict,
             **expected_monitor_dict_subset
         })
-
       data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
       data = list(data_iterator)
+      # because we reset the sampler, these are the same modules
       self.assertEqual([4, 5, 6], data)
       expected_monitor_dict_subset = {
           'default': {
@@ -183,8 +216,12 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
     with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          cps=corpus.Corpus.from_module_specs(
-              module_specs=[corpus.ModuleSpec(name='dummy')] * 200),
+          cps=corpus.create_corpus_for_testing(
+              location=self.create_tempdir(),
+              elements=[
+                  corpus.ModuleSpec(name=f'dummy{i}', size=1)
+                  for i in range(200)
+              ]),
           num_modules=4,
           worker_pool=lwp,
           parser=parser,

@@ -24,7 +24,9 @@ import threading
 from typing import Dict, List, Optional, Tuple
 
 from absl import flags
-from compiler_opt.distributed.worker import Worker, WorkerFuture
+from absl import logging
+from compiler_opt.distributed.worker import Worker
+from compiler_opt.distributed.worker import WorkerFuture
 from compiler_opt.rl import constant
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
@@ -178,6 +180,8 @@ def start_cancellable_process(
   # Disable tensorflow info messages during data collection
   if _QUIET.value:
     command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
+  else:
+    logging.info(cmdline)
   with subprocess.Popen(
       cmdline,
       env=command_env,
@@ -251,7 +255,7 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def collect_data(
       self,
-      module_spec: corpus.ModuleSpec,
+      loaded_module_spec: corpus.LoadedModuleSpec,
       policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None
   ) -> WorkerFuture[CompilationResult]:
@@ -310,13 +314,13 @@ class CompilationRunner(Worker):
 
   def collect_data(
       self,
-      module_spec: corpus.ModuleSpec,
+      loaded_module_spec: corpus.LoadedModuleSpec,
       policy: Optional[policy_saver.Policy] = None,
       reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
-      module_spec: a ModuleSpec.
+      loaded_module_spec: a LoadedModuleSpec.
       policy: serialized policy.
       reward_stat: reward stat of this module, None if unknown.
 
@@ -331,6 +335,7 @@ class CompilationRunner(Worker):
       ValueError if example under default policy and ml policy does not match.
     """
     with tempfile.TemporaryDirectory() as tempdir:
+      final_cmd_line = loaded_module_spec.build_command_line(tempdir)
       tf_policy_path = ''
       if policy is not None:
         tf_policy_path = os.path.join(tempdir, 'policy')
@@ -338,14 +343,14 @@ class CompilationRunner(Worker):
 
       if reward_stat is None:
         default_result = self.compile_fn(
-            module_spec, tf_policy_path='', reward_only=bool(tf_policy_path))
+            final_cmd_line, tf_policy_path='', reward_only=bool(tf_policy_path))
         reward_stat = {
             k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
         }
 
       if tf_policy_path:
         policy_result = self.compile_fn(
-            module_spec, tf_policy_path, reward_only=False)
+            final_cmd_line, tf_policy_path, reward_only=False)
       else:
         policy_result = default_result
 
@@ -358,7 +363,7 @@ class CompilationRunner(Worker):
       if k not in reward_stat:
         raise ValueError(
             (f'Example {k} does not exist under default policy for '
-             f'module {module_spec.name}'))
+             f'cmd line: {final_cmd_line}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
@@ -380,12 +385,12 @@ class CompilationRunner(Worker):
         keys=keys)
 
   def compile_fn(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
-      module_spec: a ModuleSpec.
+      command_line: the fully qualified command line.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
 

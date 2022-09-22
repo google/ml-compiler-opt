@@ -94,6 +94,9 @@ def _mock_compile_fn(file_paths, tf_policy_path, reward_only):  # pylint: disabl
 
 _mock_policy = policy_saver.Policy(bytes(), bytes())
 
+_mock_loaded_module_spec = corpus.LoadedModuleSpec(
+    name='dummy', loaded_ir=bytes())
+
 
 class CompilationRunnerTest(tf.test.TestCase):
 
@@ -111,7 +114,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
-        module_spec=corpus.ModuleSpec(name='dummy'), policy=_mock_policy)
+        loaded_module_spec=_mock_loaded_module_spec, policy=_mock_policy)
     self.assertEqual(2, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
@@ -139,7 +142,7 @@ class CompilationRunnerTest(tf.test.TestCase):
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
-    data = runner.collect_data(module_spec=corpus.ModuleSpec(name='dummy'))
+    data = runner.collect_data(loaded_module_spec=_mock_loaded_module_spec)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
     self.assertEqual(1, mock_compile_fn.call_count)
@@ -168,7 +171,7 @@ class CompilationRunnerTest(tf.test.TestCase):
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        module_spec=corpus.ModuleSpec(name='dummy'),
+        loaded_module_spec=_mock_loaded_module_spec,
         policy=_mock_policy,
         reward_stat={
             'default':
@@ -205,7 +208,7 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
-          module_spec=corpus.ModuleSpec(name='dummy'),
+          loaded_module_spec=_mock_loaded_module_spec,
           policy=_mock_policy,
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)

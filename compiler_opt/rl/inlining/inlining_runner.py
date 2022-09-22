@@ -46,12 +46,12 @@ class InliningRunner(compilation_runner.CompilationRunner):
     self._llvm_size_path = llvm_size_path
 
   def compile_fn(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
+      self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
-      module_spec: a ModuleSpec.
+      command_line: the fully qualified command line.
       tf_policy_path: path to TF policy direcoty on local disk.
       reward_only: whether only return native size.
 
@@ -76,27 +76,27 @@ class InliningRunner(compilation_runner.CompilationRunner):
     sequence_example = tf.train.SequenceExample()
     native_size = 0
     try:
-      command_line = []
+      cmdline = []
       if self._launcher_path:
-        command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] + list(module_spec.exec_cmd) + [
+        cmdline.append(self._launcher_path)
+      cmdline.extend([self._clang_path] + list(command_line) + [
           '-mllvm', '-enable-ml-inliner=development', '-mllvm',
           '-training-log=' + log_path, '-o', output_native_path
       ])
       if tf_policy_path:
-        command_line.extend(
+        cmdline.extend(
             ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
-      compilation_runner.start_cancellable_process(command_line,
+      compilation_runner.start_cancellable_process(cmdline,
                                                    self._compilation_timeout,
                                                    self._cancellation_manager)
-      command_line = [self._llvm_size_path, output_native_path]
+      cmdline = [self._llvm_size_path, output_native_path]
       output_bytes = compilation_runner.start_cancellable_process(
-          command_line,
+          cmdline,
           timeout=self._compilation_timeout,
           cancellation_manager=self._cancellation_manager,
           want_output=True)
       if not output_bytes:
-        raise RuntimeError(f'Empty llvm-size output: {" ".join(command_line)}')
+        raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
       output = output_bytes.decode('utf-8')
       tmp = output.split('\n')
       if len(tmp) != 3:

@@ -59,6 +59,19 @@ class LocalDataCollector(data_collector.DataCollector):
     self._reset_workers: Optional[concurrent.futures.Future] = None
     self._current_futures: List[worker.WorkerFuture] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
+    self._prefetch_pool = concurrent.futures.ThreadPoolExecutor()
+    self._next_sample: List[
+        concurrent.futures.Future] = self._prefetch_next_sample()
+
+  def _prefetch_next_sample(self):
+    t1 = time.time()
+    sample = self._corpus.sample(k=self._num_modules, sort=False)
+    ret = [
+        self._prefetch_pool.submit(self._corpus.load_module_spec, element)
+        for element in sample
+    ]
+    logging.info('prefetching took %d', time.time() - t1)
+    return ret
 
   def close_pool(self):
     self._join_pending_jobs()
@@ -80,17 +93,18 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def _schedule_jobs(
       self, policy: policy_saver.Policy,
-      sampled_modules: List[corpus.ModuleSpec]
+      sampled_modules: List[corpus.LoadedModuleSpec]
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
-    jobs = [(module_spec, policy, self._reward_stat_map[module_spec.name])
-            for module_spec in sampled_modules]
+    jobs = [(loaded_module_spec, policy,
+             self._reward_stat_map[loaded_module_spec.name])
+            for loaded_module_spec in sampled_modules]
 
     def work_factory(job):
 
-      def work(w):
+      def work(w: compilation_runner.CompilationRunnerStub):
         return w.collect_data(*job)
 
       return work
@@ -113,7 +127,13 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_modules = self._corpus.sample(k=self._num_modules, sort=False)
+    time1 = time.time()
+    sampled_modules: List[corpus.LoadedModuleSpec] = [
+        s.result() for s in self._next_sample
+    ]
+    logging.info('resolving prefetched sample took: %d seconds',
+                 time.time() - time1)
+    self._next_sample = self._prefetch_next_sample()
     self._current_futures = self._schedule_jobs(policy, sampled_modules)
 
     def wait_for_termination():
