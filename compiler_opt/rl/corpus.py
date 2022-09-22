@@ -34,9 +34,8 @@ from compiler_opt.rl import constant
 FullyQualifiedCmdLine = Tuple[str, ...]
 
 
-def _localize_cmdline(
+def _apply_cmdline_filters(
     orig_options: Tuple[str, ...],
-    context: Any = None,
     additional_flags: Tuple[str, ...] = (),
     delete_flags: Tuple[str, ...] = (),
     replace_flags: Optional[Dict[str, str]] = None) -> List[str]:
@@ -65,15 +64,14 @@ def _localize_cmdline(
 
         if '=' not in option:
           next(option_iterator, None)
-          cmdline.extend([option, replace_flags[flag].format(context=context)])
+          cmdline.extend([option, replace_flags[flag]])
         else:
-          cmdline.append(flag + '=' +
-                         replace_flags[flag].format(context=context))
+          cmdline.append(flag + '=' + replace_flags[flag])
 
     option = next(option_iterator, None)
   if len(matched_replace_flags) != len(replace_flags):
     raise ValueError('flags that were expected to be replaced were not found')
-  cmdline.extend([f.format(context=context) for f in additional_flags])
+  cmdline.extend(additional_flags)
   return cmdline
 
 
@@ -112,13 +110,12 @@ class LoadedModuleSpec:
   def build_command_line(self, local_dir: str) -> FullyQualifiedCmdLine:
     """Different LoadedModuleSpec objects must get different `local_dir`s."""
     context = self._create_files_and_get_context(local_dir)
-    cmdline = _localize_cmdline(
-        context=context,
+    cmdline = _apply_cmdline_filters(
         orig_options=self.orig_options,
         additional_flags=self.additional_flags,
         delete_flags=self.delete_flags,
         replace_flags=self.replace_flags)
-    return tuple(cmdline)
+    return tuple(option.format(context=context) for option in cmdline)
 
 
 @dataclass(frozen=True)

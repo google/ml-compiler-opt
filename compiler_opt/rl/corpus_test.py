@@ -14,7 +14,6 @@
 # limitations under the License.
 """Tests for corpus and related concepts."""
 # pylint: disable=protected-access
-from dataclasses import dataclass
 import os
 import re
 
@@ -28,7 +27,7 @@ class CommandParsingTest(tf.test.TestCase):
   def test_deletion(self):
     self.assertEqual(
         ['-cc1'],
-        corpus._localize_cmdline(
+        corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-fthinlto-index=bad', '-split-dwarf-file',
                           '/tmp/foo.dwo', '-split-dwarf-output',
                           'somepath/some.dwo'),
@@ -38,7 +37,7 @@ class CommandParsingTest(tf.test.TestCase):
 
     # OK to not match deletion flags
     self.assertEqual(['-cc1'],
-                     corpus._localize_cmdline(
+                     corpus._apply_cmdline_filters(
                          orig_options=('-cc1',),
                          delete_flags=('-split-dwarf-file',
                                        '-split-dwarf-output', '-fthinlto-index',
@@ -47,47 +46,32 @@ class CommandParsingTest(tf.test.TestCase):
 
   def test_addition(self):
     self.assertEqual(
-        ['-cc1', '-fix-all-bugs', '-something=/hello/there.txt'],
-        corpus._localize_cmdline(
-            context=corpus.Corpus.ReplaceContext(
-                module_full_path='/hello/there.txt'),
+        ['-cc1', '-fix-all-bugs', '-something={context.module_full_path}'],
+        corpus._apply_cmdline_filters(
             orig_options=('-cc1',),
             additional_flags=('-fix-all-bugs',
                               '-something={context.module_full_path}')))
 
   def test_replacement(self):
 
-    @dataclass(frozen=True)
-    class ToyContext:
-      some_field: str
-
     # if we expect to be able to replace a flag, and it's not in the original
     # cmdline, raise.
     with self.assertRaises(
         ValueError,
         msg='flags that were expected to be replaced were not found'):
-      corpus._localize_cmdline(
+      corpus._apply_cmdline_filters(
           orig_options=('-cc1',),
           replace_flags={'-replace-me': '{context.some_field}.replaced'})
 
-    # it also raises if the context is invalid
-    self.assertRaises(
-        KeyError,
-        corpus._localize_cmdline,
-        orig_options=('-cc1', '-replace-me=blah'),
-        replace_flags={'-replace-me': '{something_that_doesnt_exist}'})
-
     self.assertEqual(
-        ['-cc1', '-replace-me=some_other_value.replaced'],
-        corpus._localize_cmdline(
-            context=ToyContext(some_field='some_other_value'),
+        ['-cc1', '-replace-me={context.some_field}.replaced'],
+        corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-replace-me=some_value'),
             replace_flags={'-replace-me': '{context.some_field}.replaced'}))
     # variant without '='
     self.assertEqual(
-        ['-cc1', '-replace-me', 'some_other_value.replaced'],
-        corpus._localize_cmdline(
-            context=ToyContext(some_field='some_other_value'),
+        ['-cc1', '-replace-me', '{context.some_field}.replaced'],
+        corpus._apply_cmdline_filters(
             orig_options=('-cc1', '-replace-me', 'some_value'),
             replace_flags={'-replace-me': '{context.some_field}.replaced'}))
 
