@@ -98,7 +98,7 @@ class ModuleSpecTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[corpus.ModuleSpec(name='smth', size=1)])
-    lms = cps.load_module_spec(cps.contents[0])
+    lms = cps.load_module_spec(cps.module_specs[0])
     corpdir2 = self.create_tempdir()
     fqcmd = lms.build_command_line(corpdir2)
     bc_loc = os.path.join(corpdir2, 'smth', 'input.bc')
@@ -116,7 +116,7 @@ class CorpusTest(tf.test.TestCase):
         additional_flags=('-add',))
     self.assertEqual((corpus.ModuleSpec(
         name='1', size=1, command_line=('-cc1',), has_thinlto=False),),
-                     cps.contents)
+                     cps.module_specs)
     self.assertEqual(len(cps), 1)
     self.assertEqual(cps._additional_flags,
                      ('-x', 'ir', '{context.module_full_path}', '-add'))
@@ -219,7 +219,7 @@ class CorpusTest(tf.test.TestCase):
                      ('-x', 'ir', '{context.module_full_path}',
                       '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
                       '-thinlto-assume-merged'))
-    self.assertEqual(cps.contents[0].command_line, ('-something',))
+    self.assertEqual(cps.module_specs[0].command_line, ('-something',))
 
   def test_sample(self):
     cps = corpus.create_corpus_for_testing(

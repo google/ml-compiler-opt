@@ -14,6 +14,7 @@
 # limitations under the License.
 """Corpus and related concepts."""
 import abc
+import concurrent.futures
 import math
 import random
 import re
@@ -86,8 +87,8 @@ class LoadedModuleSpec:
   ready-to-use FullyQualifiedCmdLine returned.
   """
   name: str
-  module: bytes
-  thinlto_index: Optional[bytes] = None
+  loaded_ir: bytes
+  loaded_thinlto_index: Optional[bytes] = None
   orig_options: Tuple[str, ...] = ()
   additional_flags: Tuple[str, ...] = ()
   delete_flags: Tuple[str, ...] = ()
@@ -99,11 +100,11 @@ class LoadedModuleSpec:
     module_path = os.path.join(root_dir, 'input.bc')
     thinlto_index_path = None
     with tf.io.gfile.GFile(module_path, 'wb') as f:
-      f.write(self.module)
-    if self.thinlto_index is not None:
+      f.write(self.loaded_ir)
+    if self.loaded_thinlto_index is not None:
       thinlto_index_path = os.path.join(root_dir, 'index.thinlto.bc')
       with tf.io.gfile.GFile(thinlto_index_path, 'wb') as f:
-        f.write(self.thinlto_index)
+        f.write(self.loaded_thinlto_index)
     context = Corpus.ReplaceContext(
         module_full_path=module_path, thinlto_full_path=thinlto_index_path)
     return context
@@ -305,16 +306,22 @@ class Corpus:
             raise ValueError('-cc1 flag not present in .cmd file.')
           return ret
 
-    contents = [
-        ModuleSpec(
-            name=name,
-            size=os.path.getsize(os.path.join(data_path, name + '.bc')),
-            command_line=get_cmdline(name),
-            has_thinlto=has_thinlto)
-        for name in module_paths
-        if not module_filter or module_filter.match(name)
-    ]
-    self._contents = tuple(sorted(contents, key=lambda m: m.size, reverse=True))
+    if module_filter:
+      module_paths = [
+          name for name in module_paths if module_filter.match(name)
+      ]
+
+    # perform concurrently because fetching file size may be slow (remote)
+    with concurrent.futures.ThreadPoolExecutor() as tp:
+      contents = tp.map(
+          lambda name: ModuleSpec(
+              name=name,
+              size=tf.io.gfile.GFile(os.path.join(data_path, name + '.bc')).
+              size(),
+              command_line=get_cmdline(name),
+              has_thinlto=has_thinlto), module_paths)
+    self._module_specs = tuple(
+        sorted(contents, key=lambda m: m.size, reverse=True))
 
     replace_flags = replace_flags.copy() if replace_flags else {}
     fthinlto_index_flag = '-fthinlto-index'
@@ -352,10 +359,10 @@ class Corpus:
     """
     # Note: sampler is intentionally defaulted to a mutable object, as the
     # only mutable attribute of SamplerBucketRoundRobin is its range cache.
-    k = min(len(self._contents), k)
+    k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    sampled_specs = self._sampler(self._contents, k=k)
+    sampled_specs = self._sampler(self._module_specs, k=k)
     if sort:
       sampled_specs.sort(key=lambda m: m.size, reverse=True)
     return sampled_specs
@@ -372,19 +379,19 @@ class Corpus:
         thinlto_bytes = f.read()
     return LoadedModuleSpec(
         name=module_spec.name,
-        module=module_bytes,
-        thinlto_index=thinlto_bytes,
+        loaded_ir=module_bytes,
+        loaded_thinlto_index=thinlto_bytes,
         orig_options=module_spec.command_line,
         additional_flags=self._additional_flags,
         delete_flags=self._delete_flags,
         replace_flags=self._replace_flags)
 
   @property
-  def contents(self):
-    return self._contents
+  def module_specs(self):
+    return self._module_specs
 
   def __len__(self):
-    return len(self._contents)
+    return len(self._module_specs)
 
 
 def create_corpus_for_testing(location: str,
