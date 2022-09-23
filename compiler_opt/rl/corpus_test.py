@@ -198,7 +198,7 @@ class CorpusTest(tf.test.TestCase):
         cmdline_is_override=True,
         is_thinlto=True)
     self.assertIn('-fthinlto-index={context.thinlto_full_path}',
-                   cps.module_specs[0].command_line)
+                  cps.module_specs[0].command_line)
     self.assertEqual(cps.module_specs[0].command_line[-6:],
                      ('-x', 'ir', '{context.module_full_path}',
                       '-fthinlto-index={context.thinlto_full_path}', '-mllvm',
