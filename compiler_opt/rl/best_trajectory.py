@@ -16,7 +16,7 @@
 
 import dataclasses
 import json
-from typing import List
+from typing import Dict, List
 
 import tensorflow as tf
 
@@ -40,11 +40,11 @@ class BestTrajectoryRepo:
         list from tensorflow.SequenceExample.
     """
     # {module_name: {identifier: best trajectory}}
-    self._best_trajectories: dict[str, dict[str, BestTrajectory]] = {}
+    self._best_trajectories: Dict[str, Dict[str, BestTrajectory]] = {}
     self._action_name: str = action_name
 
   @property
-  def best_trajectories(self) -> dict[str, dict[str, BestTrajectory]]:
+  def best_trajectories(self) -> Dict[str, Dict[str, BestTrajectory]]:
     return self._best_trajectories.copy()
 
   def sink_to_json_file(self, path: str):
