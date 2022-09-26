@@ -134,6 +134,7 @@ class CompilationRunnerTest(tf.test.TestCase):
                     (1 - _MOVING_AVERAGE_DECAY_RATE))
         }, data.reward_stats)
     self.assertAllClose([0.1998002], data.rewards)
+    self.assertAllClose([8], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner.compile_fn')
@@ -162,6 +163,7 @@ class CompilationRunnerTest(tf.test.TestCase):
                     moving_average_reward=_DEFAULT_REWARD)
         }, data.reward_stats)
     self.assertAllClose([0], data.rewards)
+    self.assertAllClose([10], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner.compile_fn')
@@ -197,6 +199,7 @@ class CompilationRunnerTest(tf.test.TestCase):
                     _POLICY_REWARD * (1 - _MOVING_AVERAGE_DECAY_RATE))
         }, data.reward_stats)
     self.assertAllClose([0.199800], data.rewards)
+    self.assertAllClose([8], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
               '.compilation_runner.CompilationRunner.compile_fn')

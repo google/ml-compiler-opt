@@ -19,6 +19,7 @@ import functools
 import json
 import os
 import time
+from typing import List
 
 from absl import app
 from absl import flags
@@ -27,10 +28,10 @@ import gin
 import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.system import system_multiprocessing as multiprocessing
-from typing import List
 
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
 from compiler_opt.rl import agent_creators
+from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
@@ -69,6 +70,7 @@ def train_eval(worker_manager_class=LocalWorkerPool,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
+               track_best_trajectory=False,
                moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
@@ -134,6 +136,15 @@ def train_eval(worker_manager_class=LocalWorkerPool,
     logging.info('Loaded Reward Stat Map from disk, containing %d modules',
                  len(reward_stat_map))
 
+  best_trajectory_repo = None
+  best_trajecroty_repo_path = os.path.join(root_dir,
+                                           'best_trajectory_repo.json')
+  if track_best_trajectory:
+    best_trajectory_repo = best_trajectory.BestTrajectoryRepo(
+        action_name=action_spec.name)
+    if tf.io.gfile.exists(best_trajecroty_repo_path):
+      best_trajectory_repo.load_from_json_file(best_trajecroty_repo_path)
+
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
@@ -143,7 +154,8 @@ def train_eval(worker_manager_class=LocalWorkerPool,
         num_modules=num_modules,
         worker_pool=worker_pool,
         parser=sequence_example_iterator_fn,
-        reward_stat_map=reward_stat_map)
+        reward_stat_map=reward_stat_map,
+        best_trajectory_repo=best_trajectory_repo)
 
     # Repeat for num_policy_iterations iterations.
     t1 = time.time()
@@ -154,6 +166,9 @@ def train_eval(worker_manager_class=LocalWorkerPool,
       t1 = t2
       with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
         json.dump(reward_stat_map, f, cls=constant.DataClassJSONEncoder)
+
+      if best_trajectory_repo is not None:
+        best_trajectory_repo.sink_to_json_file(best_trajecroty_repo_path)
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))

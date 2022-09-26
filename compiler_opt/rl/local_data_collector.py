@@ -17,13 +17,14 @@
 import concurrent.futures
 import itertools
 import time
-from typing import Callable, Dict, Iterator, List, Tuple, Optional
+from typing import Callable, Dict, Iterator, List, Optional, Tuple
 
 from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
 from compiler_opt.distributed.local import buffered_scheduler
+from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
@@ -41,6 +42,7 @@ class LocalDataCollector(data_collector.DataCollector):
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
+      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo],
       exit_checker_ctor=data_collector.EarlyExitChecker):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
@@ -50,6 +52,7 @@ class LocalDataCollector(data_collector.DataCollector):
     self._parser = parser
     self._worker_pool = worker_pool
     self._reward_stat_map = reward_stat_map
+    self._best_trajectory_repo = best_trajectory_repo
     self._exit_checker_ctor = exit_checker_ctor
     # _reset_workers is a future that resolves when post-data collection cleanup
     # work completes, i.e. cancelling all work and re-enabling the workers.
@@ -118,7 +121,7 @@ class LocalDataCollector(data_collector.DataCollector):
     """Collect data for a given policy.
 
     Args:
-      policy_path: the path to the policy directory to collect data with.
+      policy: an policy_saver.Policy object to collect data with.
 
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
@@ -174,6 +177,15 @@ class LocalDataCollector(data_collector.DataCollector):
     total_trajectory_length = sum(res.length for (_, res) in successful_work)
     self._reward_stat_map.update(
         {spec.name: res.reward_stats for (spec, res) in successful_work})
+
+    if self._best_trajectory_repo is not None:
+      for spec, res in successful_work:
+        module_name = spec.name
+        for (identifier, reward,
+             sequence_example) in zip(res.keys, res.policy_rewards,
+                                      res.serialized_sequence_examples):
+          self._best_trajectory_repo.update_if_better_trajectory(
+              module_name, identifier, reward, sequence_example)
 
     monitor_dict = {}
     monitor_dict['default'] = {
