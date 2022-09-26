@@ -57,10 +57,16 @@ from typing import List, Dict, Union
 
 FLAGS = flags.FLAGS
 
+test_prefix = './compiler_opt/benchmark/chromium_test_descriptions/'
+
+test_description_files = [
+    'base_perftests.json', 'browser_tests.json', 'components_perftests.json',
+    'base_unittests.json', 'cc_unittests.json', 'components_unittests.json',
+    'content_unittests.json'
+]
+
 default_test_descriptions = [
-    './compiler_opt/tools/chromium_test_descriptions/base_perftests.json',
-    './compiler_opt/tools/chromium_test_descriptions/browser_tests.json',
-    './compiler_opt/tools/chromium_test_descriptions/components_perftests.json'
+    f'{test_prefix}{test_dsc}' for test_dsc in test_description_files
 ]
 
 flags.DEFINE_multi_string(

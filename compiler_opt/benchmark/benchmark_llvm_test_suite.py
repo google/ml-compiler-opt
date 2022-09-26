@@ -104,7 +104,6 @@ flags.DEFINE_multi_string(
     'perf_counter', [], 'A perf counter to be used (may be defined more than'
     'once).')
 
-flags.mark_flag_as_required('advisor')
 flags.mark_flag_as_required('output_path')
 
 

@@ -20,6 +20,7 @@ import re
 
 from joblib import Parallel, delayed
 from typing import Tuple, List, Optional, Dict
+from absl import logging
 
 
 def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
@@ -42,9 +43,17 @@ def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
   with subprocess.Popen(
       command_vector, stdout=subprocess.PIPE,
       stderr=subprocess.PIPE) as process:
-    err = process.communicate()[1]
+    out, err = process.communicate()
+    decoded_stderr = err.decode('UTF-8')
+    decoded_stdout = out.decode('UTF-8')
+    if process.returncode != 0:
+      logging.warning('test %s failed', test_name)
+      raise RuntimeError(f'Test executable failed while running {test_name}')
+    elif 'PASSED' not in decoded_stdout:
+      logging.warning('test %s does not exist', test_name)
+      raise RuntimeError(f'No test {test_name} exists in test executable')
     # all of the output from perf stat is on STDERR
-    return err.decode('UTF-8')
+    return decoded_stderr
 
 
 def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
@@ -81,9 +90,13 @@ def run_and_parse(test_description: Tuple[str, str, List[str]]):
       performance counters to collect) that describes the test
   """
   test_executable, test_name, performance_counters = test_description
-  test_output = run_test(test_executable, test_name, performance_counters)
-  print(f'Finished running test {test_name}', file=sys.stderr)
-  return (test_name, parse_perf_stat_output(test_output, performance_counters))
+  try:
+    test_output = run_test(test_executable, test_name, performance_counters)
+    print(f'Finished running test {test_name}', file=sys.stderr)
+    return (test_name, parse_perf_stat_output(test_output,
+                                              performance_counters))
+  except RuntimeError:
+    return None
 
 
 def run_test_suite(test_suite_description: Dict[str, List[str]],
@@ -122,9 +135,10 @@ def run_test_suite(test_suite_description: Dict[str, List[str]],
 
   formatted_test_data = []
   for test_instance in test_data_output:
-    test_info = {'name': test_instance[0], 'iterations': 1}
-    test_info.update(test_instance[1])
-    formatted_test_data.append(test_info)
+    if test_instance:
+      test_info = {'name': test_instance[0], 'iterations': 1}
+      test_info.update(test_instance[1])
+      formatted_test_data.append(test_info)
 
   return formatted_test_data
 
