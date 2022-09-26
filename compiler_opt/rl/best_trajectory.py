@@ -16,6 +16,7 @@
 
 import dataclasses
 import json
+from typing import List
 
 import tensorflow as tf
 
@@ -25,7 +26,7 @@ from compiler_opt.rl import constant
 @dataclasses.dataclass(frozen=True)
 class BestTrajectory:
   reward: float
-  action_list: list[int]
+  action_list: List[int]
 
 
 class BestTrajectoryRepo:
