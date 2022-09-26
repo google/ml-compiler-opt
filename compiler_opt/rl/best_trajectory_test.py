@@ -26,17 +26,20 @@ _ACTION_NAME = 'mock'
 
 def _get_test_repo_1():
   repo = best_trajectory.BestTrajectoryRepo(action_name=_ACTION_NAME)
+  # pylint: disable=protected-access
   repo._best_trajectories['module_1'] = {
       'function_1':
           best_trajectory.BestTrajectory(reward=3.4, action_list=[1, 3, 5]),
       'function_2':
           best_trajectory.BestTrajectory(reward=1.2, action_list=[9, 7, 5])
   }
+  # pylint: enable=protected-access
   return repo
 
 
 def _get_test_repo_2():
   repo = best_trajectory.BestTrajectoryRepo(action_name=_ACTION_NAME)
+  # pylint: disable=protected-access
   repo._best_trajectories['module_1'] = {
       'function_1':
           best_trajectory.BestTrajectory(reward=2.3, action_list=[1, 3]),
@@ -47,11 +50,13 @@ def _get_test_repo_2():
       'function_1':
           best_trajectory.BestTrajectory(reward=7.8, action_list=[2, 4, 6]),
   }
+  # pylint: enable=protected-access
   return repo
 
 
 def _get_combined_repo():
   repo = best_trajectory.BestTrajectoryRepo(action_name=_ACTION_NAME)
+  # pylint: disable=protected-access
   repo._best_trajectories['module_1'] = {
       'function_1':
           best_trajectory.BestTrajectory(reward=2.3, action_list=[1, 3]),
@@ -62,6 +67,7 @@ def _get_combined_repo():
       'function_1':
           best_trajectory.BestTrajectory(reward=7.8, action_list=[2, 4, 6]),
   }
+  # pylint: enable=protected-access
   return repo
 
 
