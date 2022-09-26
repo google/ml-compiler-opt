@@ -59,7 +59,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name=constant.AgentName.PPO,
+def train_eval(worker_manager_class=LocalWorkerPool,
+               agent_name=constant.AgentName.PPO,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_modules=100,
@@ -133,7 +134,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
     logging.info('Loaded Reward Stat Map from disk, containing %d modules',
                  len(reward_stat_map))
 
-  with LocalWorkerPool(
+  with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
       moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
