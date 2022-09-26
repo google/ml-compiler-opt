@@ -70,7 +70,7 @@ def train_eval(worker_manager_class=LocalWorkerPool,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
-               track_best_trajectory=False,
+               dump_best_trajectory=False,
                moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
@@ -139,7 +139,7 @@ def train_eval(worker_manager_class=LocalWorkerPool,
   best_trajectory_repo = None
   best_trajecroty_repo_path = os.path.join(root_dir,
                                            'best_trajectory_repo.json')
-  if track_best_trajectory:
+  if dump_best_trajectory:
     best_trajectory_repo = best_trajectory.BestTrajectoryRepo(
         action_name=action_spec.name)
     if tf.io.gfile.exists(best_trajecroty_repo_path):
