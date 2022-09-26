@@ -25,8 +25,7 @@ from typing import Optional, List
 
 
 def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
-               llvm_source_path: Optional[str],
-               tensorflow_c_lib_path: Optional[str]):
+               llvm_source_path: Optional[str]):
   """Builds LLVM/clang with the specified model and the correct settings
 
   This function invokes CMake with all the correct build flags specified
@@ -60,9 +59,7 @@ def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
     tensorflow_aot_path = os.path.dirname(tensorflow.__file__)
     cmake_config_command.extend([
         "-DCMAKE_BUILD_TYPE=Release",
-        f"-DTENSORFLOW_C_LIB_PATH={tensorflow_c_lib_path}",
         f"-DTENSORFLOW_AOT_PATH='{tensorflow_aot_path}'",
-        "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON",
         "-DLLVM_ENABLE_PROJECTS='clang;lld'",
         "-DLLVM_ENABLE_RUNTIMES='compiler-rt'", f"{llvm_source_path}"
     ])

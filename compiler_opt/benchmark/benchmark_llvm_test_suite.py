@@ -33,7 +33,6 @@ PYTHONPATH=$PYTHONPATH:. \
   --llvm_build_path=/llvm-build \
   --llvm_source_path=/llvm-project \
   --llvm_test_suite_build_path=/llvm-test-suite/build \
-  --tensorflow_c_lib_path=/tmp/tensorflow \
   --perf_counter=INSTRUCTIONS \
   --perf_counter=MEM_UOPS_RETIRED:ALL_LOADS \
   --perf_counter=MEM_UOPS_RETIRED:ALL_STORES
@@ -96,8 +95,6 @@ flags.DEFINE_string('llvm_source_path', '/llvm-project',
                     'The path to the root of the llvm-project repositoy')
 flags.DEFINE_string('llvm_test_suite_build_path', None,
                     'The path to the llvm test suite build')
-flags.DEFINE_string('tensorflow_c_lib_path', '/tmp/tensorflow',
-                    'The path to the tensorflow c lib library')
 flags.DEFINE_multi_string(
     'tests_to_run', default_tests,
     'Tests compiled with google benchmark to run,'
@@ -189,8 +186,7 @@ def main(_):
                                                     './build')
   if FLAGS.compile_llvm:
     benchmarking_utils.build_llvm(FLAGS.model_path, FLAGS.llvm_use_incremental,
-                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path,
-                                  FLAGS.tensorflow_c_lib_path)
+                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path)
   if FLAGS.compile_testsuite:
     build_test_suite(FLAGS.advisor, FLAGS.llvm_test_suite_build_path,
                      FLAGS.llvm_build_path, FLAGS.llvm_test_suite_path)
