@@ -36,7 +36,7 @@ import threading
 
 from absl import logging
 # pylint: disable=unused-import
-from compiler_opt.distributed.worker import Worker
+from compiler_opt.distributed.worker import Worker, FixedWorkerPool
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
@@ -238,7 +238,7 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
   return _Stub()
 
 
-class LocalWorkerPool(AbstractContextManager):
+class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
   def __init__(self, worker_class: 'type[Worker]', count: Optional[int], *args,
@@ -249,8 +249,8 @@ class LocalWorkerPool(AbstractContextManager):
         _make_stub(worker_class, *args, **kwargs) for _ in range(count)
     ]
 
-  def __enter__(self):
-    return self._stubs
+  def __enter__(self) -> FixedWorkerPool:
+    return FixedWorkerPool(workers=self._stubs, worker_concurrency=10)
 
   def __exit__(self, *args):
     # first, trigger killing the worker process and exiting of the msg pump,
