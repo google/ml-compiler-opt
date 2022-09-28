@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM debian:bullseye
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python-is-python3 \
     python3 \
