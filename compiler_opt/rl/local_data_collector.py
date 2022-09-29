@@ -23,7 +23,7 @@ from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
-from compiler_opt.distributed.local import buffered_scheduler
+from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
