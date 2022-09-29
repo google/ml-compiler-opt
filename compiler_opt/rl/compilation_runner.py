@@ -25,12 +25,13 @@ from typing import Dict, List, Optional, Tuple
 
 from absl import flags
 from absl import logging
+import tensorflow as tf
+
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.worker import WorkerFuture
 from compiler_opt.rl import constant
-from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
-import tensorflow as tf
+from compiler_opt.rl import policy_saver
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
@@ -219,11 +220,12 @@ class CompilationResult:
   length: total length of all sequence examples, derived from sequence_examples.
   reward_stats: a dictionary from keys (e.g. function names) to a RewardStat.
   rewards: a list of reward values.
+  policy_rewards: a list of reward values under policy.
   keys: a list of keys.
 
   The object must observe the following invariants:
-  1) The entries of sequence_examples, rewards, and keys correspond to eachoter
-  at the same index.
+  1) The entries of sequence_examples, rewards, policy_rewards and keys
+  correspond to each other at the same index.
 
   2) The keys in reward stats are those in the keys field.
   """
@@ -232,6 +234,7 @@ class CompilationResult:
   length: int = dataclasses.field(init=False)
   reward_stats: Dict[str, RewardStat]
   rewards: List[float]
+  policy_rewards: List[float]
   keys: List[str]
 
   def __post_init__(self, sequence_examples: List[tf.train.SequenceExample]):
@@ -243,8 +246,8 @@ class CompilationResult:
     ]
     object.__setattr__(self, 'length', sum(lengths))
 
-    assert (len(self.serialized_sequence_examples) == len(self.rewards) ==
-            (len(self.keys)))
+    assert (len(self.serialized_sequence_examples) == len(self.rewards) == len(
+        self.policy_rewards) == len(self.keys))
     assert set(self.keys) == set(self.reward_stats.keys())
     assert not hasattr(self, 'sequence_examples')
 
@@ -356,6 +359,7 @@ class CompilationRunner(Worker):
 
     sequence_example_list = []
     rewards = []
+    policy_rewards = []
     keys = []
     for k, v in policy_result.items():
       sequence_example = v[0]
@@ -376,12 +380,14 @@ class CompilationRunner(Worker):
           policy_reward * (1 - self._moving_average_decay_rate))
       rewards.append(
           _calculate_reward(policy=policy_reward, baseline=default_reward))
+      policy_rewards.append(policy_reward)
       keys.append(k)
 
     return CompilationResult(
         sequence_examples=sequence_example_list,
         reward_stats=reward_stat,
         rewards=rewards,
+        policy_rewards=policy_rewards,
         keys=keys)
 
   def compile_fn(

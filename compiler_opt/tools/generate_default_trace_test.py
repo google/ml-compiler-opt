@@ -58,6 +58,7 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
                     default_reward=1, moving_average_reward=2)
         },
         rewards=[1.2],
+        policy_rewards=[18],
         keys=['default'])
 
 

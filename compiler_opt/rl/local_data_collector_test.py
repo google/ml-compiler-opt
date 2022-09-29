@@ -16,23 +16,21 @@
 
 # pylint: disable=protected-access
 import collections
-
 import string
 import sys
+from typing import List, Tuple
 
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
-
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import text_format  # pytype: disable=pyi-error
-from typing import List, Tuple
 
 _policy_str = 'policy'.encode(encoding='utf-8')
 
@@ -71,6 +69,7 @@ def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
                     default_reward=1, moving_average_reward=2)
         },
         rewards=[1.2],
+        policy_rewards=[36],
         keys=['default'])
   else:
     return compilation_runner.CompilationResult(
@@ -81,6 +80,7 @@ def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
                     default_reward=1, moving_average_reward=3)
         },
         rewards=[3.4],
+        policy_rewards=[18],
         keys=['default'])
 
 
@@ -93,7 +93,11 @@ class Sleeper(compilation_runner.CompilationRunner):
                                                  self._cancellation_manager)
 
     return compilation_runner.CompilationResult(
-        sequence_examples=[], reward_stats={}, rewards=[], keys=[])
+        sequence_examples=[],
+        reward_stats={},
+        rewards=[],
+        policy_rewards=[],
+        keys=[])
 
 
 class MyRunner(compilation_runner.CompilationRunner):
@@ -154,7 +158,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
-          reward_stat_map=collections.defaultdict(lambda: None))
+          reward_stat_map=collections.defaultdict(lambda: None),
+          best_trajectory_repo=None)
 
       # reset the sampler, so the next time we collect, we collect the same
       # modules. We do it before the collect_data call, because that's when
@@ -226,6 +231,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           worker_pool=lwp,
           parser=parser,
           reward_stat_map=collections.defaultdict(lambda: None),
+          best_trajectory_repo=None,
           exit_checker_ctor=QuickExiter)
       collector.collect_data(policy=_mock_policy)
       collector._join_pending_jobs()
