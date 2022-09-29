@@ -20,7 +20,7 @@ import time
 
 from absl.testing import absltest
 from compiler_opt.distributed import worker
-from compiler_opt.distributed.local import buffered_scheduler
+from compiler_opt.distributed import buffered_scheduler
 
 
 class BufferedSchedulerTest(absltest.TestCase):
