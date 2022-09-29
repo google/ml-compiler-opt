@@ -23,7 +23,7 @@ import sys
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
@@ -142,7 +142,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       return _test_iterator_fn
 
     sampler = DeterministicSampler()
-    with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
+    with LocalWorkerPoolManager(worker_class=MyRunner, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
           cps=corpus.create_corpus_for_testing(
               location=self.create_tempdir(),
@@ -214,7 +214,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       def wait(self, _):
         return False
 
-    with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
+    with LocalWorkerPoolManager(worker_class=Sleeper, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
           cps=corpus.create_corpus_for_testing(
               location=self.create_tempdir(),
