@@ -23,7 +23,7 @@ from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
-from compiler_opt.distributed.local import buffered_scheduler
+from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
@@ -38,7 +38,7 @@ class LocalDataCollector(data_collector.DataCollector):
       self,
       cps: corpus.Corpus,
       num_modules: int,
-      worker_pool: List[compilation_runner.CompilationRunnerStub],
+      worker_pool: worker.WorkerPool,
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
@@ -51,6 +51,9 @@ class LocalDataCollector(data_collector.DataCollector):
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
+    self._workers: List[
+        compilation_runner
+        .CompilationRunnerStub] = self._worker_pool.get_currently_active()
     self._reward_stat_map = reward_stat_map
     self._best_trajectory_repo = best_trajectory_repo
     self._exit_checker_ctor = exit_checker_ctor
@@ -78,8 +81,11 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def close_pool(self):
     self._join_pending_jobs()
-    for p in self._worker_pool:
+    # if the pool lost some workers, that's fine - we don't need to tell them
+    # anything anymore. To the new ones, the call is redudant (fine).
+    for p in self._workers:
       p.cancel_all_work()
+    self._workers = None
     self._worker_pool = None
 
   def _join_pending_jobs(self):
@@ -113,7 +119,9 @@ class LocalDataCollector(data_collector.DataCollector):
       return work
 
     work = [work_factory(job) for job in jobs]
-    return buffered_scheduler.schedule(work, self._worker_pool, buffer=10)
+    self._workers = self._worker_pool.get_currently_active()
+    return buffered_scheduler.schedule(
+        work, self._workers, self._worker_pool.get_worker_concurrency())
 
   def collect_data(
       self, policy: policy_saver.Policy
@@ -161,13 +169,13 @@ class LocalDataCollector(data_collector.DataCollector):
 
     # signal whatever work is left to finish, and re-enable workers.
     def wrapup():
-      cancel_futures = [wkr.cancel_all_work() for wkr in self._worker_pool]
+      cancel_futures = [wkr.cancel_all_work() for wkr in self._workers]
       worker.wait_for(cancel_futures)
       # now that the workers killed pending compilations, make sure the workers
       # drained their working queues first - they should all complete quickly
       # since the cancellation manager is killing immediately any process starts
       worker.wait_for(self._current_futures)
-      worker.wait_for([wkr.enable() for wkr in self._worker_pool])
+      worker.wait_for([wkr.enable() for wkr in self._workers])
 
     self._reset_workers = self._pool.submit(wrapup)
 
