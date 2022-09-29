@@ -121,7 +121,7 @@ class LocalDataCollector(data_collector.DataCollector):
     """Collect data for a given policy.
 
     Args:
-      policy: an policy_saver.Policy object to collect data with.
+      policy: a policy_saver.Policy object to collect data with.
 
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
