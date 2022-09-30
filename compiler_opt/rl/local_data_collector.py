@@ -82,7 +82,7 @@ class LocalDataCollector(data_collector.DataCollector):
   def close_pool(self):
     self._join_pending_jobs()
     # if the pool lost some workers, that's fine - we don't need to tell them
-    # anything anymore. To the new ones, the call is redudant (fine).
+    # anything anymore. To the new ones, the call is redundant (fine).
     for p in self._workers:
       p.cancel_all_work()
     self._workers = None
