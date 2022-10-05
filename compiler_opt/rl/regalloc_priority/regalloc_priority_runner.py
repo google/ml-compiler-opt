@@ -23,7 +23,8 @@ import os
 import tempfile
 from typing import Dict, Optional, Tuple
 
-from google.protobuf import struct_pb2
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import struct_pb2  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
 
 
