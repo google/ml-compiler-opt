@@ -220,7 +220,8 @@ class PolicySaver(object):
         }
     }]
     for info_spec in tf.nest.flatten(action_signature.info):
-      sm_action_info = sm_action_tensors[sm_action_indices[info_spec.name.lower()]]
+      sm_action_info = sm_action_tensors[sm_action_indices[
+          info_spec.name.lower()]]
       sm_action_info = _get_non_identity_op(sm_action_info)
       (tensor_op, tensor_port) = _split_tensor_name(sm_action_info.name)
       output_list.append({
