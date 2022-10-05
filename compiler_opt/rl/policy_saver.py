@@ -191,7 +191,7 @@ class PolicySaver(object):
 
     # Map spec name to index in flattened outputs.
     sm_action_indices = dict(
-        (k.name, i) for i, k in enumerate(sm_action_signature))
+        (k.name.lower(), i) for i, k in enumerate(sm_action_signature))
 
     # List mapping flattened structured outputs to tensors.
     sm_action_tensors = saved_model.signatures['action'].outputs
@@ -204,7 +204,7 @@ class PolicySaver(object):
 
     # Find the decision's tensor in the flattened output tensor list.
     sm_action_decision = (
-        sm_action_tensors[sm_action_indices[decision_spec[0].name]])
+        sm_action_tensors[sm_action_indices[decision_spec[0].name.lower()]])
 
     sm_action_decision = _get_non_identity_op(sm_action_decision)
 
@@ -220,7 +220,7 @@ class PolicySaver(object):
         }
     }]
     for info_spec in tf.nest.flatten(action_signature.info):
-      sm_action_info = sm_action_tensors[sm_action_indices[info_spec.name]]
+      sm_action_info = sm_action_tensors[sm_action_indices[info_spec.name.lower()]]
       sm_action_info = _get_non_identity_op(sm_action_info)
       (tensor_op, tensor_port) = _split_tensor_name(sm_action_info.name)
       output_list.append({
