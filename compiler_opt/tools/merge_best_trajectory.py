@@ -48,6 +48,7 @@ def main(argv):
     logging.info('merging repo: %s', path)
     tmp = best_trajectory.BestTrajectoryRepo(action_name='')
     # The json file is broken sometimes.
+    # Open issue: https://github.com/google/ml-compiler-opt/issues/163
     try:
       tmp.load_from_json_file(path)
       merged_best_trajectory_repo.combine_with_other_repo(tmp)
