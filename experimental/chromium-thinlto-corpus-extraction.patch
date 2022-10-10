@@ -1,0 +1,35 @@
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index fc399785a8..a6d3656cc7 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -552,6 +552,13 @@ config("compiler") {
+     }
+   }
+ 
++  if (use_lld && use_thin_lto && lld_emit_index) {
++    ldflags += [
++      "-Wl,--save-temps=import",
++      "-Wl,--thinlto-emit-index-files"
++    ]
++  }
++
+   # Rust compiler setup (for either clang or rustc).
+   if (enable_rust) {
+     defines += [ "RUST_ENABLED" ]
+diff --git a/build/config/compiler/compiler.gni b/build/config/compiler/compiler.gni
+index 11c015b303..5f8213d4cf 100644
+--- a/build/config/compiler/compiler.gni
++++ b/build/config/compiler/compiler.gni
+@@ -141,6 +141,11 @@ declare_args() {
+   # enables the ML inliner when targeting Android.
+   # Currently the ML inliner is only supported on linux hosts
+   use_ml_inliner = host_os == "linux" && is_android
++
++  # Set to true to enable output of ThinLTO index files used for training
++  # ML models that can enhance characteristics of clang generated native
++  # code.
++  lld_emit_index = false
+ }
+ 
+ assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")
+
