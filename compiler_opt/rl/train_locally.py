@@ -137,13 +137,13 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
                  len(reward_stat_map))
 
   best_trajectory_repo = None
-  best_trajecroty_repo_path = os.path.join(root_dir,
+  best_trajectory_repo_path = os.path.join(root_dir,
                                            'best_trajectory_repo.json')
   if dump_best_trajectory:
     best_trajectory_repo = best_trajectory.BestTrajectoryRepo(
         action_name=action_spec.name)
-    if tf.io.gfile.exists(best_trajecroty_repo_path):
-      best_trajectory_repo.load_from_json_file(best_trajecroty_repo_path)
+    if tf.io.gfile.exists(best_trajectory_repo_path):
+      best_trajectory_repo.load_from_json_file(best_trajectory_repo_path)
 
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
@@ -168,7 +168,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
         json.dump(reward_stat_map, f, cls=constant.DataClassJSONEncoder)
 
       if best_trajectory_repo is not None:
-        best_trajectory_repo.sink_to_json_file(best_trajecroty_repo_path)
+        best_trajectory_repo.sink_to_json_file(best_trajectory_repo_path)
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))
