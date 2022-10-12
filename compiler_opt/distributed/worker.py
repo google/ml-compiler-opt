@@ -15,7 +15,10 @@
 """Common abstraction for a worker contract."""
 
 import abc
+import sys
 from typing import Any, List, Iterable, Optional, Protocol, TypeVar
+
+import gin
 
 
 class Worker(Protocol):
@@ -86,3 +89,21 @@ def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
     return None
   except Exception as e:  # pylint: disable=broad-except
     return e
+
+
+def get_full_worker_args(worker_class: 'type[Worker]', current_kwargs):
+  """Get the union of given kwargs and gin config.
+
+  This allows the worker hosting process be set up differently from the training
+  process - e.g. no need to initialize gin variables there, for example.
+  """
+  gin_config = {}
+  try:
+    gin_config = gin.get_bindings(worker_class)
+  except:  # pylint: disable=bare-except
+    pass
+  # Issue #38
+  if sys.version_info.minor >= 9:
+    return current_kwargs | gin_config
+  else:
+    return {**current_kwargs, **gin_config}
