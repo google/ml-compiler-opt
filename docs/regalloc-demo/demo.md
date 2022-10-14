@@ -9,10 +9,13 @@ In this demo we will look at:
 
 ## Preliminaries
 
-This guide assumes that you're placing everything in the root directory
-(ie you're working in a docker container based on the Dockerfile in
-`./experimental/docker/development.Dockerfile`). If you want to do something
-else, make sure that you adjust the paths in the commands below accordingly.
+Set up some environment variables according to where you want to clone/build
+all of the code:
+```bash
+export WORKINGD_DIR=~
+```
+
+Change the directory to wherever you'd like to put everything.
 
 ## Get repositories
 
@@ -21,6 +24,7 @@ else, make sure that you adjust the paths in the commands below accordingly.
 Clone the github repo:
 
 ```bash
+cd $WORKING_DIR
 git clone https://github.com/google/ml-compiler-opt
 ```
 
@@ -44,7 +48,7 @@ downloading depot_tools and adding them to your `$PATH`:
 
 ```bash
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-export PATH="$PATH:/depot_tools"
+export PATH="$PATH:$WORKING_DIR/depot_tools"
 ```
 
 Creating a folder for Chromium and cloning it using the `fetch` utility:
@@ -77,10 +81,18 @@ the actual Chromium codebase. Now, we need to apply the bitcode embedding
 patch contained in this repository.
 
 ```bash
-git apply /ml-compiler-opt/experimental/chromium-bitcode-embedding.patch
+cd src
+git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-bitcode-embedding.patch
 ```
 
 This will make a `clang_embed_bitcode` flag available in the gn configuration.
+
+Now that this is all in place, you need to run the Chromium hooks in order to
+get the development environment ready for a full compilation:
+
+```bash
+gclient runhooks
+```
 
 ## Install Dependencies
 
@@ -102,7 +114,7 @@ sudo apt-get install cmake ninja-build lld
 
 Now, install the Chromium dependencies using the auto-installation script:
 ```bash
-/chromium/src/build/install-build-deps.sh
+$WORKING_DIR/chromium/src/build/install-build-deps.sh
 ```
 
 **Note:** These installation commands are all designed to be run on Debian
@@ -117,7 +129,8 @@ Also make sure that you install the Python dependencies for the
 ml-compiler-opt repository:
 
 ```bash
-pip3 install -r /ml-compiler-opt/requirements.txt
+cd $WORKING_DIR
+pip3 install -r ml-compiler-opt/requirements.txt
 ```
 
 If you plan on doing development work on this checkout of ml-compiler-opt,
@@ -126,11 +139,23 @@ some additional development dependencies.
 
 ## Building Chromium
 
+**WARNING:** Currently, Chromium only builds with protobuf 4.x.x while Tensorflow
+requires protobuf 3.x.x. In order to make sure that Chromium compiles correctly
+you can either use a virtual environment and install protobuf 4.x.x there (currently
+just the latest version), or you can install protobuf 4.x.x over the currently
+installed version and then undo it later after the compile is complete. This tutorial
+assumes no usage of virtual environments. Install a compatible version of protobuf:
+
+```bash
+pip3 install protobuf==4.21.7
+```
+
 To build Chromium, make sure you are in the `/chromium/src` directory and then
 run the following command to open a CLI text editor that will allow you to
 configure build settings:
 
 ```bash
+cd $WORKING_DIR/chromium/src
 gn args ./out/Release
 ```
 
@@ -171,6 +196,15 @@ TODO(boomanaiden154): Investigate the source of this assertion error.
 the linker, you can safely ignore this. Preparing a corpus for ML training
 only requires the object files that get fed to the linker.
 
+**WARNING:** make sure to reinstall a version of protobuf compatible with the
+current tf-nightly release used by ml-compiler-opt if you changed versions earlier
+to get the Chromium compile working. Reinstalling using the ml-compiler-opt lockfile
+should work:
+
+```bash
+pip3 install -r $WORKING_DIR/ml-compiler-opt/requirements.txt
+```
+
 ## Building LLVM
 
 To build LLVM to train ML models, we first need to build TFLite and some
@@ -181,9 +215,10 @@ a CMake cache file that can be passed to CMake during the LLVM build
 configuration. Running the script looks like this:
 
 ```bash
+cd $WORKING_DIR
 mkdir tflite
 cd tflite
-/ml-compiler-opt/buildbot/build_tflite.sh
+$WORKING_DIR/ml-compiler-opt/buildbot/build_tflite.sh
 ```
 
 This script should only take a couple minutes to execute as all the libraries
@@ -191,13 +226,13 @@ that it pulls and builds are relatively small.
 
 Now, create a new folder to do an LLVM build and configure it using CMake:
 ```bash
-mkdir llvm-build
-cd llvm-build
+mkdir $WORKING_DIR/llvm-build
+cd $WORKING_DIR/llvm-build
 cmake -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DLLVM_ENABLE_PROJECTS="clang" \
-  -C /tflite/tflite.cmake \
-  /llvm-project/llvm
+  -C $WORKING_DIR/tflite/tflite.cmake \
+  $WORKING_DIR/llvm-project/llvm
 ```
 
 Now you can run the actual build with the following command:
@@ -211,7 +246,7 @@ All of the following example commands assume you are working from within
 your checkout of the ml-compiler-opt repository:
 
 ```bash
-cd /ml-compiler-opt
+cd $WORKING_DIR/ml-compiler-opt
 ```
 
 To start off training, we need to extract a per-object bitcode/compilation
@@ -220,10 +255,64 @@ flag corpus. This can be done with the following script:
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
   --cmd_filter="^-O2|-O3" \
-  --input=/chromium/src/out/Release/compile_commands.json \
+  --input=$WORKING_DIR/chromium/src/out/Release/compile_commands.json \
   --input_type=json \
-  --llvm_objcopy_path=/llvm-build/bin/llvm-objcopy \
-  --output_dir=corpus
+  --llvm_objcopy_path=$WORKING_DIR/llvm-build/bin/llvm-objcopy \
+  --output_dir=$WORKING_DIR/corpus
+```
+
+### PGO Path Rewriting
+
+It is essential to have PGO data when training the regalloc model. However,
+the Chromium build process uses relative paths when referencing PGO profiles.
+This needs to be fixed by replacing the default `-fprofile-instrument-use-path`
+flag with one that uses an absolute path. First we need to know the profile
+being used. The profiles are located in
+`$WOKRING_DIR/chromium/src/chrome/build/pgo_profiles` and they will have a
+`*.profdata` extension. If you have never resynced your checkout, there should
+be just one file. Then to find the absolute path of the file, run the following
+command:
+
+```bash
+realpath -s $WOKRING_DIR/chromium/src/chrome/build/pgo_profiles/*.profdata
+```
+
+This should output an absolute path to a `*.profdata` file. Then, open the
+gin config for the regalloc problem which should be located at
+`compiler_opt/rl/regalloc/gin_configs/common.gin` within the ml-compiler-opt
+root. Then, replace the line
+
+```
+problem_config.flags_to_replace.replace_flags={}
+```
+
+With this:
+```
+problem_config.flags_to_replace.replace_flags = {
+  '-fprofile-instrument-use-path': '<path to profdata from above command>'
+}
+```
+
+eg:
+
+```
+problem_config.flags_to_replace.replace_flags = {
+  '-fprofile-instrument-use-path': '/home/aiden/chromium/src/chrome/build/pgo_profiles/chrome-linux-main-1665359392-180123bdd1fedc45c1cbb781e2ad04bd98ab1546.profdata'
+}
+```
+
+Adding a flag to remove warnings related to PGO profdata hash mismatches
+can also be helpful to not clutter up your output. These can be added in
+by adjusting this line:
+
+```
+problem_config.flags_to_add.add_flags=()
+```
+
+to
+
+```
+problem_config.flags_to_add.add_flags=('-Wno-backend-plugin',)
 ```
 
 ### Collect the Default Trace and Generate Vocab
@@ -234,10 +323,10 @@ a trace of the decisions the default heuristic is making:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/generate_default_trace.py \
-  --data_path=/corpus \
-  --output_path=/default_trace \
+  --data_path=$WORKING_DIR/corpus \
+  --output_path=$WORKING_DIR/default_trace \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin \
-  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
+  --gin_bindings=clang_path="'$WORKING_DIR/llvm-build/bin/clang'" \
   --sampling_rate=0.2
 ```
 
@@ -251,7 +340,7 @@ model:
 ```bash
 rm -rf ./compiler_opt/rl/regalloc/vocab
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/sparse_bucket_generator.py \
-  --input=/default_trace \
+  --input=$WORKING_DIR/default_trace \
   --output_dir=./compiler_opt/rl/regalloc/vocab \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin
 ```
@@ -267,14 +356,14 @@ default heuristic:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/rl/train_bc.py \
-  --root_dir=/warmstart \
-  --data_path=/default_trace \
+  --root_dir=$WORKING_DIR/warmstart \
+  --data_path=$WORKING_DIR/default_trace \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/behavioral_cloning_nn_agent.gin
 ```
 
 This script shouldn't take too long to run on decently powerful hardware.
 It will output a trained model in the directory specified by the `--rootdir`
-flag, in this case `/warmstart`.
+flag, in this case `$WORKING_DIR/warmstart`.
 
 ## Reinforcement Learning
 
@@ -284,11 +373,11 @@ improve beyond the performance of the default heuristic:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/rl/train_locally.py \
-  --root_dir=/output_model \
-  --data_path=/corpus \
-  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
+  --root_dir=$WORKING_DIR/output_model \
+  --data_path=$WORKING_DIR/corpus \
+  --gin_bindings=clang_path="'$WORKING_DIR/llvm-build/bin/clang'" \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/ppo_nn_agent.gin \
-  --gin_bindings=train_eval.warmstart_policy_dir=\"/warmstart/saved_policy\"
+  --gin_bindings=train_eval.warmstart_policy_dir=\"$WORKING_DIR/warmstart/saved_policy\"
 ```
 
 This script will take quite a while to run. Probably most of the day on pretty
@@ -310,18 +399,18 @@ performing.
 ### Evaluating the Model With Reward Metrics
 
 To evaluate a trained policy (for example looking at the output from
-RL training in `/output_model/saved_policy`), run the
+RL training in `$WORKING_DIR/output_model/saved_policy`), run the
 `generate_default_trace.py` script with some flags to tell it to output
 performance data:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/generate_default_trace.py \
-  --data_path=/corpus \
+  --data_path=$WORKING_DIR/corpus \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin \
   --gin_bindings=config_registry.get_configuration.implementation=@configs.RegallocEvictionConfig \
-  --gin_bindings=clang_path="'/llvm-build/bin/clang'" \
-  --output_performance_path=/performance_data.csv \
-  --policy_path=/output_model/saved_policy
+  --gin_bindings=clang_path="'$WORKING_DIR/llvm-build/bin/clang'" \
+  --output_performance_path=$WORKING_DIR/performance_data.csv \
+  --policy_path=$WORKING_DIR/output_model/saved_policy
 ```
 
 This will collect reward data over the entire corpus. If you want it to run
@@ -340,14 +429,14 @@ create a new folder and run a CMake configuration with the following
 commands:
 
 ```bash
-mkdir llvm-release-build
-cd llvm-release-build
+mkdir $WORKING_DIR/llvm-release-build
+cd $WORKING_DIR/llvm-release-build
 cmake -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DTENSORFLOW_AOT_PATH=$(python3 -c "import tensorflow; import os; print(os.path.dirname(tensorflow.__file__))") \
   -DLLVM_ENABLE_PROJECTS="clang" \
-  -DLLVM_RAEVICT_MODEL_PATH="/output_model/saved_policy" \
-  /llvm-project/llvm
+  -DLLVM_RAEVICT_MODEL_PATH="$WORKING_DIR/output_model/saved_policy" \
+  $WORKING_DIR/llvm-project/llvm
 ```
 
 Then run the actual build:
@@ -356,7 +445,7 @@ Then run the actual build:
 cmake --build .
 ```
 
-Now, you should have a build of clang in `/llvm-release-build/bin` that
+Now, you should have a build of clang in `$WORKING_DIR/llvm-release-build/bin` that
 you can use to compile projects using the ML regalloc eviction heuristic.
 To compile with the ML regalloc eviction heuristic, all you need to do
 is make sure to pass the `-mllvm -regalloc-enable-advisor=release` flag
