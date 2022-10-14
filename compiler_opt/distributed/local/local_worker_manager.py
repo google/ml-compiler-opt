@@ -245,9 +245,9 @@ class LocalWorkerPoolManager(AbstractContextManager):
                *args, **kwargs):
     if not count:
       count = multiprocessing.get_context().cpu_count()
-    final_args = worker.get_full_worker_args(worker_class, kwargs)
+    final_kwargs = worker.get_full_worker_args(worker_class, kwargs)
     self._stubs = [
-        _make_stub(worker_class, *args, **final_args) for _ in range(count)
+        _make_stub(worker_class, *args, **final_kwargs) for _ in range(count)
     ]
 
   def __enter__(self) -> worker.FixedWorkerPool:

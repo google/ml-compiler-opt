@@ -101,6 +101,8 @@ def get_full_worker_args(worker_class: 'type[Worker]', current_kwargs):
   try:
     gin_config = gin.get_bindings(worker_class)
   except:  # pylint: disable=bare-except
+    # we don't have a way to check if `worker_class` is even known to gin, and
+    # it's not a requirement that it were. Tests, for instance, don't use gin.
     pass
   # Issue #38
   if sys.version_info.minor >= 9:
