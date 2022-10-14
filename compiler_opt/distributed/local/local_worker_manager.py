@@ -36,7 +36,7 @@ import threading
 
 from absl import logging
 # pylint: disable=unused-import
-from compiler_opt.distributed.worker import Worker, FixedWorkerPool
+from compiler_opt.distributed import worker
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
@@ -59,8 +59,8 @@ class TaskResult:
   value: Any
 
 
-def _run_impl(pipe: connection.Connection, worker_class: 'type[Worker]', *args,
-              **kwargs):
+def _run_impl(pipe: connection.Connection, worker_class: 'type[worker.Worker]',
+              *args, **kwargs):
   """Worker process entrypoint."""
 
   # A setting of 1 does not inhibit the while loop below from running since
@@ -111,7 +111,7 @@ def _run(*args, **kwargs):
     raise e
 
 
-def _make_stub(cls: 'type[Worker]', *args, **kwargs):
+def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
   class _Stub:
     """Client stub to a worker hosted by a process."""
@@ -241,16 +241,17 @@ def _make_stub(cls: 'type[Worker]', *args, **kwargs):
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self, worker_class: 'type[Worker]', count: Optional[int], *args,
-               **kwargs):
+  def __init__(self, worker_class: 'type[worker.Worker]', count: Optional[int],
+               *args, **kwargs):
     if not count:
       count = multiprocessing.get_context().cpu_count()
+    final_kwargs = worker.get_full_worker_args(worker_class, kwargs)
     self._stubs = [
-        _make_stub(worker_class, *args, **kwargs) for _ in range(count)
+        _make_stub(worker_class, *args, **final_kwargs) for _ in range(count)
     ]
 
-  def __enter__(self) -> FixedWorkerPool:
-    return FixedWorkerPool(workers=self._stubs, worker_concurrency=10)
+  def __enter__(self) -> worker.FixedWorkerPool:
+    return worker.FixedWorkerPool(workers=self._stubs, worker_concurrency=10)
 
   def __exit__(self, *args):
     # first, trigger killing the worker process and exiting of the msg pump,
