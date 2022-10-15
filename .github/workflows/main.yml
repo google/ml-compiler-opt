@@ -27,8 +27,8 @@ jobs:
             _ver="[3.8]"
             _cache="0"
           fi
-          echo "::set-output name=version_matrix::$_ver"
-          echo "::set-output name=do_cache::$_cache"
+          echo "version_matrix=$_ver" >> $GITHUB_OUTPUT
+          echo "do_cache=$_cache" >> $GITHUB_OUTPUT
   Checks:
     runs-on: ubuntu-latest
     needs: [Envvars]
