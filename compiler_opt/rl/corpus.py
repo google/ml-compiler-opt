@@ -17,11 +17,10 @@ import abc
 import concurrent.futures
 import math
 import random
-import re
 
 from absl import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import json
 import os
@@ -227,7 +226,7 @@ class Corpus:
   def __init__(self,
                *,
                data_path: str,
-               module_filter: Optional[re.Pattern] = None,
+               module_filter: Optional[Callable[[str], bool]] = None,
                additional_flags: Tuple[str, ...] = (),
                delete_flags: Tuple[str, ...] = (),
                replace_flags: Optional[Dict[str, str]] = None,
@@ -309,9 +308,7 @@ class Corpus:
       raise ValueError('do not use add/delete flags to replace')
 
     if module_filter:
-      module_paths = [
-          name for name in module_paths if module_filter.match(name)
-      ]
+      module_paths = [name for name in module_paths if module_filter(name)]
 
     def get_cmdline(name: str):
       if cmd_override_was_specified:

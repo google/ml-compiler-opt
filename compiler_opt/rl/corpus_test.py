@@ -230,7 +230,7 @@ class CorpusTest(tf.test.TestCase):
             corpus.ModuleSpec(name='largest', size=500),
             corpus.ModuleSpec(name='small', size=100)
         ],
-        module_filter=re.compile(r'.+l'))
+        module_filter=lambda name: re.compile(r'.+l').match(name))
     sample = cps.sample(999, sort=True)
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
