@@ -146,7 +146,8 @@ def main(_):
 
   cps = corpus.Corpus(
       data_path=_DATA_PATH.value,
-      module_filter=module_filter,
+      module_filter=lambda name: True
+      if not module_filter else module_filter.match(name),
       additional_flags=config.flags_to_add(),
       delete_flags=config.flags_to_delete(),
       replace_flags=config.flags_to_replace())
