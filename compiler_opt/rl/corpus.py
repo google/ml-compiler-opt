@@ -315,7 +315,8 @@ class Corpus:
         ret = cmd_override
       else:
         with tf.io.gfile.GFile(os.path.join(data_path, name + '.cmd')) as f:
-          ret = tuple(f.read().split('\0'))
+          ret = tuple(f.read().replace(r'{', r'{{').replace(r'}',
+                                                            r'}}').split('\0'))
           # The options read from a .cmd file must be run with -cc1
           if ret[0] != '-cc1':
             raise ValueError('-cc1 flag not present in .cmd file.')
