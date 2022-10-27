@@ -45,8 +45,10 @@ from compiler_opt.rl import trainer
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('data_path', None,
-                    'Path to directory containing the corpus.')
+flags.DEFINE_string(
+    'data_path', None,
+    'Path to directory containing the corpus, or specific corpus description '
+    'json file.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -103,7 +105,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
 
   logging.info('Loading module specs from corpus at %s.', FLAGS.data_path)
   cps = corpus.Corpus(
-      data_path=FLAGS.data_path,
+      location=FLAGS.data_path,
       additional_flags=problem_config.flags_to_add(),
       delete_flags=problem_config.flags_to_delete(),
       replace_flags=problem_config.flags_to_replace())

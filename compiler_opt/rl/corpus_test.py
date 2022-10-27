@@ -105,6 +105,17 @@ class CorpusTest(tf.test.TestCase):
         has_thinlto=False),))
     self.assertEqual(len(cps), 1)
 
+  def test_specific_path(self):
+    basedir = self.create_tempdir()
+    cps = corpus.create_corpus_for_testing(
+        location=basedir, elements=[corpus.ModuleSpec(name='1', size=1)])
+    new_corpus_desc = os.path.join(basedir, 'hi.json')
+    tf.io.gfile.rename(
+        os.path.join(basedir, corpus.DEFAULT_CORPUS_DESCRIPTION_FILENAME),
+        new_corpus_desc)
+    cps2 = corpus.Corpus(location=new_corpus_desc)
+    self.assertTupleEqual(cps.module_specs, cps2.module_specs)
+
   def test_invalid_args(self):
     with self.assertRaises(
         ValueError, msg='-cc1 flag not present in .cmd file'):
