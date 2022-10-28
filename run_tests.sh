@@ -14,19 +14,13 @@
 
 #!/bin/bash
 
-TEST_TMP=$(mktemp -d)
+pip install pipenv
+
+PIPENV_VENV_IN_PROJECT=1
+
+pipenv sync --dev
+
 TF_CPP_MIN_LOG_LEVEL=3
-VENV_PATH=${TEST_TMP}/virtualenv
-virtualenv "${VENV_PATH}" -p python3 --system-site-packages
-source "${VENV_PATH}"/bin/activate
-
-# Download pre-requisite packages.
-pip3 install -r requirements-dev.txt -q
-
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
 
-python3 -m pytest
-
-deactivate
-
-rm -rf "${TEST_TMP}"
+pipenv run python -m pytest

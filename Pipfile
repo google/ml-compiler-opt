@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+absl-py = "1.0.0"
+gin = "0.1.6"
+joblib = "1.1.0"
+psutil = "5.9.0"
+tf-agents = "0.15.0rc0"
+tensorflow = "2.11.0rc1"
+
+[dev-packages]
+pylint = "2.14.1"
+pytest = "7.1.2"
+pytype = "2022.06.06"
+yapf = "0.32.0"
+
+[ci]
+joblib = "1.1.0"
+shap = "0.41.0"
