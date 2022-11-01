@@ -47,6 +47,6 @@ class ConstantValueNetwork(network.Network):
 
   def call(self, inputs, step_type=None, network_state=(), training=False):
     _ = (step_type, training)
-    shape = nest_utils.get_outer_array_shape(inputs, self._input_tensor_spec)
-    return tf.constant(
-        self._constant_output_val, tf.float32, shape=shape), network_state
+    shape = nest_utils.get_outer_shape(inputs, self._input_tensor_spec)
+    constant = tf.constant(self._constant_output_val, tf.float32)
+    return tf.fill(shape, constant), network_state

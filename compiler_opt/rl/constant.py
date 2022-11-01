@@ -35,6 +35,7 @@ class AgentName(enum.Enum):
   BEHAVIORAL_CLONE = 0
   DQN = 1
   PPO = 2
+  PPO_DISTRIBUTED = 3
 
 
 class DataClassJSONEncoder(json.JSONEncoder):
