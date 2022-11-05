@@ -83,9 +83,11 @@ patch contained in this repository.
 ```bash
 cd src
 git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-bitcode-embedding.patch
+git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-thinlto-corpus-extraction.patch
 ```
 
-This will make a `clang_embed_bitcode` flag available in the gn configuration.
+This will make a `clang_embed_bitcode` flag and a `lld_emit_index` flag
+available in the gn configuration.
 
 Now that this is all in place, you need to run the Chromium hooks in order to
 get the development environment ready for a full compilation:
@@ -159,13 +161,25 @@ cd $WORKING_DIR/chromium/src
 gn args ./out/Release
 ```
 
-Then, use the following configuration options:
+Then, you need to specify the configuration options to use when compiling Chromium.
+This will depend upon the type of training corpus that you want to extract. If you
+want to extract a non-thinLTO corpus, you can use the configuration listed below:
 
 ```
 is_official_build=true
 use_thin_lto=false
 is_cfi=false
 clang_embed_bitcode=true
+is_debug=false
+symbol_level=0
+enable_nacl=false
+```
+
+But if you want to extract a thinLTO corpus, you need to use the following config:
+
+```
+is_official_build=true
+lld_emit_index=true
 is_debug=false
 symbol_level=0
 enable_nacl=false
@@ -193,8 +207,9 @@ hardware.
 TODO(boomanaiden154): Investigate the source of this assertion error.
 
 **Note:** If the build fails in the last couple steps tripping an assertion in
-the linker, you can safely ignore this. Preparing a corpus for ML training
-only requires the object files that get fed to the linker.
+the linker when compiling a non-thinLTO corpus, you can safely ignore this. 
+Preparing a corpus for ML training in the non-thinLTO case only requires the
+object files that get fed to the linker
 
 **WARNING:** make sure to reinstall a version of protobuf compatible with the
 current tf-nightly release used by ml-compiler-opt if you changed versions earlier
@@ -249,8 +264,14 @@ your checkout of the ml-compiler-opt repository:
 cd $WORKING_DIR/ml-compiler-opt
 ```
 
-To start off training, we need to extract a per-object bitcode/compilation
-flag corpus. This can be done with the following script:
+To start off training, we need to extract a corpus from the Chromium compile.
+The procedure for this will depend upon how you built your corpus, particularly
+whether or not you used thinLTO.
+
+### Corpus extraction (non-thinLTO case)
+
+For corpus extraction in the non-thinLTO case, you can simply run the following
+command:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
@@ -261,7 +282,91 @@ PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
   --output_dir=$WORKING_DIR/corpus
 ```
 
+This command will extract all the relevant bitcode and compilation flags from
+the Chromium compile and put them in the `$WORKING_DIR/corpus` directory. No
+further processing on the corpus should be needed.
+
+### Corpus extraction (thinLTO case)
+
+Corpus extraction for the thinLTO case is slightly more involved. Start off by
+running the following command to do the initial step in the corpus extraction
+process:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
+  --cmd_filter="^-O2|-O3" \
+  --input=$WORKING_DIR/chromium/src/out/Release/compile_commands.json \
+  --input_type=json \
+  --llvm_objcopy_path=$WORKING_DIR/llvm-build/bin/llvm-objcopy \
+  --output_dir=$WORKING_DIR/corpus \
+  --thinlto_build=local \
+  --obj_base_dir=$WORKING_DIR/chromium/src/out/Release/obj
+```
+
+After this, it is necessary to grab the flags passed to the linker and add
+them to the `corpus_description.json` file in the `$WORKING_DIR/corpus` folder.
+To find this, it is helpful to look at the actual invocation of the linker. To
+see the linker invocation for a target like `chrome`, go to the Chromium build
+directory and run the following command:
+
+```bash
+cd $WORKING_DIR/chromium/src/out/Release
+ninja -t commands chrome
+```
+
+The last command should look something like this:
+
+```bash
+python3 "../../build/toolchain/gcc_link_wrapper.py" --output="./chrome" -- ../../third_party/llvm-build/Release+Asserts/bin/clang++ -Wl,--version-script=../../build/linux/chrome.map -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id=sha1 -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--icf=all -Wl,--color-diagnostics -Wl,-mllvm,-instcombine-lower-dbg-declare=0 -Wl,--save-temps=import -Wl,--thinlto-emit-index-files -flto=thin -Wl,--thinlto-jobs=all -Wl,--thinlto-cache-dir=thinlto-cache -Wl,--thinlto-cache-policy=cache_size=10\%:cache_size_bytes=40g:cache_size_files=100000 -Wl,-mllvm,-import-instr-limit=30 -fwhole-program-vtables -Wl,--undefined-version -m64 -no-canonical-prefixes -Wl,-O2 -Wl,--gc-sections -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=../../build/linux/debian_bullseye_amd64-sysroot -fsanitize=cfi-vcall -fsanitize=cfi-icall -pie -Wl,--disable-new-dtags -Wl,--lto-O2 -o "./chrome" -Wl,--start-group @"./chrome.rsp"  -Wl,--end-group  -ldl -lpthread -lrt -lgmodule-2.0 -lgobject-2.0 -lgthread-2.0 -lglib-2.0 -lnss3 -lnssutil3 -lsmime3 -lplds4 -lplc4 -lnspr4 -latk-1.0 -latk-bridge-2.0 -lcups -lgio-2.0 -ldrm -ldbus-1 -latspi -lresolv -lm -lX11 -lXcomposite -lXdamage -lXext -lXfixes -lXrender -lXrandr -lXtst -lgbm -lEGL -lexpat -luuid -lxcb -lxkbcommon -lXi -lpci -l:libffi_pic.a -lpangocairo-1.0 -lpango-1.0 -lharfbuzz -lcairo -lasound -lz -lstdc++ -lxshmfence
+```
+
+From this, we can take out a couple flags that we need for our `corpus_description.json`. A more
+precise description of the flags that are needed is available in the [MLGO ThinLTO documentation](../thinlto.md). Given the linker command above, the flags that we need consist of the following:
+
+```
+-fPIC
+-mllvm,-instcombine-lower-dbg-declare=0
+-mllvm,-import-instr-limit=30
+-no-canonical-prefixes
+-O2
+-nostdlib++
+--sysroot=../../build/linux/debian_bullseye_amd64-sysroot
+-c
+```
+
+Make sure to rewrite the `--sysroot` flag to be an absolute path. Setting it
+to the output of the following should work:
+
+```bash
+echo $WORKING_DIR/chromium/src/build/linux/debian_bullseye_amd64-sysroot
+```
+
+Now, add the commands to the `global_command_override` section in the 
+`corpus_description.json` file. Afterwards, the `global_command_override` 
+section in the file should look something like the following:
+
+```json
+"global_command_override": [
+  "-fPIC",
+  "-mllvm",
+  "-instcombine-lower-dbg-declare=0",
+  "-mllvm",
+  "-import-instr-limit=30",
+  "-no-canonical-prefixes",
+  "-O2",
+  "-nostdlib++",
+  "--sysroot=/path/to/workdir/build/linux/debian_bullseye_amd64-sysroot",
+  "-c"
+]
+```
+
+Now you should have a properly prepared Chromium thinLTO corpus.
+
 ### PGO Path Rewriting
+
+**NOTE:** This step is only necessary if you are working on a non-thinLTO
+corpus. If you are working on a thinLTO corpus, making changes outlined in the
+section below will result in an error when you try and generate a default trace.
 
 It is essential to have PGO data when training the regalloc model. However,
 the Chromium build process uses relative paths when referencing PGO profiles.
@@ -274,7 +379,7 @@ be just one file. Then to find the absolute path of the file, run the following
 command:
 
 ```bash
-realpath -s $WOKRING_DIR/chromium/src/chrome/build/pgo_profiles/*.profdata
+realpath -s $WORKING_DIR/chromium/src/chrome/build/pgo_profiles/*.profdata
 ```
 
 This should output an absolute path to a `*.profdata` file. Then, open the
