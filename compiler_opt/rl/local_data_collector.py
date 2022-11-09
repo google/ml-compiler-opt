@@ -101,7 +101,7 @@ class LocalDataCollector(data_collector.DataCollector):
                  time.time() - t1)
 
   def _schedule_jobs(
-      self, policy: policy_saver.Policy,
+      self, policy: policy_saver.Policy, model_id: int,
       sampled_modules: List[corpus.LoadedModuleSpec]
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
@@ -114,7 +114,7 @@ class LocalDataCollector(data_collector.DataCollector):
     def work_factory(job):
 
       def work(w: compilation_runner.CompilationRunnerStub):
-        return w.collect_data(*job)
+        return w.collect_data(*job, model_id=model_id)
 
       return work
 
@@ -124,7 +124,7 @@ class LocalDataCollector(data_collector.DataCollector):
         work, self._workers, self._worker_pool.get_worker_concurrency())
 
   def collect_data(
-      self, policy: policy_saver.Policy
+      self, policy: policy_saver.Policy, model_id: int
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
@@ -145,7 +145,8 @@ class LocalDataCollector(data_collector.DataCollector):
     logging.info('resolving prefetched sample took: %d seconds',
                  time.time() - time1)
     self._next_sample = self._prefetch_next_sample()
-    self._current_futures = self._schedule_jobs(policy, sampled_modules)
+    self._current_futures = self._schedule_jobs(policy, model_id,
+                                                sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)

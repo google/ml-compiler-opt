@@ -52,7 +52,7 @@ def _get_sequence_example(feature_value):
 
 
 def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
-                      reward_stat):
+                      reward_stat, model_id):
   assert loaded_module_spec.name.startswith('dummy')
   assert policy.policy == _policy_str
   assert reward_stat is None or reward_stat == {
@@ -70,7 +70,8 @@ def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
         },
         rewards=[1.2],
         policy_rewards=[36],
-        keys=['default'])
+        keys=['default'],
+        model_id=model_id)
   else:
     return compilation_runner.CompilationResult(
         sequence_examples=[_get_sequence_example(feature_value=2)],
@@ -81,13 +82,14 @@ def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
         },
         rewards=[3.4],
         policy_rewards=[18],
-        keys=['default'])
+        keys=['default'],
+        model_id=model_id)
 
 
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, loaded_module_spec, policy, reward_stat):
+  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
     _ = loaded_module_spec, policy, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
@@ -97,7 +99,8 @@ class Sleeper(compilation_runner.CompilationRunner):
         reward_stats={},
         rewards=[],
         policy_rewards=[],
-        keys=[])
+        keys=[],
+        model_id=model_id)
 
 
 class MyRunner(compilation_runner.CompilationRunner):
@@ -166,7 +169,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
       # we'll re-sample to prefetch the next batch.
       sampler.reset()
 
-      data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
+      data_iterator, monitor_dict = collector.collect_data(
+          policy=_mock_policy, model_id=0)
       data = list(data_iterator)
       self.assertEqual([1, 2, 3], data)
       expected_monitor_dict_subset = {
@@ -184,7 +188,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
             **monitor_dict,
             **expected_monitor_dict_subset
         })
-      data_iterator, monitor_dict = collector.collect_data(policy=_mock_policy)
+      data_iterator, monitor_dict = collector.collect_data(
+          policy=_mock_policy, model_id=0)
       data = list(data_iterator)
       # because we reset the sampler, these are the same modules
       self.assertEqual([4, 5, 6], data)
@@ -233,7 +238,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           reward_stat_map=collections.defaultdict(lambda: None),
           best_trajectory_repo=None,
           exit_checker_ctor=QuickExiter)
-      collector.collect_data(policy=_mock_policy)
+      collector.collect_data(policy=_mock_policy, model_id=0)
       collector._join_pending_jobs()
       killed = 0
       for w in collector._current_futures:

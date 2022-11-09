@@ -52,12 +52,13 @@ class DataCollector(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, policy: policy_saver.Policy
+      self, policy: policy_saver.Policy, model_id: int
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
       policy_path: the path to the policy directory to collect data with.
+      model_id: the id of the model used to collect data.
 
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
@@ -126,7 +127,7 @@ class EarlyExitChecker:
 
     Args:
       get_num_finished_work: a callable object which returns the amount of
-      finished work.
+        finished work.
 
     Returns:
       The amount of time waited.
