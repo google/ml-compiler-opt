@@ -295,8 +295,6 @@ process:
 ```bash
 PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
   --cmd_filter="^-O2|-O3" \
-  --input=$WORKING_DIR/chromium/src/out/Release/compile_commands.json \
-  --input_type=json \
   --llvm_objcopy_path=$WORKING_DIR/llvm-build/bin/llvm-objcopy \
   --output_dir=$WORKING_DIR/corpus \
   --thinlto_build=local \
