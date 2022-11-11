@@ -237,6 +237,9 @@ class CompilationResult:
   policy_rewards: List[float]
   keys: List[str]
 
+  # The id of the model used to generate this compilation result
+  model_id: Optional[int]
+
   def __post_init__(self, sequence_examples: List[tf.train.SequenceExample]):
     object.__setattr__(self, 'serialized_sequence_examples',
                        [x.SerializeToString() for x in sequence_examples])
@@ -260,8 +263,8 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
       policy: Optional[policy_saver.Policy] = None,
-      reward_stat: Optional[Dict[str, RewardStat]] = None
-  ) -> WorkerFuture[CompilationResult]:
+      reward_stat: Optional[Dict[str, RewardStat]] = None,
+      model_id: Optional[int] = None) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -315,17 +318,18 @@ class CompilationRunner(Worker):
   def resume_all_work(self):
     self._cancellation_manager.resume_all_processes()
 
-  def collect_data(
-      self,
-      loaded_module_spec: corpus.LoadedModuleSpec,
-      policy: Optional[policy_saver.Policy] = None,
-      reward_stat: Optional[Dict[str, RewardStat]] = None) -> CompilationResult:
+  def collect_data(self,
+                   loaded_module_spec: corpus.LoadedModuleSpec,
+                   policy: Optional[policy_saver.Policy] = None,
+                   reward_stat: Optional[Dict[str, RewardStat]] = None,
+                   model_id: Optional[int] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
       loaded_module_spec: a LoadedModuleSpec.
       policy: serialized policy.
       reward_stat: reward stat of this module, None if unknown.
+      model_id: id for the model used to collect data.
 
     Returns:
       A CompilationResult. In particular:
@@ -341,7 +345,8 @@ class CompilationRunner(Worker):
       final_cmd_line = loaded_module_spec.build_command_line(tempdir)
       tf_policy_path = ''
       if policy is not None:
-        tf_policy_path = os.path.join(tempdir, 'policy')
+        model_id_suffix = f'-{model_id}' if model_id is not None else ''
+        tf_policy_path = os.path.join(tempdir, 'policy' + model_id_suffix)
         policy.to_filesystem(tf_policy_path)
 
       if reward_stat is None:
@@ -388,7 +393,8 @@ class CompilationRunner(Worker):
         reward_stats=reward_stat,
         rewards=rewards,
         policy_rewards=policy_rewards,
-        keys=keys)
+        keys=keys,
+        model_id=model_id)
 
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,

@@ -108,7 +108,8 @@ def worker(policy_path: Optional[str],
         data = runner.collect_data(
             loaded_module_spec=loaded_module_spec,
             policy=policy,
-            reward_stat=None)
+            reward_stat=None,
+            model_id=0)
         if not m:
           results_queue.put(
               (loaded_module_spec.name, data.serialized_sequence_examples,

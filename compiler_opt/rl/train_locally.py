@@ -176,7 +176,8 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
 
       dataset_iter, monitor_dict = data_collector.collect_data(
           policy=policy_saver.Policy.from_filesystem(
-              os.path.join(policy_path, deploy_policy_name)))
+              os.path.join(policy_path, deploy_policy_name)),
+          model_id=llvm_trainer.global_step_numpy())
       llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
       data_collector.on_dataset_consumed(dataset_iter)

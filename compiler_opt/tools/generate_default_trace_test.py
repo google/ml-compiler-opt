@@ -36,7 +36,7 @@ flags.FLAGS['gin_bindings'].allow_override = True
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
 
-  def collect_data(self, loaded_module_spec, policy, reward_stat):
+  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
     sequence_example_text = """
       feature_lists {
         feature_list {
@@ -59,7 +59,8 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
         },
         rewards=[1.2],
         policy_rewards=[18],
-        keys=['default'])
+        keys=['default'],
+        model_id=model_id)
 
 
 class GenerateDefaultTraceTest(absltest.TestCase):
