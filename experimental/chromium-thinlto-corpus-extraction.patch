@@ -23,7 +23,7 @@ index 11c015b303..5f8213d4cf 100644
 @@ -141,6 +141,11 @@ declare_args() {
    # enables the ML inliner when targeting Android.
    # Currently the ML inliner is only supported on linux hosts
-   use_ml_inliner = host_os == "linux" && is_android
+   use_ml_inliner = false  # To enable: host_os == "linux" && is_android
 +
 +  # Set to true to enable output of ThinLTO index files used for training
 +  # ML models that can enhance characteristics of clang generated native
