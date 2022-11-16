@@ -150,10 +150,11 @@ def create_parser_fn(agent_name: constant.AgentName,
   return _parser_fn
 
 
-def create_flat_sequence_example_dataset_fn(agent_name: constant.AgentName,
-                                            time_step_spec: types.NestedSpec,
-                                            action_spec: types.NestedSpec,
-                                            is_greedy: bool = False):
+def create_flat_sequence_example_dataset_fn(
+    agent_name: constant.AgentName,
+    time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec,
+    is_greedy: bool = False) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   The dataset is "flat" insofar as it does not batch for sequence length nor
