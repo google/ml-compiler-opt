@@ -15,9 +15,10 @@ Strategies to train policies. Currently, this repository only support Policy
 Gradient training. The release of Evolution Strategies training is on our
 roadmap.
 
-Check out this [demo](docs/demo/demo.md) for an end-to-end demonstration of how
+Check out this [demo](docs/inlining-demo/demo.md) for an end-to-end demonstration of how
 to train your own inlining-for-size policy from the scratch with Policy
-Gradient.
+Gradient, or check out this [demo](docs/regalloc-demo/demo.md) for a demonstration of how
+to train your own regalloc-for-performance policy.
 
 For more details about MLGO, please refer to our paper
 [MLGO: a Machine Learning Guided Compiler Optimizations Framework](https://arxiv.org/abs/2101.04808).
