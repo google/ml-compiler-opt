@@ -27,7 +27,7 @@ For each policy we train, there should be a `config.py`, e.g. `compiler_opt/rl/i
 
 First and foremost, **you must regenerate the vocabulary** - technically you
 just need a vocab file for the new feature, but it's simpler to regenerate it
-all. See the [demo section](demo/demo.md#collect-trace-and-generate-vocab)
+all. See the [demo section](inlining-demo/demo.md#collect-trace-and-generate-vocab)
 
 **Note:** You only need to regenerate the vocabulary if the feature is going
 to be normalized by a preprocessing layer for your model. If your feature does
@@ -36,7 +36,7 @@ to regenerate the vocabulary and that your feature is added to the list
 returned by `get_nonnormalized_features()` in `config.py`. In either case,
 it is still quite simple and fast to just call the vocab generation again.
 
-After that, retrain from [scratch](demo/demo.md#train-a-new-model).
+After that, retrain from [scratch](inlining-demo/demo.md#train-a-new-model).
 
 ## Notes
 
