@@ -82,7 +82,7 @@ mode for LLVM.
 
 ## Docs
 
-An end-to-end [demo](docs/demo/demo.md) using Fuchsia as a codebase from which
+An end-to-end [demo](docs/inlining-demo/demo.md) using Fuchsia as a codebase from which
 we extract a corpus and train a model.
 
 [How to add a feature](docs/adding_features.md) guide.
