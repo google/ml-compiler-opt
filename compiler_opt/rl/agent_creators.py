@@ -27,6 +27,7 @@ from tf_agents.typing import types
 
 from compiler_opt.rl import constant
 from compiler_opt.rl import constant_value_network
+from compiler_opt.rl.distributed import agent as distributed_ppo_agent
 
 
 def _create_behavioral_cloning_agent(
@@ -81,6 +82,38 @@ def _create_ppo_agent(time_step_spec: types.NestedTensorSpec,
       value_net=critic_network)
 
 
+def _create_ppo_distributed_agent(
+    time_step_spec: types.NestedTensorSpec, action_spec: types.NestedTensorSpec,
+    preprocessing_layers: types.NestedLayer,
+    policy_network: types.Network) -> tf_agent.TFAgent:
+  """Creates a ppo_distributed agent."""
+  actor_network = policy_network(
+      time_step_spec.observation,
+      action_spec,
+      preprocessing_layers=preprocessing_layers,
+      preprocessing_combiner=tf.keras.layers.Concatenate(),
+      name='ActorDistributionNetwork')
+
+  critic_network = constant_value_network.ConstantValueNetwork(
+      time_step_spec.observation, name='ConstantValueNetwork')
+
+  return distributed_ppo_agent.MLGOPPOAgent(
+      time_step_spec,
+      action_spec,
+      optimizer=tf.keras.optimizers.Adam(learning_rate=4e-4, epsilon=1e-5),
+      actor_net=actor_network,
+      value_net=critic_network,
+      value_pred_loss_coef=0.0,
+      entropy_regularization=0.01,
+      importance_ratio_clipping=0.2,
+      discount_factor=1.0,
+      gradient_clipping=1.0,
+      debug_summaries=False,
+      value_clipping=None,
+      aggregate_losses_across_replicas=True,
+      loss_scaling_factor=1.0)
+
+
 @gin.configurable
 def create_agent(agent_name: constant.AgentName,
                  time_step_spec: types.NestedTensorSpec,
@@ -120,5 +153,8 @@ def create_agent(agent_name: constant.AgentName,
   elif agent_name == constant.AgentName.PPO:
     return _create_ppo_agent(time_step_spec, action_spec, preprocessing_layers,
                              policy_network)
+  elif agent_name == constant.AgentName.PPO_DISTRIBUTED:
+    return _create_ppo_distributed_agent(time_step_spec, action_spec,
+                                         preprocessing_layers, policy_network)
   else:
     raise ValueError(f'Unknown agent: {agent_name}')

@@ -1,0 +1,11 @@
+import compiler_opt.rl.distributed.ppo_train_lib
+
+include 'compiler_opt/rl/distributed/gin_configs/regalloc/common.gin'
+
+train.learning_rate = 3e-4
+train.per_replica_batch_size = %per_replica_batch_size
+train.num_epochs = %num_epochs
+train.num_iterations = %num_iterations
+train.num_episodes_per_iteration = %num_episodes_per_iteration
+train.sequence_length = %sequence_length
+train.summary_interval = 1024

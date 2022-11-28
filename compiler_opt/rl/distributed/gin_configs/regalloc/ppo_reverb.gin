@@ -1,0 +1,5 @@
+import compiler_opt.rl.distributed.ppo_reverb_server_lib
+
+include 'compiler_opt/rl/distributed/gin_configs/regalloc/common.gin'
+
+run_reverb_server.num_epochs = %num_epochs
