@@ -24,7 +24,7 @@ from tf_agents.typing import types
 from compiler_opt.rl import constant
 
 
-def _get_policy_info_parsing_dict(agent_name, action_spec, is_greedy):
+def _get_policy_info_parsing_dict(agent_name, action_spec):
   """Function to get parsing dict for policy info."""
   if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
     if tensor_spec.is_discrete(action_spec):
@@ -49,7 +49,7 @@ def _get_policy_info_parsing_dict(agent_name, action_spec, is_greedy):
 
 
 def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
-                                                 action_spec, is_greedy):
+                                                 action_spec):
   """Function to process parsed_sequence and to return policy_info.
 
   Args:
@@ -86,10 +86,9 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
     return ()
 
 
-def create_parser_fn(agent_name: constant.AgentName,
-                     time_step_spec: types.NestedSpec,
-                     action_spec: types.NestedSpec,
-                     is_greedy) -> Callable[[str], trajectory.Trajectory]:
+def create_parser_fn(
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
   Args:
@@ -121,7 +120,7 @@ def create_parser_fn(agent_name: constant.AgentName,
             shape=time_step_spec.reward.shape,
             dtype=time_step_spec.reward.dtype)
     sequence_features.update(
-        _get_policy_info_parsing_dict(agent_name, action_spec, is_greedy))
+        _get_policy_info_parsing_dict(agent_name, action_spec))
 
     # pylint: enable=g-complex-comprehension
     with tf.name_scope('parse'):
@@ -134,7 +133,7 @@ def create_parser_fn(agent_name: constant.AgentName,
       reward = tf.cast(parsed_sequence[time_step_spec.reward.name], tf.float32)
 
       policy_info = _process_parsed_sequence_and_get_policy_info(
-          parsed_sequence, agent_name, action_spec, is_greedy)
+          parsed_sequence, agent_name, action_spec)
 
       del parsed_sequence[time_step_spec.reward.name]
       del parsed_sequence[action_spec.name]
@@ -186,12 +185,9 @@ def create_flat_sequence_example_dataset_fn(
 
 
 def create_sequence_example_dataset_fn(
-    agent_name: constant.AgentName,
-    time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec,
-    batch_size: int,
-    train_sequence_length: int,
-    is_greedy: bool = False) -> Callable[[List[str]], tf.data.Dataset]:
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec, batch_size: int,
+    train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   Args:
@@ -254,8 +250,7 @@ def create_file_dataset_fn(
   shuffle_buffer_size = 1024
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec,
-                               is_greedy)
+  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
 
   def _file_dataset_fn(data_path):
     dataset = (
