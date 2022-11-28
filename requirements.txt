@@ -6,6 +6,7 @@ charset_normalizer==2.0.4
 cloudpickle==1.6.0
 decorator==5.0.9
 dm-tree==0.1.6
+dm-reverb[tensorflow]==0.9.0
 flatbuffers==2.0
 future==0.18.2
 gast==0.4.0
@@ -43,7 +44,7 @@ tf-estimator-nightly==2.11.0.dev2022082308
 tensorflow-io-gcs-filesystem-nightly==0.26.0.dev20220816191153
 tfp-nightly==0.17.0.dev20220823
 termcolor==1.1.0
-tf-agents-nightly==0.14.0.dev20220823
+tf-agents-nightly==0.15.0.dev20221122
 typing-extensions==4.0.1
 urllib3==1.26.6
 werkzeug==2.0.1
