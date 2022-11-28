@@ -57,7 +57,7 @@ def _get_policy_bytes(agent):
         os.path.join(tmpdirname, policy_key))
 
 
-class ReverbComplicationObserver(compilation_runner.CompilationResultObserver):
+class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
   """Observer which sends compilation results to reverb"""
 
   def __init__(self,
@@ -139,7 +139,7 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
 
   create_observer_fns = [
       functools.partial(
-          ReverbComplicationObserver,
+          ReverbCompilationObserver,
           time_step_spec=time_step_spec,
           action_spec=action_spec,
           replay_buffer_server_address=replay_buffer_server_address,
