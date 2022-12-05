@@ -4,6 +4,10 @@ import compiler_opt.rl.regalloc.regalloc_network
 
 config_registry.get_configuration.implementation=@configs.RegallocEvictionConfig
 
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+problem_config.flags_to_replace.replace_flags={}
+
 launcher_path=None
 clang_path=None
 
