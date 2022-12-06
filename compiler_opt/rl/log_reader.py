@@ -23,7 +23,7 @@ import dataclasses
 import json
 import math
 
-from typing import BinaryIO, Optional
+from typing import Any, BinaryIO, Dict, Generator, List, Optional
 
 _element_types = {
     'float': ctypes.c_float,
@@ -43,15 +43,15 @@ _element_types = {
 class TensorSpec:
   name: str
   port: int
-  shape: list[int]
+  shape: List[int]
   element_type: type
 
 
-def create_tensorspec(d: dict) -> TensorSpec:
-  name = d['name']
-  port = d['port']
-  shape = [int(e) for e in d['shape']]
-  element_type_str = d['type']
+def create_tensorspec(d: Dict[str, Any]) -> TensorSpec:
+  name: str = d['name']
+  port: int = int(d['port'])
+  shape: List[int] = [int(e) for e in d['shape']]
+  element_type_str: str = d['type']
   if element_type_str not in _element_types:
     raise ValueError(f'uknown type: {element_type_str}')
   return TensorSpec(
@@ -75,7 +75,14 @@ class TensorValue:
   def __init__(self, spec: TensorSpec, buffer: bytes):
     self._spec = spec
     self._buffer = buffer
-    self._view = ctypes.cast(self._buffer,
+    # c_char_p is a nul-terminated string, so the more appropriate cast here
+    # would be POINTER(c_char), but unfortunately, c_char_p is the only
+    # type that can be constructed from a `bytes`. To capture our intent,
+    # we cast the c_char_p to
+    buffer_as_nul_ending_ptr = ctypes.c_char_p(self._buffer)
+    buffer_as_naked_ptr = ctypes.cast(buffer_as_nul_ending_ptr,
+                                      ctypes.POINTER(ctypes.c_char))
+    self._view = ctypes.cast(buffer_as_naked_ptr,
                              ctypes.POINTER(self._spec.element_type))
     self._len = math.prod(self._spec.shape)
 
@@ -85,15 +92,17 @@ class TensorValue:
   def __len__(self) -> int:
     return self._len
 
-  def __getitem__(self, index):
+  def __getitem__(self, index: int):
     if index < 0 or index >= self._len:
       raise IndexError(f'Index {index} out of range [0..{self._len})')
-    return self._view[index]
+    # pytype believes `index` is an object, despite all the annotations to the
+    # contrary.
+    return self._view[index]  # pytype:disable=wrong-arg-types
 
 
 @dataclasses.dataclass(frozen=True)
 class Header:
-  features: list[TensorSpec]
+  features: List[TensorSpec]
   score: Optional[TensorSpec]
 
 
@@ -118,11 +127,16 @@ def pretty_print_tensor_value(tv: TensorValue):
 class Record:
   context: str
   observation_id: int
-  feature_values: list[TensorValue]
+  feature_values: List[TensorValue]
   score: Optional[TensorValue]
 
 
-def enumerate_log_from_stream(f: BinaryIO, header: Header):
+def enumerate_log_from_stream(f: BinaryIO,
+                              header: Header) -> Generator[Record, None, None]:
+  """A generator that returns Record objects from a log file.
+
+  It is assumed the log file's header was read separately.
+  """
   tensor_specs = header.features
   score_spec = header.score
   context = None

@@ -18,10 +18,16 @@ import ctypes
 import json
 from absl.testing import absltest
 from compiler_opt.rl import log_reader
+from typing import BinaryIO
 
 
 def json_to_bytes(d) -> bytes:
   return json.dumps(d).encode('utf-8')
+
+
+def write_buff(f: BinaryIO, buffer: list, ct):
+  # we should get the ctypes array to bytes for pytype to be happy.
+  f.write((ct * len(buffer))(*buffer))  # pytype:disable=wrong-arg-types
 
 
 def create_example(fname: str):
@@ -56,12 +62,12 @@ def create_example(fname: str):
     f.write(nl)
     f.write(json_to_bytes({'observation': 0}))
     f.write(nl)
-    f.write((ctypes.c_float * len(t0_val))(*t0_val))
-    f.write((ctypes.c_int64 * len(t1_val))(*t1_val))
+    write_buff(f, t0_val, ctypes.c_float)
+    write_buff(f, t1_val, ctypes.c_int64)
     f.write(nl)
     f.write(json_to_bytes({'outcome': 0}))
     f.write(nl)
-    f.write((ctypes.c_float * len(s))(*s))
+    write_buff(f, s, ctypes.c_float)
     f.write(nl)
 
     t0_val = [v + 1 for v in t0_val]
@@ -70,12 +76,12 @@ def create_example(fname: str):
 
     f.write(json_to_bytes({'observation': 1}))
     f.write(nl)
-    f.write((ctypes.c_float * len(t0_val))(*t0_val))
-    f.write((ctypes.c_int64 * len(t1_val))(*t1_val))
+    write_buff(f, t0_val, ctypes.c_float)
+    write_buff(f, t1_val, ctypes.c_int64)
     f.write(nl)
     f.write(json_to_bytes({'outcome': 1}))
     f.write(nl)
-    f.write((ctypes.c_float * len(s))(*s))
+    write_buff(f, s, ctypes.c_float)
 
 
 class LogReaderTest(absltest.TestCase):
