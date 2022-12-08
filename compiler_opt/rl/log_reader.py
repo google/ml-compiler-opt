@@ -14,6 +14,43 @@
 # limitations under the License.
 """Reader for the simple log format (non-protobuf).
 
+The "simple" log format consists of a sequence of one-line json strings and
+raw dump of tensor data - with the assumption that the endianness of the
+reader is the same as the endianness of the producer - as follows:
+
+header: this is a json object describing the feature tensors and the outcome
+tensor. The feature tensors are in an array - the order matters (as will become
+apparent).
+Example: {"features": [{tensor spec}, {tensor spec}], "score": {tensor spec}}
+
+The tensor spec is a json object:
+{"name":.., "port":... "shape":[..], "type":".."}
+
+context: this is a json object indicating the context the observations that
+follow refer to. Example: for inlining, the context is "default" (the module).
+For regalloc, the context is a function name.
+Example: {"context": "_ZNfoobar"}
+
+observation: this is a json object indicating that an observation - i.e. feature
+data - is following. It also contains the observation count (0, 1...)
+Example: {"observation": 0}
+
+A buffer containing the dump of tensor data, in the order given in the header,
+follows here. A new line terminates it - just so that the next json string
+appears at the beginning of the line, in case the log is opened with an editor
+(so just for debugging). The reader should use the header data to know how much
+data to read, and to which tensors it corresponds. The reader may not rely on
+the terminating \n as indicator, and should just assume it there and consume it
+upon finishing reading the tensor data.
+
+outcome: this is a json object indicating the score/reward data follows. It also
+has an id which should match that of the observation before (for debugging)
+Example: {"outcome": 0}
+
+A buffer containing the outcome tensor follows - same idea as for features.
+
+The above repeats - either a new observation follows, or a new context.
+
 Refer to (in llvm repo) to llvm/lib/Analysis/models/log_reader.py
 which is used there for testing.
 """
@@ -112,7 +149,7 @@ def read_tensor(fs: BinaryIO, ts: TensorSpec) -> TensorValue:
   return TensorValue(ts, data)
 
 
-def read_header(f: BinaryIO) -> Header:
+def _read_header(f: BinaryIO) -> Header:
   header = json.loads(f.readline())
   tensor_specs = [create_tensorspec(ts) for ts in header['features']]
   score_spec = create_tensorspec(header['score']) if 'score' in header else None
@@ -131,8 +168,8 @@ class Record:
   score: Optional[TensorValue]
 
 
-def enumerate_log_from_stream(f: BinaryIO,
-                              header: Header) -> Generator[Record, None, None]:
+def _enumerate_log_from_stream(f: BinaryIO,
+                               header: Header) -> Generator[Record, None, None]:
   """A generator that returns Record objects from a log file.
 
   It is assumed the log file's header was read separately.
@@ -161,3 +198,9 @@ def enumerate_log_from_stream(f: BinaryIO,
         observation_id=observation_id,
         feature_values=features,
         score=score)
+
+
+def read_log(fname: str) -> Generator[Record, None, None]:
+  with open(fname, 'rb') as f:
+    header = _read_header(f)
+    yield from _enumerate_log_from_stream(f, header)

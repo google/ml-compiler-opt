@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for compiler_opt.rl.local_data_collector."""
+"""Tests for compiler_opt.rl.log_reader."""
 
 import ctypes
 import json
@@ -105,7 +105,7 @@ class LogReaderTest(absltest.TestCase):
     tf = self.create_tempfile()
     create_example(tf)
     with open(tf, 'rb') as f:
-      header = log_reader.read_header(f)
+      header = log_reader._read_header(f)  # pylint:disable=protected-access
       self.assertEqual(header.features, [
           log_reader.TensorSpec(
               name='tensor_name2',
@@ -126,14 +126,12 @@ class LogReaderTest(absltest.TestCase):
   def test_read_log(self):
     tf = self.create_tempfile()
     create_example(tf)
-    with open(tf, 'rb') as f:
-      header = log_reader.read_header(f)
-      obs_id = 0
-      for record in log_reader.enumerate_log_from_stream(f, header):
-        self.assertEqual(record.observation_id, obs_id)
-        self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
-        obs_id += 1
-      self.assertEqual(obs_id, 2)
+    obs_id = 0
+    for record in log_reader.read_log(tf):
+      self.assertEqual(record.observation_id, obs_id)
+      self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
+      obs_id += 1
+    self.assertEqual(obs_id, 2)
 
 
 if __name__ == '__main__':
