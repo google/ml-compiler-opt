@@ -33,6 +33,7 @@ from tf_agents.replay_buffers import reverb_utils
 from tf_agents.train import learner
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
+from tf_agents.trajectories import trajectory
 
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
