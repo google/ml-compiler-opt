@@ -311,7 +311,8 @@ class CompilationRunner(Worker):
                launcher_path: Optional[str] = None,
                moving_average_decay_rate: float = 1,
                compilation_timeout=None,
-               create_observer_fns: Optional[List[Callable]] = None):
+               create_observer_fns: Optional[List[Callable[
+                   [], CompilationResultObserver]]] = None):
     """Initialization of CompilationRunner class.
 
     Args:
