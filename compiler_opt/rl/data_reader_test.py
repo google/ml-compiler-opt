@@ -47,9 +47,6 @@ def _define_sequence_example(agent_name, is_action_discrete):
         example.feature_lists.feature_list[
             'CategoricalProjectionNetwork_logits'].feature.add(
             ).float_list.value.extend([1.2, 3.4])
-        if agent_name == constant.AgentName.PPO_DISTRIBUTED:
-          example.feature_lists.feature_list['value_prediction'].feature.add(
-          ).float_list.value.extend([4.5])
       else:
         example.feature_lists.feature_list[
             'NormalProjectionNetwork_scale'].feature.add(
@@ -161,10 +158,6 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([[[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]],
                          [[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]]],
                         experience.policy_info['dist_params']['logits'])
-
-    if agent_name == constant.AgentName.PPO_DISTRIBUTED:
-      self.assertAllClose([[4.5, 4.5, 4.5], [4.5, 4.5, 4.5]],
-                          experience.policy_info['value_prediction'])
 
   @parameterized.named_parameters(
       ('SequenceExampleDatasetFn',
