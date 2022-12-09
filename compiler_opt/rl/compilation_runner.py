@@ -332,8 +332,8 @@ class CompilationRunner(Worker):
     self._compilation_timeout = (
         compilation_timeout or _COMPILATION_TIMEOUT.value)
     self._cancellation_manager = WorkerCancellationManager()
-    self._observers = [f() for f in create_observer_fns
-                      ] if create_observer_fns else []
+    self._observers = ([f() for f in create_observer_fns]
+                       if create_observer_fns else [])
 
   # re-allow the cancellation manager accept work.
   def enable(self):
