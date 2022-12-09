@@ -32,7 +32,7 @@ def _get_policy_info_parsing_dict(agent_name, action_spec):
           'CategoricalProjectionNetwork_logits':
               tf.io.FixedLenSequenceFeature(
                   shape=(action_spec.maximum - action_spec.minimum + 1),
-                  dtype=tf.float32),
+                  dtype=tf.float32)
       }
     else:
       return {
@@ -62,7 +62,7 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
       policy_info = {
           'dist_params': {
               'logits': parsed_sequence['CategoricalProjectionNetwork_logits']
-          },
+          }
       }
       del parsed_sequence['CategoricalProjectionNetwork_logits']
     else:
