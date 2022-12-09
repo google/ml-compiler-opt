@@ -28,16 +28,12 @@ def _get_policy_info_parsing_dict(agent_name, action_spec):
   """Function to get parsing dict for policy info."""
   if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
     if tensor_spec.is_discrete(action_spec):
-      parsing_dict = {
+      return {
           'CategoricalProjectionNetwork_logits':
               tf.io.FixedLenSequenceFeature(
                   shape=(action_spec.maximum - action_spec.minimum + 1),
                   dtype=tf.float32),
       }
-      if agent_name == constant.AgentName.PPO_DISTRIBUTED:
-        parsing_dict['value_prediction'] = tf.io.FixedLenSequenceFeature(
-            shape=(), dtype=tf.float32)
-      return parsing_dict
     else:
       return {
           'NormalProjectionNetwork_scale':
@@ -69,9 +65,6 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
           },
       }
       del parsed_sequence['CategoricalProjectionNetwork_logits']
-      if agent_name == constant.AgentName.PPO_DISTRIBUTED:
-        policy_info['value_prediction'] = parsed_sequence['value_prediction']
-        del parsed_sequence['value_prediction']
     else:
       policy_info = {
           'dist_params': {
