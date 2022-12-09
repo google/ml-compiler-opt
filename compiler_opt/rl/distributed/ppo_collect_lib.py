@@ -57,6 +57,10 @@ def _get_policy_bytes(agent):
         os.path.join(tmpdirname, policy_key))
 
 
+def _add_value_prediction(traj: trajectory.Trajectory):
+  traj.policy_info['value_prediction'] = tf.constant(0.0, dtype=tf.float32)
+
+
 class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
   """Observer which sends compilation results to reverb"""
 
@@ -97,6 +101,7 @@ class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
       self._observer._priority = result.model_id
       parsed = self._parser(result.serialized_sequence_examples)
       for experience in parsed:
+        _add_value_prediction(experience)
         self._observer(experience)
 
 
