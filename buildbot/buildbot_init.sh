@@ -61,7 +61,7 @@ ADMIN_PACKAGES="tmux"
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
         g++ \
-        cmake \
+        cmake/bullseye-backports \
         ccache \
         binutils-gold \
         binutils-dev \
