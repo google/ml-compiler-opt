@@ -26,7 +26,7 @@ from compiler_opt.rl import constant
 
 def _get_policy_info_parsing_dict(agent_name, action_spec):
   """Function to get parsing dict for policy info."""
-  if agent_name == constant.AgentName.PPO:
+  if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
     if tensor_spec.is_discrete(action_spec):
       return {
           'CategoricalProjectionNetwork_logits':
@@ -57,7 +57,7 @@ def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
   Returns:
     policy_info: A nested policy_info for given agent.
   """
-  if agent_name == constant.AgentName.PPO:
+  if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
     if tensor_spec.is_discrete(action_spec):
       policy_info = {
           'dist_params': {
@@ -140,6 +140,43 @@ def create_parser_fn(
   return _parser_fn
 
 
+def create_flat_sequence_example_dataset_fn(
+    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec) -> Callable[[List[str]], tf.data.Dataset]:
+  """Get a function that creates a dataset from serialized sequence examples.
+
+  The dataset is "flat" insofar as it does not batch for sequence length nor
+  batches.
+
+  Args:
+    agent_name: AgentName, enum type of the agent.
+    time_step_spec: time step spec of the optimization problem.
+    action_spec: action spec of the optimization problem.
+
+  Returns:
+    A callable that takes a list of serialized sequence examples and returns
+      a `tf.data.Dataset`.  Treating this dataset as an iterator yields batched
+      `trajectory.Trajectory` instances with shape `[...]`.
+  """
+  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
+
+  def _sequence_example_dataset_fn(sequence_examples):
+    # Data collector returns empty strings for corner cases, filter them out
+    # here.
+    # yapf: disable - Looks better hand formatted
+    dataset = (tf.data.Dataset
+                .from_tensor_slices(sequence_examples)
+                .filter(lambda string: tf.strings.length(string) > 0)
+                .map(parser_fn)
+                .filter(lambda traj: tf.size(traj.reward) > 2)
+                .unbatch()
+               )
+    # yapf: enable
+    return dataset
+
+  return _sequence_example_dataset_fn
+
+
 def create_sequence_example_dataset_fn(
     agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
     action_spec: types.NestedSpec, batch_size: int,
@@ -160,25 +197,18 @@ def create_sequence_example_dataset_fn(
   """
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
+  flat_sequence_example_dataset_fn = create_flat_sequence_example_dataset_fn(
+      agent_name, time_step_spec, action_spec)
 
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
     # here.
     # yapf: disable - Looks better hand formatted
-    dataset = (tf.data.Dataset
-                .from_tensor_slices(sequence_examples)
-                .filter(lambda string: tf.strings.length(string) > 0)
-                .map(parser_fn)
-                .filter(lambda traj: tf.size(traj.reward) > 2)
-                .unbatch()
-                .batch(train_sequence_length, drop_remainder=True)
-                .cache()
-                .shuffle(trajectory_shuffle_buffer_size)
-                .batch(batch_size, drop_remainder=True)
-               )
-    # yapf: enable
-    return dataset
+    dataset = flat_sequence_example_dataset_fn(sequence_examples)
+    return (dataset.batch(train_sequence_length, drop_remainder=True)
+                   .cache()
+                   .shuffle(trajectory_shuffle_buffer_size)
+                   .batch(batch_size, drop_remainder=True))
 
   return _sequence_example_dataset_fn
 
@@ -186,8 +216,11 @@ def create_sequence_example_dataset_fn(
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
 def create_file_dataset_fn(
-    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec, batch_size: int, train_sequence_length: int,
+    agent_name: constant.AgentName,
+    time_step_spec: types.NestedSpec,
+    action_spec: types.NestedSpec,
+    batch_size: int,
+    train_sequence_length: int,
     input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from files.
 

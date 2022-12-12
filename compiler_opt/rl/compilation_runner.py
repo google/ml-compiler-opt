@@ -21,7 +21,7 @@ import signal
 import subprocess
 import tempfile
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from absl import flags
 from absl import logging
@@ -276,6 +276,27 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
 
+class CompilationResultObserver(metaclass=abc.ABCMeta):
+  """Abstract base class used to observe compilation results.
+
+  This is indended for users who need to observe compilations while they are in
+  the distributed worker pool, rather than after they have been coalesced in
+  the collection script.
+  """
+
+  @abc.abstractmethod
+  def observe(self, result: CompilationResult) -> None:
+    """Observe a compilation result.
+
+    Note that this will be executed on the worker in the pool rather than on
+    the coordinator.
+
+    Args:
+      result: the compilation result to observe
+    """
+    pass
+
+
 class CompilationRunner(Worker):
   """Base class for collecting compilation data."""
 
@@ -289,13 +310,21 @@ class CompilationRunner(Worker):
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
                moving_average_decay_rate: float = 1,
-               compilation_timeout=None):
+               compilation_timeout=None,
+               create_observer_fns: Optional[List[Callable[
+                   [], CompilationResultObserver]]] = None):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
+      create_observer_fns: list of callables which are used to create
+        CompilationResultObserver objects. We pass the create callables instead
+        of the actual objects because the callables are "just code" and likely
+        able to be pickled/sent to the workers, whereas the observers might
+        contain non-picklable attributes, such as server connections. It is
+        typed as Optional[List[]] due to W0102 dangerous-default-value.
     """
     self._clang_path = clang_path
     self._launcher_path = launcher_path
@@ -304,6 +333,8 @@ class CompilationRunner(Worker):
     self._compilation_timeout = (
         compilation_timeout or _COMPILATION_TIMEOUT.value)
     self._cancellation_manager = WorkerCancellationManager()
+    self._observers = ([f() for f in create_observer_fns]
+                       if create_observer_fns else [])
 
   # re-allow the cancellation manager accept work.
   def enable(self):
@@ -388,13 +419,18 @@ class CompilationRunner(Worker):
       policy_rewards.append(policy_reward)
       keys.append(k)
 
-    return CompilationResult(
+    result = CompilationResult(
         sequence_examples=sequence_example_list,
         reward_stats=reward_stat,
         rewards=rewards,
         policy_rewards=policy_rewards,
         keys=keys,
         model_id=model_id)
+
+    for observer in self._observers:
+      observer.observe(result)
+
+    return result
 
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
