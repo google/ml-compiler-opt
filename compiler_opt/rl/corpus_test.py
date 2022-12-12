@@ -187,11 +187,12 @@ class CorpusTest(tf.test.TestCase):
         additional_flags=('-additional_flag={context.module_full_path}',))
     mod_spec = cps.module_specs[0]
     loaded_spec = cps.load_module_spec(mod_spec)
-    final_cmdline = loaded_spec.build_command_line('some/temp/dir')
+    corpdir2 = self.create_tempdir()
+    final_cmdline = loaded_spec.build_command_line(corpdir2)
+    bcpath = os.path.join(corpdir2, 'somename/input.bc')
     self.assertEqual(final_cmdline,
                      ('-cc1', r'-DMACRO(expr)=do {} while(0)', '-x', 'ir',
-                      'some/temp/dir/somename/input.bc',
-                      '-additional_flag=some/temp/dir/somename/input.bc'))
+                      bcpath, f'-additional_flag={bcpath}'))
 
   def test_cmd_override_thinlto(self):
     cps = corpus.create_corpus_for_testing(
