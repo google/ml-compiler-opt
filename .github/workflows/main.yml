@@ -38,13 +38,13 @@ jobs:
         task: [Typecheck, Lint, Yapf, Test]
         include:
           - task: Typecheck
-            cmd: pytype -j auto .
+            cmd: pipenv run pytype -j auto .
           - task: Lint
-            cmd: pylint --rcfile .pylintrc --recursive yes .
+            cmd: pipenv run pylint --rcfile .pylintrc --recursive yes .
           - task: Yapf
-            cmd: yapf . -drp
+            cmd: pipenv run yapf . -drp
           - task: Test
-            cmd: pytest
+            cmd: pipenv run pytest
     steps:
       - uses: actions/checkout@v3
       - name: Install Python With Cached pip Packages
@@ -53,12 +53,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: '**/requirements*.txt'
       - name: Install Python, no cache
         if: needs.Envvars.outputs.do_cache == '0'
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements-ci.txt -q
+      - run: |
+          pip3 install pipenv
+          pipenv sync --categories="packages dev-packages ci"
       - name: ${{ matrix.task }}
         run: ${{ matrix.cmd }}
