@@ -119,8 +119,8 @@ wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requi
 chown buildbot /tmp/requirements.txt
 
 # install the tf pip package for the AOT ("release" scenario).
-sudo -u buildbot python3 -m pip install --upgrade pip
-sudo -u buildbot python3 -m pip install --user -r /tmp/requirements.txt
+sudo -u buildbot python3 -m pip install pipenv
+sudo -u buildbot python3 -m pipenv sync --system
 python3 -m pip install buildbot-worker==2.9.0
 
 TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
