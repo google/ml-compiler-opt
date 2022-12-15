@@ -39,7 +39,7 @@ setuptools==57.4.0
 six==1.16.0
 tb-nightly==2.11.0a20220823
 tensorboard-plugin-wit==1.8.1
-tf-nightly==2.11.0.dev20220823
+tf-nightly==2.11.0.dev20221017
 tf-estimator-nightly==2.11.0.dev2022082308
 tensorflow-io-gcs-filesystem-nightly==0.26.0.dev20220816191153
 tfp-nightly==0.17.0.dev20220823
