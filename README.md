@@ -50,10 +50,10 @@ values for the flag could be:
 
 ## Prerequisites
 
-Currently, the assumption for the is:
+Currently, the assumptions for the system are:
 
 *   Recent Ubuntu distro, e.g. 20.04
-*   python 3.8.x
+*   python 3.8.x/3.9.x/3.10.x
 *   for local training, which is currently the only supported mode, we recommend
     a high-performance workstation (e.g. 96 hardware threads).
 
@@ -65,11 +65,24 @@ Training assumes a clang build with ML 'development-mode'. Please refer to:
 
 The model training - specific prerequisites are:
 
+Pipenv:
 ```shell
-pip3 install --user -r requirements.txt
+pip3 install pipenv
 ```
 
-Where `requirements.txt` is provided in the root of the repository.
+The actual dependencies:
+```shell
+pipenv sync --system
+```
+Note that the above command will only work from the root of the repository
+since it needs to have `Pipfile.lock` in the working directory at the time
+of execution.
+
+If you plan on doing development work, make sure you grab the development
+and CI categories of packages as well:
+```shell
+pipenv sync --system --categories "dev-packages ci"
+```
 
 Optionally, to run tests (run_tests.sh), you also need:
 
