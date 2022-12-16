@@ -124,10 +124,6 @@ sudo -u buildbot python3 -m pip install pipenv
 sudo -u buildbot python3 -m pipenv sync --system
 python3 -m pip install buildbot-worker==2.9.0
 
-# Issue #192: stopgap measure until we sort out this dependency on bullseye.
-python3 -m pip install importlib_metadata
-# End issue #192
-
 TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
