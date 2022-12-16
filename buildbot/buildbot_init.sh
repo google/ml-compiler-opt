@@ -113,10 +113,10 @@ else
   echo "NOT building TFLite - this is a release only bot."
 fi
 
-wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt -P /tmp \
-  || on_error "failed to get python requirements file"
-
-chown buildbot /tmp/requirements.txt
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile \
+  || on_error "failed to get Pipfile"
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile.lock \
+  || on_error "failed to get Pipfile.lock"
 
 # install the tf pip package for the AOT ("release" scenario).
 sudo -u buildbot python3 -m pip install pipenv
