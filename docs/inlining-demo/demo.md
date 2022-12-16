@@ -146,7 +146,7 @@ cd ${FUCHSIA_SRCDIR}
 python3 scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
 ```
 
-**NOTE 1**: The only flag specific to MLGO is `TENSORFLOW_C_LIB_PATH`.
+**NOTE 1**: The only flag specific to MLGO is `-C ${TFLITE_PATH}/tflite.cmake`.
 
 **NOTE 2**: Fuchsia's `clang/cmake/caches/Fuchsia-stage2.cmake` enables the new
 pass manager by default. This allows us to not need to require it explicitly at
@@ -368,7 +368,7 @@ your model. If you set the flag to `download`, then the latest compatible model
 release from github will be downloaded.
 
 **NOTE 2**: The only flag specific to MLGO is `TENSORFLOW_AOT_PATH`, which
-replaces `TENSORFLOW_C_LIB_PATH` used earlier.
+replaces `-C ${TFLITE_PATH}/tflite.cmake` used earlier.
 
 ```shell
 cd ${FUCHSIA_SRCDIR}
