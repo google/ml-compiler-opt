@@ -39,7 +39,8 @@ RUN mkdir /tflite
 WORKDIR /tflite
 COPY buildbot/build_tflite.sh ./
 RUN ./build_tflite.sh
-WORKDIR /
 COPY . /ml-compiler-opt
-RUN python3 -m pip install -r /ml-compiler-opt/requirements-dev.txt
+WORKDIR /ml-compiler-opt
+RUN pip3 install pipenv && pipenv sync --categories "packages dev-packages ci" --system && pipenv --clear
+WORKDIR /
 
