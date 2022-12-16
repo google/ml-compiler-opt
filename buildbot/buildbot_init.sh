@@ -53,7 +53,7 @@ ADMIN_PACKAGES="tmux"
       apt-get -qq -y update --allow-releaseinfo-change
 
       # Logs consume a lot of storage space.
-      apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
+      apt-get remove -qq -y --purge auditd puppet-agent
 
       apt-get install -qq -y \
         python3-distutils \
@@ -62,6 +62,7 @@ ADMIN_PACKAGES="tmux"
         $ADMIN_PACKAGES \
         g++ \
         cmake/bullseye-backports \
+        cmake-data/bullseye-backports \
         ccache \
         binutils-gold \
         binutils-dev \
