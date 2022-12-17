@@ -22,8 +22,10 @@ again.
 
 ## Code formatting
 
-Use `yapf` to format the submission before making a PR. yapf can be installed
-with `pip install yapf` and run on the entire repository with `yapf . -ir`.
+Use `yapf` to format the submission before making a PR. The version of yapf 
+that is used by this repository along with other development tools can be 
+installed with `pipenv sync --categories="dev-packages" --system` and run on 
+the entire repository with `yapf . -ir`.
 
 ## Code reviews
 

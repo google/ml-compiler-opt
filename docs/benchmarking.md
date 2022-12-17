@@ -30,7 +30,7 @@ tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C ~/tensorflow
 
 And make sure you have installed all of the necessary python packages:
 ```bash
-python3 -m pip install --user -r ml-compiler-opt/requirements.txt
+pipenv sync --categories "packages ci" --system
 ```
 
 ## Benchmarking the LLVM test suite
