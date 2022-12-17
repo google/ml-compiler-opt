@@ -131,8 +131,9 @@ Also make sure that you install the Python dependencies for the
 ml-compiler-opt repository:
 
 ```bash
-cd $WORKING_DIR
-pip3 install -r ml-compiler-opt/requirements.txt
+cd $WORKING_DIR/ml-compiler-opt
+pip3 install pipenv
+pipenv sync --system
 ```
 
 If you plan on doing development work on this checkout of ml-compiler-opt,
@@ -217,7 +218,8 @@ to get the Chromium compile working. Reinstalling using the ml-compiler-opt lock
 should work:
 
 ```bash
-pip3 install -r $WORKING_DIR/ml-compiler-opt/requirements.txt
+pip3 uninstall protobuf
+pipenv sync --system
 ```
 
 ## Building LLVM

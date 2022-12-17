@@ -105,10 +105,10 @@ dependency to compile LLVM in MLGO development mode.
 See also [the build bot script](../../buildbot/buildbot_init.sh)
 
 ```shell
-cd
+cd ~/ml-compiler-opt
 sudo apt-get install python3-pip
-python3 -m pip install --upgrade pip
-python3 -m pip install --user -r ml-compiler-opt/requirements.txt
+pip3 install pipenv
+pipenv sync --system
 
 TF_PIP=$(python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
