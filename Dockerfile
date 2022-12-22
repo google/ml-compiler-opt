@@ -1,7 +1,7 @@
 FROM python:3.9
 
-COPY . /ml-compiler-opt
 WORKDIR /ml-compiler-opt
+COPY . .
 RUN pip install pipenv && pipenv sync --system && pipenv --clear
 
 WORKDIR /ml-compiler-opt/compiler_opt/tools
