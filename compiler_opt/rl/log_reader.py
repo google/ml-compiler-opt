@@ -144,7 +144,6 @@ class TensorValue:
     self._len = slots['_len']
     self._set_view()
 
-
   def __len__(self) -> int:
     return self._len
 

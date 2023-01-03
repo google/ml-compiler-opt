@@ -138,11 +138,11 @@ class LogReaderTest(absltest.TestCase):
     tf = self.create_tempfile()
     create_example(tf)
     records = list(log_reader.read_log(tf))
-    r1:log_reader.Record = records[0]
+    r1: log_reader.Record = records[0]
     fv = r1.feature_values[0]
     s = pickle.dumps(fv)
     self.assertEqual(len(s), 157)
-    o:log_reader.Record = pickle.loads(s)
+    o: log_reader.Record = pickle.loads(s)
     self.assertEqual(len(fv), len(o))
     for i in range(len(fv)):
       self.assertEqual(fv[i], o[i])
