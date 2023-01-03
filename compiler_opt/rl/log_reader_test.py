@@ -16,6 +16,7 @@
 
 import ctypes
 import json
+import pickle
 from absl.testing import absltest
 from compiler_opt.rl import log_reader
 from typing import BinaryIO
@@ -132,6 +133,19 @@ class LogReaderTest(absltest.TestCase):
       self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
       obs_id += 1
     self.assertEqual(obs_id, 2)
+
+  def test_pickling(self):
+    tf = self.create_tempfile()
+    create_example(tf)
+    records = list(log_reader.read_log(tf))
+    r1:log_reader.Record = records[0]
+    fv = r1.feature_values[0]
+    s = pickle.dumps(fv)
+    self.assertEqual(len(s), 157)
+    o:log_reader.Record = pickle.loads(s)
+    self.assertEqual(len(fv), len(o))
+    for i in range(len(fv)):
+      self.assertEqual(fv[i], o[i])
 
 
 if __name__ == '__main__':

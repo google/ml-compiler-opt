@@ -108,10 +108,15 @@ class TensorValue:
 
   Endianness is assumed to be the same as the log producer's.
   """
+  __slots__ = ('_buffer', '_elem_type', '_len', '_view')
 
   def __init__(self, spec: TensorSpec, buffer: bytes):
-    self._spec = spec
     self._buffer = buffer
+    self._elem_type = spec.element_type
+    self._len = math.prod(spec.shape)
+    self._set_view()
+
+  def _set_view(self):
     # c_char_p is a nul-terminated string, so the more appropriate cast here
     # would be POINTER(c_char), but unfortunately, c_char_p is the only
     # type that can be constructed from a `bytes`. To capture our intent,
@@ -120,11 +125,25 @@ class TensorValue:
     buffer_as_naked_ptr = ctypes.cast(buffer_as_nul_ending_ptr,
                                       ctypes.POINTER(ctypes.c_char))
     self._view = ctypes.cast(buffer_as_naked_ptr,
-                             ctypes.POINTER(self._spec.element_type))
-    self._len = math.prod(self._spec.shape)
+                             ctypes.POINTER(self._elem_type))
 
-  def spec(self) -> TensorSpec:
-    return self._spec
+  def __getstate__(self):
+    # _view wouldn't be picklable because it's a pointer. It's easily
+    # recreatable when un-pickling.
+    return (None, {
+        '_buffer': self._buffer,
+        '_view': None,
+        '_len': self._len,
+        '_elem_type': self._elem_type
+    })
+
+  def __setstate__(self, state):
+    _, slots = state
+    self._buffer = slots['_buffer']
+    self._elem_type = slots['_elem_type']
+    self._len = slots['_len']
+    self._set_view()
+
 
   def __len__(self) -> int:
     return self._len
