@@ -142,7 +142,7 @@ class LogReaderTest(absltest.TestCase):
     fv = r1.feature_values[0]
     s = pickle.dumps(fv)
     self.assertEqual(len(s), 157)
-    o: log_reader.Record = pickle.loads(s)
+    o: log_reader.TensorValue = pickle.loads(s)
     self.assertEqual(len(fv), len(o))
     for i in range(len(fv)):
       self.assertEqual(fv[i], o[i])
