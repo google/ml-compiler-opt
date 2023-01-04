@@ -14,6 +14,7 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.policy_saver."""
 
+import filecmp
 import json
 import os
 
@@ -113,6 +114,8 @@ class PolicySaverTest(tf.test.TestCase):
     for sub_dir in ['saved_policy', 'saved_collect_policy']:
       self.assertTrue(
           tf.io.gfile.exists(os.path.join(root_dir, sub_dir, 'saved_model.pb')))
+      self.assertTrue(
+          tf.io.gfile.exists(os.path.join(root_dir, sub_dir, 'model.tflite')))
       self.assertTrue(
           tf.io.gfile.exists(
               os.path.join(root_dir, sub_dir,

@@ -15,9 +15,10 @@ Strategies to train policies. Currently, this repository only support Policy
 Gradient training. The release of Evolution Strategies training is on our
 roadmap.
 
-Check out this [demo](docs/demo/demo.md) for an end-to-end demonstration of how
+Check out this [demo](docs/inlining-demo/demo.md) for an end-to-end demonstration of how
 to train your own inlining-for-size policy from the scratch with Policy
-Gradient.
+Gradient, or check out this [demo](docs/regalloc-demo/demo.md) for a demonstration of how
+to train your own regalloc-for-performance policy.
 
 For more details about MLGO, please refer to our paper
 [MLGO: a Machine Learning Guided Compiler Optimizations Framework](https://arxiv.org/abs/2101.04808).
@@ -49,10 +50,10 @@ values for the flag could be:
 
 ## Prerequisites
 
-Currently, the assumption for the is:
+Currently, the assumptions for the system are:
 
 *   Recent Ubuntu distro, e.g. 20.04
-*   python 3.8.x
+*   python 3.8.x/3.9.x/3.10.x
 *   for local training, which is currently the only supported mode, we recommend
     a high-performance workstation (e.g. 96 hardware threads).
 
@@ -64,11 +65,24 @@ Training assumes a clang build with ML 'development-mode'. Please refer to:
 
 The model training - specific prerequisites are:
 
+Pipenv:
 ```shell
-pip3 install --user -r requirements.txt
+pip3 install pipenv
 ```
 
-Where `requirements.txt` is provided in the root of the repository.
+The actual dependencies:
+```shell
+pipenv sync --system
+```
+Note that the above command will only work from the root of the repository
+since it needs to have `Pipfile.lock` in the working directory at the time
+of execution.
+
+If you plan on doing development work, make sure you grab the development
+and CI categories of packages as well:
+```shell
+pipenv sync --system --categories "dev-packages ci"
+```
 
 Optionally, to run tests (run_tests.sh), you also need:
 
@@ -81,7 +95,7 @@ mode for LLVM.
 
 ## Docs
 
-An end-to-end [demo](docs/demo/demo.md) using Fuchsia as a codebase from which
+An end-to-end [demo](docs/inlining-demo/demo.md) using Fuchsia as a codebase from which
 we extract a corpus and train a model.
 
 [How to add a feature](docs/adding_features.md) guide.

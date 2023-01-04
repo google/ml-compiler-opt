@@ -16,21 +16,25 @@
 
 # pylint: disable=protected-access
 import collections
-
 import string
 import sys
+from typing import List, Tuple
 
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import text_format  # pytype: disable=pyi-error
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
+from compiler_opt.rl import policy_saver
 
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import text_format  # pytype: disable=pyi-error
+_policy_str = 'policy'.encode(encoding='utf-8')
+
+_mock_policy = policy_saver.Policy(output_spec=bytes(), policy=_policy_str)
 
 
 def _get_sequence_example(feature_value):
@@ -47,9 +51,10 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
-  assert module_spec.name == 'dummy'
-  assert tf_policy_dir == 'policy'
+def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
+                      reward_stat, model_id):
+  assert loaded_module_spec.name.startswith('dummy')
+  assert policy.policy == _policy_str
   assert reward_stat is None or reward_stat == {
       'default':
           compilation_runner.RewardStat(
@@ -64,7 +69,9 @@ def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
                     default_reward=1, moving_average_reward=2)
         },
         rewards=[1.2],
-        keys=['default'])
+        policy_rewards=[36],
+        keys=['default'],
+        model_id=model_id)
   else:
     return compilation_runner.CompilationResult(
         sequence_examples=[_get_sequence_example(feature_value=2)],
@@ -74,25 +81,52 @@ def mock_collect_data(module_spec, tf_policy_dir, reward_stat):
                     default_reward=1, moving_average_reward=3)
         },
         rewards=[3.4],
-        keys=['default'])
+        policy_rewards=[18],
+        keys=['default'],
+        model_id=model_id)
 
 
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, module_spec, tf_policy_path, reward_stat):
-    _ = module_spec, tf_policy_path, reward_stat
+  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
+    _ = loaded_module_spec, policy, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
 
     return compilation_runner.CompilationResult(
-        sequence_examples=[], reward_stats={}, rewards=[], keys=[])
+        sequence_examples=[],
+        reward_stats={},
+        rewards=[],
+        policy_rewards=[],
+        keys=[],
+        model_id=model_id)
 
 
 class MyRunner(compilation_runner.CompilationRunner):
 
   def collect_data(self, *args, **kwargs):
     return mock_collect_data(*args, **kwargs)
+
+
+class DeterministicSampler(corpus.Sampler):
+  """A corpus sampler that returns modules in order, and can also be reset."""
+
+  def __init__(self):
+    self._cur_pos = 0
+
+  def __call__(self,
+               module_specs: Tuple[corpus.ModuleSpec],
+               k: int,
+               n: int = 20) -> List[corpus.ModuleSpec]:
+    ret = []
+    for _ in range(k):
+      ret.append(module_specs[self._cur_pos % len(module_specs)])
+      self._cur_pos += 1
+    return ret
+
+  def reset(self):
+    self._cur_pos = 0
 
 
 class LocalDataCollectorTest(tf.test.TestCase):
@@ -114,15 +148,29 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
       return _test_iterator_fn
 
-    with LocalWorkerPool(worker_class=MyRunner, count=4) as lwp:
+    sampler = DeterministicSampler()
+    with LocalWorkerPoolManager(worker_class=MyRunner, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          module_specs=[corpus.ModuleSpec(name='dummy')] * 100,
+          cps=corpus.create_corpus_for_testing(
+              location=self.create_tempdir(),
+              elements=[
+                  corpus.ModuleSpec(name=f'dummy{i}', size=i)
+                  for i in range(100)
+              ],
+              sampler=sampler),
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
-          reward_stat_map=collections.defaultdict(lambda: None))
+          reward_stat_map=collections.defaultdict(lambda: None),
+          best_trajectory_repo=None)
 
-      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      # reset the sampler, so the next time we collect, we collect the same
+      # modules. We do it before the collect_data call, because that's when
+      # we'll re-sample to prefetch the next batch.
+      sampler.reset()
+
+      data_iterator, monitor_dict = collector.collect_data(
+          policy=_mock_policy, model_id=0)
       data = list(data_iterator)
       self.assertEqual([1, 2, 3], data)
       expected_monitor_dict_subset = {
@@ -140,9 +188,10 @@ class LocalDataCollectorTest(tf.test.TestCase):
             **monitor_dict,
             **expected_monitor_dict_subset
         })
-
-      data_iterator, monitor_dict = collector.collect_data(policy_path='policy')
+      data_iterator, monitor_dict = collector.collect_data(
+          policy=_mock_policy, model_id=0)
       data = list(data_iterator)
+      # because we reset the sampler, these are the same modules
       self.assertEqual([4, 5, 6], data)
       expected_monitor_dict_subset = {
           'default': {
@@ -175,18 +224,24 @@ class LocalDataCollectorTest(tf.test.TestCase):
       def wait(self, _):
         return False
 
-    with LocalWorkerPool(worker_class=Sleeper, count=4) as lwp:
+    with LocalWorkerPoolManager(worker_class=Sleeper, count=4) as lwp:
       collector = local_data_collector.LocalDataCollector(
-          module_specs=[corpus.ModuleSpec(name='dummy')] * 200,
+          cps=corpus.create_corpus_for_testing(
+              location=self.create_tempdir(),
+              elements=[
+                  corpus.ModuleSpec(name=f'dummy{i}', size=1)
+                  for i in range(200)
+              ]),
           num_modules=4,
           worker_pool=lwp,
           parser=parser,
           reward_stat_map=collections.defaultdict(lambda: None),
+          best_trajectory_repo=None,
           exit_checker_ctor=QuickExiter)
-      collector.collect_data(policy_path='policy')
+      collector.collect_data(policy=_mock_policy, model_id=0)
       collector._join_pending_jobs()
       killed = 0
-      for _, w in collector._current_work:
+      for w in collector._current_futures:
         self.assertRaises(compilation_runner.ProcessKilledError, w.result)
         killed += 1
       self.assertEqual(killed, 4)

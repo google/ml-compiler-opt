@@ -14,6 +14,9 @@
 # limitations under the License.
 r"""Combine multiple training corpus into a single training corpus.
 
+Currently only support the case that multiple corpus share the same
+configurables except the "modules" field.
+
 Usage: we'd like to combine training corpus corpus1 and corpus2 into
 combinedcorpus; we first structure the files as follows:
 
@@ -27,10 +30,11 @@ python3 \
 compiler_opt/tools/combine_training_corpus.py \
   --root_dir=$PATH_TO_combinedcorpus
 
-generates combinedcorpus/module_path file. In this way corpus1 and
-corpus2 are combined into combinedcorpus.
+generates combinedcorpus/corpus_description.json file. In this way corpus1
+and corpus2 are combined into combinedcorpus.
 """
 
+import json
 import os
 
 from absl import app
@@ -43,7 +47,7 @@ flags.DEFINE_string('root_dir', '', 'root dir of module paths to combine.')
 
 FLAGS = flags.FLAGS
 
-_FILE_NAME = 'module_paths'
+_FILE_NAME = 'corpus_description.json'
 
 
 def main(argv):
@@ -51,6 +55,7 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
 
   module_names = []
+  output_corpus_description = {}
 
   for sub_dir in tf.io.gfile.listdir(FLAGS.root_dir):
     path = os.path.join(FLAGS.root_dir, sub_dir, _FILE_NAME)
@@ -62,12 +67,20 @@ def main(argv):
       continue
 
     with tf.io.gfile.GFile(path, 'r') as f:
-      module_names.extend(
-          [os.path.join(sub_dir, name.rstrip('\n')) for name in f])
+      corpus_description = json.load(f)
+      module_names.extend([
+          os.path.join(sub_dir, name) for name in corpus_description['modules']
+      ])
+      del corpus_description['modules']
+      if len(output_corpus_description) == 0:
+        output_corpus_description = corpus_description
+      elif corpus_description != output_corpus_description:
+        raise ValueError('Input corpora differ more than modules.')
+
+  output_corpus_description['modules'] = module_names
 
   with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
-    for module in module_names:
-      f.write(module + '\n')
+    json.dump(output_corpus_description, f, indent=2)
 
 
 if __name__ == '__main__':

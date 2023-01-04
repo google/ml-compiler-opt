@@ -30,7 +30,6 @@ PYTHONPATH=$PYTHONPATH:. python3 \
   --llvm_build_path=/llvm-build \
   --compile_llvm \
   --model_path=/tmp/model \
-  --tensorflow_c_lib_path=/tmp/tensorflow \
   --chromium_build_path=./out/Release \
   --output_file=./output.json \
   --perf_counters=mem_uops_retired.all_loads \
@@ -58,10 +57,16 @@ from typing import List, Dict, Union
 
 FLAGS = flags.FLAGS
 
+test_prefix = './compiler_opt/benchmark/chromium_test_descriptions/'
+
+test_description_files = [
+    'base_perftests.json', 'browser_tests.json', 'components_perftests.json',
+    'base_unittests.json', 'cc_unittests.json', 'components_unittests.json',
+    'content_unittests.json'
+]
+
 default_test_descriptions = [
-    './compiler_opt/tools/chromium_test_descriptions/base_perftests.json',
-    './compiler_opt/tools/chromium_test_descriptions/browser_tests.json',
-    './compiler_opt/tools/chromium_test_descriptions/components_perftests.json'
+    f'{test_prefix}{test_dsc}' for test_dsc in test_description_files
 ]
 
 flags.DEFINE_multi_string(
@@ -89,9 +94,6 @@ flags.DEFINE_string('llvm_source_path', '/llvm-project',
                     'The root path of your local llvm-project checkout')
 flags.DEFINE_string('model_path', '',
                     'The path to the model to use when compiling llvm')
-flags.DEFINE_string(
-    'tensorflow_c_lib_path', '/tmp/tensorflow',
-    'The path to an extracted copy of the tensorflow c library')
 flags.DEFINE_string(
     'chromium_build_path', './out/Release',
     'The chromium build path, relative to the chromium source'
@@ -210,8 +212,7 @@ def main(_):
 
   if FLAGS.compile_llvm:
     benchmarking_utils.build_llvm(FLAGS.model_path, FLAGS.llvm_use_incremental,
-                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path,
-                                  FLAGS.tensorflow_c_lib_path)
+                                  FLAGS.llvm_build_path, FLAGS.llvm_source_path)
 
   if FLAGS.compile_tests:
     build_chromium_tests(FLAGS.advisor, FLAGS.chromium_build_path,

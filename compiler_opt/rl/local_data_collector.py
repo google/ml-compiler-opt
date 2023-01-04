@@ -16,17 +16,19 @@
 
 import concurrent.futures
 import itertools
-import random
 import time
-from typing import Callable, Dict, Iterator, List, Tuple, Optional
+from typing import Callable, Dict, Iterator, List, Optional, Tuple
 
 from absl import logging
 from tf_agents.trajectories import trajectory
 
 from compiler_opt.distributed import worker
+from compiler_opt.distributed import buffered_scheduler
+from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_collector
+from compiler_opt.rl import policy_saver
 
 
 class LocalDataCollector(data_collector.DataCollector):
@@ -34,35 +36,56 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def __init__(
       self,
-      module_specs: List[corpus.ModuleSpec],
+      cps: corpus.Corpus,
       num_modules: int,
-      worker_pool: List[compilation_runner.CompilationRunnerStub],
+      worker_pool: worker.WorkerPool,
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
+      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo],
       exit_checker_ctor=data_collector.EarlyExitChecker):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
 
-    self._module_specs = module_specs
+    self._corpus = cps
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
+    self._workers: List[
+        compilation_runner
+        .CompilationRunnerStub] = self._worker_pool.get_currently_active()
     self._reward_stat_map = reward_stat_map
+    self._best_trajectory_repo = best_trajectory_repo
     self._exit_checker_ctor = exit_checker_ctor
     # _reset_workers is a future that resolves when post-data collection cleanup
     # work completes, i.e. cancelling all work and re-enabling the workers.
     # We remove this activity from the critical path by running it concurrently
     # with the training phase - i.e. whatever happens between successive data
     # collection calls. Subsequent runs will wait for these to finish.
-    self._reset_workers: concurrent.futures.Future = None
-    self._current_work: List[Tuple[corpus.ModuleSpec, worker.WorkerFuture]] = []
+    self._reset_workers: Optional[concurrent.futures.Future] = None
+    self._current_futures: List[worker.WorkerFuture] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
+    self._prefetch_pool = concurrent.futures.ThreadPoolExecutor()
+    self._next_sample: List[
+        concurrent.futures.Future] = self._prefetch_next_sample()
+
+  def _prefetch_next_sample(self):
+    t1 = time.time()
+    sample = self._corpus.sample(k=self._num_modules, sort=False)
+    ret = [
+        self._prefetch_pool.submit(self._corpus.load_module_spec, element)
+        for element in sample
+    ]
+    logging.info('prefetching took %d', time.time() - t1)
+    return ret
 
   def close_pool(self):
     self._join_pending_jobs()
-    for p in self._worker_pool:
+    # if the pool lost some workers, that's fine - we don't need to tell them
+    # anything anymore. To the new ones, the call is redundant (fine).
+    for p in self._workers:
       p.cancel_all_work()
+    self._workers = None
     self._worker_pool = None
 
   def _join_pending_jobs(self):
@@ -78,28 +101,35 @@ class LocalDataCollector(data_collector.DataCollector):
                  time.time() - t1)
 
   def _schedule_jobs(
-      self, policy_path: str, sampled_modules: List[corpus.ModuleSpec]
+      self, policy: policy_saver.Policy, model_id: int,
+      sampled_modules: List[corpus.LoadedModuleSpec]
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
-    jobs = [(module_spec, policy_path, self._reward_stat_map[module_spec.name])
-            for module_spec in sampled_modules]
+    jobs = [(loaded_module_spec, policy,
+             self._reward_stat_map[loaded_module_spec.name])
+            for loaded_module_spec in sampled_modules]
 
-    # Naive load balancing.
-    ret = []
-    for i in range(len(jobs)):
-      ret.append(self._worker_pool[i % len(self._worker_pool)].collect_data(
-          *(jobs[i])))
-    return ret
+    def work_factory(job):
+
+      def work(w: compilation_runner.CompilationRunnerStub):
+        return w.collect_data(*job, model_id=model_id)
+
+      return work
+
+    work = [work_factory(job) for job in jobs]
+    self._workers = self._worker_pool.get_currently_active()
+    return buffered_scheduler.schedule(
+        work, self._workers, self._worker_pool.get_worker_concurrency())
 
   def collect_data(
-      self, policy_path: str
+      self, policy: policy_saver.Policy, model_id: int
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
-      policy_path: the path to the policy directory to collect data with.
+      policy: a policy_saver.Policy object to collect data with.
 
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
@@ -108,23 +138,28 @@ class LocalDataCollector(data_collector.DataCollector):
       They will be reported using `tf.scalar.summary` by the trainer so these
       information is viewable in TensorBoard.
     """
-    sampled_modules = random.sample(self._module_specs, k=self._num_modules)
-    results = self._schedule_jobs(policy_path, sampled_modules)
+    time1 = time.time()
+    sampled_modules: List[corpus.LoadedModuleSpec] = [
+        s.result() for s in self._next_sample
+    ]
+    logging.info('resolving prefetched sample took: %d seconds',
+                 time.time() - time1)
+    self._next_sample = self._prefetch_next_sample()
+    self._current_futures = self._schedule_jobs(policy, model_id,
+                                                sampled_modules)
 
     def wait_for_termination():
       early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
 
       def get_num_finished_work():
-        finished_work = sum(res.done() for res in results)
+        finished_work = sum(res.done() for res in self._current_futures)
         return finished_work
 
       return early_exit.wait(get_num_finished_work)
 
     wait_seconds = wait_for_termination()
-    self._current_work = list(zip(sampled_modules, results))
-    finished_work = [
-        (spec, res) for spec, res in self._current_work if res.done()
-    ]
+    current_work = list(zip(sampled_modules, self._current_futures))
+    finished_work = [(spec, res) for spec, res in current_work if res.done()]
     successful_work = [(spec, res.result())
                        for spec, res in finished_work
                        if not worker.get_exception(res)]
@@ -135,13 +170,13 @@ class LocalDataCollector(data_collector.DataCollector):
 
     # signal whatever work is left to finish, and re-enable workers.
     def wrapup():
-      cancel_futures = [wkr.cancel_all_work() for wkr in self._worker_pool]
+      cancel_futures = [wkr.cancel_all_work() for wkr in self._workers]
       worker.wait_for(cancel_futures)
       # now that the workers killed pending compilations, make sure the workers
       # drained their working queues first - they should all complete quickly
       # since the cancellation manager is killing immediately any process starts
-      worker.wait_for(results)
-      worker.wait_for([wkr.enable() for wkr in self._worker_pool])
+      worker.wait_for(self._current_futures)
+      worker.wait_for([wkr.enable() for wkr in self._workers])
 
     self._reset_workers = self._pool.submit(wrapup)
 
@@ -151,6 +186,15 @@ class LocalDataCollector(data_collector.DataCollector):
     total_trajectory_length = sum(res.length for (_, res) in successful_work)
     self._reward_stat_map.update(
         {spec.name: res.reward_stats for (spec, res) in successful_work})
+
+    if self._best_trajectory_repo is not None:
+      for spec, res in successful_work:
+        module_name = spec.name
+        for (identifier, reward,
+             sequence_example) in zip(res.keys, res.policy_rewards,
+                                      res.serialized_sequence_examples):
+          self._best_trajectory_repo.update_if_better_trajectory(
+              module_name, identifier, reward, sequence_example)
 
     monitor_dict = {}
     monitor_dict['default'] = {

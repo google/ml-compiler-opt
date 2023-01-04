@@ -74,19 +74,9 @@ cipd install fuchsia/sysroot/linux-amd64 latest -root ${SYSROOT_DIR}/linux-x64
 ## Set up the correct package versions
 
 We need to make sure the git revision of llvm is one that works with the version
-of the Fuchsia tree. Note that Fuchsia frequently updates their llvm dependency,
-which should mean you could try working at HEAD for both, but the method here is
-safe.
+of the Fuchsia tree.
 
-*Optionally, you can get Fuchsia to the version we used we wrote this guide:*
-
-```
-cd ${FUCHSIA_SRCDIR}
-jiri update -gc ~/ml-compiler-opt/docs/demo/fuchsia.xml
-```
-
-Either way - i.e. you can skip the step above to be at Fuchsia HEAD - to get the
-git hash at which we know this version of Fuchsia will build, do:
+To get the git hash at which we know this version of Fuchsia will build, do:
 
 ```
 cd ${FUCHSIA_SRCDIR}
@@ -108,35 +98,26 @@ This is this repository.
 
 ### Tensorflow dependencies
 
+We need to install all of the Python dependencies for this repository, setup
+some environment variables for the AOT compiler, and also build the TFLite
+dependency to compile LLVM in MLGO development mode.
+
 See also [the build bot script](../../buildbot/buildbot_init.sh)
 
-**NOTE:** The versioning of Tensorflow is pretty important in order to get a
-functioning build with the demo setup. Building with a Tensorflow pip
-package above v2.7.0 will cause the build to fail as well as building with
-a libtensorflow version above v1.15.x. Versions of the Tensorflow pip package
-under v2.8.0 don't have any available wheels for Python 3.10, so if you
-are on a more recent distro (eg Ubuntu 22.04) that has Python 3.10, you will
-run into version compatibility issues between the required Tensorflow version
-and the available Python version (pip will refuse to install Tensorflow) trying
-to install the required python packages from `ml-compiler-opt/requirements.txt`.
-To mitigate this, either use a distro with a compatible python version
-(eg Ubuntu 20.04), or your preferred flavor of python virtual environment
-to utilize a compatible Python version.
-
 ```shell
-cd
+cd ~/ml-compiler-opt
 sudo apt-get install python3-pip
-python3 -m pip install --upgrade pip
-python3 -m pip install --user -r ml-compiler-opt/requirements.txt
+pip3 install pipenv
+pipenv sync --system
 
 TF_PIP=$(python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
 
-mkdir ~/tensorflow
-export TENSORFLOW_C_LIB_PATH=~/tensorflow
-wget --quiet https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
-tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH}"
+export TFLITE_PATH=~/tflite
+mkdir ${TFLITE_PATH}
+cd ${TFLITE_PATH}
+~/ml-compiler-opt/buildbot/build_tflite.sh
 ```
 
 ## Build LLVM
@@ -144,7 +125,7 @@ tar xfz libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz -C "${TENSORFLOW_C_LIB_PATH
 Build LLVM with the 'development' ML mode, and additional
 Fuchsia-specific settings:
 
-```
+```shell
 cd ${LLVM_SRCDIR}
 mkdir build
 cd build
@@ -154,9 +135,9 @@ cmake -G Ninja \
   -DLINUX_aarch64-unknown-linux-gnu_SYSROOT=${SYSROOT_DIR}/linux-arm64 \
   -DFUCHSIA_SDK=${IDK_DIR} \
   -DCMAKE_INSTALL_PREFIX= \
-  -DTENSORFLOW_C_LIB_PATH=${TENSORFLOW_C_LIB_PATH} \
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=On \
   -C ${LLVM_SRCDIR}/clang/cmake/caches/Fuchsia-stage2.cmake \
+  -C ${TFLITE_PATH}/tflite.cmake \
   ${LLVM_SRCDIR}/llvm
 
 ninja distribution
@@ -165,7 +146,7 @@ cd ${FUCHSIA_SRCDIR}
 python3 scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
 ```
 
-**NOTE 1**: The only flag specific to MLGO is `TENSORFLOW_C_LIB_PATH`.
+**NOTE 1**: The only flag specific to MLGO is `-C ${TFLITE_PATH}/tflite.cmake`.
 
 **NOTE 2**: Fuchsia's `clang/cmake/caches/Fuchsia-stage2.cmake` enables the new
 pass manager by default. This allows us to not need to require it explicitly at
@@ -308,10 +289,20 @@ rm -rf $OUTPUT_DIR && \
   --data_path=$CORPUS \
   --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
   --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
-  --num_modules=100 \
   --gin_files=compiler_opt/rl/inlining/gin_configs/ppo_nn_agent.gin \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
+
+You may also start a tensorboard to monitor the training process with 
+
+```shell
+tensorboard --logdir=$OUTPUT_DIR
+```
+
+Mainly check the reward_distribution section for the model performance. It
+includes the average reward and the percentile of the reward distributions
+during training. Positive reward means an improvement against the heuristic,
+and negative reward means a regression.
 
 ### Evaluate trained policy on a corpus (Optional)
 
@@ -377,7 +368,7 @@ your model. If you set the flag to `download`, then the latest compatible model
 release from github will be downloaded.
 
 **NOTE 2**: The only flag specific to MLGO is `TENSORFLOW_AOT_PATH`, which
-replaces `TENSORFLOW_C_LIB_PATH` used earlier.
+replaces `-C ${TFLITE_PATH}/tflite.cmake` used earlier.
 
 ```shell
 cd ${FUCHSIA_SRCDIR}

@@ -29,12 +29,14 @@ from compiler_opt.rl import compilation_runner
 from compiler_opt.tools import generate_default_trace
 
 flags.FLAGS['num_workers'].allow_override = True
+flags.FLAGS['gin_files'].allow_override = True
+flags.FLAGS['gin_bindings'].allow_override = True
 
 
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
 
-  def collect_data(self, module_spec, tf_policy_path, reward_stat):
+  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
     sequence_example_text = """
       feature_lists {
         feature_list {
@@ -56,7 +58,9 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
                     default_reward=1, moving_average_reward=2)
         },
         rewards=[1.2],
-        keys=['default'])
+        policy_rewards=[18],
+        keys=['default'],
+        model_id=model_id)
 
 
 class GenerateDefaultTraceTest(absltest.TestCase):

@@ -2,8 +2,8 @@
 
 We'd love to accept your patches and contributions to this project. A good
 starting step to get familiar with the project and set up a development
-enviroment as per [demo](docs/demo/demo.md). After running through the demo, a
-good second step is to pick up an open
+enviroment as per the inlining [demo](inlining-demo/demo.md). After running 
+through the demo, a good second step is to pick up an open
 [issue](https://github.com/google/ml-compiler-opt/issues) or create one that you
 would like to work on and submit a patch for. Please make sure that your patch
 adheres to all the guidelines given below.
@@ -22,8 +22,10 @@ again.
 
 ## Code formatting
 
-Use `yapf` to format the submission before making a PR. yapf can be installed
-with `pip install yapf` and run on the entire repository with `yapf . -ir`.
+Use `yapf` to format the submission before making a PR. The version of yapf 
+that is used by this repository along with other development tools can be 
+installed with `pipenv sync --categories="dev-packages" --system` and run on 
+the entire repository with `yapf . -ir`.
 
 ## Code reviews
 

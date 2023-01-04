@@ -14,6 +14,7 @@
 # limitations under the License.
 """util function to save the policy and model config file."""
 
+import dataclasses
 import json
 import os
 
@@ -69,6 +70,87 @@ def _get_non_identity_op(tensor):
   return tensor
 
 
+def convert_saved_model(sm_dir: str, tflite_model_path: str):
+  """Convert a saved model to tflite.
+
+  Args:
+    sm_dir: path to the saved model to convert
+
+    tflite_model_path: desired output file path. Directory structure will
+      be created by this function, as needed.
+  """
+  tf.io.gfile.makedirs(os.path.dirname(tflite_model_path))
+  converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
+  converter.target_spec.supported_ops = [
+      tf.lite.OpsSet.TFLITE_BUILTINS,
+  ]
+  converter.allow_custom_ops = True
+  tfl_model = converter.convert()
+  with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
+    f.write(tfl_model)
+
+
+def convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str):
+  """Convert a mlgo saved model to mlgo tflite.
+
+  Args:
+    mlgo_model_dir: path to the mlgo saved model dir. It is expected to contain
+      the saved model files (i.e. saved_model.pb, the variables dir) and the
+      output_spec.json file
+
+    tflite_model_dir: path to a directory where the tflite model will be placed.
+      The model will be named model.tflite. Alongside it will be placed a copy
+      of the output_spec.json file.
+  """
+  tf.io.gfile.makedirs(tflite_model_dir)
+  convert_saved_model(mlgo_model_dir,
+                      os.path.join(tflite_model_dir, TFLITE_MODEL_NAME))
+
+  src_json = os.path.join(mlgo_model_dir, OUTPUT_SIGNATURE)
+  dest_json = os.path.join(tflite_model_dir, OUTPUT_SIGNATURE)
+  tf.io.gfile.copy(src_json, dest_json)
+
+
+@dataclasses.dataclass(frozen=True)
+class Policy:
+  """Serialized mlgo policy, used to pass a policy to workers.
+
+  A policy has 2 components, both being file contents:
+    - the content of the output_spec.json file;
+    - the content of the tflite policy.
+
+  To construct from a directory accessible by tf.io.gfile:
+
+  policy = Policy.from_filesystem(that_dir)
+
+  To make available to the compiler in a directory:
+
+  policy.to_filesystem(that_dir)
+  """
+
+  output_spec: bytes
+  policy: bytes
+
+  def to_filesystem(self, location: str):
+    os.makedirs(location, exist_ok=True)
+    output_sig = os.path.join(location, OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='wb') as f:
+      f.write(self.output_spec)
+    with tf.io.gfile.GFile(policy_path, mode='wb') as f:
+      f.write(self.policy)
+
+  @staticmethod
+  def from_filesystem(location: str):
+    output_sig = os.path.join(location, OUTPUT_SIGNATURE)
+    policy_path = os.path.join(location, TFLITE_MODEL_NAME)
+    with tf.io.gfile.GFile(output_sig, mode='rb') as f:
+      output_spec = f.read()
+    with tf.io.gfile.GFile(policy_path, mode='rb') as f:
+      policy = f.read()
+    return Policy(output_spec=output_spec, policy=policy)
+
+
 class PolicySaver(object):
   """Object that saves policy and model config file required by inference.
 
@@ -109,7 +191,7 @@ class PolicySaver(object):
 
     # Map spec name to index in flattened outputs.
     sm_action_indices = dict(
-        (k.name, i) for i, k in enumerate(sm_action_signature))
+        (k.name.lower(), i) for i, k in enumerate(sm_action_signature))
 
     # List mapping flattened structured outputs to tensors.
     sm_action_tensors = saved_model.signatures['action'].outputs
@@ -122,7 +204,7 @@ class PolicySaver(object):
 
     # Find the decision's tensor in the flattened output tensor list.
     sm_action_decision = (
-        sm_action_tensors[sm_action_indices[decision_spec[0].name]])
+        sm_action_tensors[sm_action_indices[decision_spec[0].name.lower()]])
 
     sm_action_decision = _get_non_identity_op(sm_action_decision)
 
@@ -138,7 +220,8 @@ class PolicySaver(object):
         }
     }]
     for info_spec in tf.nest.flatten(action_signature.info):
-      sm_action_info = sm_action_tensors[sm_action_indices[info_spec.name]]
+      sm_action_info = sm_action_tensors[sm_action_indices[
+          info_spec.name.lower()]]
       sm_action_info = _get_non_identity_op(sm_action_info)
       (tensor_op, tensor_port) = _split_tensor_name(sm_action_info.name)
       output_list.append({
@@ -159,44 +242,3 @@ class PolicySaver(object):
     for policy_name, (saver, _) in self._policy_saver_dict.items():
       self._save_policy(saver, os.path.join(root_dir, policy_name))
       self._write_output_signature(saver, os.path.join(root_dir, policy_name))
-
-
-def convert_saved_model(sm_dir: str, tflite_model_path: str):
-  """Convert a saved model to tflite.
-
-  Args:
-    sm_dir: path to the saved model to convert
-
-    tflite_model_path: desired output file path. Directory structure will
-    be created by this function, as needed.
-  """
-  tf.io.gfile.makedirs(os.path.dirname(tflite_model_path))
-  converter = tf.lite.TFLiteConverter.from_saved_model(sm_dir)
-  converter.target_spec.supported_ops = [
-      tf.lite.OpsSet.TFLITE_BUILTINS,
-  ]
-  tfl_model = converter.convert()
-  with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
-    f.write(tfl_model)
-
-
-def convert_mlgo_model(mlgo_model_dir: str, tflite_model_dir: str):
-  """Convert a mlgo saved model to mlgo tflite.
-
-  Args:
-    mlgo_model_dir: path to the mlgo saved model dir. It is expected to contain
-    the saved model files (i.e. saved_model.pb, the variables dir) and the
-    output_spec.json file
-
-    tflite_model_dir: path to a directory where the tflite model will be placed.
-    The model will be named model.tflite. Alongside it will be placed a copy of
-    the output_spec.json file.
-  """
-  tf.io.gfile.makedirs(tflite_model_dir)
-  convert_saved_model(mlgo_model_dir,
-                      os.path.join(tflite_model_dir, TFLITE_MODEL_NAME))
-
-  json_file = 'output_spec.json'
-  src_json = os.path.join(mlgo_model_dir, json_file)
-  dest_json = os.path.join(tflite_model_dir, json_file)
-  tf.io.gfile.copy(src_json, dest_json)

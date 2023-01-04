@@ -1,0 +1,76 @@
+import gin.tf.external_configurables
+import compiler_opt.rl.constant
+import compiler_opt.rl.constant_value_network
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.rl.regalloc_priority.config
+import compiler_opt.rl.regalloc_network
+import tf_agents.agents.ppo.ppo_agent
+import tf_agents.networks.actor_distribution_network
+
+include 'compiler_opt/rl/regalloc_priority/gin_configs/common.gin'
+
+train_eval.agent_name=%constant.AgentName.PPO
+train_eval.warmstart_policy_dir=''
+train_eval.num_policy_iterations=3000
+train_eval.num_iterations=200
+train_eval.batch_size=256
+train_eval.train_sequence_length=16
+train_eval.deploy_policy_name='saved_collect_policy'
+train_eval.moving_average_decay_rate=0.8
+train_eval.use_random_network_distillation=False
+
+#######################################
+# Turn on if using train_with_rpc.py
+# train_eval.additional_compilation_flags=()
+#######################################
+
+# RandomNetworkDistillation configs, off if train_eval.use_random_network_distillation=False.
+RandomNetworkDistillation.encoding_network = @regalloc_network.RegAllocRNDEncodingNetwork
+RandomNetworkDistillation.learning_rate = 1e-4
+RandomNetworkDistillation.update_frequency = 2
+RandomNetworkDistillation.fc_layer_params = [32, 128]
+RandomNetworkDistillation.initial_intrinsic_reward_scale = 1.0
+RandomNetworkDistillation.half_decay_steps = 10000
+
+create_agent.policy_network =  @actor_distribution_network.ActorDistributionNetwork
+
+ActorDistributionNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
+ActorDistributionNetwork.fc_layer_params=(40, 40, 20)
+ActorDistributionNetwork.dropout_layer_params=None
+ActorDistributionNetwork.activation_fn=@tf.keras.activations.relu
+
+NormalProjectionNetwork.mean_transform=None
+
+ConstantValueNetwork.constant_output_val=0
+
+tf.train.AdamOptimizer.learning_rate = 0.0003
+tf.train.AdamOptimizer.epsilon = 0.0003125
+
+PPOAgent.optimizer = @tf.train.AdamOptimizer()
+PPOAgent.importance_ratio_clipping = 0.2
+PPOAgent.lambda_value = 0.0
+PPOAgent.discount_factor = 0.0
+PPOAgent.entropy_regularization = 0.005
+PPOAgent.policy_l2_reg = 0.00001
+PPOAgent.value_function_l2_reg = 0.0
+PPOAgent.shared_vars_l2_reg = 0.0
+PPOAgent.value_pred_loss_coef = 0.0
+PPOAgent.num_epochs = 1
+PPOAgent.use_gae = False
+PPOAgent.use_td_lambda_return = False
+PPOAgent.normalize_rewards = False
+PPOAgent.reward_norm_clipping = 10.0
+PPOAgent.normalize_observations = False
+PPOAgent.log_prob_clipping = 0.0
+PPOAgent.kl_cutoff_factor = 2.0
+PPOAgent.kl_cutoff_coef = 1000.0
+PPOAgent.initial_adaptive_kl_beta = 1.0
+PPOAgent.adaptive_kl_target = 0.01
+PPOAgent.adaptive_kl_tolerance = 0.3
+PPOAgent.gradient_clipping = None
+PPOAgent.value_clipping = None
+PPOAgent.check_numerics = False
+PPOAgent.compute_value_and_advantage_in_train = True
+PPOAgent.update_normalizers_in_train=True
+PPOAgent.debug_summaries = True
+PPOAgent.summarize_grads_and_vars = True

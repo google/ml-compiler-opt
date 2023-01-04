@@ -320,6 +320,8 @@ def main(argv):
   flags.mark_flags_as_required(['output_dir'])
 
   objs = []
+  if FLAGS.input is not None and FLAGS.thinlto_build == 'local':
+    raise ValueError('--thinlto_build=local cannot be run with --input')
   if FLAGS.input is None:
     if FLAGS.thinlto_build != 'local':
       raise ValueError('--input or --thinlto_build=local must be provided')

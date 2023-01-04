@@ -18,7 +18,6 @@ import contextlib
 import functools
 import os
 import queue
-import random
 import re
 import subprocess
 from typing import Dict, List, Optional, Union, Tuple  # pylint:disable=unused-import
@@ -32,6 +31,7 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 
 # see https://bugs.python.org/issue33315 - we do need these types, but must
@@ -76,7 +76,8 @@ def get_runner() -> compilation_runner.CompilationRunner:
   return problem_config.get_runner_type()(moving_average_decay_rate=0)
 
 
-def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
+def worker(policy_path: Optional[str],
+           work_queue: 'queue.Queue[corpus.LoadedModuleSpec]',
            results_queue: 'queue.Queue[ResultsQueueEntry]',
            key_filter: Optional[str]):
   """Describes the job each paralleled worker process does.
@@ -96,20 +97,22 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
   try:
     runner = get_runner()
     m = re.compile(key_filter) if key_filter else None
-
+    policy = policy_saver.Policy.from_filesystem(
+        policy_path) if policy_path else None
     while True:
       try:
-        module_spec = work_queue.get_nowait()
+        loaded_module_spec = work_queue.get_nowait()
       except queue.Empty:
         return
       try:
         data = runner.collect_data(
-            module_spec=module_spec,
-            tf_policy_path=policy_path,
-            reward_stat=None)
+            loaded_module_spec=loaded_module_spec,
+            policy=policy,
+            reward_stat=None,
+            model_id=0)
         if not m:
           results_queue.put(
-              (module_spec.name, data.serialized_sequence_examples,
+              (loaded_module_spec.name, data.serialized_sequence_examples,
                data.reward_stats))
           continue
         new_reward_stats = {}
@@ -121,10 +124,10 @@ def worker(policy_path: str, work_queue: 'queue.Queue[corpus.ModuleSpec]',
           new_reward_stats[k] = data.reward_stats[k]
           new_sequence_examples.append(sequence_example)
         results_queue.put(
-            (module_spec.name, new_sequence_examples, new_reward_stats))
+            (loaded_module_spec.name, new_sequence_examples, new_reward_stats))
       except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
               RuntimeError):
-        logging.error('Failed to compile %s.', module_spec.name)
+        logging.error('Failed to compile %s.', loaded_module_spec.name)
         results_queue.put(None)
   except BaseException as e:  # pylint: disable=broad-except
     results_queue.put(e)
@@ -139,29 +142,23 @@ def main(_):
   config = registry.get_configuration()
 
   logging.info('Loading module specs from corpus.')
-  module_specs = corpus.build_modulespecs_from_datapath(
-      _DATA_PATH.value,
+  module_filter = re.compile(
+      _MODULE_FILTER.value) if _MODULE_FILTER.value else None
+
+  cps = corpus.Corpus(
+      data_path=_DATA_PATH.value,
+      module_filter=lambda name: True
+      if not module_filter else module_filter.match(name),
       additional_flags=config.flags_to_add(),
-      delete_flags=config.flags_to_delete())
+      delete_flags=config.flags_to_delete(),
+      replace_flags=config.flags_to_replace())
   logging.info('Done loading module specs from corpus.')
 
-  if _MODULE_FILTER.value:
-    m = re.compile(_MODULE_FILTER.value)
-    module_specs = [ms for ms in module_specs if m.match(ms.name)]
-
   # Sampling if needed.
-  if _SAMPLING_RATE.value < 1:
-    sampled_modules = int(len(module_specs) * _SAMPLING_RATE.value)
-    module_specs = random.sample(module_specs, k=sampled_modules)
-
+  sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  sizes_and_specs = [
-      (os.path.getsize(os.path.join(_DATA_PATH.value, m.name) + '.bc'), i)
-      for i, m in enumerate(module_specs)
-  ]
-  sizes_and_specs.sort(reverse=True)
-  module_specs = [module_specs[i] for _, i in sizes_and_specs]
+  corpus_elements = cps.sample(k=sampled_modules, sort=True)
 
   worker_count = (
       min(os.cpu_count(), _NUM_WORKERS.value)
@@ -179,9 +176,9 @@ def main(_):
       ctx = multiprocessing.get_context()
       m = ctx.Manager()
       results_queue: 'queue.Queue[ResultsQueueEntry]' = m.Queue()
-      work_queue: 'queue.Queue[corpus.ModuleSpec]' = m.Queue()
-      for module_spec in module_specs:
-        work_queue.put(module_spec)
+      work_queue: 'queue.Queue[corpus.LoadedModuleSpec]' = m.Queue()
+      for corpus_element in corpus_elements:
+        work_queue.put(cps.load_module_spec(corpus_element))
 
       # pylint:disable=g-complex-comprehension
       processes = [
@@ -196,7 +193,7 @@ def main(_):
         p.start()
 
       total_successful_examples = 0
-      total_work = len(module_specs)
+      total_work = len(corpus_elements)
       total_failed_examples = 0
       total_training_examples = 0
       for _ in range(total_work):
@@ -224,7 +221,7 @@ def main(_):
                 (f'{module_name},{key},{value.default_reward},'
                  f'{value.moving_average_reward}\n'))
 
-      print((f'{total_successful_examples} of {len(module_specs)} modules '
+      print((f'{total_successful_examples} of {len(corpus_elements)} modules '
              f'succeeded, and {total_training_examples} trainining examples '
              'written'))
       for p in processes:

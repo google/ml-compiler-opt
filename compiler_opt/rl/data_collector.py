@@ -19,6 +19,7 @@ import time
 from typing import Dict, Iterator, Tuple, Sequence
 
 import numpy as np
+from compiler_opt.rl import policy_saver
 from tf_agents.trajectories import trajectory
 
 # Deadline for data collection.
@@ -51,12 +52,13 @@ class DataCollector(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, policy_path: str
+      self, policy: policy_saver.Policy, model_id: int
   ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
       policy_path: the path to the policy directory to collect data with.
+      model_id: the id of the model used to collect data.
 
     Returns:
       An iterator of batched trajectory.Trajectory that are ready to be fed to
@@ -125,7 +127,7 @@ class EarlyExitChecker:
 
     Args:
       get_num_finished_work: a callable object which returns the amount of
-      finished work.
+        finished work.
 
     Returns:
       The amount of time waited.

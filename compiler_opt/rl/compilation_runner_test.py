@@ -17,6 +17,7 @@
 import os
 import string
 import subprocess
+import threading
 import time
 from unittest import mock
 
@@ -29,6 +30,7 @@ from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 
 _DEFAULT_FEATURE_VALUE = 12
 _POLICY_FEATURE_VALUE = 34
@@ -75,10 +77,8 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _mock_compile_fn(file_paths, tf_policy_path, reward_only,
-                     cancellation_manager):  # pylint: disable=unused-argument
+def _mock_compile_fn(file_paths, tf_policy_path, reward_only):  # pylint: disable=unused-argument
   del file_paths
-  del cancellation_manager
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
     native_size = _POLICY_REWARD
@@ -92,6 +92,12 @@ def _mock_compile_fn(file_paths, tf_policy_path, reward_only,
     return {'default': (sequence_example, native_size)}
 
 
+_mock_policy = policy_saver.Policy(bytes(), bytes())
+
+_mock_loaded_module_spec = corpus.LoadedModuleSpec(
+    name='dummy', loaded_ir=bytes())
+
+
 class CompilationRunnerTest(tf.test.TestCase):
 
   def assertListProtoEqual(self, a, b):
@@ -102,15 +108,13 @@ class CompilationRunnerTest(tf.test.TestCase):
       self.assertProtoEquals(x, y)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_policy(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
     data = runner.collect_data(
-        module_spec=corpus.ModuleSpec(name='dummy'),
-        tf_policy_path='policy_path',
-        reward_stat=None)
+        loaded_module_spec=_mock_loaded_module_spec, policy=_mock_policy)
     self.assertEqual(2, mock_compile_fn.call_count)
 
     expected_example = _get_sequence_example_with_reward(
@@ -130,18 +134,16 @@ class CompilationRunnerTest(tf.test.TestCase):
                     (1 - _MOVING_AVERAGE_DECAY_RATE))
         }, data.reward_stats)
     self.assertAllClose([0.1998002], data.rewards)
+    self.assertAllClose([8], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_default(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
-    data = runner.collect_data(
-        module_spec=corpus.ModuleSpec(name='dummy'),
-        tf_policy_path='',
-        reward_stat=None)
+    data = runner.collect_data(loaded_module_spec=_mock_loaded_module_spec)
     # One call when we ask for the default policy, because it can provide both
     # trace and default size.
     self.assertEqual(1, mock_compile_fn.call_count)
@@ -161,17 +163,18 @@ class CompilationRunnerTest(tf.test.TestCase):
                     moving_average_reward=_DEFAULT_REWARD)
         }, data.reward_stats)
     self.assertAllClose([0], data.rewards)
+    self.assertAllClose([10], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_given_default_size(self, mock_compile_fn):
     mock_compile_fn.side_effect = _mock_compile_fn
     runner = compilation_runner.CompilationRunner(
         moving_average_decay_rate=_MOVING_AVERAGE_DECAY_RATE)
 
     data = runner.collect_data(
-        module_spec=corpus.ModuleSpec(name='dummy'),
-        tf_policy_path='policy_path',
+        loaded_module_spec=_mock_loaded_module_spec,
+        policy=_mock_policy,
         reward_stat={
             'default':
                 compilation_runner.RewardStat(
@@ -196,9 +199,10 @@ class CompilationRunnerTest(tf.test.TestCase):
                     _POLICY_REWARD * (1 - _MOVING_AVERAGE_DECAY_RATE))
         }, data.reward_stats)
     self.assertAllClose([0.199800], data.rewards)
+    self.assertAllClose([8], data.policy_rewards)
 
   @mock.patch(constant.BASE_MODULE_DIR +
-              '.compilation_runner.CompilationRunner._compile_fn')
+              '.compilation_runner.CompilationRunner.compile_fn')
   def test_exception_handling(self, mock_compile_fn):
     mock_compile_fn.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='error')
@@ -207,15 +211,15 @@ class CompilationRunnerTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(subprocess.CalledProcessError, 'error'):
       _ = runner.collect_data(
-          module_spec=corpus.ModuleSpec(name='dummy'),
-          tf_policy_path='policy_path',
+          loaded_module_spec=_mock_loaded_module_spec,
+          policy=_mock_policy,
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
 
   def test_start_subprocess_output(self):
-    ct = compilation_runner.WorkerCancellationManager()
+    cm = compilation_runner.WorkerCancellationManager()
     output = compilation_runner.start_cancellable_process(
-        ['ls', '-l'], timeout=100, cancellation_manager=ct, want_output=True)
+        ['ls', '-l'], timeout=100, cancellation_manager=cm, want_output=True)
     if output:
       output_str = output.decode('utf-8')
     else:
@@ -234,6 +238,23 @@ class CompilationRunnerTest(tf.test.TestCase):
           cancellation_manager=None)
     time.sleep(2)
     self.assertFalse(os.path.exists(sentinel_file))
+
+  def test_pause_resume(self):
+    cm = compilation_runner.WorkerCancellationManager()
+    start_time = time.time()
+
+    def stop_and_start():
+      time.sleep(0.25)
+      cm.pause_all_processes()
+      time.sleep(1)
+      cm.resume_all_processes()
+
+    threading.Thread(target=stop_and_start).start()
+    compilation_runner.start_cancellable_process(['sleep', '0.5'],
+                                                 30,
+                                                 cancellation_manager=cm)
+    # should be at least 1 second due to the pause.
+    self.assertGreater(time.time() - start_time, 1)
 
 
 if __name__ == '__main__':

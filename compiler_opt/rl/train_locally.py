@@ -19,6 +19,7 @@ import functools
 import json
 import os
 import time
+from typing import List
 
 from absl import app
 from absl import flags
@@ -27,10 +28,10 @@ import gin
 import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.system import system_multiprocessing as multiprocessing
-from typing import List
 
-from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPool
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import agent_creators
+from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
@@ -45,7 +46,7 @@ from compiler_opt.rl import trainer
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_string('data_path', None,
-                    'Path to CNS folder containing IR files.')
+                    'Path to directory containing the corpus.')
 flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -59,7 +60,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(agent_name=constant.AgentName.PPO,
+def train_eval(worker_manager_class=LocalWorkerPoolManager,
+               agent_name=constant.AgentName.PPO,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_modules=100,
@@ -68,6 +70,7 @@ def train_eval(agent_name=constant.AgentName.PPO,
                train_sequence_length=1,
                deploy_policy_name='saved_policy',
                use_random_network_distillation=False,
+               dump_best_trajectory=False,
                moving_average_decay_rate=1):
   """Train for LLVM inliner."""
   root_dir = FLAGS.root_dir
@@ -98,10 +101,12 @@ def train_eval(agent_name=constant.AgentName.PPO,
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  logging.info('Loading module specs from corpus.')
-  module_specs = corpus.build_modulespecs_from_datapath(
-      FLAGS.data_path, problem_config.flags_to_add(),
-      problem_config.flags_to_delete())
+  logging.info('Loading module specs from corpus at %s.', FLAGS.data_path)
+  cps = corpus.Corpus(
+      data_path=FLAGS.data_path,
+      additional_flags=problem_config.flags_to_add(),
+      delete_flags=problem_config.flags_to_delete(),
+      replace_flags=problem_config.flags_to_replace())
   logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
@@ -131,16 +136,26 @@ def train_eval(agent_name=constant.AgentName.PPO,
     logging.info('Loaded Reward Stat Map from disk, containing %d modules',
                  len(reward_stat_map))
 
-  with LocalWorkerPool(
+  best_trajectory_repo = None
+  best_trajectory_repo_path = os.path.join(root_dir,
+                                           'best_trajectory_repo.json')
+  if dump_best_trajectory:
+    best_trajectory_repo = best_trajectory.BestTrajectoryRepo(
+        action_name=action_spec.name)
+    if tf.io.gfile.exists(best_trajectory_repo_path):
+      best_trajectory_repo.load_from_json_file(best_trajectory_repo_path)
+
+  with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
       moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
-        module_specs=module_specs,
+        cps=cps,
         num_modules=num_modules,
         worker_pool=worker_pool,
         parser=sequence_example_iterator_fn,
-        reward_stat_map=reward_stat_map)
+        reward_stat_map=reward_stat_map,
+        best_trajectory_repo=best_trajectory_repo)
 
     # Repeat for num_policy_iterations iterations.
     t1 = time.time()
@@ -150,15 +165,19 @@ def train_eval(agent_name=constant.AgentName.PPO,
       logging.info('Last iteration took: %f', t2 - t1)
       t1 = t2
       with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
-        json.dump(
-            reward_stat_map, f, cls=compilation_runner.DataClassJSONEncoder)
+        json.dump(reward_stat_map, f, cls=constant.DataClassJSONEncoder)
+
+      if best_trajectory_repo is not None:
+        best_trajectory_repo.sink_to_json_file(best_trajectory_repo_path)
 
       policy_path = os.path.join(root_dir, 'policy',
                                  str(llvm_trainer.global_step_numpy()))
       saver.save(policy_path)
 
       dataset_iter, monitor_dict = data_collector.collect_data(
-          policy_path=os.path.join(policy_path, deploy_policy_name))
+          policy=policy_saver.Policy.from_filesystem(
+              os.path.join(policy_path, deploy_policy_name)),
+          model_id=llvm_trainer.global_step_numpy())
       llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
       data_collector.on_dataset_consumed(dataset_iter)

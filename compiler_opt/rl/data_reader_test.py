@@ -41,7 +41,8 @@ def _define_sequence_example(agent_name, is_action_discrete):
       ).float_list.value.append(1.23)
     example.feature_lists.feature_list['reward'].feature.add(
     ).float_list.value.append(2.3)
-    if agent_name == constant.AgentName.PPO:
+    if agent_name in (constant.AgentName.PPO,
+                      constant.AgentName.PPO_DISTRIBUTED):
       if is_action_discrete:
         example.feature_lists.feature_list[
             'CategoricalProjectionNetwork_logits'].feature.add(
@@ -124,10 +125,15 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('SequenceExampleDatasetFn',
-       data_reader.create_sequence_example_dataset_fn),
-      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
-  def test_ppo_policy_info_discrete(self, test_fn):
-    self._agent_name = constant.AgentName.PPO
+       data_reader.create_sequence_example_dataset_fn, constant.AgentName.PPO),
+      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
+       constant.AgentName.PPO), ('SequenceExampleDatasetFnDistributed',
+                                 data_reader.create_sequence_example_dataset_fn,
+                                 constant.AgentName.PPO_DISTRIBUTED),
+      ('TFRecordDatasetFnDistributed', data_reader.create_tfrecord_dataset_fn,
+       constant.AgentName.PPO_DISTRIBUTED))
+  def test_ppo_policy_info_discrete(self, test_fn, agent_name):
+    self._agent_name = agent_name
 
     example = _define_sequence_example(
         self._agent_name, is_action_discrete=True)
@@ -155,10 +161,15 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('SequenceExampleDatasetFn',
-       data_reader.create_sequence_example_dataset_fn),
-      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
-  def test_ppo_policy_info_continuous(self, test_fn):
-    self._agent_name = constant.AgentName.PPO
+       data_reader.create_sequence_example_dataset_fn, constant.AgentName.PPO),
+      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
+       constant.AgentName.PPO), ('SequenceExampleDatasetFnDistributed',
+                                 data_reader.create_sequence_example_dataset_fn,
+                                 constant.AgentName.PPO_DISTRIBUTED),
+      ('TFRecordDatasetFnDistributed', data_reader.create_tfrecord_dataset_fn,
+       constant.AgentName.PPO_DISTRIBUTED))
+  def test_ppo_policy_info_continuous(self, test_fn, agent_name):
+    self._agent_name = agent_name
 
     example = _define_sequence_example(
         self._agent_name, is_action_discrete=False)

@@ -53,7 +53,7 @@ ADMIN_PACKAGES="tmux"
       apt-get -qq -y update --allow-releaseinfo-change
 
       # Logs consume a lot of storage space.
-      apt-get remove -qq -y --purge auditd puppet-agent google-fluentd
+      apt-get remove -qq -y --purge auditd puppet-agent
 
       apt-get install -qq -y \
         python3-distutils \
@@ -61,7 +61,8 @@ ADMIN_PACKAGES="tmux"
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
         g++ \
-        cmake \
+        cmake/bullseye-backports \
+        cmake-data/bullseye-backports \
         ccache \
         binutils-gold \
         binutils-dev \
@@ -95,7 +96,10 @@ update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 userdel buildbot
 groupadd buildbot
-useradd buildbot -g buildbot -m -d /var/lib/buildbot
+useradd buildbot -g buildbot -m -d /b/home
+rm -rf /var/lib/buildbot
+ln -s /b/home /var/lib/buildbot
+chmod 777 /var/lib/buildbot
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
@@ -110,25 +114,25 @@ else
   echo "NOT building TFLite - this is a release only bot."
 fi
 
-wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/requirements.txt -P /tmp \
-  || on_error "failed to get python requirements file"
-
-chown buildbot /tmp/requirements.txt
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile \
+  || on_error "failed to get Pipfile"
+wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile.lock \
+  || on_error "failed to get Pipfile.lock"
 
 # install the tf pip package for the AOT ("release" scenario).
-sudo -u buildbot python3 -m pip install --upgrade pip
-sudo -u buildbot python3 -m pip install --user -r /tmp/requirements.txt
+sudo -u buildbot python3 -m pip install pipenv
+sudo -u buildbot python3 -m pipenv sync --system
 python3 -m pip install buildbot-worker==2.9.0
 
-TF_PIP=$(sudo -u buildbot python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
+TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../ /var/lib/buildbot/.local/lib/python3.7
+sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
 
 # location we want
-sudo -u buildbot ln -s ${TF_PIP}/../ /tmp/tf-aot
+sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
 
-export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
+export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
 if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
 then
@@ -156,6 +160,7 @@ chown buildbot:buildbot $BOT_DIR
 chown buildbot:buildbot $TENSORFLOW_API_PATH
 
 rm -f /b/buildbot.tac
+
 
 WORKER_NAME="$(hostname)"
 WORKER_PASSWORD="$(gsutil cat gs://ml-compiler-opt-buildbot/buildbot_password)"

@@ -61,7 +61,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     obs = tf.constant(value=[[2.0], [8.0]])
     output = feature_ops.discard_fn(obs)
 
-    self.assertAllEqual([2, 1, 0], output.shape)
+    self.assertAllEqual([2, 1, 1], output.shape)
 
   def test_identity_fn(self):
     # obs in shape of [2, 1].

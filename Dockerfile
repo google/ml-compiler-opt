@@ -1,10 +1,10 @@
-FROM ubuntu:20.04
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python-is-python3 \
-    python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-COPY . /ml-compiler-opt
-RUN python3 -m pip install -r /ml-compiler-opt/requirements.txt
-VOLUME /external
+FROM python:3.9
 
+WORKDIR /ml-compiler-opt
+COPY . .
+RUN pip install pipenv && pipenv sync --system && pipenv --clear
+
+WORKDIR /ml-compiler-opt/compiler_opt/tools
+ENV PYTHONPATH=/ml-compiler-opt
+
+VOLUME /external

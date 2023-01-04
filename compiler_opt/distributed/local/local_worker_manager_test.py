@@ -15,7 +15,6 @@
 """Test for local worker manager."""
 
 import concurrent.futures
-import multiprocessing
 import time
 
 from absl.testing import absltest
@@ -63,9 +62,9 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_pool(self):
 
-    with local_worker_manager.LocalWorkerPool(JobNormal, 2) as pool:
-      p1 = pool[0]
-      p2 = pool[1]
+    with local_worker_manager.LocalWorkerPoolManager(JobNormal, 2) as pool:
+      p1 = pool.get_currently_active()[0]
+      p2 = pool.get_currently_active()[1]
       set_futures = [p1.set_token(1), p2.set_token(2)]
       done, not_done = concurrent.futures.wait(set_futures)
       self.assertLen(done, 2)
@@ -82,16 +81,16 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_failure(self):
 
-    with local_worker_manager.LocalWorkerPool(JobFail, 2) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(JobFail, 2) as pool:
       with self.assertRaises(concurrent.futures.CancelledError):
         # this will fail because we didn't pass the arg to the ctor, so the
         # worker hosting process will crash.
-        pool[0].method().result()
+        pool.get_currently_active()[0].method().result()
 
   def test_worker_crash_while_waiting(self):
 
-    with local_worker_manager.LocalWorkerPool(JobSlow, 2) as pool:
-      p = pool[0]
+    with local_worker_manager.LocalWorkerPoolManager(JobSlow, 2) as pool:
+      p = pool.get_currently_active()[0]
       f = p.method()
       self.assertFalse(f.done())
       try:

@@ -5,3 +5,9 @@ clang_path=None
 
 runners.RegAllocRunner.clang_path=%clang_path
 runners.RegAllocRunner.launcher_path=%launcher_path
+
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+# For AFDO profile reinjection set:
+# problem_config.flags_to_replace.replace_flags={'-fprofile-sample-use':'/path/to/gwp.afdo','-fprofile-remapping-file':'/path/to/prof_remap.txt'}
+problem_config.flags_to_replace.replace_flags={}

@@ -27,8 +27,6 @@ from tf_agents.policies import policy_loader
 from tf_agents.utils import common as common_utils
 from typing import Optional
 
-_INLINING_DEFAULT_KEY = 'inlining_default'
-
 
 @gin.configurable
 class Trainer(object):

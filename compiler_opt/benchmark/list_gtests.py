@@ -55,7 +55,7 @@ flags.DEFINE_string(
 flags.mark_flag_as_required('gtest_executable')
 
 
-def main():
+def main(_):
   test_list_raw_output = gtest_executable_utils.get_gtest_testlist_raw(
       FLAGS.gtest_executable)
   test_list = gtest_executable_utils.parse_gtest_tests(test_list_raw_output)

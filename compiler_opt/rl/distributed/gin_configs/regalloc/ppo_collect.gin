@@ -1,0 +1,5 @@
+import compiler_opt.rl.distributed.ppo_collect_lib
+
+include 'compiler_opt/rl/distributed/gin_configs/regalloc/common.gin'
+
+run_collect.sequence_length = %sequence_length

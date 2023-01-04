@@ -16,17 +16,22 @@
 
 import abc
 import dataclasses
-import json
 import os
+import signal
 import subprocess
+import tempfile
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from absl import flags
-from compiler_opt.distributed.worker import Worker, WorkerFuture
+from absl import logging
+import tensorflow as tf
+
+from compiler_opt.distributed.worker import Worker
+from compiler_opt.distributed.worker import WorkerFuture
 from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
-import tensorflow as tf
+from compiler_opt.rl import policy_saver
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
@@ -45,14 +50,6 @@ def _calculate_reward(policy: float, baseline: float) -> float:
 class RewardStat:
   default_reward: float
   moving_average_reward: float
-
-
-class DataClassJSONEncoder(json.JSONEncoder):
-
-  def default(self, o):
-    if dataclasses.is_dataclass(o):
-      return dataclasses.asdict(o)
-    return super().default(o)
 
 
 def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
@@ -108,6 +105,7 @@ class WorkerCancellationManager:
     # empty() is accurate and get() never blocks.
     self._processes = set()
     self._done = False
+    self._paused = False
     self._lock = threading.Lock()
 
   def enable(self):
@@ -129,10 +127,34 @@ class WorkerCancellationManager:
     for p in self._processes:
       kill_process_ignore_exceptions(p)
 
+  def pause_all_processes(self):
+    with self._lock:
+      if self._paused:
+        return
+      self._paused = True
+
+      for p in self._processes:
+        # used to send the STOP signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGSTOP)
+
+  def resume_all_processes(self):
+    with self._lock:
+      if not self._paused:
+        return
+      self._paused = False
+
+      for p in self._processes:
+        # used to send the CONTINUE signal; does not actually kill the process
+        os.kill(p.pid, signal.SIGCONT)
+
   def unregister_process(self, p: 'subprocess.Popen[bytes]'):
     with self._lock:
-      if not self._done:
+      if p in self._processes:
         self._processes.remove(p)
+
+  def __del__(self):
+    if len(self._processes) > 0:
+      raise RuntimeError('Cancellation manager deleted while containing items.')
 
 
 def start_cancellable_process(
@@ -159,6 +181,8 @@ def start_cancellable_process(
   # Disable tensorflow info messages during data collection
   if _QUIET.value:
     command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
+  else:
+    logging.info(cmdline)
   with subprocess.Popen(
       cmdline,
       env=command_env,
@@ -174,6 +198,7 @@ def start_cancellable_process(
     finally:
       if cancellation_manager:
         cancellation_manager.unregister_process(p)
+
     if retcode != 0:
       raise ProcessKilledError(
       ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
@@ -195,11 +220,12 @@ class CompilationResult:
   length: total length of all sequence examples, derived from sequence_examples.
   reward_stats: a dictionary from keys (e.g. function names) to a RewardStat.
   rewards: a list of reward values.
+  policy_rewards: a list of reward values under policy.
   keys: a list of keys.
 
   The object must observe the following invariants:
-  1) The entries of sequence_examples, rewards, and keys correspond to eachoter
-  at the same index.
+  1) The entries of sequence_examples, rewards, policy_rewards and keys
+  correspond to each other at the same index.
 
   2) The keys in reward stats are those in the keys field.
   """
@@ -208,7 +234,11 @@ class CompilationResult:
   length: int = dataclasses.field(init=False)
   reward_stats: Dict[str, RewardStat]
   rewards: List[float]
+  policy_rewards: List[float]
   keys: List[str]
+
+  # The id of the model used to generate this compilation result
+  model_id: Optional[int]
 
   def __post_init__(self, sequence_examples: List[tf.train.SequenceExample]):
     object.__setattr__(self, 'serialized_sequence_examples',
@@ -219,8 +249,8 @@ class CompilationResult:
     ]
     object.__setattr__(self, 'length', sum(lengths))
 
-    assert (len(self.serialized_sequence_examples) == len(self.rewards) ==
-            (len(self.keys)))
+    assert (len(self.serialized_sequence_examples) == len(self.rewards) == len(
+        self.policy_rewards) == len(self.keys))
     assert set(self.keys) == set(self.reward_stats.keys())
     assert not hasattr(self, 'sequence_examples')
 
@@ -230,9 +260,11 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]
-  ) -> WorkerFuture[CompilationResult]:
+      self,
+      loaded_module_spec: corpus.LoadedModuleSpec,
+      policy: Optional[policy_saver.Policy] = None,
+      reward_stat: Optional[Dict[str, RewardStat]] = None,
+      model_id: Optional[int] = None) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -244,29 +276,65 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
 
+class CompilationResultObserver(metaclass=abc.ABCMeta):
+  """Abstract base class used to observe compilation results.
+
+  This is indended for users who need to observe compilations while they are in
+  the distributed worker pool, rather than after they have been coalesced in
+  the collection script.
+  """
+
+  @abc.abstractmethod
+  def observe(self, result: CompilationResult) -> None:
+    """Observe a compilation result.
+
+    Note that this will be executed on the worker in the pool rather than on
+    the coordinator.
+
+    Args:
+      result: the compilation result to observe
+    """
+    pass
+
+
 class CompilationRunner(Worker):
   """Base class for collecting compilation data."""
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
-    return method_name == 'cancel_all_work'
+    return method_name in {
+        'cancel_all_work', 'pause_all_work', 'resume_all_work'
+    }
 
   def __init__(self,
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1):
+               moving_average_decay_rate: float = 1,
+               compilation_timeout=None,
+               create_observer_fns: Optional[List[Callable[
+                   [], CompilationResultObserver]]] = None):
     """Initialization of CompilationRunner class.
 
     Args:
       clang_path: path to the clang binary.
       launcher_path: path to the launcher binary.
       moving_average_decay_rate: moving average decay rate during training.
+      create_observer_fns: list of callables which are used to create
+        CompilationResultObserver objects. We pass the create callables instead
+        of the actual objects because the callables are "just code" and likely
+        able to be pickled/sent to the workers, whereas the observers might
+        contain non-picklable attributes, such as server connections. It is
+        typed as Optional[List[]] due to W0102 dangerous-default-value.
     """
     self._clang_path = clang_path
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
-    self._compilation_timeout = _COMPILATION_TIMEOUT.value
+    # Avoid reading the flag during the first interpretation of this module.
+    self._compilation_timeout = (
+        compilation_timeout or _COMPILATION_TIMEOUT.value)
     self._cancellation_manager = WorkerCancellationManager()
+    self._observers = ([f() for f in create_observer_fns]
+                       if create_observer_fns else [])
 
   # re-allow the cancellation manager accept work.
   def enable(self):
@@ -275,17 +343,24 @@ class CompilationRunner(Worker):
   def cancel_all_work(self):
     self._cancellation_manager.kill_all_processes()
 
-  def collect_data(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_stat: Optional[Dict[str, RewardStat]]) -> CompilationResult:
+  def pause_all_work(self):
+    self._cancellation_manager.pause_all_processes()
+
+  def resume_all_work(self):
+    self._cancellation_manager.resume_all_processes()
+
+  def collect_data(self,
+                   loaded_module_spec: corpus.LoadedModuleSpec,
+                   policy: Optional[policy_saver.Policy] = None,
+                   reward_stat: Optional[Dict[str, RewardStat]] = None,
+                   model_id: Optional[int] = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
-      module_spec: a ModuleSpec.
-      tf_policy_path: path to the tensorflow policy.
+      loaded_module_spec: a LoadedModuleSpec.
+      policy: serialized policy.
       reward_stat: reward stat of this module, None if unknown.
-      cancellation_token: a CancellationToken through which workers may be
-      signaled early termination
+      model_id: id for the model used to collect data.
 
     Returns:
       A CompilationResult. In particular:
@@ -297,27 +372,30 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    if reward_stat is None:
-      default_result = self._compile_fn(
-          module_spec,
-          tf_policy_path='',
-          reward_only=bool(tf_policy_path),
-          cancellation_manager=self._cancellation_manager)
-      reward_stat = {
-          k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
-      }
+    with tempfile.TemporaryDirectory() as tempdir:
+      final_cmd_line = loaded_module_spec.build_command_line(tempdir)
+      tf_policy_path = ''
+      if policy is not None:
+        model_id_suffix = f'-{model_id}' if model_id is not None else ''
+        tf_policy_path = os.path.join(tempdir, 'policy' + model_id_suffix)
+        policy.to_filesystem(tf_policy_path)
 
-    if tf_policy_path:
-      policy_result = self._compile_fn(
-          module_spec,
-          tf_policy_path,
-          reward_only=False,
-          cancellation_manager=self._cancellation_manager)
-    else:
-      policy_result = default_result
+      if reward_stat is None:
+        default_result = self.compile_fn(
+            final_cmd_line, tf_policy_path='', reward_only=bool(tf_policy_path))
+        reward_stat = {
+            k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
+        }
+
+      if tf_policy_path:
+        policy_result = self.compile_fn(
+            final_cmd_line, tf_policy_path, reward_only=False)
+      else:
+        policy_result = default_result
 
     sequence_example_list = []
     rewards = []
+    policy_rewards = []
     keys = []
     for k, v in policy_result.items():
       sequence_example = v[0]
@@ -325,7 +403,7 @@ class CompilationRunner(Worker):
       if k not in reward_stat:
         raise ValueError(
             (f'Example {k} does not exist under default policy for '
-             f'module {module_spec.name}'))
+             f'cmd line: {final_cmd_line}'))
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
@@ -338,27 +416,31 @@ class CompilationRunner(Worker):
           policy_reward * (1 - self._moving_average_decay_rate))
       rewards.append(
           _calculate_reward(policy=policy_reward, baseline=default_reward))
+      policy_rewards.append(policy_reward)
       keys.append(k)
 
-    return CompilationResult(
+    result = CompilationResult(
         sequence_examples=sequence_example_list,
         reward_stats=reward_stat,
         rewards=rewards,
-        keys=keys)
+        policy_rewards=policy_rewards,
+        keys=keys,
+        model_id=model_id)
 
-  def _compile_fn(
-      self, module_spec: corpus.ModuleSpec, tf_policy_path: str,
-      reward_only: bool,
-      cancellation_manager: Optional[WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+    for observer in self._observers:
+      observer.observe(result)
+
+    return result
+
+  def compile_fn(
+      self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
+      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
-      module_spec: a ModuleSpec.
+      command_line: the fully qualified command line.
       tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
-      cancellation_manager: a WorkerCancellationManager to handle early
-        termination
 
     Returns:
       A dict mapping from example identifier to tuple containing:

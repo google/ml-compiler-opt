@@ -1,0 +1,34 @@
+import compiler_opt.rl.constant_value_network
+import compiler_opt.rl.regalloc.config
+import compiler_opt.rl.regalloc.regalloc_network
+
+config_registry.get_configuration.implementation=@configs.RegallocEvictionConfig
+
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+problem_config.flags_to_replace.replace_flags={}
+
+launcher_path=None
+clang_path=None
+
+per_replica_batch_size     = 1024
+num_epochs                 = 4
+num_iterations             = 10000
+num_episodes_per_iteration = 2048
+sequence_length            = 128
+
+runners.RegAllocRunner.clang_path=%clang_path
+runners.RegAllocRunner.launcher_path=%launcher_path
+
+# Feature preprocessing
+regalloc.config.get_observation_processing_layer_creator.quantile_file_dir = '/tmp/vocab/'
+regalloc.config.get_observation_processing_layer_creator.with_sqrt = True
+regalloc.config.get_observation_processing_layer_creator.with_z_score_normalization = False
+
+# Policy specification
+create_agent.policy_network = @regalloc_network.RegAllocNetwork
+RegAllocNetwork.fc_layer_params = (80, 40)
+RegAllocNetwork.dropout_layer_params = None
+
+# Value network
+ConstantValueNetwork.constant_output_val = 0
