@@ -61,6 +61,7 @@ import json
 import math
 
 from typing import Any, BinaryIO, Dict, Generator, List, Optional
+import sys
 
 _element_types = {
     'float': ctypes.c_float,
@@ -76,7 +77,9 @@ _element_types = {
 }
 
 
-@dataclasses.dataclass(frozen=True)
+# dataclass supports `slots=True` as of 3.10.
+@dataclasses.dataclass(
+    frozen=True, **({} if sys.version_info.minor < 10 else dict(slots=True)))
 class TensorSpec:
   name: str
   port: int
@@ -108,13 +111,17 @@ class TensorValue:
 
   Endianness is assumed to be the same as the log producer's.
   """
-  __slots__ = ('_buffer', '_elem_type', '_len', '_view')
+  __slots__ = ('_buffer', '_spec', '_len', '_view')
 
   def __init__(self, spec: TensorSpec, buffer: bytes):
     self._buffer = buffer
-    self._elem_type = spec.element_type
+    self._spec = spec
     self._len = math.prod(spec.shape)
     self._set_view()
+
+  @property
+  def spec(self):
+    return self._spec
 
   def _set_view(self):
     # c_char_p is a nul-terminated string, so the more appropriate cast here
@@ -125,7 +132,7 @@ class TensorValue:
     buffer_as_naked_ptr = ctypes.cast(buffer_as_nul_ending_ptr,
                                       ctypes.POINTER(ctypes.c_char))
     self._view = ctypes.cast(buffer_as_naked_ptr,
-                             ctypes.POINTER(self._elem_type))
+                             ctypes.POINTER(self.spec.element_type))
 
   def __getstate__(self):
     # _view wouldn't be picklable because it's a pointer. It's easily
@@ -134,13 +141,13 @@ class TensorValue:
         '_buffer': self._buffer,
         '_view': None,
         '_len': self._len,
-        '_elem_type': self._elem_type
+        '_spec': self._spec
     })
 
   def __setstate__(self, state):
     _, slots = state
     self._buffer = slots['_buffer']
-    self._elem_type = slots['_elem_type']
+    self._spec = slots['_spec']
     self._len = slots['_len']
     self._set_view()
 

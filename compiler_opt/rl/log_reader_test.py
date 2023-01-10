@@ -17,6 +17,7 @@
 import ctypes
 import json
 import pickle
+import sys
 from absl.testing import absltest
 from compiler_opt.rl import log_reader
 from typing import BinaryIO
@@ -135,17 +136,27 @@ class LogReaderTest(absltest.TestCase):
     self.assertEqual(obs_id, 2)
 
   def test_pickling(self):
+    skip_size = sys.version_info.minor < 10
     tf = self.create_tempfile()
     create_example(tf)
     records = list(log_reader.read_log(tf))
     r1: log_reader.Record = records[0]
-    fv = r1.feature_values[0]
-    s = pickle.dumps(fv)
-    self.assertEqual(len(s), 157)
+    fv1 = r1.feature_values[0]
+    s = pickle.dumps(fv1)
+    self.assertTrue(skip_size or len(s) == 202)
+    fv2 = r1.feature_values[1]
+    # illustrate that, while the size of the stand-alone pickled fv2 is the same
+    # as fv1 (as expected given their shape), when we pickle them together, the
+    # resulting size is smaller than the sum - because the TensorSpec is
+    # referenced.
+    self.assertTrue(skip_size or len(pickle.dumps(fv1)) == 202)
+    # in particular, pickling references is quite cheap.
+    self.assertTrue(skip_size or len(pickle.dumps([fv1, fv1])) == 208)
+    self.assertTrue(skip_size or len(pickle.dumps([fv1, fv2])) == 305)
     o: log_reader.TensorValue = pickle.loads(s)
-    self.assertEqual(len(fv), len(o))
-    for i in range(len(fv)):
-      self.assertEqual(fv[i], o[i])
+    self.assertEqual(len(fv1), len(o))
+    for i in range(len(fv1)):
+      self.assertEqual(fv1[i], o[i])
 
 
 if __name__ == '__main__':
