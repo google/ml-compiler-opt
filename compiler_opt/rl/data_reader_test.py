@@ -88,7 +88,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     super().setUp()
 
   def _create_sequence_example_datasource(self, example):
-    return [example.SerializeToString() for _ in range(100)]
+    return [example.SerializeToString()] * 100
 
   def _create_tfrecord_datasource(self, example):
     data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
