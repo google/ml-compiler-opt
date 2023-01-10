@@ -66,7 +66,6 @@ def _write_tmp_tfrecord(file_path, example, num_examples):
 class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
-    self._agent_name = constant.AgentName.DQN
     observation_spec = {
         'feature_key':
             tf.TensorSpec(dtype=tf.int64, shape=(), name='feature_key')
@@ -88,23 +87,29 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         maximum=20)
     super().setUp()
 
-  @parameterized.named_parameters(
-      ('SequenceExampleDatasetFn',
-       data_reader.create_sequence_example_dataset_fn),
-      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn))
-  def test_create_dataset_fn(self, test_fn):
+  def _create_sequence_example_datasource(self, example):
+    return [example.SerializeToString()] * 100
+
+  def _create_tfrecord_datasource(self, example):
+    data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
+    _write_tmp_tfrecord(data_source, example, 100)
+    return data_source
+
+  _test_config = (('SequenceExampleDatasetFn',
+                   data_reader.create_sequence_example_dataset_fn,
+                   constant.AgentName.PPO, _create_sequence_example_datasource),
+                  ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
+                   constant.AgentName.PPO, _create_tfrecord_datasource))
+
+  @parameterized.named_parameters(*_test_config)
+  def test_create_dataset_fn(self, test_fn, _, data_source_fn):
+    agent_name_override = constant.AgentName.DQN
     example = _define_sequence_example(
-        self._agent_name, is_action_discrete=True)
+        agent_name_override, is_action_discrete=True)
 
-    data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
-      _write_tmp_tfrecord(data_source, example, 100)
-
+    data_source = data_source_fn(self, example)
     dataset_fn = test_fn(
-        agent_name=self._agent_name,
+        agent_name=agent_name_override,
         time_step_spec=self._time_step_spec,
         action_spec=self._discrete_action_spec,
         batch_size=2,
@@ -123,30 +128,23 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([[2.3, 2.3, 2.3], [2.3, 2.3, 2.3]], experience.reward)
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.discount)
 
-  @parameterized.named_parameters(
-      ('SequenceExampleDatasetFn',
-       data_reader.create_sequence_example_dataset_fn, constant.AgentName.PPO),
-      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
-       constant.AgentName.PPO), ('SequenceExampleDatasetFnDistributed',
-                                 data_reader.create_sequence_example_dataset_fn,
-                                 constant.AgentName.PPO_DISTRIBUTED),
-      ('TFRecordDatasetFnDistributed', data_reader.create_tfrecord_dataset_fn,
-       constant.AgentName.PPO_DISTRIBUTED))
-  def test_ppo_policy_info_discrete(self, test_fn, agent_name):
-    self._agent_name = agent_name
+  _distrib_test_config = (('SequenceExampleDatasetFnDistributed',
+                           data_reader.create_sequence_example_dataset_fn,
+                           constant.AgentName.PPO_DISTRIBUTED,
+                           _create_sequence_example_datasource),
+                          ('TFRecordDatasetFnDistributed',
+                           data_reader.create_tfrecord_dataset_fn,
+                           constant.AgentName.PPO_DISTRIBUTED,
+                           _create_tfrecord_datasource))
 
-    example = _define_sequence_example(
-        self._agent_name, is_action_discrete=True)
+  @parameterized.named_parameters(*(_test_config + _distrib_test_config))
+  def test_ppo_policy_info_discrete(self, test_fn, agent_name, data_source_fn):
+    example = _define_sequence_example(agent_name, is_action_discrete=True)
 
-    data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
-      _write_tmp_tfrecord(data_source, example, 100)
+    data_source = data_source_fn(self, example)
 
     dataset_fn = test_fn(
-        agent_name=self._agent_name,
+        agent_name=agent_name,
         time_step_spec=self._time_step_spec,
         action_spec=self._discrete_action_spec,
         batch_size=2,
@@ -159,30 +157,15 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
                          [[1.2, 3.4], [1.2, 3.4], [1.2, 3.4]]],
                         experience.policy_info['dist_params']['logits'])
 
-  @parameterized.named_parameters(
-      ('SequenceExampleDatasetFn',
-       data_reader.create_sequence_example_dataset_fn, constant.AgentName.PPO),
-      ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
-       constant.AgentName.PPO), ('SequenceExampleDatasetFnDistributed',
-                                 data_reader.create_sequence_example_dataset_fn,
-                                 constant.AgentName.PPO_DISTRIBUTED),
-      ('TFRecordDatasetFnDistributed', data_reader.create_tfrecord_dataset_fn,
-       constant.AgentName.PPO_DISTRIBUTED))
-  def test_ppo_policy_info_continuous(self, test_fn, agent_name):
-    self._agent_name = agent_name
+  @parameterized.named_parameters(*(_test_config + _distrib_test_config))
+  def test_ppo_policy_info_continuous(self, test_fn, agent_name,
+                                      data_source_fn):
+    example = _define_sequence_example(agent_name, is_action_discrete=False)
 
-    example = _define_sequence_example(
-        self._agent_name, is_action_discrete=False)
-
-    data_source = None
-    if test_fn == data_reader.create_sequence_example_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = [example.SerializeToString() for _ in range(100)]
-    elif test_fn == data_reader.create_tfrecord_dataset_fn:  # pylint: disable=comparison-with-callable
-      data_source = os.path.join(self.get_temp_dir(), 'data_tfrecord')
-      _write_tmp_tfrecord(data_source, example, 100)
+    data_source = data_source_fn(self, example)
 
     dataset_fn = test_fn(
-        agent_name=self._agent_name,
+        agent_name=agent_name,
         time_step_spec=self._time_step_spec,
         action_spec=self._continuous_action_spec,
         batch_size=2,
