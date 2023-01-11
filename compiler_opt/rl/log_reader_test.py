@@ -20,7 +20,10 @@ import pickle
 import sys
 from absl.testing import absltest
 from compiler_opt.rl import log_reader
+from google.protobuf import text_format
 from typing import BinaryIO
+
+import tensorflow as tf
 
 
 def json_to_bytes(d) -> bytes:
@@ -107,9 +110,9 @@ class LogReaderTest(absltest.TestCase):
             element_type=ctypes.c_float))
 
   def test_read_header(self):
-    tf = self.create_tempfile()
-    create_example(tf)
-    with open(tf, 'rb') as f:
+    logfile = self.create_tempfile()
+    create_example(logfile)
+    with open(logfile, 'rb') as f:
       header = log_reader._read_header(f)  # pylint:disable=protected-access
       self.assertEqual(header.features, [
           log_reader.TensorSpec(
@@ -129,10 +132,10 @@ class LogReaderTest(absltest.TestCase):
               name='reward', port=0, shape=[1], element_type=ctypes.c_float))
 
   def test_read_log(self):
-    tf = self.create_tempfile()
-    create_example(tf)
+    logfile = self.create_tempfile()
+    create_example(logfile)
     obs_id = 0
-    for record in log_reader.read_log(tf):
+    for record in log_reader.read_log(logfile):
       self.assertEqual(record.observation_id, obs_id)
       self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
       obs_id += 1
@@ -140,9 +143,9 @@ class LogReaderTest(absltest.TestCase):
 
   def test_pickling(self):
     skip_size = sys.version_info.minor < 10
-    tf = self.create_tempfile()
-    create_example(tf)
-    records = list(log_reader.read_log(tf))
+    logfile = self.create_tempfile()
+    create_example(logfile)
+    records = list(log_reader.read_log(logfile))
     r1: log_reader.Record = records[0]
     fv1 = r1.feature_values[0]
     s = pickle.dumps(fv1)
@@ -162,14 +165,81 @@ class LogReaderTest(absltest.TestCase):
       self.assertEqual(fv1[i], o[i])
 
   def test_seq_example_conversion(self):
-    tf = self.create_tempfile()
-    create_example(tf, nr_contexts=2)
-    seq_examples = log_reader.read_log_as_sequence_examples(tf)
+    logfile = self.create_tempfile()
+    create_example(logfile, nr_contexts=2)
+    seq_examples = log_reader.read_log_as_sequence_examples(logfile)
     self.assertIn('context_nr_0', seq_examples)
     self.assertIn('context_nr_1', seq_examples)
     self.assertEqual(
         seq_examples['context_nr_1'].feature_lists.feature_list['tensor_name1']
         .feature[0].int64_list.value, [12, 13, 14])
+    # each context has 2 observations. The reward is scalar, the
+    # 2 features' shapes are given in `create_example` above.
+    expected_ctx_0 = text_format.Parse(
+        """
+feature_lists {
+  feature_list {
+    key: "reward"
+    value {
+      feature {
+        float_list {
+          value: 1.2000000476837158
+        }
+      }
+      feature {
+        float_list {
+          value: 2.200000047683716
+        }
+      }
+    }
+  }
+  feature_list {
+    key: "tensor_name1"
+    value {
+      feature {
+        int64_list {
+          value: 1
+          value: 2
+          value: 3
+        }
+      }
+      feature {
+        int64_list {
+          value: 2
+          value: 3
+          value: 4
+        }
+      }
+    }
+  }
+  feature_list {
+    key: "tensor_name2"
+    value {
+      feature {
+        float_list {
+          value: 0.10000000149011612
+          value: 0.20000000298023224
+          value: 0.30000001192092896
+          value: 0.4000000059604645
+          value: 0.5
+          value: 0.6000000238418579
+        }
+      }
+      feature {
+        float_list {
+          value: 1.100000023841858
+          value: 1.2000000476837158
+          value: 1.2999999523162842
+          value: 1.399999976158142
+          value: 1.5
+          value: 1.600000023841858
+        }
+      }
+    }
+  }
+}
+""", tf.train.SequenceExample())
+    self.assertEqual(expected_ctx_0, seq_examples['context_nr_0'])
 
 
 if __name__ == '__main__':
