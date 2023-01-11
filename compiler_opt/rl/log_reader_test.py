@@ -18,7 +18,6 @@ import ctypes
 import json
 import pickle
 import sys
-from absl.testing import absltest
 from compiler_opt.rl import log_reader
 
 # This is https://github.com/google/pytype/issues/764
@@ -111,7 +110,7 @@ def create_example(fname: str, nr_contexts=1):
       write_buff(f, s, ctypes.c_float)
 
 
-class LogReaderTest(absltest.TestCase):
+class LogReaderTest(tf.test.TestCase):
 
   def test_create_tensorspec(self):
     ts = log_reader.create_tensorspec({
@@ -258,8 +257,8 @@ feature_lists {
   }
 }
 """, tf.train.SequenceExample())
-    self.assertEqual(expected_ctx_0, seq_examples['context_nr_0'])
+    self.assertProtoEquals(expected_ctx_0, seq_examples['context_nr_0'])
 
 
 if __name__ == '__main__':
-  absltest.main()
+  tf.test.main()
