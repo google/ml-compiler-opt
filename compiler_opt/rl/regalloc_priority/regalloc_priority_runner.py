@@ -17,15 +17,12 @@
 import gin
 import tensorflow as tf
 
-import base64
-import io
 import os
 import tempfile
 from typing import Dict, Optional, Tuple
 
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import struct_pb2  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import log_reader
 
 
 @gin.configurable(module='runners')
@@ -62,25 +59,20 @@ class RegAllocPriorityRunner(compilation_runner.CompilationRunner):
                                                    self._compilation_timeout,
                                                    cancellation_manager)
 
-      sequence_example = struct_pb2.Struct()
+      # TODO(#202)
+      log_result = log_reader.read_log_as_sequence_examples(log_path)
 
-      with io.open(log_path, 'rb') as f:
-        sequence_example.ParseFromString(f.read())
-
-      for key, value in sequence_example.fields.items():
-        e = tf.train.SequenceExample()
-        e.ParseFromString(base64.b64decode(value.string_value))
-        print(e)
-        if not e.HasField('feature_lists'):
+      for fct_name, trajectory in log_result.items():
+        if not trajectory.HasField('feature_lists'):
           continue
-        r = (
-            e.feature_lists.feature_list['reward'].feature[-1].float_list
-            .value[0])
+        score = (
+            trajectory.feature_lists.feature_list['reward'].feature[-1]
+            .float_list.value[0])
         if reward_only:
-          result[key] = (None, r)
+          result[fct_name] = (None, score)
         else:
-          del e.feature_lists.feature_list['reward']
-          result[key] = (e, r)
+          del trajectory.feature_lists.feature_list['reward']
+          result[fct_name] = (trajectory, score)
 
     finally:
       tf.io.gfile.rmtree(working_dir)
