@@ -245,9 +245,8 @@ def _add_feature(se: tf.train.SequenceExample, spec: TensorSpec,
 
 def read_log_as_sequence_examples(
     fname: str) -> Dict[str, tf.train.SequenceExample]:
-  # the pylint disable below is because of 3.8
-  ret = collections.defaultdict[str, tf.train.SequenceExample](
-      tf.train.SequenceExample)  # pylint-disable(unsubscriptable-object)
+  ret: Dict[str, tf.train.SequenceExample] = collections.defaultdict(
+      tf.train.SequenceExample)
   # a record is an observation: the features and score for one step.
   # the records are in time order
   # the `context` is, for example, the function name for passes like regalloc.

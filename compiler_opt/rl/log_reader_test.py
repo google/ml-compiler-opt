@@ -30,13 +30,35 @@ def json_to_bytes(d) -> bytes:
   return json.dumps(d).encode('utf-8')
 
 
+nl = '\n'.encode('utf-8')
+
+
 def write_buff(f: BinaryIO, buffer: list, ct):
   # we should get the ctypes array to bytes for pytype to be happy.
   f.write((ct * len(buffer))(*buffer))  # pytype:disable=wrong-arg-types
 
 
+def write_context_marker(f: BinaryIO, name: str):
+  f.write(nl)
+  f.write(json_to_bytes({'context': name}))
+
+
+def write_observation_marker(f: BinaryIO, obs_idx: int):
+  f.write(nl)
+  f.write(json_to_bytes({'observation': obs_idx}))
+
+
+def begin_features(f: BinaryIO):
+  f.write(nl)
+
+
+def write_outcome_marker(f: BinaryIO, obs_idx: int):
+  f.write(nl)
+  f.write(json_to_bytes({'outcome': obs_idx}))
+
+
 def create_example(fname: str, nr_contexts=1):
-  nl = '\n'.encode('utf-8')
+
   t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
   t1_val = [1, 2, 3]
   s = [1.2]
@@ -63,32 +85,27 @@ def create_example(fname: str, nr_contexts=1):
             }
         }))
     for ctx_id in range(nr_contexts):
-      f.write(nl)
       t0_val = [v + ctx_id * 10 for v in t0_val]
       t1_val = [v + ctx_id * 10 for v in t1_val]
-      f.write(json_to_bytes({'context': f'context_nr_{ctx_id}'}))
-      f.write(nl)
-      f.write(json_to_bytes({'observation': 0}))
-      f.write(nl)
+      write_context_marker(f, f'context_nr_{ctx_id}')
+      write_observation_marker(f, 0)
+      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
-      f.write(nl)
-      f.write(json_to_bytes({'outcome': 0}))
-      f.write(nl)
+      write_outcome_marker(f, 0)
+      begin_features(f)
       write_buff(f, s, ctypes.c_float)
-      f.write(nl)
 
       t0_val = [v + 1 for v in t0_val]
       t1_val = [v + 1 for v in t1_val]
       s[0] += 1
 
-      f.write(json_to_bytes({'observation': 1}))
-      f.write(nl)
+      write_observation_marker(f, 1)
+      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
-      f.write(nl)
-      f.write(json_to_bytes({'outcome': 1}))
-      f.write(nl)
+      write_outcome_marker(f, 1)
+      begin_features(f)
       write_buff(f, s, ctypes.c_float)
 
 
