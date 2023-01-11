@@ -32,7 +32,7 @@ def write_buff(f: BinaryIO, buffer: list, ct):
   f.write((ct * len(buffer))(*buffer))  # pytype:disable=wrong-arg-types
 
 
-def create_example(fname: str):
+def create_example(fname: str, nr_contexts=1):
   nl = '\n'.encode('utf-8')
   t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
   t1_val = [1, 2, 3]
@@ -59,31 +59,34 @@ def create_example(fname: str):
                 'type': 'float'
             }
         }))
-    f.write(nl)
-    f.write(json_to_bytes({'context': 'some_context'}))
-    f.write(nl)
-    f.write(json_to_bytes({'observation': 0}))
-    f.write(nl)
-    write_buff(f, t0_val, ctypes.c_float)
-    write_buff(f, t1_val, ctypes.c_int64)
-    f.write(nl)
-    f.write(json_to_bytes({'outcome': 0}))
-    f.write(nl)
-    write_buff(f, s, ctypes.c_float)
-    f.write(nl)
+    for ctx_id in range(nr_contexts):
+      f.write(nl)
+      t0_val = [v + ctx_id * 10 for v in t0_val]
+      t1_val = [v + ctx_id * 10 for v in t1_val]
+      f.write(json_to_bytes({'context': f'context_nr_{ctx_id}'}))
+      f.write(nl)
+      f.write(json_to_bytes({'observation': 0}))
+      f.write(nl)
+      write_buff(f, t0_val, ctypes.c_float)
+      write_buff(f, t1_val, ctypes.c_int64)
+      f.write(nl)
+      f.write(json_to_bytes({'outcome': 0}))
+      f.write(nl)
+      write_buff(f, s, ctypes.c_float)
+      f.write(nl)
 
-    t0_val = [v + 1 for v in t0_val]
-    t1_val = [v + 1 for v in t1_val]
-    s[0] += 1
+      t0_val = [v + 1 for v in t0_val]
+      t1_val = [v + 1 for v in t1_val]
+      s[0] += 1
 
-    f.write(json_to_bytes({'observation': 1}))
-    f.write(nl)
-    write_buff(f, t0_val, ctypes.c_float)
-    write_buff(f, t1_val, ctypes.c_int64)
-    f.write(nl)
-    f.write(json_to_bytes({'outcome': 1}))
-    f.write(nl)
-    write_buff(f, s, ctypes.c_float)
+      f.write(json_to_bytes({'observation': 1}))
+      f.write(nl)
+      write_buff(f, t0_val, ctypes.c_float)
+      write_buff(f, t1_val, ctypes.c_int64)
+      f.write(nl)
+      f.write(json_to_bytes({'outcome': 1}))
+      f.write(nl)
+      write_buff(f, s, ctypes.c_float)
 
 
 class LogReaderTest(absltest.TestCase):
@@ -157,6 +160,16 @@ class LogReaderTest(absltest.TestCase):
     self.assertEqual(len(fv1), len(o))
     for i in range(len(fv1)):
       self.assertEqual(fv1[i], o[i])
+
+  def test_seq_example_conversion(self):
+    tf = self.create_tempfile()
+    create_example(tf, nr_contexts=2)
+    seq_examples = log_reader.read_log_as_sequence_examples(tf)
+    self.assertIn('context_nr_0', seq_examples)
+    self.assertIn('context_nr_1', seq_examples)
+    self.assertEqual(
+        seq_examples['context_nr_1'].feature_lists.feature_list['tensor_name1']
+        .feature[0].int64_list.value, [12, 13, 14])
 
 
 if __name__ == '__main__':

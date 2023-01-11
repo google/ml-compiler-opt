@@ -62,6 +62,7 @@ import math
 
 from typing import Any, BinaryIO, Dict, Generator, List, Optional
 import sys
+import tensorflow as tf
 
 _element_types = {
     'float': ctypes.c_float,
@@ -229,3 +230,31 @@ def read_log(fname: str) -> Generator[Record, None, None]:
   with open(fname, 'rb') as f:
     header = _read_header(f)
     yield from _enumerate_log_from_stream(f, header)
+
+
+def _add_feature(se: tf.train.SequenceExample, spec: TensorSpec,
+                 value: TensorValue):
+  f = se.feature_lists.feature_list[spec.name].feature.add()
+  if spec.element_type in [ctypes.c_double, ctypes.c_float]:
+    lst = f.float_list.value
+  else:
+    lst = f.int64_list.value
+  lst.extend(value)
+
+
+def read_log_as_sequence_examples(
+    fname: str) -> Dict[str, tf.train.SequenceExample]:
+  ret = {}
+  # a record is an observation: the features and score for one step.
+  # the records are in time order
+  # the `context` is, for example, the function name for passes like regalloc.
+  # we produce a dictionary keyed in contexts with SequenceExample values.
+  for record in read_log(fname):
+    if record.context not in ret:
+      ret[record.context] = tf.train.SequenceExample()
+    se = ret[record.context]
+    if record.score:
+      _add_feature(se, record.score.spec, record.score)
+    for t in record.feature_values:
+      _add_feature(se, t.spec, t)
+  return ret
