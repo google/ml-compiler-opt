@@ -14,7 +14,6 @@
 # limitations under the License.
 """Module for collect data of inlining-for-size."""
 
-import io
 import os
 import tempfile
 from typing import Dict, Tuple
@@ -24,6 +23,7 @@ import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
+from compiler_opt.rl import log_reader
 
 _DEFAULT_IDENTIFIER = 'default'
 
@@ -73,7 +73,6 @@ class InliningRunner(compilation_runner.CompilationRunner):
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
-    sequence_example = tf.train.SequenceExample()
     native_size = 0
     try:
       cmdline = []
@@ -110,8 +109,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
       if reward_only:
         return {_DEFAULT_IDENTIFIER: (None, native_size)}
 
-      with io.open(log_path, 'rb') as f:
-        sequence_example.ParseFromString(f.read())
+      result = log_reader.read_log_as_sequence_examples(log_path)
+      if len(result) != 1:
+        return {}
+      sequence_example = next(iter(result.values()))
 
       if not sequence_example.HasField('feature_lists'):
         return {}
