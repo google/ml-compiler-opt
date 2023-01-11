@@ -20,7 +20,9 @@ import pickle
 import sys
 from absl.testing import absltest
 from compiler_opt.rl import log_reader
-from google.protobuf import text_format
+
+# This is https://github.com/google/pytype/issues/764
+from google.protobuf import text_format  # pytype: disable=pyi-error
 from typing import BinaryIO
 
 import tensorflow as tf
