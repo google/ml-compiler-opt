@@ -62,7 +62,6 @@ import json
 import math
 
 from typing import Any, BinaryIO, Dict, Generator, List, Optional
-import sys
 import tensorflow as tf
 
 _element_type_name_map = {
@@ -87,16 +86,6 @@ _dtype_to_ctype = {
 }
 
 
-# dataclass supports `slots=True` as of 3.10.
-@dataclasses.dataclass(
-    frozen=True, **({} if sys.version_info.minor < 10 else dict(slots=True)))
-class TensorSpec:
-  name: str
-  port: int
-  shape: List[int]
-  element_type: type
-
-
 def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
   name: str = d['name']
   shape: List[int] = [int(e) for e in d['shape']]
@@ -109,7 +98,7 @@ def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
       dtype=_element_type_name_to_dtype[element_type_str])
 
 
-class TensorValue:
+class _TensorValue:
   """The value of a tensor of a given spec.
 
   We root the bytes buffer which provide the underlying data, and index in
@@ -154,38 +143,34 @@ class TensorValue:
 
 
 @dataclasses.dataclass(frozen=True)
-class Header:
+class _Header:
   features: List[tf.TensorSpec]
   score: Optional[tf.TensorSpec]
 
 
-def read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> TensorValue:
+def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> _TensorValue:
   size = math.prod(ts.shape) * ctypes.sizeof(_dtype_to_ctype[ts.dtype])
   data = fs.read(size)
-  return TensorValue(ts, data)
+  return _TensorValue(ts, data)
 
 
-def _read_header(f: BinaryIO) -> Header:
+def _read_header(f: BinaryIO) -> _Header:
   header = json.loads(f.readline())
   tensor_specs = [create_tensorspec(ts) for ts in header['features']]
   score_spec = create_tensorspec(header['score']) if 'score' in header else None
-  return Header(features=tensor_specs, score=score_spec)
-
-
-def pretty_print_tensor_value(tv: TensorValue):
-  print(f'{tv.spec().name}: {",".join([str(v) for v in tv])}')
+  return _Header(features=tensor_specs, score=score_spec)
 
 
 @dataclasses.dataclass(frozen=True)
-class Record:
+class ObservationRecord:
   context: str
   observation_id: int
-  feature_values: List[TensorValue]
-  score: Optional[TensorValue]
+  feature_values: List[_TensorValue]
+  score: Optional[_TensorValue]
 
 
-def _enumerate_log_from_stream(f: BinaryIO,
-                               header: Header) -> Generator[Record, None, None]:
+def _enumerate_log_from_stream(
+    f: BinaryIO, header: _Header) -> Generator[ObservationRecord, None, None]:
   """A generator that returns Record objects from a log file.
 
   It is assumed the log file's header was read separately.
@@ -201,29 +186,29 @@ def _enumerate_log_from_stream(f: BinaryIO,
     observation_id = int(event['observation'])
     features = []
     for ts in tensor_specs:
-      features.append(read_tensor(f, ts))
+      features.append(_read_tensor(f, ts))
     f.readline()
     score = None
     if score_spec is not None:
       score_header = json.loads(f.readline())
       assert int(score_header['outcome']) == observation_id
-      score = read_tensor(f, score_spec)
+      score = _read_tensor(f, score_spec)
       f.readline()
-    yield Record(
+    yield ObservationRecord(
         context=context,
         observation_id=observation_id,
         feature_values=features,
         score=score)
 
 
-def read_log(fname: str) -> Generator[Record, None, None]:
+def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
   with open(fname, 'rb') as f:
     header = _read_header(f)
     yield from _enumerate_log_from_stream(f, header)
 
 
 def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
-                 value: TensorValue):
+                 value: _TensorValue):
   f = se.feature_lists.feature_list[spec.name].feature.add()
   # This should never happen: _add_feature is an implementation detail of
   # read_log_as_sequence_examples, and the only dtypes we should see here are
