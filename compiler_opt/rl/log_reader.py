@@ -225,6 +225,12 @@ def read_log(fname: str) -> Generator[Record, None, None]:
 def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
                  value: TensorValue):
   f = se.feature_lists.feature_list[spec.name].feature.add()
+  # This should never happen: _add_feature is an implementation detail of
+  # read_log_as_sequence_examples, and the only dtypes we should see here are
+  # those in _element_type_name_map, or an exception would have been thrown
+  # already.
+  if spec.dtype not in _dtype_to_ctype:
+    raise ValueError('Unsupported dtype: f{spec.dtype}')
   if spec.dtype in [tf.float32, tf.float64]:
     lst = f.float_list.value
   else:
