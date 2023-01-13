@@ -132,6 +132,7 @@ class LogReaderTest(tf.test.TestCase):
     create_example(logfile)
     with open(logfile, 'rb') as f:
       header = log_reader._read_header(f)  # pylint:disable=protected-access
+      self.assertTrue(header)
       self.assertEqual(header.features, [
           log_reader.TensorSpec(
               name='tensor_name2',
@@ -148,6 +149,12 @@ class LogReaderTest(tf.test.TestCase):
           header.score,
           log_reader.TensorSpec(
               name='reward', port=0, shape=[1], element_type=ctypes.c_float))
+
+  def test_read_header_empty_file(self):
+    logfile = self.create_tempfile()
+    with open(logfile, 'rb') as f:
+      header = log_reader._read_header(f)
+      self.assertFalse(header)
 
   def test_read_log(self):
     logfile = self.create_tempfile()
