@@ -153,7 +153,7 @@ class LogReaderTest(tf.test.TestCase):
   def test_read_header_empty_file(self):
     logfile = self.create_tempfile()
     with open(logfile, 'rb') as f:
-      header = log_reader._read_header(f)
+      header = log_reader._read_header(f)  # pylint:disable=protected-access
       self.assertFalse(header)
 
   def test_read_log(self):
