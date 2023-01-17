@@ -98,7 +98,7 @@ def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
       dtype=_element_type_name_to_dtype[element_type_str])
 
 
-class _TensorValue:
+class LogReaderTensorValue:
   """The value of a tensor of a given spec.
 
   We root the bytes buffer which provide the underlying data, and index in
@@ -148,10 +148,10 @@ class _Header:
   score: Optional[tf.TensorSpec]
 
 
-def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> _TensorValue:
+def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> LogReaderTensorValue:
   size = math.prod(ts.shape) * ctypes.sizeof(_dtype_to_ctype[ts.dtype])
   data = fs.read(size)
-  return _TensorValue(ts, data)
+  return LogReaderTensorValue(ts, data)
 
 
 def _read_header(f: BinaryIO) -> _Header:
@@ -165,8 +165,8 @@ def _read_header(f: BinaryIO) -> _Header:
 class ObservationRecord:
   context: str
   observation_id: int
-  feature_values: List[_TensorValue]
-  score: Optional[_TensorValue]
+  feature_values: List[LogReaderTensorValue]
+  score: Optional[LogReaderTensorValue]
 
 
 def _enumerate_log_from_stream(
@@ -208,7 +208,7 @@ def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
 
 
 def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
-                 value: _TensorValue):
+                 value: LogReaderTensorValue):
   f = se.feature_lists.feature_list[spec.name].feature.add()
   # This should never happen: _add_feature is an implementation detail of
   # read_log_as_sequence_examples, and the only dtypes we should see here are
