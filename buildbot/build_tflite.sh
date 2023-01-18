@@ -34,9 +34,6 @@ readonly NEON_2_SSE_TAG="cef9501d1d1c47223466bf2b8cd43f3368c37773"
 readonly FLATBUFFERS_REPOSITORY="https://github.com/google/flatbuffers"
 readonly FLATBUFFERS_TAG="615616cb5549a34bdf288c04bc1b94bd7a65c396"
 
-readonly PROTOBUF_REPOSITORY="https://github.com/protocolbuffers/protobuf"
-readonly PROTOBUF_TAG="c9869dc7803eb0a21d7e589c40ff4f9288cd34ae"
-
 readonly TENSORFLOW_REPOSITORY="https://github.com/tensorflow/tensorflow"
 readonly TENSORFLOW_TAG="d74d591e8f9e42be640dd93cfa0584914e25e98e"
 
@@ -123,16 +120,6 @@ cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/ten
   -DFlatbuffers_DIR:PATH=${PWD}/flatbuffers/lib/cmake/flatbuffers
 ninja -C tensorflow/src/tensorflow-build install
 
-# protobuf
-git clone --filter=tree:0 --no-checkout ${PROTOBUF_REPOSITORY} protobuf/src/protobuf
-git -C protobuf/src/protobuf checkout ${PROTOBUF_TAG} 
-cmake -GNinja -S protobuf/src/protobuf/cmake -B protobuf/src/protobuf-build \
-  -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
-  -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/protobuf \
-  -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
-  -Dprotobuf_BUILD_TESTS:BOOL=OFF
-ninja -C protobuf/src/protobuf-build install
-
 # CMake cache file
 cat <<EOF >>tflite.cmake
 set(cpuinfo_DIR "${PWD}/cpuinfo/share/cpuinfo" CACHE PATH "")
@@ -141,7 +128,6 @@ set(absl_DIR "${PWD}/abseil-cpp/lib/cmake/absl" CACHE PATH "")
 set(Eigen3_DIR "${PWD}/eigen/share/eigen3/cmake" CACHE PATH "")
 set(NEON_2_SSE_DIR "${PWD}/ARM_NEON_2_x86_SSE/lib/cmake/NEON_2_SSE" CACHE PATH "")
 set(Flatbuffers_DIR "${PWD}/flatbuffers/lib/cmake/flatbuffers" CACHE PATH "")
-set(protobuf_DIR "${PWD}/protobuf/lib/cmake/protobuf" CACHE PATH "")
 set(tensorflow-lite_DIR "${PWD}/tensorflow/lib/cmake/tensorflow-lite" CACHE PATH "")
 set(TENSORFLOW_SRC_DIR "${PWD}/tensorflow/src/tensorflow" CACHE PATH "")
 set(LLVM_HAVE_TFLITE ON CACHE BOOL "")
