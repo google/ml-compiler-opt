@@ -131,8 +131,12 @@ class LogReaderTest(tf.test.TestCase):
     logfile = self.create_tempfile()
     create_example(logfile)
     with open(logfile, 'rb') as f:
-      header = log_reader._read_header(f)  # pylint:disable=protected-access
+      header = log_reader._read_header(f)  # pylint: disable=protected-access
       self.assertIsNotNone(header)
+      # Disable attribute error because header is an Optional type, and pytype
+      # on python 3.9 doesn't recognise that we already checked the Optional is
+      # not None
+      # pytype: disable=attribute-error
       self.assertEqual(header.features, [
           log_reader.TensorSpec(
               name='tensor_name2',
@@ -144,13 +148,12 @@ class LogReaderTest(tf.test.TestCase):
               port=0,
               shape=[3, 1],
               element_type=ctypes.c_int64)
-      ])  # pylint:disable=attribute-error,
-      self.assertEqual(header.score,
-                       log_reader.TensorSpec(
-                           name='reward',
-                           port=0,
-                           shape=[1],
-                           element_type=ctypes.c_float))  # pylint:disable=attribute-error
+      ])
+      self.assertEqual(
+          header.score,
+          log_reader.TensorSpec(
+              name='reward', port=0, shape=[1], element_type=ctypes.c_float))
+      # pytype: enable=attribute-error
 
   def test_read_header_empty_file(self):
     logfile = self.create_tempfile()
