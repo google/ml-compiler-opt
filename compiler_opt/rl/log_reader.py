@@ -154,8 +154,12 @@ def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> LogReaderTensorValue:
   return LogReaderTensorValue(ts, data)
 
 
-def _read_header(f: BinaryIO) -> _Header:
-  header = json.loads(f.readline())
+def _read_header(f: BinaryIO) -> Optional[_Header]:
+  header_raw = f.readline()
+  if not header_raw:
+    # This is the path taken by empty files
+    return None
+  header = json.loads(header_raw)
   tensor_specs = [create_tensorspec(ts) for ts in header['features']]
   score_spec = create_tensorspec(header['score']) if 'score' in header else None
   return _Header(features=tensor_specs, score=score_spec)
@@ -204,7 +208,8 @@ def _enumerate_log_from_stream(
 def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
   with open(fname, 'rb') as f:
     header = _read_header(f)
-    yield from _enumerate_log_from_stream(f, header)
+    if header:
+      yield from _enumerate_log_from_stream(f, header)
 
 
 def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
