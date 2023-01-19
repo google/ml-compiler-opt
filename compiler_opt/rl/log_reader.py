@@ -62,48 +62,43 @@ import json
 import math
 
 from typing import Any, BinaryIO, Dict, Generator, List, Optional
-import sys
 import tensorflow as tf
 
-_element_types = {
-    'float': ctypes.c_float,
-    'double': ctypes.c_double,
-    'int8_t': ctypes.c_int8,
-    'uint8_t': ctypes.c_uint8,
-    'int16_t': ctypes.c_int16,
-    'uint16_t': ctypes.c_uint16,
-    'int32_t': ctypes.c_int32,
-    'uint32_t': ctypes.c_uint32,
-    'int64_t': ctypes.c_int64,
-    'uint64_t': ctypes.c_uint64
+_element_type_name_map = {
+    'float': (ctypes.c_float, tf.float32),
+    'double': (ctypes.c_double, tf.float64),
+    'int8_t': (ctypes.c_int8, tf.int8),
+    'uint8_t': (ctypes.c_uint8, tf.uint8),
+    'int16_t': (ctypes.c_int16, tf.int16),
+    'uint16_t': (ctypes.c_uint16, tf.uint16),
+    'int32_t': (ctypes.c_int32, tf.int32),
+    'uint32_t': (ctypes.c_uint32, tf.uint32),
+    'int64_t': (ctypes.c_int64, tf.int64),
+    'uint64_t': (ctypes.c_uint64, tf.uint64)
+}
+
+_element_type_name_to_dtype = {
+    name: dtype for name, (_, dtype) in _element_type_name_map.items()
+}
+
+_dtype_to_ctype = {
+    dtype: ctype for _, (ctype, dtype) in _element_type_name_map.items()
 }
 
 
-# dataclass supports `slots=True` as of 3.10.
-@dataclasses.dataclass(
-    frozen=True, **({} if sys.version_info.minor < 10 else dict(slots=True)))
-class TensorSpec:
-  name: str
-  port: int
-  shape: List[int]
-  element_type: type
-
-
-def create_tensorspec(d: Dict[str, Any]) -> TensorSpec:
+def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
   name: str = d['name']
-  port: int = int(d['port'])
   shape: List[int] = [int(e) for e in d['shape']]
   element_type_str: str = d['type']
-  if element_type_str not in _element_types:
+  if element_type_str not in _element_type_name_to_dtype:
     raise ValueError(f'uknown type: {element_type_str}')
-  return TensorSpec(
+  return tf.TensorSpec(
       name=name,
-      port=port,
-      shape=shape,
-      element_type=_element_types[element_type_str])
+      shape=tf.TensorShape(shape),
+      dtype=_element_type_name_to_dtype[element_type_str])
 
 
-class TensorValue:
+class LogReaderTensorValue:
   """The value of a tensor of a given spec.
 
   We root the bytes buffer which provide the underlying data, and index in
@@ -115,7 +110,7 @@ class TensorValue:
   """
   __slots__ = ('_buffer', '_spec', '_len', '_view')
 
-  def __init__(self, spec: TensorSpec, buffer: bytes):
+  def __init__(self, spec: tf.TensorSpec, buffer: bytes):
     self._buffer = buffer
     self._spec = spec
     self._len = math.prod(spec.shape)
@@ -134,24 +129,7 @@ class TensorValue:
     buffer_as_naked_ptr = ctypes.cast(buffer_as_nul_ending_ptr,
                                       ctypes.POINTER(ctypes.c_char))
     self._view = ctypes.cast(buffer_as_naked_ptr,
-                             ctypes.POINTER(self.spec.element_type))
-
-  def __getstate__(self):
-    # _view wouldn't be picklable because it's a pointer. It's easily
-    # recreatable when un-pickling.
-    return (None, {
-        '_buffer': self._buffer,
-        '_view': None,
-        '_len': self._len,
-        '_spec': self._spec
-    })
-
-  def __setstate__(self, state):
-    _, slots = state
-    self._buffer = slots['_buffer']
-    self._spec = slots['_spec']
-    self._len = slots['_len']
-    self._set_view()
+                             ctypes.POINTER(_dtype_to_ctype[self.spec.dtype]))
 
   def __len__(self) -> int:
     return self._len
@@ -165,15 +143,15 @@ class TensorValue:
 
 
 @dataclasses.dataclass(frozen=True)
-class Header:
-  features: List[TensorSpec]
-  score: Optional[TensorSpec]
+class _Header:
+  features: List[tf.TensorSpec]
+  score: Optional[tf.TensorSpec]
 
 
-def read_tensor(fs: BinaryIO, ts: TensorSpec) -> TensorValue:
-  size = math.prod(ts.shape) * ctypes.sizeof(ts.element_type)
+def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> LogReaderTensorValue:
+  size = math.prod(ts.shape) * ctypes.sizeof(_dtype_to_ctype[ts.dtype])
   data = fs.read(size)
-  return TensorValue(ts, data)
+  return LogReaderTensorValue(ts, data)
 
 
 def _read_header(f: BinaryIO) -> Optional[Header]:
@@ -184,23 +162,19 @@ def _read_header(f: BinaryIO) -> Optional[Header]:
   header = json.loads(header_raw)
   tensor_specs = [create_tensorspec(ts) for ts in header['features']]
   score_spec = create_tensorspec(header['score']) if 'score' in header else None
-  return Header(features=tensor_specs, score=score_spec)
-
-
-def pretty_print_tensor_value(tv: TensorValue):
-  print(f'{tv.spec().name}: {",".join([str(v) for v in tv])}')
+  return _Header(features=tensor_specs, score=score_spec)
 
 
 @dataclasses.dataclass(frozen=True)
-class Record:
+class ObservationRecord:
   context: str
   observation_id: int
-  feature_values: List[TensorValue]
-  score: Optional[TensorValue]
+  feature_values: List[LogReaderTensorValue]
+  score: Optional[LogReaderTensorValue]
 
 
-def _enumerate_log_from_stream(f: BinaryIO,
-                               header: Header) -> Generator[Record, None, None]:
+def _enumerate_log_from_stream(
+    f: BinaryIO, header: _Header) -> Generator[ObservationRecord, None, None]:
   """A generator that returns Record objects from a log file.
 
   It is assumed the log file's header was read separately.
@@ -216,32 +190,38 @@ def _enumerate_log_from_stream(f: BinaryIO,
     observation_id = int(event['observation'])
     features = []
     for ts in tensor_specs:
-      features.append(read_tensor(f, ts))
+      features.append(_read_tensor(f, ts))
     f.readline()
     score = None
     if score_spec is not None:
       score_header = json.loads(f.readline())
       assert int(score_header['outcome']) == observation_id
-      score = read_tensor(f, score_spec)
+      score = _read_tensor(f, score_spec)
       f.readline()
-    yield Record(
+    yield ObservationRecord(
         context=context,
         observation_id=observation_id,
         feature_values=features,
         score=score)
 
 
-def read_log(fname: str) -> Generator[Record, None, None]:
+def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
   with open(fname, 'rb') as f:
     header = _read_header(f)
     if header:
       yield from _enumerate_log_from_stream(f, header)
 
 
-def _add_feature(se: tf.train.SequenceExample, spec: TensorSpec,
-                 value: TensorValue):
+def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
+                 value: LogReaderTensorValue):
   f = se.feature_lists.feature_list[spec.name].feature.add()
-  if spec.element_type in [ctypes.c_double, ctypes.c_float]:
+  # This should never happen: _add_feature is an implementation detail of
+  # read_log_as_sequence_examples, and the only dtypes we should see here are
+  # those in _element_type_name_map, or an exception would have been thrown
+  # already.
+  if spec.dtype not in _dtype_to_ctype:
+    raise ValueError('Unsupported dtype: f{spec.dtype}')
+  if spec.dtype in [tf.float32, tf.float64]:
     lst = f.float_list.value
   else:
     lst = f.int64_list.value

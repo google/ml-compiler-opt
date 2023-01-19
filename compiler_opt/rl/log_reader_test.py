@@ -16,8 +16,6 @@
 
 import ctypes
 import json
-import pickle
-import sys
 from compiler_opt.rl import log_reader
 
 # This is https://github.com/google/pytype/issues/764
@@ -120,12 +118,7 @@ class LogReaderTest(tf.test.TestCase):
         'type': 'float'
     })
     self.assertEqual(
-        ts,
-        log_reader.TensorSpec(
-            name='tensor_name',
-            port=0,
-            shape=[2, 3],
-            element_type=ctypes.c_float))
+        ts, tf.TensorSpec(name='tensor_name', shape=[2, 3], dtype=tf.float32))
 
   def test_read_header(self):
     logfile = self.create_tempfile()
@@ -138,16 +131,8 @@ class LogReaderTest(tf.test.TestCase):
       # not None
       # pytype: disable=attribute-error
       self.assertEqual(header.features, [
-          log_reader.TensorSpec(
-              name='tensor_name2',
-              port=0,
-              shape=[2, 3],
-              element_type=ctypes.c_float),
-          log_reader.TensorSpec(
-              name='tensor_name1',
-              port=0,
-              shape=[3, 1],
-              element_type=ctypes.c_int64)
+          tf.TensorSpec(name='tensor_name2', shape=[2, 3], dtype=tf.float32),
+          tf.TensorSpec(name='tensor_name1', shape=[3, 1], dtype=tf.int64)
       ])
       self.assertEqual(
           header.score,
@@ -170,29 +155,6 @@ class LogReaderTest(tf.test.TestCase):
       self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
       obs_id += 1
     self.assertEqual(obs_id, 2)
-
-  def test_pickling(self):
-    skip_size = sys.version_info.minor < 10
-    logfile = self.create_tempfile()
-    create_example(logfile)
-    records = list(log_reader.read_log(logfile))
-    r1: log_reader.Record = records[0]
-    fv1 = r1.feature_values[0]
-    s = pickle.dumps(fv1)
-    self.assertTrue(skip_size or len(s) == 202)
-    fv2 = r1.feature_values[1]
-    # illustrate that, while the size of the stand-alone pickled fv2 is the same
-    # as fv1 (as expected given their shape), when we pickle them together, the
-    # resulting size is smaller than the sum - because the TensorSpec is
-    # referenced.
-    self.assertTrue(skip_size or len(pickle.dumps(fv1)) == 202)
-    # in particular, pickling references is quite cheap.
-    self.assertTrue(skip_size or len(pickle.dumps([fv1, fv1])) == 208)
-    self.assertTrue(skip_size or len(pickle.dumps([fv1, fv2])) == 305)
-    o: log_reader.TensorValue = pickle.loads(s)
-    self.assertEqual(len(fv1), len(o))
-    for i in range(len(fv1)):
-      self.assertEqual(fv1[i], o[i])
 
   def test_seq_example_conversion(self):
     logfile = self.create_tempfile()
