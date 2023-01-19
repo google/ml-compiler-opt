@@ -154,7 +154,7 @@ def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> LogReaderTensorValue:
   return LogReaderTensorValue(ts, data)
 
 
-def _read_header(f: BinaryIO) -> Optional[Header]:
+def _read_header(f: BinaryIO) -> Optional[_Header]:
   header_raw = f.readline()
   if not header_raw:
     # This is the path taken by empty files

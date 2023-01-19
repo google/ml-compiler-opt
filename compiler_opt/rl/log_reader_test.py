@@ -136,8 +136,7 @@ class LogReaderTest(tf.test.TestCase):
       ])
       self.assertEqual(
           header.score,
-          log_reader.TensorSpec(
-              name='reward', port=0, shape=[1], element_type=ctypes.c_float))
+          tf.TensorSpec(name='reward', shape=[1], dtype=tf.float32))
       # pytype: enable=attribute-error
 
   def test_read_header_empty_file(self):
