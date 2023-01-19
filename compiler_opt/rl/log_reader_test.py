@@ -144,11 +144,13 @@ class LogReaderTest(tf.test.TestCase):
               port=0,
               shape=[3, 1],
               element_type=ctypes.c_int64)
-      ])
-      self.assertEqual(
-          header.score,
-          log_reader.TensorSpec(
-              name='reward', port=0, shape=[1], element_type=ctypes.c_float))
+      ])  # pylint:disable=attribute-error,
+      self.assertEqual(header.score,
+                       log_reader.TensorSpec(
+                           name='reward',
+                           port=0,
+                           shape=[1],
+                           element_type=ctypes.c_float))  # pylint:disable=attribute-error
 
   def test_read_header_empty_file(self):
     logfile = self.create_tempfile()
