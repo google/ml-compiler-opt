@@ -189,7 +189,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
 
     # Save final policy.
     saver.save(root_dir)
-    # Wait for all the workers to finish
+    # Wait for all the workers to finish.
     data_collector.close_pool()
 
 
