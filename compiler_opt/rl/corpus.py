@@ -233,7 +233,6 @@ class Corpus:
                sampler: Sampler = SamplerBucketRoundRobin()):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
-
     sampling. Command line origin (.cmd file or override) is decided, and final
     command line transformation rules are set (i.e. thinlto flags handled, also
     output) and validated.
