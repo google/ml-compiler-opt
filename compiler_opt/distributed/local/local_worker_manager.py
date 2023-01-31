@@ -37,6 +37,7 @@ import threading
 from absl import logging
 # pylint: disable=unused-import
 from compiler_opt.distributed import worker
+from compiler_opt.distributed import buffered_scheduler
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
@@ -217,12 +218,14 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
     def set_nice(self, val: int):
       """Sets the nice-ness of the process, this modifies how the OS
+
       schedules it. Only works on Unix, since val is presumed to be an int.
       """
       psutil.Process(self._process.pid).nice(val)
 
     def set_affinity(self, val: List[int]):
       """Sets the CPU affinity of the process, this modifies which cores the OS
+
       schedules it on.
       """
       psutil.Process(self._process.pid).cpu_affinity(val)
@@ -238,6 +241,18 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
   return _Stub()
 
 
+class LocalWorkerPool(worker.FixedWorkerPool):
+
+  def __init__(self, workers: List[Any], worker_concurrency: int):
+    super().__init__(workers=workers, worker_concurrency=worker_concurrency)
+
+  def schedule(self, work: List[Any]) -> List[worker.WorkerFuture]:
+    return buffered_scheduler.schedule(
+        work,
+        workers=self.get_currently_active(),
+        buffer=self.get_worker_concurrency())
+
+
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
@@ -251,7 +266,7 @@ class LocalWorkerPoolManager(AbstractContextManager):
     ]
 
   def __enter__(self) -> worker.FixedWorkerPool:
-    return worker.FixedWorkerPool(workers=self._stubs, worker_concurrency=10)
+    return LocalWorkerPool(workers=self._stubs, worker_concurrency=10)
 
   def __exit__(self, *args):
     # first, trigger killing the worker process and exiting of the msg pump,

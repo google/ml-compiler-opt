@@ -42,29 +42,15 @@ class LocalDataCollector(data_collector.DataCollector):
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
-      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo],
-      exit_checker_ctor=data_collector.EarlyExitChecker):
-    # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
+      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo]):
     super().__init__()
 
     self._corpus = cps
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
-    self._workers: List[
-        compilation_runner
-        .CompilationRunnerStub] = self._worker_pool.get_currently_active()
     self._reward_stat_map = reward_stat_map
     self._best_trajectory_repo = best_trajectory_repo
-    self._exit_checker_ctor = exit_checker_ctor
-    # _reset_workers is a future that resolves when post-data collection cleanup
-    # work completes, i.e. cancelling all work and re-enabling the workers.
-    # We remove this activity from the critical path by running it concurrently
-    # with the training phase - i.e. whatever happens between successive data
-    # collection calls. Subsequent runs will wait for these to finish.
-    self._reset_workers: Optional[concurrent.futures.Future] = None
-    self._current_futures: List[worker.WorkerFuture] = []
-    self._pool = concurrent.futures.ThreadPoolExecutor()
     self._prefetch_pool = concurrent.futures.ThreadPoolExecutor()
     self._next_sample: List[
         concurrent.futures.Future] = self._prefetch_next_sample()
@@ -80,25 +66,11 @@ class LocalDataCollector(data_collector.DataCollector):
     return ret
 
   def close_pool(self):
-    self._join_pending_jobs()
     # if the pool lost some workers, that's fine - we don't need to tell them
     # anything anymore. To the new ones, the call is redundant (fine).
-    for p in self._workers:
+    for p in self._worker_pool.get_currently_active():
       p.cancel_all_work()
-    self._workers = None
     self._worker_pool = None
-
-  def _join_pending_jobs(self):
-    t1 = time.time()
-    if self._reset_workers:
-      concurrent.futures.wait([self._reset_workers])
-
-    self._reset_workers = None
-    # this should have taken negligible time, normally, since all the work
-    # has been cancelled and the workers had time to process the cancellation
-    # while training was unfolding.
-    logging.info('Waiting for pending work from last iteration took %f',
-                 time.time() - t1)
 
   def _schedule_jobs(
       self, policy: policy_saver.Policy, model_id: int,
@@ -106,7 +78,6 @@ class LocalDataCollector(data_collector.DataCollector):
   ) -> List[worker.WorkerFuture[compilation_runner.CompilationResult]]:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
-    self._join_pending_jobs()
     jobs = [(loaded_module_spec, policy,
              self._reward_stat_map[loaded_module_spec.name])
             for loaded_module_spec in sampled_modules]
@@ -119,9 +90,7 @@ class LocalDataCollector(data_collector.DataCollector):
       return work
 
     work = [work_factory(job) for job in jobs]
-    self._workers = self._worker_pool.get_currently_active()
-    return buffered_scheduler.schedule(
-        work, self._workers, self._worker_pool.get_worker_concurrency())
+    return self._worker_pool.schedule(work)
 
   def collect_data(
       self, policy: policy_saver.Policy, model_id: int
@@ -145,40 +114,29 @@ class LocalDataCollector(data_collector.DataCollector):
     logging.info('resolving prefetched sample took: %d seconds',
                  time.time() - time1)
     self._next_sample = self._prefetch_next_sample()
-    self._current_futures = self._schedule_jobs(policy, model_id,
-                                                sampled_modules)
 
-    def wait_for_termination():
-      early_exit = self._exit_checker_ctor(num_modules=self._num_modules)
+    time_before_schedule = time.time()
+    current_futures = self._schedule_jobs(policy, model_id, sampled_modules)
 
-      def get_num_finished_work():
-        finished_work = sum(res.done() for res in self._current_futures)
-        return finished_work
+    current_work = list(zip(sampled_modules, current_futures))
 
-      return early_exit.wait(get_num_finished_work)
+    def is_cancelled(fut):
+      if not fut.done():
+        return False
+      if e := worker.get_exception(fut):
+        return isinstance(e, data_collector.CancelledForEarlyExitException)
+      return False
 
-    wait_seconds = wait_for_termination()
-    current_work = list(zip(sampled_modules, self._current_futures))
     finished_work = [(spec, res) for spec, res in current_work if res.done()]
     successful_work = [(spec, res.result())
                        for spec, res in finished_work
                        if not worker.get_exception(res)]
-    failures = len(finished_work) - len(successful_work)
+    cancelled_work = [res for res in current_futures if is_cancelled(res)]
+    failures = len(finished_work) - len(successful_work) - len(cancelled_work)
 
     logging.info(('%d of %d modules finished in %d seconds (%d failures).'),
-                 len(finished_work), self._num_modules, wait_seconds, failures)
-
-    # signal whatever work is left to finish, and re-enable workers.
-    def wrapup():
-      cancel_futures = [wkr.cancel_all_work() for wkr in self._workers]
-      worker.wait_for(cancel_futures)
-      # now that the workers killed pending compilations, make sure the workers
-      # drained their working queues first - they should all complete quickly
-      # since the cancellation manager is killing immediately any process starts
-      worker.wait_for(self._current_futures)
-      worker.wait_for([wkr.enable() for wkr in self._workers])
-
-    self._reset_workers = self._pool.submit(wrapup)
+                 len(finished_work) - len(cancelled_work), self._num_modules,
+                 time.time() - time_before_schedule, failures)
 
     sequence_examples = list(
         itertools.chain.from_iterable(

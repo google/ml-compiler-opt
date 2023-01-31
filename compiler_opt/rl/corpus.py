@@ -112,6 +112,7 @@ class LoadedModuleSpec:
 @dataclass(frozen=True)
 class ModuleSpec:
   """Metadata of a compilation unit.
+
   This contains the necessary information to enable corpus operations like
   sampling or filtering, as well as to enable the corpus create
   a LoadedModuleSpec from a CorpusElement.
@@ -132,6 +133,7 @@ class Sampler(metaclass=abc.ABCMeta):
                n: int = 20) -> List[ModuleSpec]:
     """
     Args:
+
       module_specs: list of module_specs to sample from
       k: number of modules to sample
       n: number of buckets to use
@@ -141,6 +143,7 @@ class Sampler(metaclass=abc.ABCMeta):
 
 class SamplerBucketRoundRobin(Sampler):
   """Calls return a list of module_specs sampled randomly from n buckets, in
+
   round-robin order. The buckets are sequential sections of module_specs of
   roughly equal lengths."""
 
@@ -153,6 +156,7 @@ class SamplerBucketRoundRobin(Sampler):
                n: int = 20) -> List[ModuleSpec]:
     """
     Args:
+
       module_specs: list of module_specs to sample from
       k: number of modules to sample
       n: number of buckets to use
@@ -233,6 +237,7 @@ class Corpus:
                sampler: Sampler = SamplerBucketRoundRobin()):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
+
     sampling. Command line origin (.cmd file or override) is decided, and final
     command line transformation rules are set (i.e. thinlto flags handled, also
     output) and validated.
@@ -240,10 +245,10 @@ class Corpus:
     Args:
       data_path: corpus directory.
       additional_flags: list of flags to append to the command line
-      delete_flags: list of flags to remove (both `-flag=<value` and
+      delete_flags: list of flags to remove (both `-flag=<value` and 
         `-flag <value>` are supported).
-      replace_flags: list of flags to be replaced. The key in the dictionary
-        is the flag. The value is a string that will be `format`-ed with a
+      replace_flags: list of flags to be replaced. The key in the dictionary is
+        the flag. The value is a string that will be `format`-ed with a
         `context` object - see `ReplaceContext`.
         We verify that flags in replace_flags are present, and do not appear
         in the additional_flags nor delete_flags.

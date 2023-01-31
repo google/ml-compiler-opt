@@ -15,12 +15,16 @@
 """Data collection module."""
 
 import abc
+import concurrent.futures
 import time
-from typing import Dict, Iterator, Tuple, Sequence
+from typing import Any, Dict, Iterator, List, Tuple, Sequence
 
+from absl import logging
 import numpy as np
 from compiler_opt.rl import policy_saver
 from tf_agents.trajectories import trajectory
+
+from compiler_opt.distributed import worker
 
 # Deadline for data collection.
 DEADLINE_IN_SECONDS = 30
@@ -138,3 +142,60 @@ class EarlyExitChecker:
 
   def waited_time(self):
     return self._waited_time
+
+
+class CancelledForEarlyExitException(Exception):
+  ...
+
+
+def _create_cancelled_future():
+  f = concurrent.futures.Future()
+  f.set_exception(CancelledForEarlyExitException())
+  return f
+
+
+class EarlyExitWorkerPool(worker.WorkerPool):
+
+  def __init__(self,
+               worker_pool: worker.WorkerPool,
+               exit_checker_ctor=EarlyExitChecker):
+    self._worker_pool = worker_pool
+    self._reset_workers_pool = concurrent.futures.ThreadPoolExecutor()
+    self._reset_workers_future: Optional[concurrent.futures.Future] = None
+    self._exit_checker_ctor = exit_checker_ctor
+
+  def get_currently_active(self) -> List[Any]:
+    return self._worker_pool.get_currently_active()
+
+  def get_worker_concurrency(self) -> int:
+    return self._worker_pool.get_worker_concurrency()
+
+  def schedule(self, work: List[Any]) -> List[worker.WorkerFuture]:
+    t1 = time.time()
+    if self._reset_workers_future:
+      concurrent.futures.wait([self._reset_workers_future])
+    self._reset_workers_future = None
+    logging.info('Waiting for pending work took %f', time.time() - t1)
+
+    result_futures = self._worker_pool.schedule(work)
+    early_exit = self._exit_checker_ctor(num_modules=len(work))
+    early_exit.wait(lambda: sum(res.done() for res in result_futures))
+
+    def _wrapup():
+      workers = self._worker_pool.get_currently_active()
+      cancel_futures = [wkr.cancel_all_work() for wkr in workers]
+      worker.wait_for(cancel_futures)
+      # now that the workers killed pending compilations, make sure the workers
+      # drained their working queues first - they should all complete quickly
+      # since the cancellation manager is killing immediately any process starts
+      worker.wait_for(result_futures)
+      worker.wait_for([wkr.enable() for wkr in workers])
+
+    def _process_future(f):
+      if f.done():
+        return f
+      return _create_cancelled_future()
+
+    results = [_process_future(f) for f in result_futures]
+    self._reset_future = self._reset_workers_pool.submit(_wrapup)
+    return results
