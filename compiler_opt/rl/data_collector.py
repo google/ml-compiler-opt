@@ -155,10 +155,22 @@ def _create_cancelled_future():
 
 
 class EarlyExitWorkerPool(worker.WorkerPool):
+  """Worker pool wrapper which performs early-exit checking.
+
+  Note that this worker pool wraps another worker pool, and this wrapper only
+  manages cancelling work from the underlying pool. Also, due to the nature of
+  "early exit," the futures that this pool's schedule() method returns are all
+  already .done().
+  """
 
   def __init__(self,
                worker_pool: worker.WorkerPool,
                exit_checker_ctor=EarlyExitChecker):
+    """
+    Args:
+      worker_pool: the underlying worker pool to schedule work on.
+      exit_checker_ctor: the exit checker constructor to use.
+    """
     self._worker_pool = worker_pool
     self._reset_workers_pool = concurrent.futures.ThreadPoolExecutor()
     self._reset_workers_future: Optional[concurrent.futures.Future] = None
@@ -171,6 +183,19 @@ class EarlyExitWorkerPool(worker.WorkerPool):
     return self._worker_pool.get_worker_concurrency()
 
   def schedule(self, work: List[Any]) -> List[worker.WorkerFuture]:
+    """Schedule the provided work on the underlying worker pool.
+
+    After the work is scheduled, this method blocks until the early exit
+    checker deems it ok to exit early. Work that was cancelled will have a
+    future with a CancelledForEarlyExitException error.
+
+    Args:
+      work: the work to schedule.
+
+    Returns:
+      a list of futures which all are already .done().
+    """
+
     t1 = time.time()
     if self._reset_workers_future:
       concurrent.futures.wait([self._reset_workers_future])

@@ -51,6 +51,7 @@ class LocalDataCollector(data_collector.DataCollector):
     self._worker_pool = worker_pool
     self._reward_stat_map = reward_stat_map
     self._best_trajectory_repo = best_trajectory_repo
+    self._current_futures: List[worker.WorkerFuture] = []
     self._prefetch_pool = concurrent.futures.ThreadPoolExecutor()
     self._next_sample: List[
         concurrent.futures.Future] = self._prefetch_next_sample()
@@ -116,9 +117,14 @@ class LocalDataCollector(data_collector.DataCollector):
     self._next_sample = self._prefetch_next_sample()
 
     time_before_schedule = time.time()
-    current_futures = self._schedule_jobs(policy, model_id, sampled_modules)
+    self._current_futures = self._schedule_jobs(policy, model_id, sampled_modules)
 
-    current_work = list(zip(sampled_modules, current_futures))
+    # Wait for all futures to complete. We don't do any early-exit checking as
+    # that functionality has been moved to the
+    # data_collector.EarlyExitWorkerPool abstraction.
+    worker.wait_for(self._current_futures)
+
+    current_work = list(zip(sampled_modules, self._current_futures))
 
     def is_cancelled(fut):
       if not fut.done():
@@ -131,7 +137,7 @@ class LocalDataCollector(data_collector.DataCollector):
     successful_work = [(spec, res.result())
                        for spec, res in finished_work
                        if not worker.get_exception(res)]
-    cancelled_work = [res for res in current_futures if is_cancelled(res)]
+    cancelled_work = [res for res in self._current_futures if is_cancelled(res)]
     failures = len(finished_work) - len(successful_work) - len(cancelled_work)
 
     logging.info(('%d of %d modules finished in %d seconds (%d failures).'),

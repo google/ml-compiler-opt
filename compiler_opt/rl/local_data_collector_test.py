@@ -233,16 +233,15 @@ class LocalDataCollectorTest(tf.test.TestCase):
                   for i in range(200)
               ]),
           num_modules=4,
-          worker_pool=lwp,
+          worker_pool=data_collector.EarlyExitWorkerPool(lwp, QuickExiter),
           parser=parser,
           reward_stat_map=collections.defaultdict(lambda: None),
-          best_trajectory_repo=None,
-          exit_checker_ctor=QuickExiter)
+          best_trajectory_repo=None)
       collector.collect_data(policy=_mock_policy, model_id=0)
-      collector._join_pending_jobs()
       killed = 0
       for w in collector._current_futures:
-        self.assertRaises(compilation_runner.ProcessKilledError, w.result)
+        self.assertRaises(data_collector.CancelledForEarlyExitException,
+                          w.result)
         killed += 1
       self.assertEqual(killed, 4)
       collector.close_pool()
