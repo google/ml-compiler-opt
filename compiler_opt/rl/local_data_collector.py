@@ -42,7 +42,8 @@ class LocalDataCollector(data_collector.DataCollector):
       parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
       reward_stat_map: Dict[str, Optional[Dict[str,
                                                compilation_runner.RewardStat]]],
-      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo]):
+      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo],
+  ):
     super().__init__()
 
     self._corpus = cps
@@ -117,7 +118,8 @@ class LocalDataCollector(data_collector.DataCollector):
     self._next_sample = self._prefetch_next_sample()
 
     time_before_schedule = time.time()
-    self._current_futures = self._schedule_jobs(policy, model_id, sampled_modules)
+    self._current_futures = self._schedule_jobs(policy, model_id,
+                                                sampled_modules)
 
     # Wait for all futures to complete. We don't do any early-exit checking as
     # that functionality has been moved to the

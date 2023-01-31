@@ -15,6 +15,7 @@
 """Common abstraction for a worker contract."""
 
 import abc
+import concurrent.futures
 import sys
 from typing import Any, List, Iterable, Optional, Protocol, TypeVar
 
@@ -66,25 +67,25 @@ def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
 def lift_futures_through_list(future_list: WorkerFuture[List],
                               expected_size: int) -> List[WorkerFuture]:
   """Convert Future[List] to List[Future]."""
-  flattened = [concurrent.futures.Future() for _ in range(size)]
+  flattened = [concurrent.futures.Future() for _ in range(expected_size)]
 
   def _handler(fut):
-    if e := get_exception(future_list):
+    if e := get_exception(fut):
       for f in flattened:
         f.set_exception(e)
       return
 
     for i, res in enumerate(fut.result()):
-      assert i < size
+      assert i < expected_size
       if isinstance(res, Exception):
         flattened[i].set_exception(res)
       else:
         flattened[i].set_result(res)
-    for j in range(i + 1, size):
+    for j in range(i + 1, expected_size):
       flattened[j].set_exception(
           ValueError(f'No value returned for index {j} in future_list'))
 
-  fut.add_done_callback(_handler)
+  future_list.add_done_callback(_handler)
   return flattened
 
 
