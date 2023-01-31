@@ -37,6 +37,7 @@ from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
+from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import random_net_distillation
@@ -61,6 +62,7 @@ FLAGS = flags.FLAGS
 
 @gin.configurable
 def train_eval(worker_manager_class=LocalWorkerPoolManager,
+               use_early_exit_worker_pool=True,
                agent_name=constant.AgentName.PPO,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
@@ -149,7 +151,10 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
       moving_average_decay_rate=moving_average_decay_rate) as worker_pool:
-    data_collector = local_data_collector.LocalDataCollector(
+    if use_early_exit_worker_pool:
+      logging.info('Constructing early exit worker pool wrapper')
+      worker_pool = data_collector.EarlyExitWorkerPool(worker_pool)
+    train_data_collector = local_data_collector.LocalDataCollector(
         cps=cps,
         num_modules=num_modules,
         worker_pool=worker_pool,
@@ -174,13 +179,13 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
                                  str(llvm_trainer.global_step_numpy()))
       saver.save(policy_path)
 
-      dataset_iter, monitor_dict = data_collector.collect_data(
+      dataset_iter, monitor_dict = train_data_collector.collect_data(
           policy=policy_saver.Policy.from_filesystem(
               os.path.join(policy_path, deploy_policy_name)),
           model_id=llvm_trainer.global_step_numpy())
       llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
 
-      data_collector.on_dataset_consumed(dataset_iter)
+      train_data_collector.on_dataset_consumed(dataset_iter)
 
     # Save final policy.
     saver.save(root_dir)
