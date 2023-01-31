@@ -64,7 +64,7 @@ def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
     return e
 
 
-def lift_futures_through_list(future_list: WorkerFuture[List],
+def lift_futures_through_list(future_list: WorkerFuture,
                               expected_size: int) -> List[WorkerFuture]:
   """Convert Future[List] to List[Future]."""
   flattened = [concurrent.futures.Future() for _ in range(expected_size)]
