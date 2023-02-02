@@ -238,9 +238,9 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
   return _Stub()
 
 
-def create_local_worker_pool(
-    worker_cls: 'type[worker.Worker]', count: Optional[int], *args, **kwargs
-) -> worker.FixedWorkerPool:
+def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
+                             count: Optional[int], *args,
+                             **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
     count = multiprocessing.get_context(multiprocessing.ABSL_SPAWN).cpu_count()
