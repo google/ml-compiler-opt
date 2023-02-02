@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
 
 set -e
 
@@ -43,6 +43,7 @@ git -C cpuinfo/src/cpuinfo checkout ${CPUINFO_TAG}
 cmake -GNinja -S cpuinfo/src/cpuinfo -B cpuinfo/src/cpuinfo-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/cpuinfo \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
   -DCPUINFO_BUILD_UNIT_TESTS:BOOL=OFF \
   -DCPUINFO_BUILD_MOCK_TESTS:BOOL=OFF \
@@ -55,6 +56,7 @@ git -C ruy/src/ruy checkout ${RUY_TAG}
 cmake -GNinja -S ruy/src/ruy -B ruy/src/ruy-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/ruy \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
   -Dcpuinfo_DIR:PATH=${PWD}/cpuinfo/share/cpuinfo \
   -DRUY_MINIMAL_BUILD:BOOL=ON \
@@ -68,6 +70,7 @@ git -C abseil-cpp/src/abseil-cpp checkout ${ABSEIL_TAG}
 cmake -GNinja -S abseil-cpp/src/abseil-cpp -B abseil-cpp/src/abseil-cpp-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/abseil-cpp \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
   -DABSL_BUILD_TESTING:BOOL=OFF \
   -DABSL_ENABLE_INSTALL:BOOL=ON
@@ -79,6 +82,7 @@ git -C eigen/src/eigen checkout ${EIGEN_TAG}
 cmake -GNinja -S eigen/src/eigen -B eigen/src/eigen-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/eigen \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
   -DEIGEN_BUILD_DOC:BOOL=OFF \
   -DEIGEN_BUILD_TESTING:BOOL=OFF
@@ -90,6 +94,7 @@ git -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE checkout ${NEON_2_SSE_TAG}
 cmake -GNinja -S ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE -B ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/ARM_NEON_2_x86_SSE \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
 ninja -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build install
 
@@ -99,6 +104,7 @@ git -C flatbuffers/src/flatbuffers checkout ${FLATBUFFERS_TAG}
 cmake -GNinja -S flatbuffers/src/flatbuffers -B flatbuffers/src/flatbuffers-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/flatbuffers \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON \
   -DFLATBUFFERS_BUILD_TESTS:BOOL=OFF
 ninja -C flatbuffers/src/flatbuffers-build install
@@ -109,6 +115,7 @@ git -C tensorflow/src/tensorflow checkout ${TENSORFLOW_TAG}
 cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/tensorflow-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/tensorflow \
+  -DCMAKE_INSTALL_LIBDIR=lib \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DTFLITE_ENABLE_INSTALL:BOOL=ON \
   -DTFLITE_ENABLE_XNNPACK:BOOL=OFF \
