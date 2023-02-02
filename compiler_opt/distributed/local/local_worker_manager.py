@@ -217,14 +217,12 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
     def set_nice(self, val: int):
       """Sets the nice-ness of the process, this modifies how the OS
-
       schedules it. Only works on Unix, since val is presumed to be an int.
       """
       psutil.Process(self._process.pid).nice(val)
 
     def set_affinity(self, val: List[int]):
       """Sets the CPU affinity of the process, this modifies which cores the OS
-
       schedules it on.
       """
       psutil.Process(self._process.pid).cpu_affinity(val)
