@@ -26,8 +26,10 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 class JobNormal(Worker):
   """Test worker."""
 
-  def __init__(self):
+  def __init__(self, arg, *, kwarg):
     self._token = 0
+    self._arg = arg
+    self._kwarg = kwarg
 
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
@@ -41,6 +43,12 @@ class JobNormal(Worker):
 
   def set_token(self, value):
     self._token = value
+
+  def get_arg(self):
+    return self._arg
+
+  def get_kwarg(self):
+    return self._kwarg
 
 
 class JobFail(Worker):
@@ -62,7 +70,11 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_pool(self):
 
-    with local_worker_manager.LocalWorkerPoolManager(JobNormal, 2) as pool:
+    arg = 'foo'
+    kwarg = 'bar'
+
+    with local_worker_manager.LocalWorkerPoolManager(
+        JobNormal, 2, arg, kwarg=kwarg) as pool:
       p1 = pool.get_currently_active()[0]
       p2 = pool.get_currently_active()[1]
       set_futures = [p1.set_token(1), p2.set_token(2)]
@@ -74,6 +86,10 @@ class LocalWorkerManagerTest(absltest.TestCase):
       self.assertEqual(p2.get_token().result(), 2)
       self.assertEqual(p1.priority_method().result(), 'priority 1')
       self.assertEqual(p2.priority_method().result(), 'priority 2')
+      self.assertEqual(p1.get_arg().result(), 'foo')
+      self.assertEqual(p2.get_arg().result(), 'foo')
+      self.assertEqual(p2.get_kwarg().result(), 'bar')
+      self.assertEqual(p2.get_kwarg().result(), 'bar')
       # wait - to make sure the pump doesn't panic if there's no new messages
       time.sleep(3)
       # everything still works
