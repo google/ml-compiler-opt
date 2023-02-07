@@ -238,29 +238,40 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
   return _Stub()
 
 
+def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
+                             count: Optional[int], *args,
+                             **kwargs) -> worker.FixedWorkerPool:
+  """Create a local worker pool for worker_cls."""
+  if not count:
+    count = multiprocessing.get_context().cpu_count()
+  final_kwargs = worker.get_full_worker_args(worker_cls, kwargs)
+  stubs = [_make_stub(worker_cls, *args, **final_kwargs) for _ in range(count)]
+  return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
+
+
+def close_local_worker_pool(pool: worker.FixedWorkerPool):
+  """Close the given LocalWorkerPool."""
+  # first, trigger killing the worker process and exiting of the msg pump,
+  # which will also clear out any pending futures.
+  for stub in pool.get_currently_active():
+    stub.shutdown()
+  # now wait for the message pumps to indicate they exit.
+  for stub in pool.get_currently_active():
+    stub.join()
+
+
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
   def __init__(self, worker_class: 'type[worker.Worker]', count: Optional[int],
                *args, **kwargs):
-    if not count:
-      count = multiprocessing.get_context().cpu_count()
-    final_kwargs = worker.get_full_worker_args(worker_class, kwargs)
-    self._stubs = [
-        _make_stub(worker_class, *args, **final_kwargs) for _ in range(count)
-    ]
+    self._pool = create_local_worker_pool(worker_class, count, *args, **kwargs)
 
   def __enter__(self) -> worker.FixedWorkerPool:
-    return worker.FixedWorkerPool(workers=self._stubs, worker_concurrency=10)
+    return self._pool
 
   def __exit__(self, *args):
-    # first, trigger killing the worker process and exiting of the msg pump,
-    # which will also clear out any pending futures.
-    for s in self._stubs:
-      s.shutdown()
-    # now wait for the message pumps to indicate they exit.
-    for s in self._stubs:
-      s.join()
+    close_local_worker_pool(self._pool)
 
   def __del__(self):
     self.__exit__()
