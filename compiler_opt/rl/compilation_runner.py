@@ -303,7 +303,7 @@ class CompilationRunner(Worker):
   @classmethod
   def is_priority_method(cls, method_name: str) -> bool:
     return method_name in {
-        'cancel_all_work', 'pause_all_work', 'resume_all_work'
+        'cancel_all_work', 'enable', 'pause_all_work', 'resume_all_work'
     }
 
   def __init__(self,
