@@ -7,9 +7,9 @@ name = "pypi"
 absl-py = "==1.0.0"
 gin = "==0.1.6"
 psutil = "==5.9.0"
-tf-agents-nightly = "==0.15.0dev20221214"
-tf-nightly = "==2.12.0dev20221214"
-dm-reverb-nightly = "==0.11.0.dev20221214"
+tf-agents = "==0.16.0"
+tensorflow = "==2.12.0"
+dm-reverb = "==0.11.0"
 
 [dev-packages]
 pylint = "==2.14.1"
