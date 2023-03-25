@@ -1,5 +1,5 @@
 diff --git a/build/config/clang/clang.gni b/build/config/clang/clang.gni
-index 1e662184872b3..4aed699d271b4 100644
+index 7196fcf6c1..423ffbdd09 100644
 --- a/build/config/clang/clang.gni
 +++ b/build/config/clang/clang.gni
 @@ -15,4 +15,7 @@ declare_args() {
@@ -7,20 +7,21 @@ index 1e662184872b3..4aed699d271b4 100644
  
    clang_base_path = default_clang_base_path
 +
-+  # Specifies whether or not bitcode should be embedded in all compiled targets
-+  clang_embed_bitcode = false
++   # Specifies whether or not bitcode should be embedded in all compiled targets
++   clang_embed_bitcode = false
  }
 diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
-index 0272bf80f31fe..87ace0ffd345b 100644
+index d3adf9735c..6bad05bf7e 100644
 --- a/build/config/compiler/BUILD.gn
 +++ b/build/config/compiler/BUILD.gn
-@@ -817,6 +817,9 @@ config("compiler") {
-   if (is_official_build) {
-     rustflags += [ "-Ccodegen-units=1" ]
+@@ -838,6 +838,10 @@ config("compiler") {
+     }
    }
+ 
 +  if (is_clang && clang_embed_bitcode) {
 +    cflags += [ "-Xclang", "-fembed-bitcode=all" ]
 +  }
- }
- 
- # The BUILDCONFIG file sets this config on targets by default, which means when
++
+   # Pass the same C/C++ flags to the objective C/C++ compiler.
+   cflags_objc += cflags_c
+   cflags_objcc += cflags_cc
