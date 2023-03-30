@@ -34,7 +34,7 @@ from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
 
 _COMPILATION_TIMEOUT = flags.DEFINE_integer(
-    'compilation_timeout', 60,
+    'compilation_timeout', 120,
     'Max duration (in seconds) after which we cancel any compilation job.')
 _QUIET = flags.DEFINE_bool(
     'quiet', True, 'Whether or not to compile quietly (hiding info logging)')

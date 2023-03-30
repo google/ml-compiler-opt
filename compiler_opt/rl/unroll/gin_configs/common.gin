@@ -1,0 +1,11 @@
+config_registry.get_configuration.implementation=@configs.LoopUnrollConfig
+
+clang_path=None
+llvm_objcopy_path=None
+parse_reward_script_path=None
+latency_coefficient=None
+
+runners.LoopUnrollRunner.clang_path=%clang_path
+runners.LoopUnrollRunner.llvm_objcopy_path=%llvm_objcopy_path
+runners.LoopUnrollRunner.parse_reward_script_path=%parse_reward_script_path
+runners.LoopUnrollRunner.latency_coefficient=%latency_coefficient
