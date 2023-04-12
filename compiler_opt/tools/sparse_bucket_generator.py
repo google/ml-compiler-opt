@@ -170,7 +170,7 @@ def main(_) -> None:
   parser_fn = create_tfrecord_parser_fn(sequence_features)
   dataset = dataset.map(parser_fn, num_parallel_calls=tf.data.AUTOTUNE)
   data_list = np.array(list(dataset.as_numpy_iterator()), dtype=object)
-  data_list = np.transpose(data_list, [1, 0])
+  data_list = data_list.swapaxes(0, 1)
 
   with mp.Pool(FLAGS.parallelism) as pool:
     feature_names = list(sorted(sequence_features))
