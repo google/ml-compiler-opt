@@ -47,7 +47,8 @@ class InliningRunner(compilation_runner.CompilationRunner):
 
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
-      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool,
+      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
@@ -68,56 +69,52 @@ class InliningRunner(compilation_runner.CompilationRunner):
       RuntimeError: if llvm-size produces unexpected output.
     """
 
-    working_dir = tempfile.mkdtemp()
+    working_dir = tempfile.mkdtemp(dir=workdir)
 
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
     native_size = 0
-    try:
-      cmdline = []
-      if self._launcher_path:
-        cmdline.append(self._launcher_path)
-      cmdline.extend([self._clang_path] + list(command_line) + [
-          '-mllvm', '-enable-ml-inliner=development', '-mllvm',
-          '-training-log=' + log_path, '-o', output_native_path
-      ])
-      if tf_policy_path:
-        cmdline.extend(
-            ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
-      compilation_runner.start_cancellable_process(cmdline,
-                                                   self._compilation_timeout,
-                                                   self._cancellation_manager)
-      cmdline = [self._llvm_size_path, output_native_path]
-      output_bytes = compilation_runner.start_cancellable_process(
-          cmdline,
-          timeout=self._compilation_timeout,
-          cancellation_manager=self._cancellation_manager,
-          want_output=True)
-      if not output_bytes:
-        raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
-      output = output_bytes.decode('utf-8')
-      tmp = output.split('\n')
-      if len(tmp) != 3:
-        raise RuntimeError(f'Wrong llvm-size output {output}')
-      tmp = tmp[1].split('\t')
-      native_size = int(tmp[0])
+    cmdline = []
+    if self._launcher_path:
+      cmdline.append(self._launcher_path)
+    cmdline.extend([self._clang_path] + list(command_line) + [
+        '-mllvm', '-enable-ml-inliner=development', '-mllvm', '-training-log=' +
+        log_path, '-o', output_native_path
+    ])
+    if tf_policy_path:
+      cmdline.extend(
+          ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
+    compilation_runner.start_cancellable_process(cmdline,
+                                                 self._compilation_timeout,
+                                                 self._cancellation_manager)
+    cmdline = [self._llvm_size_path, output_native_path]
+    output_bytes = compilation_runner.start_cancellable_process(
+        cmdline,
+        timeout=self._compilation_timeout,
+        cancellation_manager=self._cancellation_manager,
+        want_output=True)
+    if not output_bytes:
+      raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
+    output = output_bytes.decode('utf-8')
+    tmp = output.split('\n')
+    if len(tmp) != 3:
+      raise RuntimeError(f'Wrong llvm-size output {output}')
+    tmp = tmp[1].split('\t')
+    native_size = int(tmp[0])
 
-      if native_size == 0:
-        return {}
+    if native_size == 0:
+      return {}
 
-      if reward_only:
-        return {_DEFAULT_IDENTIFIER: (None, native_size)}
+    if reward_only:
+      return {_DEFAULT_IDENTIFIER: (None, native_size)}
 
-      result = log_reader.read_log_as_sequence_examples(log_path)
-      if len(result) != 1:
-        return {}
-      sequence_example = next(iter(result.values()))
+    result = log_reader.read_log_as_sequence_examples(log_path)
+    if len(result) != 1:
+      return {}
+    sequence_example = next(iter(result.values()))
 
-      if not sequence_example.HasField('feature_lists'):
-        return {}
-
-    finally:
-      tf.io.gfile.rmtree(working_dir)
+    if not sequence_example.HasField('feature_lists'):
+      return {}
 
     return {_DEFAULT_IDENTIFIER: (sequence_example, native_size)}

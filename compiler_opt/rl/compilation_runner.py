@@ -39,6 +39,9 @@ COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'Max duration (in seconds) after which we cancel any compilation job.')
 _QUIET = flags.DEFINE_bool(
     'quiet', True, 'Whether or not to compile quietly (hiding info logging)')
+_KEEP_TEMPS = flags.DEFINE_string(
+    'keep_temps', None,
+    'Put temporary files into given directory and keep them past exit.')
 
 
 def _calculate_reward(policy: float, baseline: float) -> float:
@@ -51,6 +54,30 @@ def _calculate_reward(policy: float, baseline: float) -> float:
 class RewardStat:
   default_reward: float
   moving_average_reward: float
+
+
+class NonTemporaryDirectory:
+  """Behaves like `tempfile.TemporaryDirectory` but does not clean up the
+  directory.  When python 3.12 is available this class can be replaced with
+  `TemporaryDirectory(..., delete=False)`"""
+
+  def __init__(
+      self,
+      suffix: Optional[str] = None,
+      prefix: Optional[str] = None,
+      dir: Optional[str] = None,  # pylint: disable=redefined-builtin
+      ignore_cleanup_errors: bool = False):
+    _ = ignore_cleanup_errors  # unused
+    self.name = tempfile.mkdtemp(suffix, prefix, dir)
+
+  def __repr__(self):
+    return f'<{self.__class__.__name__} {self.name!r}>'
+
+  def __enter__(self):
+    return self.name
+
+  def __exit__(self, exc, value, tb):
+    pass
 
 
 def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
@@ -374,7 +401,12 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    with tempfile.TemporaryDirectory() as tempdir:
+    if _KEEP_TEMPS.present:
+      tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
+    else:
+      tempdir_context = tempfile.TemporaryDirectory()
+
+    with tempdir_context as tempdir:
       final_cmd_line = loaded_module_spec.build_command_line(tempdir)
       # TODO(mtrofin): remove this once the compiler only generates this by
       # default
@@ -390,14 +422,17 @@ class CompilationRunner(Worker):
 
       if reward_stat is None:
         default_result = self.compile_fn(
-            final_cmd_line, tf_policy_path='', reward_only=bool(tf_policy_path))
+            final_cmd_line,
+            tf_policy_path='',
+            reward_only=bool(tf_policy_path),
+            workdir=tempdir)
         reward_stat = {
             k: RewardStat(v[1], v[1]) for (k, v) in default_result.items()
         }
 
       if tf_policy_path:
         policy_result = self.compile_fn(
-            final_cmd_line, tf_policy_path, reward_only=False)
+            final_cmd_line, tf_policy_path, reward_only=False, workdir=tempdir)
       else:
         policy_result = default_result
 
@@ -442,7 +477,8 @@ class CompilationRunner(Worker):
 
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
-      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool,
+      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:
