@@ -42,7 +42,8 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   # construction
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
-      reward_only: bool) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      reward_only: bool,
+      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:
@@ -63,43 +64,39 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       RuntimeError: if llvm-size produces unexpected output.
     """
 
-    working_dir = tempfile.mkdtemp()
+    working_dir = tempfile.mkdtemp(dir=workdir)
 
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
     result = {}
-    try:
-      cmdline = []
-      if self._launcher_path:
-        cmdline.append(self._launcher_path)
-      cmdline.extend([self._clang_path] + list(command_line) + [
-          '-mllvm', '-regalloc-enable-advisor=development', '-mllvm',
-          '-regalloc-training-log=' + log_path, '-o', output_native_path
-      ])
+    cmdline = []
+    if self._launcher_path:
+      cmdline.append(self._launcher_path)
+    cmdline.extend([self._clang_path] + list(command_line) + [
+        '-mllvm', '-regalloc-enable-advisor=development', '-mllvm',
+        '-regalloc-training-log=' + log_path, '-o', output_native_path
+    ])
 
-      if tf_policy_path:
-        cmdline.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
-      compilation_runner.start_cancellable_process(cmdline,
-                                                   self._compilation_timeout,
-                                                   self._cancellation_manager)
+    if tf_policy_path:
+      cmdline.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
+    compilation_runner.start_cancellable_process(cmdline,
+                                                 self._compilation_timeout,
+                                                 self._cancellation_manager)
 
-      # TODO(#202)
-      log_result = log_reader.read_log_as_sequence_examples(log_path)
+    # TODO(#202)
+    log_result = log_reader.read_log_as_sequence_examples(log_path)
 
-      for fct_name, trajectory in log_result.items():
-        if not trajectory.HasField('feature_lists'):
-          continue
-        score = (
-            trajectory.feature_lists.feature_list['reward'].feature[-1]
-            .float_list.value[0])
-        if reward_only:
-          result[fct_name] = (None, score)
-        else:
-          del trajectory.feature_lists.feature_list['reward']
-          result[fct_name] = (trajectory, score)
-
-    finally:
-      tf.io.gfile.rmtree(working_dir)
+    for fct_name, trajectory in log_result.items():
+      if not trajectory.HasField('feature_lists'):
+        continue
+      score = (
+          trajectory.feature_lists.feature_list['reward'].feature[-1].float_list
+          .value[0])
+      if reward_only:
+        result[fct_name] = (None, score)
+      else:
+        del trajectory.feature_lists.feature_list['reward']
+        result[fct_name] = (trajectory, score)
 
     return result

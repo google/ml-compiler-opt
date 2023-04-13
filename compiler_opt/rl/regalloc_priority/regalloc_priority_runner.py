@@ -31,50 +31,46 @@ class RegAllocPriorityRunner(compilation_runner.CompilationRunner):
 
   def _compile_fn(
       self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
-      cancellation_manager: Optional[
+      workdir: str, cancellation_manager: Optional[
           compilation_runner.WorkerCancellationManager]
   ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
 
     file_paths = file_paths[0].replace('.bc', '')
-    working_dir = tempfile.mkdtemp()
+    working_dir = tempfile.mkdtemp(dir=workdir)
 
     log_path = os.path.join(working_dir, 'log')
     output_native_path = os.path.join(working_dir, 'native')
 
     result = {}
-    try:
-      command_line = []
-      if self._launcher_path:
-        command_line.append(self._launcher_path)
-      command_line.extend([self._clang_path] + [
-          '-c', file_paths, '-O3', '-mllvm', '-regalloc-priority-training-log='
-          + log_path, '-mllvm', '-regalloc-enable-priority-advisor=development',
-          '-o', output_native_path
-      ])
+    command_line = []
+    if self._launcher_path:
+      command_line.append(self._launcher_path)
+    command_line.extend([self._clang_path] + [
+        '-c', file_paths, '-O3', '-mllvm', '-regalloc-priority-training-log=' +
+        log_path, '-mllvm', '-regalloc-enable-priority-advisor=development',
+        '-o', output_native_path
+    ])
 
-      if tf_policy_path:
-        command_line.extend(
-            ['-mllvm', '-regalloc-priority-model=' + tf_policy_path])
-      compilation_runner.start_cancellable_process(command_line,
-                                                   self._compilation_timeout,
-                                                   cancellation_manager)
+    if tf_policy_path:
+      command_line.extend(
+          ['-mllvm', '-regalloc-priority-model=' + tf_policy_path])
+    compilation_runner.start_cancellable_process(command_line,
+                                                 self._compilation_timeout,
+                                                 cancellation_manager)
 
-      # TODO(#202)
-      log_result = log_reader.read_log_as_sequence_examples(log_path)
+    # TODO(#202)
+    log_result = log_reader.read_log_as_sequence_examples(log_path)
 
-      for fct_name, trajectory in log_result.items():
-        if not trajectory.HasField('feature_lists'):
-          continue
-        score = (
-            trajectory.feature_lists.feature_list['reward'].feature[-1]
-            .float_list.value[0])
-        if reward_only:
-          result[fct_name] = (None, score)
-        else:
-          del trajectory.feature_lists.feature_list['reward']
-          result[fct_name] = (trajectory, score)
-
-    finally:
-      tf.io.gfile.rmtree(working_dir)
+    for fct_name, trajectory in log_result.items():
+      if not trajectory.HasField('feature_lists'):
+        continue
+      score = (
+          trajectory.feature_lists.feature_list['reward'].feature[-1].float_list
+          .value[0])
+      if reward_only:
+        result[fct_name] = (None, score)
+      else:
+        del trajectory.feature_lists.feature_list['reward']
+        result[fct_name] = (trajectory, score)
 
     return result
