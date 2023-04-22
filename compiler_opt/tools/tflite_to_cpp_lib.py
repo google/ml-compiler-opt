@@ -27,6 +27,25 @@ _UNUSED_TENSOR_NAME = '_UnusedTensorType'
 _TFAGENTS_POLICY_NAME = 'action'
 _MODEL_NAMESPACE = 'llvm::emitc::generated'
 
+# pylint: disable=line-too-long
+_LICENSE_AND_NOTICE = """// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+// This code was originally sourced from github.com/iml130/mlir-emitc and has
+// been modified to fit the needs of generated C++ models in LLVM.
+"""
+
 
 def _fmt_includes(includes):
   return '\n'.join([f'#include "{hdr}"' for hdr in includes]) + '\n'
@@ -314,6 +333,12 @@ def add_additional_headers(model: EmitCModel, additional_headers: list[str]):
   include_str = _fmt_includes(additional_headers)
   new_hdr = include_str + model.hdr
   return dataclasses.replace(model, hdr=new_hdr)
+
+
+def add_license_and_notice(model: EmitCModel) -> EmitCModel:
+  new_cpp = _LICENSE_AND_NOTICE + model.cpp
+  new_hdr = _LICENSE_AND_NOTICE + model.hdr
+  return dataclasses.replace(model, cpp=new_cpp, hdr=new_hdr)
 
 
 def print_llvm_registration_handle(model: EmitCModel, base_class: str):

@@ -121,6 +121,8 @@ def main(argv):
   tflite_to_cpp_lib.print_llvm_registration_handle(
       model=model, base_class=FLAGS.base_class)
 
+  model = tflite_to_cpp_lib.add_license_and_notice(model=model)
+
   if FLAGS.clang_format_path:
     model = tflite_to_cpp_lib.format_model(
         model=model,
