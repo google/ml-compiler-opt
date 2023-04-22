@@ -158,7 +158,7 @@ def _run_clang_format(buffer: str, clang_format_path: str,
 
 
 def format_model(model: EmitCModel, clang_format_path: str,
-                 clang_format_style: str) -> str:
+                 clang_format_style: str) -> EmitCModel:
   """Formats the given model and returns the result"""
   logging.info('Formatting the resulting model with style [%s].',
                clang_format_style)
