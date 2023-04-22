@@ -18,7 +18,6 @@ from __future__ import annotations
 import os
 import dataclasses
 import subprocess
-import tempfile
 import pathlib
 import re
 
@@ -48,9 +47,9 @@ def _load_emitc_runtime(path: str) -> EmitCRuntime:
   """Load the EmitC runtime from a given path."""
   headers = {}
   pathlist = pathlib.Path(path).glob('*.h')
-  for path in pathlist:
-    with open(path, 'rt') as f:
-      headers[path.name] = f.read()
+  for p in pathlist:
+    with open(p, 'rt', encoding='utf-8') as f:
+      headers[p.name] = f.read()
   return EmitCRuntime(headers=headers, primary='tosa.h')
 
 
@@ -154,7 +153,7 @@ def _run_clang_format(buffer: str, clang_format_path: str,
   """Formats the given buffer and returns the result"""
   cmdline = [clang_format_path, f'--style={clang_format_style}']
   result = subprocess.run(
-      cmdline, stdout=subprocess.PIPE, text=True, input=buffer)
+      cmdline, stdout=subprocess.PIPE, text=True, input=buffer, check=True)
   return result.stdout
 
 
@@ -199,7 +198,8 @@ def tflite_to_tosa(tflite_path: str,
       tflite_path,
       '--output-format=mlir-ir',
   ]
-  result = subprocess.run(cmdline, stdout=subprocess.PIPE, text=True)
+  result = subprocess.run(
+      cmdline, stdout=subprocess.PIPE, text=True, check=True)
   if convert_i48:
     return re.sub(r'i48', 'i64', result.stdout)
   return result.stdout
@@ -210,7 +210,7 @@ def tosa_to_emitc_mlir(tosa: str, emitc_opt_path: str) -> str:
   logging.info('Converting the TOSA MLIR to EmitC MLIR.')
   cmdline = [emitc_opt_path, '--convert-tosa-to-emitc', '-o', '-', '-']
   result = subprocess.run(
-      cmdline, stdout=subprocess.PIPE, text=True, input=tosa)
+      cmdline, stdout=subprocess.PIPE, text=True, input=tosa, check=True)
   return result.stdout
 
 
@@ -239,13 +239,18 @@ def emitc_mlir_to_cpp(
     ]
 
   result_cpp = subprocess.run(
-      _get_cmdline('cpp'), stdout=subprocess.PIPE, text=True,
-      input=emitc_mlir).stdout
+      _get_cmdline('cpp'),
+      stdout=subprocess.PIPE,
+      text=True,
+      input=emitc_mlir,
+      check=True,
+  ).stdout
   result_hdr = subprocess.run(
       _get_cmdline('header'),
       stdout=subprocess.PIPE,
       text=True,
       input=emitc_mlir,
+      check=True,
   ).stdout
 
   # Wrap results in namespaces

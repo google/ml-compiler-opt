@@ -97,6 +97,7 @@ FLAGS = flags.FLAGS
 
 
 def main(argv):
+  del argv
   logging.info('Beginning conversion pipeline.')
   tosa = tflite_to_cpp_lib.tflite_to_tosa(
       tflite_path=FLAGS.input,
@@ -131,9 +132,9 @@ def main(argv):
   hdr_path = tflite_to_cpp_lib.get_model_hdr_path(model, FLAGS.output_dir)
 
   logging.info('Writing generated files to [%s] and [%s].', cpp_path, hdr_path)
-  with open(cpp_path, 'wt') as f:
+  with open(cpp_path, 'wt', encoding='utf-8') as f:
     f.write(model.cpp)
-  with open(hdr_path, 'wt') as f:
+  with open(hdr_path, 'wt', encoding='utf-8') as f:
     f.write(model.hdr)
   logging.info('Done.')
 
