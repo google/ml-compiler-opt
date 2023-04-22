@@ -19,46 +19,38 @@ from absl import logging
 
 from compiler_opt.tools import tflite_to_cpp_lib
 
-flags.DEFINE_string(
-    'input', None, 'Input, which should be a path to a tflite model'
-)
+flags.DEFINE_string('input', None,
+                    'Input, which should be a path to a tflite model')
 flags.mark_flag_as_required('input')
 
-flags.DEFINE_string(
-    'output_dir', None, 'Output directory for the generated files'
-)
+flags.DEFINE_string('output_dir', None,
+                    'Output directory for the generated files')
 flags.mark_flag_as_required('output_dir')
 
 flags.DEFINE_string(
     'name',
     None,
-    (
-        'Name to use for the model. This will be in the filenames and also will'
-        ' be used to identify the model within LLVM. This should be unique'
-        ' between models'
-    ),
+    ('Name to use for the model. This will be in the filenames and also will'
+     ' be used to identify the model within LLVM. This should be unique'
+     ' between models'),
 )
 flags.mark_flag_as_required('name')
 
 flags.DEFINE_string(
     'base_class',
     None,
-    (
-        'Base class to use for the generated model. This is used when'
-        ' registering the model in LLVM. This should be a fully-qualified name,'
-        ' e.g. ::llvm::MLInlineOzEmitCModel'
-    ),
+    ('Base class to use for the generated model. This is used when'
+     ' registering the model in LLVM. This should be a fully-qualified name,'
+     ' e.g. ::llvm::MLInlineOzEmitCModel'),
 )
 flags.mark_flag_as_required('base_class')
 
 flags.DEFINE_multi_string(
     'additional_headers',
     None,
-    (
-        'Additional headers to include for the model, for instance the header'
-        ' definining the base class. Should be of the form'
-        ' --additional_headers="llvm/Analysis/MyHeader.h"'
-    ),
+    ('Additional headers to include for the model, for instance the header'
+     ' definining the base class. Should be of the form'
+     ' --additional_headers="llvm/Analysis/MyHeader.h"'),
 )
 
 flags.DEFINE_string(
@@ -92,10 +84,8 @@ flags.mark_flag_as_required('emitc_runtime_path')
 flags.DEFINE_string(
     'clang_format_path',
     None,
-    (
-        '(Optional) path to clang-format binary to use to format the resulting'
-        ' files'
-    ),
+    ('(Optional) path to clang-format binary to use to format the resulting'
+     ' files'),
 )
 flags.DEFINE_string(
     'clang_format_style',
@@ -113,8 +103,7 @@ def main(argv):
       iree_import_tflite_path=FLAGS.iree_import_tflite_path,
   )
   emitc_mlir = tflite_to_cpp_lib.tosa_to_emitc_mlir(
-      tosa=tosa, emitc_opt_path=FLAGS.emitc_opt_path
-  )
+      tosa=tosa, emitc_opt_path=FLAGS.emitc_opt_path)
   model = tflite_to_cpp_lib.emitc_mlir_to_cpp(
       emitc_mlir=emitc_mlir,
       mlir_translate_path=FLAGS.mlir_translate_path,
@@ -126,12 +115,10 @@ def main(argv):
       runtime_path=FLAGS.emitc_runtime_path,
   )
   model = tflite_to_cpp_lib.add_additional_headers(
-      model=model, additional_headers=FLAGS.additional_headers
-  )
+      model=model, additional_headers=FLAGS.additional_headers)
 
   tflite_to_cpp_lib.print_llvm_registration_handle(
-      model=model, base_class=FLAGS.base_class
-  )
+      model=model, base_class=FLAGS.base_class)
 
   if FLAGS.clang_format_path:
     model = tflite_to_cpp_lib.format_model(

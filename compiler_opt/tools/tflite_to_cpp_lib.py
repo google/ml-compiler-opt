@@ -120,9 +120,8 @@ def _create_local_emitc_runtime(runtime: EmitCRuntime) -> str:
   local_runtime = 'namespace {\n' + local_runtime + '\n}'
 
   # Reinsert the stdlib includes
-  include_str = (
-      '\n'.join([f'#include <{hdr}>' for hdr in stdlib_includes]) + '\n'
-  )
+  include_str = ('\n'.join([f'#include <{hdr}>' for hdr in stdlib_includes]) +
+                 '\n')
 
   local_runtime = include_str + local_runtime
 
@@ -130,17 +129,15 @@ def _create_local_emitc_runtime(runtime: EmitCRuntime) -> str:
   # type so that the interface of each model is uniform. Theoretically, it
   # would be better to just remove this class, but renaming it is easier to
   # reason about.
-  local_runtime = re.sub(
-      r'class Tensor', f'class {_UNUSED_TENSOR_NAME}', local_runtime
-  )
+  local_runtime = re.sub(r'class Tensor', f'class {_UNUSED_TENSOR_NAME}',
+                         local_runtime)
 
   # We also need to rename the constructors of the class
   local_runtime = re.sub(r'Tensor\(', f'{_UNUSED_TENSOR_NAME}(', local_runtime)
 
   # Remove all empty newlines and return
   return '\n'.join(
-      [l for l in local_runtime.splitlines() if (l and not l.isspace())]
-  )
+      [l for l in local_runtime.splitlines() if (l and not l.isspace())])
 
 
 @dataclasses.dataclass
@@ -152,24 +149,20 @@ class EmitCModel:
   hdr: str
 
 
-def _run_clang_format(
-    buffer: str, clang_format_path: str, clang_format_style: str
-) -> str:
+def _run_clang_format(buffer: str, clang_format_path: str,
+                      clang_format_style: str) -> str:
   """Formats the given buffer and returns the result"""
   cmdline = [clang_format_path, f'--style={clang_format_style}']
   result = subprocess.run(
-      cmdline, stdout=subprocess.PIPE, text=True, input=buffer
-  )
+      cmdline, stdout=subprocess.PIPE, text=True, input=buffer)
   return result.stdout
 
 
-def format_model(
-    model: EmitCModel, clang_format_path: str, clang_format_style: str
-) -> str:
+def format_model(model: EmitCModel, clang_format_path: str,
+                 clang_format_style: str) -> str:
   """Formats the given model and returns the result"""
-  logging.info(
-      'Formatting the resulting model with style [%s].', clang_format_style
-  )
+  logging.info('Formatting the resulting model with style [%s].',
+               clang_format_style)
   return dataclasses.replace(
       model,
       cpp=_run_clang_format(
@@ -193,9 +186,10 @@ def get_model_hdr_path(model: EmitCModel, root: str) -> str:
   return os.path.join(root, model.name + '.emitc.h')
 
 
-def tflite_to_tosa(
-    tflite_path: str, iree_import_tflite_path: str, *, convert_i48=True
-) -> str:
+def tflite_to_tosa(tflite_path: str,
+                   iree_import_tflite_path: str,
+                   *,
+                   convert_i48=True) -> str:
   """Converts TFLite to TOSA MLIR."""
   logging.info('Converting the TFLite model to TOSA MLIR.')
   cmdline = [
@@ -216,8 +210,7 @@ def tosa_to_emitc_mlir(tosa: str, emitc_opt_path: str) -> str:
   logging.info('Converting the TOSA MLIR to EmitC MLIR.')
   cmdline = [emitc_opt_path, '--convert-tosa-to-emitc', '-o', '-', '-']
   result = subprocess.run(
-      cmdline, stdout=subprocess.PIPE, text=True, input=tosa
-  )
+      cmdline, stdout=subprocess.PIPE, text=True, input=tosa)
   return result.stdout
 
 
@@ -246,8 +239,8 @@ def emitc_mlir_to_cpp(
     ]
 
   result_cpp = subprocess.run(
-      _get_cmdline('cpp'), stdout=subprocess.PIPE, text=True, input=emitc_mlir
-  ).stdout
+      _get_cmdline('cpp'), stdout=subprocess.PIPE, text=True,
+      input=emitc_mlir).stdout
   result_hdr = subprocess.run(
       _get_cmdline('header'),
       stdout=subprocess.PIPE,
@@ -294,9 +287,8 @@ def embed_runtime(
   #   `IsTensor<`
   # does not. the latter appears in the runtime, which we don't want to replace
   new_cpp = re.sub(r'(?<![A-Za-z])Tensor<', r'::llvm::emitc::Tensor<', new_cpp)
-  new_hdr = re.sub(
-      r'(?<![A-Za-z])Tensor<', r'::llvm::emitc::Tensor<', model.hdr
-  )
+  new_hdr = re.sub(r'(?<![A-Za-z])Tensor<', r'::llvm::emitc::Tensor<',
+                   model.hdr)
 
   # We also need to fully-qualify the references to emitc:: because the emitc
   # namespace is ambiguous in the file. This uses a similar lookbehind to avoid
