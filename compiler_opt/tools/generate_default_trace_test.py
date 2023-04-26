@@ -36,7 +36,11 @@ flags.FLAGS['gin_bindings'].allow_override = True
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
 
-  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
+  def collect_data(self,
+                   loaded_module_spec,
+                   policy=None,
+                   reward_stat=None,
+                   model_id=None):
     sequence_example_text = """
       feature_lists {
         feature_list {

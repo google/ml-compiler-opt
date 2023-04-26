@@ -89,7 +89,11 @@ def mock_collect_data(loaded_module_spec: corpus.LoadedModuleSpec, policy,
 class Sleeper(compilation_runner.CompilationRunner):
   """Test CompilationRunner that just sleeps."""
 
-  def collect_data(self, loaded_module_spec, policy, reward_stat, model_id):
+  def collect_data(self,
+                   loaded_module_spec,
+                   policy=None,
+                   reward_stat=None,
+                   model_id=None):
     _ = loaded_module_spec, policy, reward_stat
     compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
                                                  self._cancellation_manager)
