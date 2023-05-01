@@ -32,6 +32,8 @@ from compiler_opt.rl import constant
 # command line, where all the flags reference existing, local files.
 FullyQualifiedCmdLine = Tuple[str, ...]
 
+DEFAULT_CORPUS_DESCRIPTION_FILENAME = 'corpus_description.json'
+
 
 def _apply_cmdline_filters(
     orig_options: Tuple[str, ...],
@@ -185,7 +187,7 @@ class SamplerBucketRoundRobin(Sampler):
 class Corpus:
   """Represents a corpus.
 
-  A corpus is created from a corpus_description.json file, produced by
+  A corpus is created from a corpus description json file, produced by
   extract_ir.py (for example).
 
   To use the corpus:
@@ -225,7 +227,7 @@ class Corpus:
 
   def __init__(self,
                *,
-               data_path: str,
+               location: str,
                module_filter: Optional[Callable[[str], bool]] = None,
                additional_flags: Tuple[str, ...] = (),
                delete_flags: Tuple[str, ...] = (),
@@ -238,7 +240,10 @@ class Corpus:
     output) and validated.
 
     Args:
-      data_path: corpus directory.
+      location: either the path to the corpus description json file in a corpus
+        directory, or just the corpus directory, case in which
+        `DEFAULT_CORPUS_DESCRIPTION_FILENAME` will be assumed to be available
+        in that directory and used as corpus description.
       additional_flags: list of flags to append to the command line
       delete_flags: list of flags to remove (both `-flag=<value` and
         `-flag <value>` are supported).
@@ -251,18 +256,24 @@ class Corpus:
       module_filter: a regular expression used to filter 'in' modules with names
         matching it. None to include everything.
     """
-    self._base_dir = data_path
+    if tf.io.gfile.isdir(location):
+      self._base_dir = location
+      corpus_description = os.path.join(location,
+                                        DEFAULT_CORPUS_DESCRIPTION_FILENAME)
+    else:
+      self._base_dir = os.path.dirname(location)
+      corpus_description = location
+
     self._sampler = sampler
     # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
     # {additional|delete}_flags here
-    with tf.io.gfile.GFile(
-        os.path.join(data_path, 'corpus_description.json'), 'r') as f:
+    with tf.io.gfile.GFile(corpus_description, 'r') as f:
       corpus_description: Dict[str, Any] = json.load(f)
 
     module_paths = corpus_description['modules']
     if len(module_paths) == 0:
       raise ValueError(
-          f'{data_path}\'s corpus_description contains no modules.')
+          f'{corpus_description} corpus description contains no modules.')
 
     has_thinlto: bool = corpus_description['has_thinlto']
 
@@ -273,7 +284,7 @@ class Corpus:
       if corpus_description[
           'global_command_override'] == constant.UNSPECIFIED_OVERRIDE:
         raise ValueError(
-            'global_command_override in corpus_description.json not filled.')
+            f'global_command_override in {corpus_description} not filled.')
       cmd_override = tuple(corpus_description['global_command_override'])
       if len(additional_flags) > 0:
         logging.warning(
@@ -314,7 +325,8 @@ class Corpus:
       if cmd_override_was_specified:
         ret = cmd_override
       else:
-        with tf.io.gfile.GFile(os.path.join(data_path, name + '.cmd')) as f:
+        with tf.io.gfile.GFile(os.path.join(self._base_dir,
+                                            name + '.cmd')) as f:
           ret = tuple(f.read().replace(r'{', r'{{').replace(r'}',
                                                             r'}}').split('\0'))
           # The options read from a .cmd file must be run with -cc1
@@ -331,8 +343,8 @@ class Corpus:
       contents = tp.map(
           lambda name: ModuleSpec(
               name=name,
-              size=tf.io.gfile.GFile(os.path.join(data_path, name + '.bc')).
-              size(),
+              size=tf.io.gfile.GFile(
+                  os.path.join(self._base_dir, name + '.bc')).size(),
               command_line=get_cmdline(name),
               has_thinlto=has_thinlto), module_paths)
     self._module_specs = tuple(
@@ -405,6 +417,6 @@ def create_corpus_for_testing(location: str,
   if cmdline_is_override:
     corpus_description['global_command_override'] = cmdline
   with tf.io.gfile.GFile(
-      os.path.join(location, 'corpus_description.json'), 'w') as f:
+      os.path.join(location, DEFAULT_CORPUS_DESCRIPTION_FILENAME), 'w') as f:
     f.write(json.dumps(corpus_description))
-  return Corpus(data_path=location, **kwargs)
+  return Corpus(location=location, **kwargs)

@@ -37,8 +37,10 @@ from compiler_opt.rl import registry
 # see https://bugs.python.org/issue33315 - we do need these types, but must
 # currently use them as string annotations
 
-_DATA_PATH = flags.DEFINE_string('data_path', None,
-                                 'Path to folder containing IR files.')
+_DATA_PATH = flags.DEFINE_string(
+    'data_path', None,
+    'Path to directory containing IR files, or path to description json file '
+    'under such a directory.')
 _POLICY_PATH = flags.DEFINE_string(
     'policy_path', '', 'Path to the policy to generate trace with.')
 _OUTPUT_PATH = flags.DEFINE_string(
@@ -146,7 +148,7 @@ def main(_):
       _MODULE_FILTER.value) if _MODULE_FILTER.value else None
 
   cps = corpus.Corpus(
-      data_path=_DATA_PATH.value,
+      location=_DATA_PATH.value,
       module_filter=lambda name: True
       if not module_filter else module_filter.match(name),
       additional_flags=config.flags_to_add(),
