@@ -1,4 +1,4 @@
-# Infrastructure for MLGO --- a Machine Learning Guided Compiler Optimizations Framework.
+# Infrastructure for MLGO - a Machine Learning Guided Compiler Optimizations Framework.
 
 MLGO is a framework for integrating ML techniques systematically in LLVM. It
 replaces human-crafted optimization heuristics in LLVM with machine learned
