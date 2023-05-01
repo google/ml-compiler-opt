@@ -21,9 +21,41 @@ import time
 from absl.testing import absltest
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
+from compiler_opt.distributed.local import local_worker_manager
 
 
 class BufferedSchedulerTest(absltest.TestCase):
+
+  def test_simple_scheduling(self):
+
+    class TheWorker(worker.Worker):
+
+      def square(self, the_value, extra_factor=1):
+        return the_value * the_value * extra_factor
+
+    with local_worker_manager.LocalWorkerPoolManager(TheWorker, 2) as pool:
+      workers, futures = buffered_scheduler.schedule_on_worker_pool(
+          lambda w, v: w.square(v), range(10), pool)
+      self.assertLen(workers, 2)
+      self.assertLen(futures, 10)
+      worker.wait_for(futures)
+      self.assertListEqual([f.result() for f in futures],
+                           [x * x for x in range(10)])
+
+      _, futures = buffered_scheduler.schedule_on_worker_pool(
+          lambda w, v: w.square(**v), [dict(the_value=v) for v in range(10)],
+          pool)
+      worker.wait_for(futures)
+      self.assertListEqual([f.result() for f in futures],
+                           [x * x for x in range(10)])
+
+      # same idea, but mix some kwargs
+      _, futures = buffered_scheduler.schedule_on_worker_pool(
+          lambda w, v: w.square(v[0], **v[1]),
+          [(v, dict(extra_factor=10)) for v in range(10)], pool)
+      worker.wait_for(futures)
+      self.assertListEqual([f.result() for f in futures],
+                           [x * x * 10 for x in range(10)])
 
   def test_schedules(self):
     call_count = [0] * 4
