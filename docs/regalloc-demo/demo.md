@@ -12,7 +12,7 @@ In this demo we will look at:
 Set up some environment variables according to where you want to clone/build
 all of the code:
 ```bash
-export WORKINGD_DIR=~
+export WORKING_DIR=~
 ```
 
 Change the directory to wherever you'd like to put everything.
