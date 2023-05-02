@@ -29,7 +29,7 @@ W = TypeVar('W')
 
 def schedule(work: List[Callable[[T], worker.WorkerFuture]],
              workers: List[T],
-             buffer=2) -> List[worker.WorkerFuture]:
+             buffer=2) -> List[concurrent.futures.Future]:
   """
   Assigns work to workers once previous work of the worker are
   completed.
@@ -88,7 +88,7 @@ def schedule_on_worker_pool(
     jobs: Iterable[T],
     worker_pool: worker.WorkerPool,
     buffer_size: Optional[int] = None
-) -> Tuple[List[W], List[worker.WorkerFuture]]:
+) -> Tuple[List[W], List[concurrent.futures.Future]]:
   """
   Schedule the given action on workers from the given worker pool.
   Args:

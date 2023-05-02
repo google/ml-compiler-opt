@@ -170,7 +170,7 @@ class LocalDataCollector(data_collector.DataCollector):
       # now that the workers killed pending compilations, make sure the workers
       # drained their working queues first - they should all complete quickly
       # since the cancellation manager is killing immediately any process starts
-      worker.wait_for(self._current_futures)
+      concurrent.futures.wait(self._current_futures)
       worker.wait_for([wkr.enable() for wkr in self._workers])
 
     self._reset_workers = self._pool.submit(wrapup)
