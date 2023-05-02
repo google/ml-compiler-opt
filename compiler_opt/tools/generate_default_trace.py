@@ -118,7 +118,7 @@ class FilteringWorker(worker.Worker):
     return (loaded_module_spec.name, new_sequence_examples, new_reward_stats)
 
 
-def main(_):
+def main(worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
 
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
@@ -157,7 +157,7 @@ def main(_):
 
   with tfrecord_context as tfrecord_writer:
     with performance_context as performance_writer:
-      with local_worker_manager.LocalWorkerPoolManager(
+      with worker_manager_class(
           FilteringWorker,
           _NUM_WORKERS.value,
           policy_path=_POLICY_PATH.value,

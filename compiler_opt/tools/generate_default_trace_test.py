@@ -107,7 +107,7 @@ class GenerateDefaultTraceTest(absltest.TestCase):
         output_performance_path=os.path.join(tmp_dir.full_path,
                                              'output_performance'),
     ):
-      generate_default_trace.main(None)
+      generate_default_trace.main()
 
   def test_get_runner(self):
     runner = generate_default_trace.get_runner()
