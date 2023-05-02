@@ -71,6 +71,14 @@ cipd install fuchsia/sysroot/linux-arm64 latest -root ${SYSROOT_DIR}/linux-arm64
 cipd install fuchsia/sysroot/linux-amd64 latest -root ${SYSROOT_DIR}/linux-x64
 ```
 
+**Note:** If your shell can't find the `cipd` command, it's likely your `$PATH`
+variable doesn't contain the path to `.jiri_root/bin`. To add this to the path,
+run the following command:
+
+```shell
+export PATH=$PATH:$(realpath ~/fuchsia/.jiri_root/bin)
+```
+
 ## Set up the correct package versions
 
 We need to make sure the git revision of llvm is one that works with the version
