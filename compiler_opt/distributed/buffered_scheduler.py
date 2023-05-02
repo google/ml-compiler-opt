@@ -19,7 +19,7 @@
 import concurrent.futures
 import threading
 
-from typing import Any, Iterable, List, Callable, Tuple, TypeVar
+from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar
 
 from compiler_opt.distributed import worker
 
@@ -84,8 +84,10 @@ def schedule(work: List[Callable[[T], worker.WorkerFuture]],
 
 
 def schedule_on_worker_pool(
-    action: Callable[[W, T],
-                     Any], jobs: Iterable[T], worker_pool: worker.WorkerPool
+    action: Callable[[W, T], Any],
+    jobs: Iterable[T],
+    worker_pool: worker.WorkerPool,
+    buffer_size: Optional[int] = None
 ) -> Tuple[List[W], List[worker.WorkerFuture]]:
   """
   Schedule the given action on workers from the given worker pool.
@@ -94,6 +96,8 @@ def schedule_on_worker_pool(
       with those args.
     jobs: a list of arguments, each element constituting a unit of work.
     worker_pool: the worker pool on which to schedule the work.
+    buffer_size: if provided, buffer these many work items, instead of the
+      worker manager's default.
 
   Returns:
     a tuple. The first value is the workers that are used to perform the work.
@@ -109,4 +113,6 @@ def schedule_on_worker_pool(
 
   work = [work_factory(job) for job in jobs]
   workers: List[W] = worker_pool.get_currently_active()
-  return workers, schedule(work, workers, worker_pool.get_worker_concurrency())
+  return workers, schedule(work, workers,
+                           (worker_pool.get_worker_concurrency()
+                            if buffer_size is None else buffer_size))
