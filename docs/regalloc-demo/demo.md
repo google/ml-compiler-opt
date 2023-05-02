@@ -89,6 +89,12 @@ git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-thinlto-corpus-extr
 This will make a `clang_embed_bitcode` flag and a `lld_emit_index` flag
 available in the gn configuration.
 
+**Note:** These patches may or may not work depending on code churn within the
+Chromium code base. They were generated with Chromium at commit
+`ee3114540941f915c673c85d1f21b9c16a42a287`. Doing a full fetch (i.e., omitting
+the `--no-history` flag) and then checking out that commit will give the best
+chance of success.
+
 Now that this is all in place, you need to run the Chromium hooks in order to
 get the development environment ready for a full compilation:
 

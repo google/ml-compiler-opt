@@ -8,7 +8,7 @@ index 1aad3d60b8404..c600c0edf481c 100644
    clang_base_path = default_clang_base_path
 +
 +  # Specifies whether or not bitcode should be embedded in all compiled targets
-+  clang_embit_bitcode = false
++  clang_embed_bitcode = false
  }
 diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
 index e89b62eb0aaf6..58bcaac2ffbf8 100644
