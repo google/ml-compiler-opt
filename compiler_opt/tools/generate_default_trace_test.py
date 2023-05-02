@@ -28,6 +28,8 @@ from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
 from compiler_opt.tools import generate_default_trace
 
+from tf_agents.system import system_multiprocessing as multiprocessing
+
 flags.FLAGS['num_workers'].allow_override = True
 flags.FLAGS['gin_files'].allow_override = True
 flags.FLAGS['gin_bindings'].allow_override = True
@@ -113,4 +115,4 @@ class GenerateDefaultTraceTest(absltest.TestCase):
 
 
 if __name__ == '__main__':
-  absltest.main()
+  multiprocessing.handle_main(absltest.main)
