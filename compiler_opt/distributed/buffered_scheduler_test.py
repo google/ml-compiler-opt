@@ -26,6 +26,25 @@ from compiler_opt.distributed.local import local_worker_manager
 
 class BufferedSchedulerTest(absltest.TestCase):
 
+  def test_canonical_futures(self):
+
+    class WaitingWorker(worker.Worker):
+
+      def wait_seconds(self, n: int):
+        time.sleep(n)
+        return n + 1
+
+    with local_worker_manager.LocalWorkerPoolManager(WaitingWorker, 2) as pool:
+      _, futures = buffered_scheduler.schedule_on_worker_pool(
+          lambda w, v: w.wait_seconds(v), range(4), pool)
+      not_done = futures
+      entered_count = 0
+      while not_done:
+        _, not_done = concurrent.futures.wait(not_done, timeout=0.5)
+        entered_count += 1
+      self.assertGreater(entered_count, 1)
+      self.assertListEqual([r.result() for r in futures], list(range(1, 5)))
+
   def test_simple_scheduling(self):
 
     class TheWorker(worker.Worker):
