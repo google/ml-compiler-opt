@@ -1,20 +1,20 @@
 diff --git a/build/config/clang/clang.gni b/build/config/clang/clang.gni
-index 7196fcf6c1..423ffbdd09 100644
+index 1aad3d60b8404..c600c0edf481c 100644
 --- a/build/config/clang/clang.gni
 +++ b/build/config/clang/clang.gni
-@@ -15,4 +15,7 @@ declare_args() {
-       default_toolchain != "//build/toolchain/cros:target"
+@@ -19,4 +19,7 @@ declare_args() {
+       ((is_linux && !is_castos) || (is_android && !is_cast_android))
  
    clang_base_path = default_clang_base_path
 +
-+   # Specifies whether or not bitcode should be embedded in all compiled targets
-+   clang_embed_bitcode = false
++  # Specifies whether or not bitcode should be embedded in all compiled targets
++  clang_embit_bitcode = false
  }
 diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
-index d3adf9735c..6bad05bf7e 100644
+index e89b62eb0aaf6..58bcaac2ffbf8 100644
 --- a/build/config/compiler/BUILD.gn
 +++ b/build/config/compiler/BUILD.gn
-@@ -838,6 +838,10 @@ config("compiler") {
+@@ -847,6 +847,10 @@ config("compiler") {
      }
    }
  
