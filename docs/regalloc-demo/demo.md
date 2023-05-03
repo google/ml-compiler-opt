@@ -450,7 +450,7 @@ model:
 
 ```bash
 rm -rf ./compiler_opt/rl/regalloc/vocab
-PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/sparse_bucket_generator.py \
+PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/generate_vocab.py \
   --input=$WORKING_DIR/default_trace \
   --output_dir=./compiler_opt/rl/regalloc/vocab \
   --gin_files=compiler_opt/rl/regalloc/gin_configs/common.gin
