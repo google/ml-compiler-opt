@@ -35,8 +35,13 @@ flags.FLAGS['gin_files'].allow_override = True
 flags.FLAGS['gin_bindings'].allow_override = True
 
 
+@gin.configurable(module='runners')
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
+
+  def __init__(self, sentinel=None):
+    assert sentinel == 42
+    super().__init__()
 
   def collect_data(self,
                    loaded_module_spec,
@@ -75,11 +80,11 @@ class GenerateDefaultTraceTest(absltest.TestCase):
     with gin.unlock_config():
       gin.parse_config_files_and_bindings(
           config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
-          bindings=None)
+          bindings=['runners.MockCompilationRunner.sentinel=42'])
     return super().setUp()
 
-  @mock.patch('compiler_opt.tools.generate_default_trace.get_runner')
-  def test_api(self, mock_get_runner):
+  @mock.patch('compiler_opt.rl.inlining.InliningConfig.get_runner_type')
+  def test_generate_trace(self, mock_get_runner):
 
     tmp_dir = self.create_tempdir()
     module_names = ['a', 'b', 'c', 'd']
@@ -97,7 +102,7 @@ class GenerateDefaultTraceTest(absltest.TestCase):
           os.path.join(tmp_dir.full_path, module_name + '.cmd'), 'w') as f:
         f.write('-cc1')
 
-    mock_compilation_runner = MockCompilationRunner()
+    mock_compilation_runner = MockCompilationRunner
     mock_get_runner.return_value = mock_compilation_runner
 
     with flagsaver.flagsaver(
@@ -107,11 +112,7 @@ class GenerateDefaultTraceTest(absltest.TestCase):
         output_performance_path=os.path.join(tmp_dir.full_path,
                                              'output_performance'),
     ):
-      generate_default_trace.main()
-
-  def test_get_runner(self):
-    runner = generate_default_trace.get_runner()
-    self.assertIsInstance(runner, compilation_runner.CompilationRunner)
+      generate_default_trace.generate_trace()
 
 
 if __name__ == '__main__':
