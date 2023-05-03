@@ -91,7 +91,7 @@ def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
     return e
 
 
-def get_full_worker_args(worker_class: 'type[Worker]', current_kwargs):
+def get_full_worker_args(worker_class: 'type[Worker]', **current_kwargs):
   """Get the union of given kwargs and gin config.
 
   This allows the worker hosting process be set up differently from the training
