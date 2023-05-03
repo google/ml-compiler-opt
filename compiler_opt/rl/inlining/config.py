@@ -25,7 +25,6 @@ from compiler_opt.rl import feature_ops
 @gin.configurable()
 def get_inlining_signature_spec():
   """Returns (time_step_spec, action_spec) for LLVM inlining."""
-  # LINT.IfChange
   observation_spec = dict(
       (key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
           # Base features
@@ -75,7 +74,6 @@ def get_inlining_signature_spec():
       dtype=tf.int64, shape=(), name='inlining_decision', minimum=0, maximum=1)
 
   return time_step_spec, action_spec
-  # LINT.ThenChange(.../rl/inlining/sparse_bucket_config.pbtxt)
 
 
 @gin.configurable

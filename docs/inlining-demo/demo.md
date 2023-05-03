@@ -254,14 +254,14 @@ in the trace changes.
 ```shell
 rm -rf $DEFAULT_VOCAB &&
   PYTHONPATH=$PYTHONPATH:. python3 \
-    compiler_opt/tools/sparse_bucket_generator.py \
+    compiler_opt/tools/generate_vocab.py \
     --gin_files=compiler_opt/rl/inlining/gin_configs/common.gin \
     --input=$DEFAULT_TRACE \
     --output_dir=$DEFAULT_VOCAB
 ```
 
 **Note**
-The `sparse_bucket_generator.py` tool optionally accepts two more additional
+The `generate_vocab.py` tool optionally accepts two more additional
 flags `--sampling_fraction` and `--parallelism`.
 `sampling_fraction` downsamples input features and `parallelism` controls the
 degree of parallelism.
