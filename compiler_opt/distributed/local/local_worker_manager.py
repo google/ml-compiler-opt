@@ -244,7 +244,7 @@ def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
   """Create a local worker pool for worker_cls."""
   if not count:
     count = multiprocessing.get_context().cpu_count()
-  final_kwargs = worker.get_full_worker_args(worker_cls, kwargs)
+  final_kwargs = worker.get_full_worker_args(worker_cls, **kwargs)
   stubs = [_make_stub(worker_cls, *args, **final_kwargs) for _ in range(count)]
   return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
 
