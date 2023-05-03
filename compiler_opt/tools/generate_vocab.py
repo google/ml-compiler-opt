@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""OSS-compatible pipeline to generate sparse buckets.
+"""Generate sparse buckets - aka "vocab".
 
-Generate numerical features' X (1000) quantile based on their distributions
-by exclusively using OSS-compatible libraries.
+Generate numerical features' X (1000) quantile based on their distributions.
 """
 
 import math
