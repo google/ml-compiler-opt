@@ -75,11 +75,6 @@ ResultsQueueEntry = Union[Optional[Tuple[str, List[str],
                           BaseException]
 
 
-def get_runner() -> compilation_runner.CompilationRunner:
-  problem_config = registry.get_configuration()
-  return problem_config.get_runner_type()(moving_average_decay_rate=0)
-
-
 class FilteringWorker(worker.Worker):
   """Worker that performs a computation and optionally filters the result.
 
@@ -89,10 +84,12 @@ class FilteringWorker(worker.Worker):
     key_filter: regex filter for key names to include, or None to include all.
   """
 
-  def __init__(self, policy_path: Optional[str], key_filter: Optional[str]):
+  def __init__(self, policy_path: Optional[str], key_filter: Optional[str],
+               runner_type: 'type[compilation_runner.CompilationRunner]',
+               runner_kwargs):
     self._policy_path = policy_path
     self._key_filter = re.compile(key_filter) if key_filter else None
-    self._runner = get_runner()
+    self._runner = runner_type(**runner_kwargs)
     self._policy = policy_saver.Policy.from_filesystem(
         policy_path) if policy_path else None
 
@@ -118,11 +115,15 @@ class FilteringWorker(worker.Worker):
     return (loaded_module_spec.name, new_sequence_examples, new_reward_stats)
 
 
-def main(worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
-
+def main(_):
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
+  generate_trace()
+
+
+def generate_trace(
+    worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
 
   config = registry.get_configuration()
 
@@ -155,13 +156,17 @@ def main(worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
       cps.load_module_spec(corpus_element) for corpus_element in corpus_elements
   ]
 
+  runner_type = config.get_runner_type()
   with tfrecord_context as tfrecord_writer:
     with performance_context as performance_writer:
       with worker_manager_class(
           FilteringWorker,
           _NUM_WORKERS.value,
           policy_path=_POLICY_PATH.value,
-          key_filter=_KEY_FILTER.value) as lwm:
+          key_filter=_KEY_FILTER.value,
+          runner_type=runner_type,
+          runner_kwargs=worker.get_full_worker_args(
+              runner_type, moving_average_decay_rate=0)) as lwm:
 
         _, result_futures = buffered_scheduler.schedule_on_worker_pool(
             action=lambda w, j: w.compile_and_filter(j),
