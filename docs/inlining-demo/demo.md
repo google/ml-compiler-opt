@@ -76,7 +76,7 @@ variable doesn't contain the path to `.jiri_root/bin`. To add this to the path,
 run the following command:
 
 ```shell
-export PATH=$PATH:$(realpath ~/fuchsia/.jiri_root/bin)
+export PATH=$PATH:$(realpath $FUCHSIA_SRCDIR/.jiri_root/bin)
 ```
 
 ## Set up the correct package versions
