@@ -16,9 +16,13 @@
 
 import gin
 import tensorflow as tf
+import subprocess
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 from compiler_opt.rl import feature_ops
+from compiler_opt.rl import env
+
+from typing import List, Dict
 
 
 # pylint: disable=g-complex-comprehension
@@ -39,7 +43,6 @@ def get_inlining_signature_spec():
           'edge_count',
           'callsite_height',
           'cost_estimate',
-
           # Expanded cost features
           'sroa_savings',
           'sroa_losses',
@@ -65,9 +68,9 @@ def get_inlining_signature_spec():
           'nested_inlines',
           'nested_inline_cost_estimate',
           'threshold',
-
           # inlining_default is not used as feature in training.
-          'inlining_default'))
+          'inlining_default',
+      ))
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(
@@ -77,10 +80,12 @@ def get_inlining_signature_spec():
 
 
 @gin.configurable
-def get_observation_processing_layer_creator(quantile_file_dir=None,
-                                             with_sqrt=True,
-                                             with_z_score_normalization=True,
-                                             eps=1e-8):
+def get_observation_processing_layer_creator(
+    quantile_file_dir=None,
+    with_sqrt=True,
+    with_z_score_normalization=True,
+    eps=1e-8,
+):
   """Wrapper for observation_processing_layer."""
   quantile_map = feature_ops.build_quantile_map(quantile_file_dir)
 
@@ -99,3 +104,54 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
 def get_nonnormalized_features():
   return ['reward', 'inlining_default', 'inlining_decision']
+
+
+class InliningForSizeTask(env.MLGOTask):
+  """Implementation of the inlining-for-size MLGOTask."""
+
+  def __init__(self, llvm_size_path: str, working_dir: str):
+    super().__init__(working_dir)
+    self._llvm_size_path = llvm_size_path
+
+  def get_clang_args(self) -> List[str]:
+    return []
+
+  def get_interactive_clang_args(self, interactive_base_path: str) -> List[str]:
+    return [
+        '-mllvm',
+        '-enable-ml-inliner=release',
+        '-mllvm',
+        f'-inliner-interactive-channel-base={interactive_base_path}',
+        #'-mllvm',
+        #'-inliner-interactive-include-default',
+    ]
+
+  def get_module_scores(self, compiled_module_path: str) -> Dict[str, float]:
+    cmdline = [self._llvm_size_path, compiled_module_path]
+    completed_proc = subprocess.run(cmdline, capture_output=True, check=True)
+    if not completed_proc.stdout:
+      raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
+    output = completed_proc.stdout.decode('utf-8')
+    tmp = output.split('\n')
+    if len(tmp) != 3:
+      raise RuntimeError(f'Wrong llvm-size output {output}')
+    tmp = tmp[1].split('\t')
+    native_size = int(tmp[0])
+    return {'default': native_size}
+
+
+def get_inlining_env(llvm_size_path: str, *args,
+                     **kwargs) -> env.MLGOEnvironmentBase:
+  time_step_spec, action_spec = get_inlining_signature_spec()
+
+  def task_factory(working_dir: str):
+    return InliningForSizeTask(
+        llvm_size_path=llvm_size_path, working_dir=working_dir)
+
+  return env.MLGOEnvironmentBase(
+      *args,
+      **kwargs,
+      task_factory=task_factory,
+      obs_spec=time_step_spec.observation,
+      action_spec=action_spec,
+  )
