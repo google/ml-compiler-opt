@@ -77,23 +77,7 @@ sed -i 's/"custom_vars": {},/"custom_vars": { "checkout_pgo_profiles" : True },/
 
 This `sed` command will set the necessary variable correctly. After this,
 you can move into the `src` directory that `fetch` created that contains
-the actual Chromium codebase. Now, we need to apply the bitcode embedding
-patch contained in this repository.
-
-```bash
-cd src
-git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-bitcode-embedding.patch
-git apply $WORKING_DIR/ml-compiler-opt/experimental/chromium-thinlto-corpus-extraction.patch
-```
-
-This will make a `clang_embed_bitcode` flag and a `lld_emit_index` flag
-available in the gn configuration.
-
-**Note:** These patches may or may not work depending on code churn within the
-Chromium code base. They were generated with Chromium at commit
-`ee3114540941f915c673c85d1f21b9c16a42a287`. Doing a full fetch (i.e., omitting
-the `--no-history` flag) and then checking out that commit will give the best
-chance of success.
+the actual Chromium codebase.
 
 Now that this is all in place, you need to run the Chromium hooks in order to
 get the development environment ready for a full compilation:
@@ -186,7 +170,7 @@ But if you want to extract a thinLTO corpus, you need to use the following confi
 
 ```
 is_official_build=true
-lld_emit_index=true
+lld_emit_indexes_and_imports=true
 is_debug=false
 symbol_level=0
 enable_nacl=false
