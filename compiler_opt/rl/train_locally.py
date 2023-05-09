@@ -164,8 +164,12 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
       t2 = time.time()
       logging.info('Last iteration took: %f', t2 - t1)
       t1 = t2
-      with tf.io.gfile.GFile(reward_stat_map_path, 'w') as f:
+      # Save reward stat map. Writes to separate file and renames to get
+      # "atomic" updates.
+      temp_path = f'{reward_stat_map_path}.new'
+      with tf.io.gfile.GFile(temp_path, 'w') as f:
         json.dump(reward_stat_map, f, cls=constant.DataClassJSONEncoder)
+      tf.io.gfile.rename(temp_path, reward_stat_map_path, overwrite=True)
 
       if best_trajectory_repo is not None:
         best_trajectory_repo.sink_to_json_file(best_trajectory_repo_path)
