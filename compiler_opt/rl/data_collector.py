@@ -20,10 +20,11 @@ from typing import Dict, Iterator, Tuple, Sequence
 
 import numpy as np
 from compiler_opt.rl import policy_saver
+from compiler_opt.rl.compilation_runner import COMPILATION_TIMEOUT
 from tf_agents.trajectories import trajectory
 
 # Deadline for data collection.
-DEADLINE_IN_SECONDS = 30
+DEADLINE_IN_SECONDS = int(COMPILATION_TIMEOUT.value * 1.2)
 
 # We don't wait for all data collection to finish --- it continues if either of
 # the wait_termination_conditions is met.
