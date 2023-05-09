@@ -25,7 +25,6 @@ from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import constant
 
 
 def _observation_processing_layer(obs_spec):
@@ -56,9 +55,8 @@ class AgentCreatorsTest(tf.test.TestCase):
     gin.bind_parameter('BehavioralCloningAgent.optimizer',
                        tf.compat.v1.train.AdamOptimizer())
     tf_agent = agent_creators.create_agent(
-        agent_name=constant.AgentName.BEHAVIORAL_CLONE,
-        time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec,
+        agent_creators.BCAgentConfig(
+            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent,
                           behavioral_cloning_agent.BehavioralCloningAgent)
@@ -67,9 +65,8 @@ class AgentCreatorsTest(tf.test.TestCase):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
     gin.bind_parameter('DqnAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
     tf_agent = agent_creators.create_agent(
-        agent_name=constant.AgentName.DQN,
-        time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec,
+        agent_creators.DQNAgentConfig(
+            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent, dqn_agent.DqnAgent)
 
@@ -78,9 +75,8 @@ class AgentCreatorsTest(tf.test.TestCase):
                        actor_distribution_network.ActorDistributionNetwork)
     gin.bind_parameter('PPOAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
     tf_agent = agent_creators.create_agent(
-        agent_name=constant.AgentName.PPO,
-        time_step_spec=self._time_step_spec,
-        action_spec=self._action_spec,
+        agent_creators.PPOAgentConfig(
+            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent, ppo_agent.PPOAgent)
 

@@ -9,7 +9,7 @@ import tf_agents.networks.actor_distribution_network
 
 include 'compiler_opt/rl/regalloc_priority/gin_configs/common.gin'
 
-train_eval.agent_name=%constant.AgentName.PPO
+train_eval.agent_config_type=@agents.PPOAgentConfig
 train_eval.warmstart_policy_dir=''
 train_eval.num_policy_iterations=3000
 train_eval.num_iterations=200

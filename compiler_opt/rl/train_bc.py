@@ -51,7 +51,7 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
 
 
 @gin.configurable
-def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
+def train_eval(agent_config_type=agent_creators.BCAgentConfig,
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1):
@@ -63,8 +63,10 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  agent: tf_agent.TFAgent = agent_creators.create_agent(
-      agent_name, time_step_spec, action_spec, preprocessing_layer_creator)
+  agent_config: agent_creators.AgentConfig = agent_config_type(
+      time_step_spec=time_step_spec, action_spec=action_spec)
+  agent: tf_policy.TFAgent = agent_creators.create_agent(
+      agent_config, preprocessing_layer_creator=preprocessing_layer_creator)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=agent)
   policy_dict: Dict[str, tf_policy.TFPolicy] = {
       'saved_policy': agent.policy,
@@ -73,9 +75,7 @@ def train_eval(agent_name=constant.AgentName.BEHAVIORAL_CLONE,
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
   tfrecord_dataset_fn = data_reader.create_tfrecord_dataset_fn(
-      agent_name=agent_name,
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
+      agent_config=agent_config,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 

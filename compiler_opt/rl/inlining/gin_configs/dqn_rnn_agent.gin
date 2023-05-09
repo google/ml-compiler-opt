@@ -7,7 +7,7 @@ import tf_agents.networks.q_rnn_network
 
 include 'compiler_opt/rl/inlining/gin_configs/common.gin'
 
-train_eval.agent_name=%constant.AgentName.DQN
+train_eval.agent_config_type=@agents.DQNAgentConfig
 train_eval.num_iterations=100000
 train_eval.batch_size=128
 train_eval.train_sequence_length=8
