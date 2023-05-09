@@ -77,7 +77,7 @@ def _get_sequence_example(feature_value):
   return text_format.Parse(sequence_example_text, tf.train.SequenceExample())
 
 
-def _mock_compile_fn(file_paths, tf_policy_path, reward_only):  # pylint: disable=unused-argument
+def _mock_compile_fn(file_paths, tf_policy_path, reward_only, workdir):  # pylint: disable=unused-argument
   del file_paths
   if tf_policy_path:
     sequence_example = _get_sequence_example(_POLICY_FEATURE_VALUE)
