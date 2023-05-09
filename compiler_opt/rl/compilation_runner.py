@@ -17,6 +17,7 @@
 import abc
 import dataclasses
 import os
+import shlex
 import signal
 import subprocess
 import tempfile
@@ -182,7 +183,7 @@ def start_cancellable_process(
   if _QUIET.value:
     command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
   else:
-    logging.info(cmdline)
+    logging.info(shlex.join(cmdline))
   with subprocess.Popen(
       cmdline,
       env=command_env,
@@ -193,6 +194,7 @@ def start_cancellable_process(
     try:
       retcode = p.wait(timeout=timeout)
     except subprocess.TimeoutExpired as e:
+      logging.info('Command hit timeout: %s', shlex.join(cmdline))
       kill_process_ignore_exceptions(p)
       raise e
     finally:
@@ -200,8 +202,10 @@ def start_cancellable_process(
         cancellation_manager.unregister_process(p)
 
     if retcode != 0:
-      raise ProcessKilledError(
-      ) if retcode == -9 else subprocess.CalledProcessError(retcode, cmdline)
+      if retcode == -9:
+        raise ProcessKilledError()
+      logging.info('Command returned code %d: %s', retcode, shlex.join(cmdline))
+      raise subprocess.CalledProcessError(retcode, cmdline)
     else:
       if want_output:
         ret: bytes = p.stdout.read()
