@@ -33,7 +33,7 @@ from compiler_opt.rl import constant
 from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
 
-_COMPILATION_TIMEOUT = flags.DEFINE_integer(
+COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'compilation_timeout', 60,
     'Max duration (in seconds) after which we cancel any compilation job.')
 _QUIET = flags.DEFINE_bool(
@@ -310,7 +310,6 @@ class CompilationRunner(Worker):
                clang_path: Optional[str] = None,
                launcher_path: Optional[str] = None,
                moving_average_decay_rate: float = 1,
-               compilation_timeout=None,
                create_observer_fns: Optional[List[Callable[
                    [], CompilationResultObserver]]] = None):
     """Initialization of CompilationRunner class.
@@ -330,8 +329,7 @@ class CompilationRunner(Worker):
     self._launcher_path = launcher_path
     self._moving_average_decay_rate = moving_average_decay_rate
     # Avoid reading the flag during the first interpretation of this module.
-    self._compilation_timeout = (
-        compilation_timeout or _COMPILATION_TIMEOUT.value)
+    self._compilation_timeout = COMPILATION_TIMEOUT.value
     self._cancellation_manager = WorkerCancellationManager()
     self._observers = ([f() for f in create_observer_fns]
                        if create_observer_fns else [])
