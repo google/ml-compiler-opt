@@ -32,9 +32,9 @@ flags.FLAGS['gin_bindings'].allow_override = True
 def _get_test_settings():
   test_setting = []
 
-  agent_name_dict = {
-      'ppo': 'PPO',
-      'behavioral_cloning': 'BEHAVIORAL_CLONE',
+  agent_config_type_dict = {
+      'ppo': '@agents.PPOAgentConfig',
+      'behavioral_cloning': '@agents.BCAgentConfig',
   }
 
   for problem in ('inlining', 'regalloc'):
@@ -42,8 +42,8 @@ def _get_test_settings():
       test_name = f'{problem}_{algorithm}'
       gin_file = (
           f'compiler_opt/rl/{problem}/gin_configs/{algorithm}_nn_agent.gin')
-      gin_binding = ('generate_test_model.agent_name=%constant.AgentName.' +
-                     agent_name_dict[algorithm])
+      gin_binding = ('generate_test_model.agent_config_type=' +
+                     agent_config_type_dict[algorithm])
       test_setting.append((test_name, gin_file, gin_binding))
 
   return test_setting

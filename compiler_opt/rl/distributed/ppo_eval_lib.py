@@ -33,7 +33,6 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import corpus
-from compiler_opt.rl import constant
 from compiler_opt.rl import agent_creators
 from compiler_opt.rl import registry
 from compiler_opt.rl import policy_saver
@@ -58,9 +57,12 @@ def evaluate(root_dir: str, corpus_path: str,
   logging.info('Initializing the distributed PPO agent')
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
+  agent_config = agent_creators.DistributedPPOAgentConfig(
+      time_step_spec=time_step_spec, action_spec=action_spec)
   agent = agent_creators.create_agent(
-      constant.AgentName.PPO_DISTRIBUTED, time_step_spec, action_spec,
-      problem_config.get_preprocessing_layer_creator())
+      agent_config.agent,
+      preprocessing_layer_creator=problem_config
+      .get_preprocessing_layer_creator())
 
   #policy = greedy_policy.GreedyPolicy(agent.policy)
   policy = agent.collect_policy
@@ -83,9 +85,7 @@ def evaluate(root_dir: str, corpus_path: str,
   # Setup the corpus
   logging.info('Constructing tf.data pipeline and module corpus')
   dataset_fn = data_reader.create_flat_sequence_example_dataset_fn(
-      agent_name=constant.AgentName.PPO_DISTRIBUTED,
-      time_step_spec=time_step_spec,
-      action_spec=action_spec)
+      agent_config=agent_config)
 
   def sequence_example_iterator_fn(seq_ex: List[str]):
     return iter(dataset_fn(seq_ex).prefetch(tf.data.AUTOTUNE))

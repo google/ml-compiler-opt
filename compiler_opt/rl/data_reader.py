@@ -17,71 +17,14 @@
 from typing import Callable, List
 
 import tensorflow as tf
-from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import trajectory
-from tf_agents.typing import types
 
-from compiler_opt.rl import constant
-
-
-def _get_policy_info_parsing_dict(agent_name, action_spec):
-  """Function to get parsing dict for policy info."""
-  if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
-    if tensor_spec.is_discrete(action_spec):
-      return {
-          'CategoricalProjectionNetwork_logits':
-              tf.io.FixedLenSequenceFeature(
-                  shape=(action_spec.maximum - action_spec.minimum + 1),
-                  dtype=tf.float32)
-      }
-    else:
-      return {
-          'NormalProjectionNetwork_scale':
-              tf.io.FixedLenSequenceFeature(shape=(), dtype=tf.float32),
-          'NormalProjectionNetwork_loc':
-              tf.io.FixedLenSequenceFeature(shape=(), dtype=tf.float32)
-      }
-  return {}
-
-
-def _process_parsed_sequence_and_get_policy_info(parsed_sequence, agent_name,
-                                                 action_spec):
-  """Function to process parsed_sequence and to return policy_info.
-
-  Args:
-    parsed_sequence: A dict from feature_name to feature_value parsed from TF
-      SequenceExample.
-    agent_name: AgentName, enum type of the agent.
-    action_spec: action spec of the optimization problem.
-
-  Returns:
-    policy_info: A nested policy_info for given agent.
-  """
-  if agent_name in (constant.AgentName.PPO, constant.AgentName.PPO_DISTRIBUTED):
-    if tensor_spec.is_discrete(action_spec):
-      policy_info = {
-          'dist_params': {
-              'logits': parsed_sequence['CategoricalProjectionNetwork_logits']
-          }
-      }
-      del parsed_sequence['CategoricalProjectionNetwork_logits']
-    else:
-      policy_info = {
-          'dist_params': {
-              'scale': parsed_sequence['NormalProjectionNetwork_scale'],
-              'loc': parsed_sequence['NormalProjectionNetwork_loc']
-          }
-      }
-      del parsed_sequence['NormalProjectionNetwork_scale']
-      del parsed_sequence['NormalProjectionNetwork_loc']
-    return policy_info
-  else:
-    return ()
+from compiler_opt.rl import agent_creators
 
 
 def create_parser_fn(
-    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec) -> Callable[[str], trajectory.Trajectory]:
+    agent_config: agent_creators.AgentConfig
+) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
   Args:
@@ -105,15 +48,16 @@ def create_parser_fn(
         (tensor_spec.name,
          tf.io.FixedLenSequenceFeature(
              shape=tensor_spec.shape, dtype=tensor_spec.dtype))
-        for tensor_spec in time_step_spec.observation.values())
-    sequence_features[action_spec.name] = tf.io.FixedLenSequenceFeature(
-        shape=action_spec.shape, dtype=action_spec.dtype)
+        for tensor_spec in agent_config.time_step_spec.observation.values())
     sequence_features[
-        time_step_spec.reward.name] = tf.io.FixedLenSequenceFeature(
-            shape=time_step_spec.reward.shape,
-            dtype=time_step_spec.reward.dtype)
-    sequence_features.update(
-        _get_policy_info_parsing_dict(agent_name, action_spec))
+        agent_config.action_spec.name] = tf.io.FixedLenSequenceFeature(
+            shape=agent_config.action_spec.shape,
+            dtype=agent_config.action_spec.dtype)
+    sequence_features[agent_config.time_step_spec.reward
+                      .name] = tf.io.FixedLenSequenceFeature(
+                          shape=agent_config.time_step_spec.reward.shape,
+                          dtype=agent_config.time_step_spec.reward.dtype)
+    sequence_features.update(agent_config.get_policy_info_parsing_dict())
 
     # pylint: enable=g-complex-comprehension
     with tf.name_scope('parse'):
@@ -122,14 +66,15 @@ def create_parser_fn(
           context_features=context_features,
           sequence_features=sequence_features)
       # TODO(yundi): make the transformed reward configurable.
-      action = parsed_sequence[action_spec.name]
-      reward = tf.cast(parsed_sequence[time_step_spec.reward.name], tf.float32)
+      action = parsed_sequence[agent_config.action_spec.name]
+      reward = tf.cast(parsed_sequence[agent_config.time_step_spec.reward.name],
+                       tf.float32)
 
-      policy_info = _process_parsed_sequence_and_get_policy_info(
-          parsed_sequence, agent_name, action_spec)
+      policy_info = agent_config.process_parsed_sequence_and_get_policy_info(
+          parsed_sequence)
 
-      del parsed_sequence[time_step_spec.reward.name]
-      del parsed_sequence[action_spec.name]
+      del parsed_sequence[agent_config.time_step_spec.reward.name]
+      del parsed_sequence[agent_config.action_spec.name]
       full_trajectory = trajectory.from_episode(
           observation=parsed_sequence,
           action=action,
@@ -141,8 +86,8 @@ def create_parser_fn(
 
 
 def create_flat_sequence_example_dataset_fn(
-    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec) -> Callable[[List[str]], tf.data.Dataset]:
+    agent_config: agent_creators.AgentConfig
+) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   The dataset is "flat" insofar as it does not batch for sequence length nor
@@ -158,7 +103,7 @@ def create_flat_sequence_example_dataset_fn(
       a `tf.data.Dataset`.  Treating this dataset as an iterator yields batched
       `trajectory.Trajectory` instances with shape `[...]`.
   """
-  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
+  parser_fn = create_parser_fn(agent_config)
 
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
@@ -178,8 +123,7 @@ def create_flat_sequence_example_dataset_fn(
 
 
 def create_sequence_example_dataset_fn(
-    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec, batch_size: int,
+    agent_config: agent_creators.AgentConfig, batch_size: int,
     train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
@@ -198,7 +142,7 @@ def create_sequence_example_dataset_fn(
   trajectory_shuffle_buffer_size = 1024
 
   flat_sequence_example_dataset_fn = create_flat_sequence_example_dataset_fn(
-      agent_name, time_step_spec, action_spec)
+      agent_config)
 
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
@@ -216,9 +160,7 @@ def create_sequence_example_dataset_fn(
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
 def create_file_dataset_fn(
-    agent_name: constant.AgentName,
-    time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec,
+    agent_config: agent_creators.AgentConfig,
     batch_size: int,
     train_sequence_length: int,
     input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
@@ -243,7 +185,7 @@ def create_file_dataset_fn(
   shuffle_buffer_size = 1024
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_name, time_step_spec, action_spec)
+  parser_fn = create_parser_fn(agent_config)
 
   def _file_dataset_fn(data_path):
     dataset = (
@@ -271,8 +213,7 @@ def create_file_dataset_fn(
 
 
 def create_tfrecord_dataset_fn(
-    agent_name: constant.AgentName, time_step_spec: types.NestedSpec,
-    action_spec: types.NestedSpec, batch_size: int,
+    agent_config: agent_creators.AgentConfig, batch_size: int,
     train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
@@ -289,9 +230,7 @@ def create_tfrecord_dataset_fn(
       shape `[B, T, ...]`.
   """
   return create_file_dataset_fn(
-      agent_name,
-      time_step_spec,
-      action_spec,
+      agent_config,
       batch_size,
       train_sequence_length,
       input_dataset=tf.data.TFRecordDataset)

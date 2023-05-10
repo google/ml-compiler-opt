@@ -23,7 +23,6 @@ from absl import logging
 import gin
 
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import constant
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
@@ -40,7 +39,7 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def generate_test_model(agent_name=constant.AgentName.PPO):
+def generate_test_model(agent_config_type=agent_creators.PPOAgentConfig):
   """Generate test model."""
   root_dir = FLAGS.root_dir
 
@@ -49,9 +48,9 @@ def generate_test_model(agent_name=constant.AgentName.PPO):
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  tf_agent = agent_creators.create_agent(agent_name, time_step_spec,
-                                         action_spec,
-                                         preprocessing_layer_creator)
+  tf_agent = agent_creators.create_agent(
+      agent_config_type(time_step_spec=time_step_spec, action_spec=action_spec),
+      preprocessing_layer_creator=preprocessing_layer_creator)
 
   policy_dict = {
       'saved_policy': tf_agent.policy,

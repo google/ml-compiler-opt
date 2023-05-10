@@ -42,7 +42,6 @@ from compiler_opt.rl import data_reader
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import agent_creators
-from compiler_opt.rl import constant
 from compiler_opt.rl import compilation_runner
 
 
@@ -66,8 +65,7 @@ class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
   """Observer which sends compilation results to reverb"""
 
   def __init__(self,
-               time_step_spec,
-               action_spec,
+               agent_config,
                replay_buffer_server_address: str,
                sequence_length: int,
                initial_priority: float = 0.0):
@@ -81,9 +79,7 @@ class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
         priority=initial_priority)
 
     self._parser = data_reader.create_flat_sequence_example_dataset_fn(
-        agent_name=constant.AgentName.PPO_DISTRIBUTED,
-        time_step_spec=time_step_spec,
-        action_spec=action_spec)
+        agent_config=agent_config)
 
   def _is_actionable_result(
       self, result: compilation_runner.CompilationResult) -> bool:
@@ -125,9 +121,12 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
   logging.info('Initializing the distributed PPO agent')
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
+  agent_config = agent_creators.DistributedPPOAgentConfig(
+      time_step_spec=time_step_spec, action_spec=action_spec)
   agent = agent_creators.create_agent(
-      constant.AgentName.PPO_DISTRIBUTED, time_step_spec, action_spec,
-      problem_config.get_preprocessing_layer_creator())
+      agent_config.agent,
+      preprocessing_layer_creator=problem_config
+      .get_preprocessing_layer_creator())
 
   # Initialize the reverb variable container
   logging.info('Connecting to the reverb server')
@@ -146,8 +145,7 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
   create_observer_fns = [
       functools.partial(
           ReverbCompilationObserver,
-          time_step_spec=time_step_spec,
-          action_spec=action_spec,
+          agent_config=agent_config,
           replay_buffer_server_address=replay_buffer_server_address,
           sequence_length=sequence_length)
   ]
@@ -155,9 +153,7 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
   # Setup the corpus
   logging.info('Constructing tf.data pipeline and module corpus')
   dataset_fn = data_reader.create_flat_sequence_example_dataset_fn(
-      agent_name=constant.AgentName.PPO_DISTRIBUTED,
-      time_step_spec=time_step_spec,
-      action_spec=action_spec)
+      agent_config=agent_config)
 
   def sequence_example_iterator_fn(seq_ex: List[str]):
     return iter(dataset_fn(seq_ex).prefetch(tf.data.AUTOTUNE))

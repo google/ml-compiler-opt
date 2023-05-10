@@ -61,7 +61,7 @@ FLAGS = flags.FLAGS
 
 @gin.configurable
 def train_eval(worker_manager_class=LocalWorkerPoolManager,
-               agent_name=constant.AgentName.PPO,
+               agent_config_type=agent_creators.PPOAgentConfig,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_modules=100,
@@ -79,8 +79,11 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
+  agent_config = agent_config_type(
+      time_step_spec=time_step_spec, action_spec=action_spec)
   agent: tf_agent.TFAgent = agent_creators.create_agent(
-      agent_name, time_step_spec, action_spec, preprocessing_layer_creator)
+      agent_config.agent,
+      preprocessing_layer_creator=preprocessing_layer_creator)
   # create the random network distillation object
   random_network_distillation = None
   if use_random_network_distillation:
@@ -110,9 +113,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
-      agent_name=agent_name,
-      time_step_spec=time_step_spec,
-      action_spec=action_spec,
+      agent_config=agent_config,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 
