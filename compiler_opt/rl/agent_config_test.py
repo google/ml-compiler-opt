@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for compiler_opt.rl.agent_creators."""
+"""Tests for compiler_opt.rl.agent_config."""
 
 import gin
 import tensorflow as tf
@@ -24,7 +24,7 @@ from tf_agents.networks import q_network
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 
 
 def _observation_processing_layer(obs_spec):
@@ -54,8 +54,8 @@ class AgentCreatorsTest(tf.test.TestCase):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
     gin.bind_parameter('BehavioralCloningAgent.optimizer',
                        tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_creators.create_agent(
-        agent_creators.BCAgentConfig(
+    tf_agent = agent_config.create_agent(
+        agent_config.BCAgentConfig(
             time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent,
@@ -64,8 +64,8 @@ class AgentCreatorsTest(tf.test.TestCase):
   def test_create_dqn_agent(self):
     gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
     gin.bind_parameter('DqnAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_creators.create_agent(
-        agent_creators.DQNAgentConfig(
+    tf_agent = agent_config.create_agent(
+        agent_config.DQNAgentConfig(
             time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent, dqn_agent.DqnAgent)
@@ -74,8 +74,8 @@ class AgentCreatorsTest(tf.test.TestCase):
     gin.bind_parameter('create_agent.policy_network',
                        actor_distribution_network.ActorDistributionNetwork)
     gin.bind_parameter('PPOAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_creators.create_agent(
-        agent_creators.PPOAgentConfig(
+    tf_agent = agent_config.create_agent(
+        agent_config.PPOAgentConfig(
             time_step_spec=self._time_step_spec, action_spec=self._action_spec),
         preprocessing_layer_creator=_observation_processing_layer)
     self.assertIsInstance(tf_agent, ppo_agent.PPOAgent)

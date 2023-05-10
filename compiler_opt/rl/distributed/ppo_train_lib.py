@@ -30,7 +30,7 @@ from tf_agents.train import triggers
 from tf_agents.utils import common
 
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 from compiler_opt.rl import registry
 from compiler_opt.rl.distributed import learner as learner_lib
 
@@ -58,8 +58,8 @@ def train(
   # Create the agent.
   with strategy.scope():
     train_step = tf.compat.v1.train.get_or_create_global_step()
-    agent = agent_creators.create_agent(
-        agent_creators.DistributedPPOAgentConfig(
+    agent = agent_config.create_agent(
+        agent_config.DistributedPPOAgentConfig(
             time_step_spec=time_step_spec, action_spec=action_spec),
         preprocessing_layer_creator=problem_config
         .get_preprocessing_layer_creator())

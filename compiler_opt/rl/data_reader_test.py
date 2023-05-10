@@ -24,7 +24,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 from tf_agents.trajectories import trajectory
 
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 from compiler_opt.rl import data_reader
 
 
@@ -41,8 +41,8 @@ def _define_sequence_example(agent_config_type, is_action_discrete):
       ).float_list.value.append(1.23)
     example.feature_lists.feature_list['reward'].feature.add(
     ).float_list.value.append(2.3)
-    if agent_config_type in (agent_creators.PPOAgentConfig,
-                             agent_creators.DistributedPPOAgentConfig):
+    if agent_config_type in (agent_config.PPOAgentConfig,
+                             agent_config.DistributedPPOAgentConfig):
       if is_action_discrete:
         example.feature_lists.feature_list[
             'CategoricalProjectionNetwork_logits'].feature.add(
@@ -97,20 +97,20 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   _test_config = (('SequenceExampleDatasetFn',
                    data_reader.create_sequence_example_dataset_fn,
-                   agent_creators.PPOAgentConfig,
+                   agent_config.PPOAgentConfig,
                    _create_sequence_example_datasource),
                   ('TFRecordDatasetFn', data_reader.create_tfrecord_dataset_fn,
-                   agent_creators.PPOAgentConfig, _create_tfrecord_datasource))
+                   agent_config.PPOAgentConfig, _create_tfrecord_datasource))
 
   @parameterized.named_parameters(*_test_config)
   def test_create_dataset_fn(self, test_fn, _, data_source_fn):
-    agent_type_override = agent_creators.DQNAgentConfig
+    agent_type_override = agent_config.DQNAgentConfig
     example = _define_sequence_example(
         agent_type_override, is_action_discrete=True)
 
     data_source = data_source_fn(self, example)
     dataset_fn = test_fn(
-        agent_config=agent_type_override(
+        agent_cfg=agent_type_override(
             time_step_spec=self._time_step_spec,
             action_spec=self._discrete_action_spec),
         batch_size=2,
@@ -131,11 +131,11 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
 
   _distrib_test_config = (('SequenceExampleDatasetFnDistributed',
                            data_reader.create_sequence_example_dataset_fn,
-                           agent_creators.DistributedPPOAgentConfig,
+                           agent_config.DistributedPPOAgentConfig,
                            _create_sequence_example_datasource),
                           ('TFRecordDatasetFnDistributed',
                            data_reader.create_tfrecord_dataset_fn,
-                           agent_creators.DistributedPPOAgentConfig,
+                           agent_config.DistributedPPOAgentConfig,
                            _create_tfrecord_datasource))
 
   @parameterized.named_parameters(*(_test_config + _distrib_test_config))
@@ -147,7 +147,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     data_source = data_source_fn(self, example)
 
     dataset_fn = test_fn(
-        agent_config=agent_config_type(
+        agent_cfg=agent_config_type(
             time_step_spec=self._time_step_spec,
             action_spec=self._discrete_action_spec),
         batch_size=2,
@@ -169,7 +169,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     data_source = data_source_fn(self, example)
 
     dataset_fn = test_fn(
-        agent_config=agent_config_type(
+        agent_cfg=agent_config_type(
             time_step_spec=self._time_step_spec,
             action_spec=self._continuous_action_spec),
         batch_size=2,
