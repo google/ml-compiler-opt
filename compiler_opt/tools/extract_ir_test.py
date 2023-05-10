@@ -23,6 +23,7 @@ from absl.testing import absltest
 from compiler_opt.tools import extract_ir
 
 flags.FLAGS['num_workers'].allow_override = True
+flags.FLAGS['output_dir'].value = ''
 
 
 class ExtractIrTest(absltest.TestCase):
