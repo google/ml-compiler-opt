@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Train and Eval LLVM Inliner decision rule with local_data_collector."""
+r"""Train and Eval with local_data_collector."""
 
 import collections
 import functools
@@ -72,7 +72,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
                use_random_network_distillation=False,
                dump_best_trajectory=False,
                moving_average_decay_rate=1):
-  """Train for LLVM inliner."""
+  """Training coordinator."""
   root_dir = FLAGS.root_dir
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
