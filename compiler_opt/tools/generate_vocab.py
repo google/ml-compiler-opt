@@ -156,15 +156,14 @@ def main(_) -> None:
       logging.info('Found valid sequence_features dict: %s', sequence_features)
       break
     except IndexError:
-      # modules with no inlining done have empty feature values and
-      # raise an IndexError.
-      # continue until an inlined module with non-empty feature values is found.
-      logging.warn('Found module that was not inlined and has empty feature '
-                   'values.')
+      # modules with no results have empty feature values and
+      # raise an IndexError. For example, in the inliner case, maybe there were
+      # no inlining opportunities (very small modules)
+      # continue until a module with non-empty feature values is found.
+      logging.warn('Found module with empty feature values.')
       continue
   if not sequence_features:
-    raise ValueError('No inlined module with non-empty sequence_features '
-                     'values found.')
+    raise ValueError('No module with non-empty sequence_features values found.')
 
   parser_fn = create_tfrecord_parser_fn(sequence_features)
   dataset = dataset.map(parser_fn, num_parallel_calls=tf.data.AUTOTUNE)

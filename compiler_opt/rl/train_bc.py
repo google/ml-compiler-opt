@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Train behavioral cloning policy for LLVM Inliner decision rule."""
+r"""Train behavioral cloning policy."""
 
 import os
 
@@ -54,7 +54,7 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
                num_iterations=100,
                batch_size=64,
                train_sequence_length=1):
-  """Train for LLVM inliner."""
+  """Train Behavioral Cloning."""
   root_dir = os.path.expanduser(_ROOT_DIR.value)
   root_dir = os.path.normpath(root_dir)
   problem_config = registry.get_configuration()

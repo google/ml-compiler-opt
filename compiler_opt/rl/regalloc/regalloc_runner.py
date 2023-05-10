@@ -34,7 +34,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   runner = RegAllocRunner(
                clang_path, launcher_path, moving_average_decay_rate)
   serialized_sequence_example, default_reward, moving_average_reward,
-  policy_reward = inliner.collect_data(
+  policy_reward = runner.collect_data(
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
@@ -44,7 +44,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool,
       workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
-    """Run inlining for the given IR file under the given policy.
+    """Run the compiler for the given IR file under the given policy.
 
     Args:
       command_line: the fully qualified command line.
