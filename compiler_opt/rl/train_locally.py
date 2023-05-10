@@ -30,7 +30,7 @@ from tf_agents.agents import tf_agent
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 from compiler_opt.rl import best_trajectory
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import constant
@@ -61,7 +61,7 @@ FLAGS = flags.FLAGS
 
 @gin.configurable
 def train_eval(worker_manager_class=LocalWorkerPoolManager,
-               agent_config_type=agent_creators.PPOAgentConfig,
+               agent_config_type=agent_config.PPOAgentConfig,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
                num_modules=100,
@@ -79,11 +79,10 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
 
   # Initialize trainer and policy saver.
-  agent_config = agent_config_type(
+  agent_cfg = agent_config_type(
       time_step_spec=time_step_spec, action_spec=action_spec)
-  agent: tf_agent.TFAgent = agent_creators.create_agent(
-      agent_config.agent,
-      preprocessing_layer_creator=preprocessing_layer_creator)
+  agent: tf_agent.TFAgent = agent_config.create_agent(
+      agent_cfg.agent, preprocessing_layer_creator=preprocessing_layer_creator)
   # create the random network distillation object
   random_network_distillation = None
   if use_random_network_distillation:
@@ -113,7 +112,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   logging.info('Done loading module specs from corpus.')
 
   dataset_fn = data_reader.create_sequence_example_dataset_fn(
-      agent_config=agent_config,
+      agent_cfg=agent_cfg,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 

@@ -19,11 +19,11 @@ from typing import Callable, List
 import tensorflow as tf
 from tf_agents.trajectories import trajectory
 
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 
 
 def create_parser_fn(
-    agent_config: agent_creators.AgentConfig
+    agent_cfg: agent_config.AgentConfig
 ) -> Callable[[str], trajectory.Trajectory]:
   """Create a parser function for reading from a serialized tf.SequenceExample.
 
@@ -48,16 +48,16 @@ def create_parser_fn(
         (tensor_spec.name,
          tf.io.FixedLenSequenceFeature(
              shape=tensor_spec.shape, dtype=tensor_spec.dtype))
-        for tensor_spec in agent_config.time_step_spec.observation.values())
+        for tensor_spec in agent_cfg.time_step_spec.observation.values())
     sequence_features[
-        agent_config.action_spec.name] = tf.io.FixedLenSequenceFeature(
-            shape=agent_config.action_spec.shape,
-            dtype=agent_config.action_spec.dtype)
-    sequence_features[agent_config.time_step_spec.reward
-                      .name] = tf.io.FixedLenSequenceFeature(
-                          shape=agent_config.time_step_spec.reward.shape,
-                          dtype=agent_config.time_step_spec.reward.dtype)
-    sequence_features.update(agent_config.get_policy_info_parsing_dict())
+        agent_cfg.action_spec.name] = tf.io.FixedLenSequenceFeature(
+            shape=agent_cfg.action_spec.shape,
+            dtype=agent_cfg.action_spec.dtype)
+    sequence_features[
+        agent_cfg.time_step_spec.reward.name] = tf.io.FixedLenSequenceFeature(
+            shape=agent_cfg.time_step_spec.reward.shape,
+            dtype=agent_cfg.time_step_spec.reward.dtype)
+    sequence_features.update(agent_cfg.get_policy_info_parsing_dict())
 
     # pylint: enable=g-complex-comprehension
     with tf.name_scope('parse'):
@@ -66,15 +66,15 @@ def create_parser_fn(
           context_features=context_features,
           sequence_features=sequence_features)
       # TODO(yundi): make the transformed reward configurable.
-      action = parsed_sequence[agent_config.action_spec.name]
-      reward = tf.cast(parsed_sequence[agent_config.time_step_spec.reward.name],
+      action = parsed_sequence[agent_cfg.action_spec.name]
+      reward = tf.cast(parsed_sequence[agent_cfg.time_step_spec.reward.name],
                        tf.float32)
 
-      policy_info = agent_config.process_parsed_sequence_and_get_policy_info(
+      policy_info = agent_cfg.process_parsed_sequence_and_get_policy_info(
           parsed_sequence)
 
-      del parsed_sequence[agent_config.time_step_spec.reward.name]
-      del parsed_sequence[agent_config.action_spec.name]
+      del parsed_sequence[agent_cfg.time_step_spec.reward.name]
+      del parsed_sequence[agent_cfg.action_spec.name]
       full_trajectory = trajectory.from_episode(
           observation=parsed_sequence,
           action=action,
@@ -86,7 +86,7 @@ def create_parser_fn(
 
 
 def create_flat_sequence_example_dataset_fn(
-    agent_config: agent_creators.AgentConfig
+    agent_cfg: agent_config.AgentConfig
 ) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
@@ -103,7 +103,7 @@ def create_flat_sequence_example_dataset_fn(
       a `tf.data.Dataset`.  Treating this dataset as an iterator yields batched
       `trajectory.Trajectory` instances with shape `[...]`.
   """
-  parser_fn = create_parser_fn(agent_config)
+  parser_fn = create_parser_fn(agent_cfg)
 
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
@@ -123,7 +123,7 @@ def create_flat_sequence_example_dataset_fn(
 
 
 def create_sequence_example_dataset_fn(
-    agent_config: agent_creators.AgentConfig, batch_size: int,
+    agent_cfg: agent_config.AgentConfig, batch_size: int,
     train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
@@ -142,7 +142,7 @@ def create_sequence_example_dataset_fn(
   trajectory_shuffle_buffer_size = 1024
 
   flat_sequence_example_dataset_fn = create_flat_sequence_example_dataset_fn(
-      agent_config)
+      agent_cfg)
 
   def _sequence_example_dataset_fn(sequence_examples):
     # Data collector returns empty strings for corner cases, filter them out
@@ -160,7 +160,7 @@ def create_sequence_example_dataset_fn(
 # TODO(yundi): PyType check of input_dataset as Type[tf.data.Dataset] is not
 # working.
 def create_file_dataset_fn(
-    agent_config: agent_creators.AgentConfig,
+    agent_cfg: agent_config.AgentConfig,
     batch_size: int,
     train_sequence_length: int,
     input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
@@ -185,7 +185,7 @@ def create_file_dataset_fn(
   shuffle_buffer_size = 1024
   trajectory_shuffle_buffer_size = 1024
 
-  parser_fn = create_parser_fn(agent_config)
+  parser_fn = create_parser_fn(agent_cfg)
 
   def _file_dataset_fn(data_path):
     dataset = (
@@ -213,7 +213,7 @@ def create_file_dataset_fn(
 
 
 def create_tfrecord_dataset_fn(
-    agent_config: agent_creators.AgentConfig, batch_size: int,
+    agent_cfg: agent_config.AgentConfig, batch_size: int,
     train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
@@ -230,7 +230,7 @@ def create_tfrecord_dataset_fn(
       shape `[B, T, ...]`.
   """
   return create_file_dataset_fn(
-      agent_config,
+      agent_cfg,
       batch_size,
       train_sequence_length,
       input_dataset=tf.data.TFRecordDataset)

@@ -22,7 +22,7 @@ import gin
 
 from compiler_opt.rl.distributed import ppo_reverb_server_lib
 from compiler_opt.rl import registry  # pylint: disable=unused-import
-from compiler_opt.rl import agent_creators  # pylint: disable=unused-import
+from compiler_opt.rl import agent_config  # pylint: disable=unused-import
 
 flags.DEFINE_string('root_dir', None,
                     'Root directory for writing logs/summaries/checkpoints.')

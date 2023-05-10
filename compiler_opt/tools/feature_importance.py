@@ -45,7 +45,7 @@ from absl import flags
 from absl import logging
 import gin
 
-from compiler_opt.rl import agent_creators
+from compiler_opt.rl import agent_config
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import registry
 
@@ -79,10 +79,10 @@ def main(_):
 
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
-  agent_config = agent_creators.BCAgentConfig(
+  agent_cfg = agent_config.BCAgentConfig(
       time_step_spec=time_step_spec, action_spec=action_spec)
   tfrecord_dataset_fn = data_reader.create_tfrecord_dataset_fn(
-      agent_config=agent_config, batch_size=1, train_sequence_length=1)
+      agent_cfg=agent_cfg, batch_size=1, train_sequence_length=1)
 
   dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
 
