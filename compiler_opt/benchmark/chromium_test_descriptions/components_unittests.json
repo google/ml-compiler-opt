@@ -20576,7 +20576,7 @@
         "DownloadFileTest.StreamEmptySuccess",
         "ProcessHostedContentTypesAggregatorTest.MainFrameAndChildFrame",
         "All/AutofillProfileTest.AdjustInferredLabels/0",
-        "AccountCapabilitiesTest.CanStopParentalSupervision",
+        "AccountCapabilitiesTest.OptedInToParentalSupervision",
         "CloudPolicyValidatorTest.SuccessfulByUsername",
         "OfflinePageModelTaskifiedTest.SavePageOfflineArchiverReturnedWrongUrl",
         "WeakHandleTest.TypeConversionConstructor",
