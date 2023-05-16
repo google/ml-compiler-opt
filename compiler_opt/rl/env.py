@@ -174,11 +174,7 @@ class InteractiveClang(ClangProcess):
 
       tv_dict = {}
       for fv in obs.feature_values:
-        array = np.frombuffer(
-            fv.buffer,
-            dtype=log_reader.convert_dtype_to_ctype(fv.spec.dtype),
-            count=fv.len,
-        )
+        array = fv.to_numpy()
         tv_dict[fv.spec.name] = np.reshape(array, newshape=fv.spec.shape)
       return {
           OBS_KEY: tv_dict,

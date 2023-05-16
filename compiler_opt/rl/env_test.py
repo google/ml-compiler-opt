@@ -92,49 +92,52 @@ def mock_interactive_clang(cmdline, stderr, stdout):
     return
   # Create the fds for the pipes
   # (the env doesn't create the files, it assumes they are opened by clang)
-  with io.FileIO(fname + '.out', 'rb+') as f_out:
-    # Write the header describing the features/rewards
-    f_out.write(
-        log_reader_test.json_to_bytes({
-            'features': [{
-                'name': 'times_called',
-                'port': 0,
-                'shape': [1],
-                'type': 'int64_t',
-            },],
-            'score': {
-                'name': 'reward',
-                'port': 0,
-                'shape': [1],
-                'type': 'float',
-            },
-        }))
-    log_reader_test.write_nl(f_out)
+  with io.FileIO(fname + '.out', 'wb+') as f_out:
+    with io.FileIO(fname + '.in', 'rb+') as f_in:
+      del f_in
+      # Write the header describing the features/rewards
+      f_out.write(
+          log_reader_test.json_to_bytes({
+              'features': [{
+                  'name': 'times_called',
+                  'port': 0,
+                  'shape': [1],
+                  'type': 'int64_t',
+              },],
+              'score': {
+                  'name': 'reward',
+                  'port': 0,
+                  'shape': [1],
+                  'type': 'float',
+              },
+          }))
+      log_reader_test.write_nl(f_out)
 
-    class MockInteractiveProcess(MockProcess):
-      """Mock clang interactive process that writes the log."""
+      class MockInteractiveProcess(MockProcess):
+        """Mock clang interactive process that writes the log."""
 
-      def __init__(self):
-        self._counter = 0
+        def __init__(self):
+          self._counter = 0
 
-      # We poll the process at every call to get_observation to ensure the
-      # clang process is still alive. So here, each time poll() is called,
-      # write a new context
-      def poll(self):
-        if self._counter >= _NUM_STEPS:
-          f_out.close()
+        # We poll the process at every call to get_observation to ensure the
+        # clang process is still alive. So here, each time poll() is called,
+        # write a new context
+        def poll(self):
+          if self._counter >= _NUM_STEPS:
+            f_out.close()
+            return None
+          log_reader_test.write_context_marker(f_out,
+                                               f'context_{self._counter}')
+          log_reader_test.write_observation_marker(f_out, 0)
+          log_reader_test.write_buff(f_out, [self._counter], ctypes.c_int64)
+          log_reader_test.write_nl(f_out)
+          log_reader_test.write_outcome_marker(f_out, 0)
+          log_reader_test.write_buff(f_out, [3.14], ctypes.c_float)
+          log_reader_test.write_nl(f_out)
+          self._counter += 1
           return None
-        log_reader_test.write_context_marker(f_out, f'context_{self._counter}')
-        log_reader_test.write_observation_marker(f_out, 0)
-        log_reader_test.write_buff(f_out, [self._counter], ctypes.c_int64)
-        log_reader_test.write_nl(f_out)
-        log_reader_test.write_outcome_marker(f_out, 0)
-        log_reader_test.write_buff(f_out, [3.14], ctypes.c_float)
-        log_reader_test.write_nl(f_out)
-        self._counter += 1
-        return None
 
-    yield MockInteractiveProcess()
+      yield MockInteractiveProcess()
 
 
 class ClangSessionTest(tf.test.TestCase):
