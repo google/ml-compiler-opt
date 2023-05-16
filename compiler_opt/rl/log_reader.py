@@ -62,6 +62,7 @@ import json
 import math
 
 from typing import Any, BinaryIO, Dict, Generator, List, Optional, Union
+import numpy as np
 import tensorflow as tf
 
 _element_type_name_map = {
@@ -125,13 +126,11 @@ class LogReaderTensorValue:
   def spec(self):
     return self._spec
 
-  @property
-  def raw_bytes(self):
-    return self._buffer
-
-  @property
-  def len(self):
-    return self._len
+  def to_numpy(self):
+    return np.frombuffer(
+        self._buffer,
+        dtype=convert_dtype_to_ctype(self._spec.dtype),
+        count=self._len)
 
   def _set_view(self):
     # c_char_p is a nul-terminated string, so the more appropriate cast here

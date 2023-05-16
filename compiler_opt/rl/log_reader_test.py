@@ -22,6 +22,7 @@ from compiler_opt.rl import log_reader
 from google.protobuf import text_format  # pytype: disable=pyi-error
 from typing import BinaryIO
 
+import numpy as np
 import tensorflow as tf
 
 
@@ -154,6 +155,19 @@ class LogReaderTest(tf.test.TestCase):
       self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
       obs_id += 1
     self.assertEqual(obs_id, 2)
+
+  def test_to_numpy(self):
+    logfile = self.create_tempfile()
+    create_example(logfile)
+    t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    t1_val = [1, 2, 3]
+    for record in log_reader.read_log(logfile):
+      np.testing.assert_allclose(record.feature_values[0].to_numpy(),
+                                 np.array(t0_val))
+      np.testing.assert_allclose(record.feature_values[1].to_numpy(),
+                                 np.array(t1_val))
+      t0_val = [v + 1 for v in t0_val]
+      t1_val = [v + 1 for v in t1_val]
 
   def test_seq_example_conversion(self):
     logfile = self.create_tempfile()
