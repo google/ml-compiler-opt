@@ -82,8 +82,8 @@ def create_example(fname: str, nr_contexts=1):
                 'name': 'reward',
                 'port': 0,
                 'shape': [1],
-                'type': 'float',
-            },
+                'type': 'float'
+            }
         }))
     write_nl(f)
     for ctx_id in range(nr_contexts):
@@ -133,18 +133,13 @@ class LogReaderTest(tf.test.TestCase):
       # on python 3.9 doesn't recognise that we already checked the Optional is
       # not None
       # pytype: disable=attribute-error
-      self.assertEqual(
-          header.features,
-          [
-              tf.TensorSpec(
-                  name='tensor_name2', shape=[2, 3], dtype=tf.float32),
-              tf.TensorSpec(name='tensor_name1', shape=[3, 1], dtype=tf.int64),
-          ],
-      )
+      self.assertEqual(header.features, [
+          tf.TensorSpec(name='tensor_name2', shape=[2, 3], dtype=tf.float32),
+          tf.TensorSpec(name='tensor_name1', shape=[3, 1], dtype=tf.int64)
+      ])
       self.assertEqual(
           header.score,
-          tf.TensorSpec(name='reward', shape=[1], dtype=tf.float32),
-      )
+          tf.TensorSpec(name='reward', shape=[1], dtype=tf.float32))
       # pytype: enable=attribute-error
 
   def test_read_header_empty_file(self):
@@ -171,9 +166,7 @@ class LogReaderTest(tf.test.TestCase):
     self.assertIn('context_nr_1', seq_examples)
     self.assertEqual(
         seq_examples['context_nr_1'].feature_lists.feature_list['tensor_name1']
-        .feature[0].int64_list.value,
-        [12, 13, 14],
-    )
+        .feature[0].int64_list.value, [12, 13, 14])
     # each context has 2 observations. The reward is scalar, the
     # 2 features' shapes are given in `create_example` above.
     expected_ctx_0 = text_format.Parse(
@@ -239,9 +232,7 @@ feature_lists {
     }
   }
 }
-""",
-        tf.train.SequenceExample(),
-    )
+""", tf.train.SequenceExample())
     self.assertProtoEquals(expected_ctx_0, seq_examples['context_nr_0'])
 
 

@@ -74,7 +74,7 @@ _element_type_name_map = {
     'int32_t': (ctypes.c_int32, tf.int32),
     'uint32_t': (ctypes.c_uint32, tf.uint32),
     'int64_t': (ctypes.c_int64, tf.int64),
-    'uint64_t': (ctypes.c_uint64, tf.uint64),
+    'uint64_t': (ctypes.c_uint64, tf.uint64)
 }
 
 _element_type_name_to_dtype = {
@@ -86,7 +86,7 @@ _dtype_to_ctype = {
 }
 
 
-def convert_dtype_to_ctype(dtype: str) -> Any:
+def convert_dtype_to_ctype(dtype: str) -> Tuple[type, tf.dtypes.DType]:
   """Public interface for the _dtype_to_ctype dict."""
   return _dtype_to_ctype[dtype]
 
@@ -100,8 +100,7 @@ def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
   return tf.TensorSpec(
       name=name,
       shape=tf.TensorShape(shape),
-      dtype=_element_type_name_to_dtype[element_type_str],
-  )
+      dtype=_element_type_name_to_dtype[element_type_str])
 
 
 class LogReaderTensorValue:
@@ -114,7 +113,6 @@ class LogReaderTensorValue:
 
   Endianness is assumed to be the same as the log producer's.
   """
-
   __slots__ = ('_buffer', '_spec', '_len', '_view')
 
   def __init__(self, spec: tf.TensorSpec, buffer: bytes):
@@ -128,7 +126,7 @@ class LogReaderTensorValue:
     return self._spec
 
   @property
-  def buffer(self):
+  def raw_bytes(self):
     return self._buffer
 
   @property
@@ -232,11 +230,8 @@ def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
     yield from read_log_from_file(f)
 
 
-def _add_feature(
-    se: tf.train.SequenceExample,
-    spec: tf.TensorSpec,
-    value: LogReaderTensorValue,
-):
+def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
+                 value: LogReaderTensorValue):
   f = se.feature_lists.feature_list[spec.name].feature.add()
   # This should never happen: _add_feature is an implementation detail of
   # read_log_as_sequence_examples, and the only dtypes we should see here are
@@ -252,7 +247,7 @@ def _add_feature(
 
 
 def read_log_as_sequence_examples(
-    fname: str,) -> Dict[str, tf.train.SequenceExample]:
+    fname: str) -> Dict[str, tf.train.SequenceExample]:
   ret: Dict[str, tf.train.SequenceExample] = collections.defaultdict(
       tf.train.SequenceExample)
   # a record is an observation: the features and score for one step.
