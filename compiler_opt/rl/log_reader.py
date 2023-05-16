@@ -126,7 +126,7 @@ class LogReaderTensorValue:
   def spec(self):
     return self._spec
 
-  def to_numpy(self) -> np.NDArray:
+  def to_numpy(self) -> np.ndarray:
     return np.frombuffer(
         self._buffer,
         dtype=convert_dtype_to_ctype(self._spec.dtype),
