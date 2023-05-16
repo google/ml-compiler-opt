@@ -61,7 +61,8 @@ import dataclasses
 import json
 import math
 
-from typing import Any, BinaryIO, Dict, Generator, List, Optional
+from typing import Any, BinaryIO, Dict, Generator, List, Optional, Union
+import numpy as np
 import tensorflow as tf
 
 _element_type_name_map = {
@@ -84,6 +85,11 @@ _element_type_name_to_dtype = {
 _dtype_to_ctype = {
     dtype: ctype for _, (ctype, dtype) in _element_type_name_map.items()
 }
+
+
+def convert_dtype_to_ctype(dtype: str) -> Union[type, tf.dtypes.DType]:
+  """Public interface for the _dtype_to_ctype dict."""
+  return _dtype_to_ctype[dtype]
 
 
 def create_tensorspec(d: Dict[str, Any]) -> tf.TensorSpec:
@@ -119,6 +125,12 @@ class LogReaderTensorValue:
   @property
   def spec(self):
     return self._spec
+
+  def to_numpy(self) -> np.ndarray:
+    return np.frombuffer(
+        self._buffer,
+        dtype=convert_dtype_to_ctype(self._spec.dtype),
+        count=self._len)
 
   def _set_view(self):
     # c_char_p is a nul-terminated string, so the more appropriate cast here
@@ -205,11 +217,15 @@ def _enumerate_log_from_stream(
         score=score)
 
 
+def read_log_from_file(f) -> Generator[ObservationRecord, None, None]:
+  header = _read_header(f)
+  if header:
+    yield from _enumerate_log_from_stream(f, header)
+
+
 def read_log(fname: str) -> Generator[ObservationRecord, None, None]:
   with open(fname, 'rb') as f:
-    header = _read_header(f)
-    if header:
-      yield from _enumerate_log_from_stream(f, header)
+    yield from read_log_from_file(f)
 
 
 def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,

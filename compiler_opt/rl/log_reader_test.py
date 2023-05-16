@@ -22,6 +22,7 @@ from compiler_opt.rl import log_reader
 from google.protobuf import text_format  # pytype: disable=pyi-error
 from typing import BinaryIO
 
+import numpy as np
 import tensorflow as tf
 
 
@@ -38,26 +39,25 @@ def write_buff(f: BinaryIO, buffer: list, ct):
 
 
 def write_context_marker(f: BinaryIO, name: str):
-  f.write(nl)
   f.write(json_to_bytes({'context': name}))
+  f.write(nl)
 
 
 def write_observation_marker(f: BinaryIO, obs_idx: int):
-  f.write(nl)
   f.write(json_to_bytes({'observation': obs_idx}))
+  f.write(nl)
 
 
-def begin_features(f: BinaryIO):
+def write_nl(f: BinaryIO):
   f.write(nl)
 
 
 def write_outcome_marker(f: BinaryIO, obs_idx: int):
-  f.write(nl)
   f.write(json_to_bytes({'outcome': obs_idx}))
+  f.write(nl)
 
 
 def create_example(fname: str, nr_contexts=1):
-
   t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
   t1_val = [1, 2, 3]
   s = [1.2]
@@ -69,12 +69,12 @@ def create_example(fname: str, nr_contexts=1):
                 'name': 'tensor_name2',
                 'port': 0,
                 'shape': [2, 3],
-                'type': 'float'
+                'type': 'float',
             }, {
                 'name': 'tensor_name1',
                 'port': 0,
                 'shape': [3, 1],
-                'type': 'int64_t'
+                'type': 'int64_t',
             }],
             'score': {
                 'name': 'reward',
@@ -83,29 +83,30 @@ def create_example(fname: str, nr_contexts=1):
                 'type': 'float'
             }
         }))
+    write_nl(f)
     for ctx_id in range(nr_contexts):
       t0_val = [v + ctx_id * 10 for v in t0_val]
       t1_val = [v + ctx_id * 10 for v in t1_val]
       write_context_marker(f, f'context_nr_{ctx_id}')
       write_observation_marker(f, 0)
-      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
+      write_nl(f)
       write_outcome_marker(f, 0)
-      begin_features(f)
       write_buff(f, s, ctypes.c_float)
+      write_nl(f)
 
       t0_val = [v + 1 for v in t0_val]
       t1_val = [v + 1 for v in t1_val]
       s[0] += 1
 
       write_observation_marker(f, 1)
-      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
+      write_nl(f)
       write_outcome_marker(f, 1)
-      begin_features(f)
       write_buff(f, s, ctypes.c_float)
+      write_nl(f)
 
 
 class LogReaderTest(tf.test.TestCase):
@@ -154,6 +155,19 @@ class LogReaderTest(tf.test.TestCase):
       self.assertAlmostEqual(record.score[0], 1.2 + obs_id)
       obs_id += 1
     self.assertEqual(obs_id, 2)
+
+  def test_to_numpy(self):
+    logfile = self.create_tempfile()
+    create_example(logfile)
+    t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    t1_val = [1, 2, 3]
+    for record in log_reader.read_log(logfile):
+      np.testing.assert_allclose(record.feature_values[0].to_numpy(),
+                                 np.array(t0_val))
+      np.testing.assert_allclose(record.feature_values[1].to_numpy(),
+                                 np.array(t1_val))
+      t0_val = [v + 1 for v in t0_val]
+      t1_val = [v + 1 for v in t1_val]
 
   def test_seq_example_conversion(self):
     logfile = self.create_tempfile()
