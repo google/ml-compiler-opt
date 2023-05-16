@@ -38,26 +38,25 @@ def write_buff(f: BinaryIO, buffer: list, ct):
 
 
 def write_context_marker(f: BinaryIO, name: str):
-  f.write(nl)
   f.write(json_to_bytes({'context': name}))
+  f.write(nl)
 
 
 def write_observation_marker(f: BinaryIO, obs_idx: int):
-  f.write(nl)
   f.write(json_to_bytes({'observation': obs_idx}))
+  f.write(nl)
 
 
-def begin_features(f: BinaryIO):
+def write_nl(f: BinaryIO):
   f.write(nl)
 
 
 def write_outcome_marker(f: BinaryIO, obs_idx: int):
-  f.write(nl)
   f.write(json_to_bytes({'outcome': obs_idx}))
+  f.write(nl)
 
 
 def create_example(fname: str, nr_contexts=1):
-
   t0_val = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
   t1_val = [1, 2, 3]
   s = [1.2]
@@ -65,47 +64,51 @@ def create_example(fname: str, nr_contexts=1):
   with open(fname, 'wb') as f:
     f.write(
         json_to_bytes({
-            'features': [{
-                'name': 'tensor_name2',
-                'port': 0,
-                'shape': [2, 3],
-                'type': 'float'
-            }, {
-                'name': 'tensor_name1',
-                'port': 0,
-                'shape': [3, 1],
-                'type': 'int64_t'
-            }],
+            'features': [
+                {
+                    'name': 'tensor_name2',
+                    'port': 0,
+                    'shape': [2, 3],
+                    'type': 'float',
+                },
+                {
+                    'name': 'tensor_name1',
+                    'port': 0,
+                    'shape': [3, 1],
+                    'type': 'int64_t',
+                },
+            ],
             'score': {
                 'name': 'reward',
                 'port': 0,
                 'shape': [1],
-                'type': 'float'
-            }
+                'type': 'float',
+            },
         }))
+    write_nl(f)
     for ctx_id in range(nr_contexts):
       t0_val = [v + ctx_id * 10 for v in t0_val]
       t1_val = [v + ctx_id * 10 for v in t1_val]
       write_context_marker(f, f'context_nr_{ctx_id}')
       write_observation_marker(f, 0)
-      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
+      write_nl(f)
       write_outcome_marker(f, 0)
-      begin_features(f)
       write_buff(f, s, ctypes.c_float)
+      write_nl(f)
 
       t0_val = [v + 1 for v in t0_val]
       t1_val = [v + 1 for v in t1_val]
       s[0] += 1
 
       write_observation_marker(f, 1)
-      begin_features(f)
       write_buff(f, t0_val, ctypes.c_float)
       write_buff(f, t1_val, ctypes.c_int64)
+      write_nl(f)
       write_outcome_marker(f, 1)
-      begin_features(f)
       write_buff(f, s, ctypes.c_float)
+      write_nl(f)
 
 
 class LogReaderTest(tf.test.TestCase):
@@ -130,13 +133,18 @@ class LogReaderTest(tf.test.TestCase):
       # on python 3.9 doesn't recognise that we already checked the Optional is
       # not None
       # pytype: disable=attribute-error
-      self.assertEqual(header.features, [
-          tf.TensorSpec(name='tensor_name2', shape=[2, 3], dtype=tf.float32),
-          tf.TensorSpec(name='tensor_name1', shape=[3, 1], dtype=tf.int64)
-      ])
+      self.assertEqual(
+          header.features,
+          [
+              tf.TensorSpec(
+                  name='tensor_name2', shape=[2, 3], dtype=tf.float32),
+              tf.TensorSpec(name='tensor_name1', shape=[3, 1], dtype=tf.int64),
+          ],
+      )
       self.assertEqual(
           header.score,
-          tf.TensorSpec(name='reward', shape=[1], dtype=tf.float32))
+          tf.TensorSpec(name='reward', shape=[1], dtype=tf.float32),
+      )
       # pytype: enable=attribute-error
 
   def test_read_header_empty_file(self):
@@ -163,7 +171,9 @@ class LogReaderTest(tf.test.TestCase):
     self.assertIn('context_nr_1', seq_examples)
     self.assertEqual(
         seq_examples['context_nr_1'].feature_lists.feature_list['tensor_name1']
-        .feature[0].int64_list.value, [12, 13, 14])
+        .feature[0].int64_list.value,
+        [12, 13, 14],
+    )
     # each context has 2 observations. The reward is scalar, the
     # 2 features' shapes are given in `create_example` above.
     expected_ctx_0 = text_format.Parse(
@@ -229,7 +239,9 @@ feature_lists {
     }
   }
 }
-""", tf.train.SequenceExample())
+""",
+        tf.train.SequenceExample(),
+    )
     self.assertProtoEquals(expected_ctx_0, seq_examples['context_nr_0'])
 
 
