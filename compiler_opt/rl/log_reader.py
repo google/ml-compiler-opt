@@ -215,8 +215,7 @@ def _enumerate_log_from_stream(
         context=context,
         observation_id=observation_id,
         feature_values=features,
-        score=score,
-    )
+        score=score)
 
 
 def read_log_from_file(f) -> Generator[ObservationRecord, None, None]:

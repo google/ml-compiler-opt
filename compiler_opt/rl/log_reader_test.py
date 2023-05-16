@@ -64,20 +64,17 @@ def create_example(fname: str, nr_contexts=1):
   with open(fname, 'wb') as f:
     f.write(
         json_to_bytes({
-            'features': [
-                {
-                    'name': 'tensor_name2',
-                    'port': 0,
-                    'shape': [2, 3],
-                    'type': 'float',
-                },
-                {
-                    'name': 'tensor_name1',
-                    'port': 0,
-                    'shape': [3, 1],
-                    'type': 'int64_t',
-                },
-            ],
+            'features': [{
+                'name': 'tensor_name2',
+                'port': 0,
+                'shape': [2, 3],
+                'type': 'float',
+            }, {
+                'name': 'tensor_name1',
+                'port': 0,
+                'shape': [3, 1],
+                'type': 'int64_t',
+            }],
             'score': {
                 'name': 'reward',
                 'port': 0,
