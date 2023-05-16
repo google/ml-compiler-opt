@@ -43,6 +43,7 @@ def get_inlining_signature_spec():
           'edge_count',
           'callsite_height',
           'cost_estimate',
+
           # Expanded cost features
           'sroa_savings',
           'sroa_losses',
@@ -68,9 +69,9 @@ def get_inlining_signature_spec():
           'nested_inlines',
           'nested_inline_cost_estimate',
           'threshold',
+
           # inlining_default is not used as feature in training.
-          'inlining_default',
-      ))
+          'inlining_default'))
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(
@@ -80,12 +81,10 @@ def get_inlining_signature_spec():
 
 
 @gin.configurable
-def get_observation_processing_layer_creator(
-    quantile_file_dir=None,
-    with_sqrt=True,
-    with_z_score_normalization=True,
-    eps=1e-8,
-):
+def get_observation_processing_layer_creator(quantile_file_dir=None,
+                                             with_sqrt=True,
+                                             with_z_score_normalization=True,
+                                             eps=1e-8):
   """Wrapper for observation_processing_layer."""
   quantile_map = feature_ops.build_quantile_map(quantile_file_dir)
 
