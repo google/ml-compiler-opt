@@ -61,7 +61,7 @@ import dataclasses
 import json
 import math
 
-from typing import Any, BinaryIO, Dict, Generator, List, Optional
+from typing import Any, BinaryIO, Dict, Generator, List, Optional, Union
 import tensorflow as tf
 
 _element_type_name_map = {
@@ -86,7 +86,7 @@ _dtype_to_ctype = {
 }
 
 
-def convert_dtype_to_ctype(dtype: str) -> Tuple[type, tf.dtypes.DType]:
+def convert_dtype_to_ctype(dtype: str) -> Union[type, tf.dtypes.DType]:
   """Public interface for the _dtype_to_ctype dict."""
   return _dtype_to_ctype[dtype]
 
