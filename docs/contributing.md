@@ -2,7 +2,7 @@
 
 We'd love to accept your patches and contributions to this project. A good
 starting step to get familiar with the project and set up a development
-enviroment as per the inlining [demo](inlining-demo/demo.md). After running 
+environment as per the inlining [demo](inlining-demo/demo.md). After running 
 through the demo, a good second step is to pick up an open
 [issue](https://github.com/google/ml-compiler-opt/issues) or create one that you
 would like to work on and submit a patch for. Please make sure that your patch
