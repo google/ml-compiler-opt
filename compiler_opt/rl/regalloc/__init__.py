@@ -16,6 +16,7 @@
 
 import gin
 
+from compiler_opt.rl import env
 from compiler_opt.rl import problem_configuration
 from compiler_opt.rl.regalloc import config
 from compiler_opt.rl.regalloc import regalloc_runner
@@ -24,6 +25,9 @@ from compiler_opt.rl.regalloc import regalloc_runner
 @gin.register(module='configs')
 class RegallocEvictionConfig(problem_configuration.ProblemConfiguration):
   """Expose the regalloc eviction configuration."""
+
+  def get_env(self) -> env.MLGOEnvironmentBase:
+    raise NotImplementedError
 
   def get_runner_type(self):
     return regalloc_runner.RegAllocRunner
