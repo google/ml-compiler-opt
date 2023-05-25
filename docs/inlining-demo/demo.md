@@ -148,8 +148,8 @@ cmake -G Ninja \
   -C ${TFLITE_PATH}/tflite.cmake \
   ${LLVM_SRCDIR}/llvm
 
-ninja distribution
-DESTDIR=${LLVM_INSTALLDIR} ninja install-distribution-stripped
+ninja toolchain-distribution
+DESTDIR=${LLVM_INSTALLDIR} ninja install-toolchain-distribution-stripped
 cd ${FUCHSIA_SRCDIR}
 python3 scripts/clang/generate_runtimes.py --clang-prefix=$LLVM_INSTALLDIR --sdk-dir=$IDK_DIR --build-id-dir=$LLVM_INSTALLDIR/lib/.build-id > $LLVM_INSTALLDIR/lib/runtime.json
 ```
@@ -361,8 +361,8 @@ cmake -G Ninja \
   ${LLVM_SRCDIR}/llvm
 
 export LLVM_INSTALLDIR_RELEASE=$LLVM_INSTALLDIR-release
-ninja distribution
-DESTDIR=${LLVM_INSTALLDIR_RELEASE} ninja install-distribution-stripped
+ninja toolchain-distribution
+DESTDIR=${LLVM_INSTALLDIR_RELEASE} ninja install-toolchain-distribution-stripped
 cd ${FUCHSIA_SRCDIR}
 python3 scripts/clang/generate_runtimes.py \
   --clang-prefix=$LLVM_INSTALLDIR_RELEASE \
