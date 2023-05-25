@@ -16,14 +16,19 @@
 
 import gin
 
+from compiler_opt.rl import env
 from compiler_opt.rl import problem_configuration
 from compiler_opt.rl.inlining import config
 from compiler_opt.rl.inlining import inlining_runner
+from compiler_opt.rl.inlining import env as inlining_env
 
 
 @gin.register(module='configs')
 class InliningConfig(problem_configuration.ProblemConfiguration):
   """Expose the regalloc eviction components."""
+
+  def get_env(self) -> env.MLGOEnvironmentBase:
+    return inlining_env.get_inlining_env()
 
   def get_runner_type(self):
     return inlining_runner.InliningRunner
