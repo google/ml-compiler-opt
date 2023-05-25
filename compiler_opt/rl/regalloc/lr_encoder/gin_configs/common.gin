@@ -1,0 +1,14 @@
+config_registry.get_configuration.implementation=@configs.LREncoderConfig
+
+launcher_path=None
+clang_path=None
+
+runners.LREncoderRunner.clang_path=%clang_path
+runners.LREncoderRunner.launcher_path=%launcher_path
+
+problem_config.flags_to_add.add_flags=()
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+# For AFDO profile reinjection set:
+# problem_config.flags_to_replace.replace_flags={'-fprofile-sample-use':'/path/to/gwp.afdo','-fprofile-remapping-file':'/path/to/prof_remap.txt'}
+problem_config.flags_to_replace.replace_flags={'-fprofile-instrument-use-path': '/tmp/corpus_1_21/MergedCS.profdata'}
+#problem_config.flags_to_replace.replace_flags={'-fprofile-instrument-use-path': 'MergedCS_profdata_jacobhegna/MergedCS_profdata'}
