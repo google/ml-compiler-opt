@@ -23,7 +23,7 @@ import contextlib
 import io
 import os
 import tempfile
-from typing import Any, Callable, Generator, Optional, Tuple
+from typing import Any, Generator, List, Optional, Tuple, Type
 
 import numpy as np
 
@@ -57,7 +57,6 @@ _TERMINAL_OBS = {
 }
 
 _INTERACTIVE_PIPE_FILE_BASE = 'interactive-pipe-base'
-_COMPILED_MODULE_NAME = 'compiled_module'
 
 
 class MLGOTask(metaclass=abc.ABCMeta):
@@ -70,42 +69,42 @@ class MLGOTask(metaclass=abc.ABCMeta):
 
   The Task type for a given problem defines how to build and score modules for
   the problem, both interactively and non-interactively.
-
-  Some problems might need to write scratch files or use temporary disk space.
-  The `working_dir` argument to the MLGOTask constructor gives a path to a
-  scratch directory that the task can use for such purposes.
   """
 
-  def __init__(self, working_dir: str):
-    self._working_dir = working_dir
-
   @abc.abstractmethod
-  def get_clang_args(self) -> list[str]:
-    """Get base arguments for building this task with clang."""
-    pass
+  def get_cmdline(self, clang_path: str, base_args: List[str],
+                  interactive_base_path: Optional[str],
+                  working_dir: str) -> List[str]:
+    """Get the cmdline for building with this task.
 
-  @abc.abstractmethod
-  def get_interactive_clang_args(self, interactive_base_path: str) -> list[str]:
-    """Get additional arguments needed for building interactively.
+    The resulting list[str] should be able to be passed to subprocess.run to
+    execute clang.
 
     Args:
-      interactive_base_path: path to the interactive base to communicate
+      clang_path: path to the clang executable.
+      base_args: base arguments for building the module. Generally, these flags
+        should not be modified and simply added to the result.
+      interactive_base_path: the path to the interactive pipe base. if None,
+        then don't run clang interactively.
+      working_dir: directory where all artifacts from compilation should be
+        written. This will be a temp directory whose lifetime is managed outside
+        of the Task.
 
     Returns:
-      A list of the needed flags. This list should not overlap with the list
-      returned from get_clang_args.
+      The constructed command line.
     """
     pass
 
   @abc.abstractmethod
-  def get_module_scores(self, compiled_module_path: str) -> dict[str, float]:
+  def get_module_scores(self, working_dir: str) -> dict[str, float]:
     """Get the scores for each context in the module.
 
     This method should not be aware of whether the module was built with the
     default heuristic or a ML policy.
 
     Args:
-      compiled_module_path: Path to the compiled module which we are scoring.
+      working_dir: Directory which was passed as working_dir to get_cmdline.
+        Used to recover binaries/artifacts from the build
 
     Returns:
       A dictionary mapping [context name] -> [score].
@@ -120,15 +119,10 @@ class ClangProcess:
   associated to the default-compiled binary.
   """
 
-  def __init__(self, proc, get_scores_fn, module_name, compiled_module_path):
+  def __init__(self, proc, get_scores_fn, module_name):
     self._proc = proc
     self._get_scores_fn = get_scores_fn
     self._module_name = module_name
-    self._compiled_module_path = compiled_module_path
-
-  @property
-  def compiled_module_path(self):
-    return self._compiled_module_path
 
   def get_scores(self, timeout: Optional[int] = None):
     self._proc.wait(timeout=timeout)
@@ -143,11 +137,10 @@ class InteractiveClang(ClangProcess):
       proc,
       get_scores_fn,
       module_name: str,
-      compiled_module_path: str,
       reader_pipe: io.BufferedReader,
       writer_pipe: io.BufferedWriter,
   ):
-    super().__init__(proc, get_scores_fn, module_name, compiled_module_path)
+    super().__init__(proc, get_scores_fn, module_name)
     self._reader_pipe = reader_pipe
     self._writer_pipe = writer_pipe
     self._obs_gen = log_reader.read_log_from_file(self._reader_pipe)
@@ -220,7 +213,7 @@ def compute_relative_rewards(score_a: dict[str, float],
 def clang_session(
     clang_path: str,
     module: corpus.LoadedModuleSpec,
-    task_factory: Callable[[str], MLGOTask],
+    task_type: Type[MLGOTask],
     *,
     interactive: bool,
 ):
@@ -232,7 +225,7 @@ def clang_session(
   Args:
     clang_path: The clang binary to use for the InteractiveClang session.
     module: The module to compile with clang.
-    task_factory: Callable which produces MLGOTask objects,
+    task_type: Type of the MLGOTask to use.
     interactive: Whether to use an interactive or default clang instance
 
   Yields:
@@ -241,18 +234,16 @@ def clang_session(
   with tempfile.TemporaryDirectory() as td:
     task_working_dir = os.path.join(td, '__task_working_dir__')
     os.mkdir(task_working_dir)
-    task = task_factory(task_working_dir)
+    task = task_type()
 
-    compiled_module_path = os.path.join(td, _COMPILED_MODULE_NAME)
-    cmdline = ([clang_path] + list(module.build_command_line(td)) +
-               task.get_clang_args() + ['-o', compiled_module_path])
-    if interactive:
-      cmdline += task.get_interactive_clang_args(
-          os.path.join(td, _INTERACTIVE_PIPE_FILE_BASE))
+    base_args = list(module.build_command_line(td))
+    interactive_base = os.path.join(
+        td, _INTERACTIVE_PIPE_FILE_BASE) if interactive else None
+    cmdline = task.get_cmdline(clang_path, base_args, interactive_base,
+                               task_working_dir)
 
     def _get_scores() -> dict[str, float]:
-      assert os.path.exists(compiled_module_path)
-      return task.get_module_scores(compiled_module_path)
+      return task.get_module_scores(task_working_dir)
 
     writer_name = os.path.join(td, _INTERACTIVE_PIPE_FILE_BASE + '.in')
     reader_name = os.path.join(td, _INTERACTIVE_PIPE_FILE_BASE + '.out')
@@ -269,7 +260,6 @@ def clang_session(
                   proc,
                   _get_scores,
                   module.name,
-                  compiled_module_path,
                   reader_pipe,
                   writer_pipe,
               )
@@ -278,7 +268,6 @@ def clang_session(
               proc,
               _get_scores,
               module.name,
-              compiled_module_path,
           )
 
       finally:
@@ -287,7 +276,7 @@ def clang_session(
 
 def _get_clang_generator(
     clang_path: str,
-    task_factory: Callable[[str], MLGOTask],
+    task_type: Type[MLGOTask],
 ) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
                Optional[corpus.LoadedModuleSpec], None]:
   """Returns a generator for creating InteractiveClang objects.
@@ -296,7 +285,7 @@ def _get_clang_generator(
 
   Args:
     clang_path: Path to the clang binary to use within InteractiveClang.
-    task_factory: Callable which produces MLGOTask objects,
+    task_type: Type of the MLGO task to use.
 
   Returns:
     The generator for InteractiveClang objects.
@@ -308,9 +297,9 @@ def _get_clang_generator(
     #   https://github.com/google/yapf/issues/1092
     module = yield
     with clang_session(
-        clang_path, module, task_factory, interactive=True) as iclang:
+        clang_path, module, task_type, interactive=True) as iclang:
       with clang_session(
-          clang_path, module, task_factory, interactive=False) as clang:
+          clang_path, module, task_type, interactive=False) as clang:
         yield iclang, clang
 
 
@@ -327,11 +316,11 @@ class MLGOEnvironmentBase:
       self,
       *,
       clang_path: str,
-      task_factory: Callable[[str], MLGOTask],
+      task_type: Type[MLGOTask],
       obs_spec,
       action_spec,
   ):
-    self._clang_generator = _get_clang_generator(clang_path, task_factory)
+    self._clang_generator = _get_clang_generator(clang_path, task_type)
     self._obs_spec = obs_spec
     self._action_spec = action_spec
 

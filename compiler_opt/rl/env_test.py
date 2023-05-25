@@ -20,7 +20,7 @@ import ctypes
 from unittest import mock
 import subprocess
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import tensorflow as tf
 import numpy as np
@@ -43,18 +43,19 @@ _NUM_STEPS = 10
 class MockTask(env.MLGOTask):
   """Implementation of mock task for testing."""
 
-  def get_clang_args(self) -> List[str]:
-    return ['a', 'b', 'c']
+  def get_cmdline(self, clang_path: str, base_args: List[str],
+                  interactive_base_path: Optional[str],
+                  working_dir: str) -> List[str]:
+    if interactive_base_path:
+      interactive_args = [
+          f'--interactive={interactive_base_path}',
+      ]
+    else:
+      interactive_args = []
+    return [clang_path] + base_args + interactive_args
 
-  def get_interactive_clang_args(self, interactive_base_path: str) -> List[str]:
-    return [f'--interactive={interactive_base_path}']
-
-  def get_module_scores(self, compiled_module_path: str) -> Dict[str, float]:
+  def get_module_scores(self, working_dir: str) -> Dict[str, float]:
     return {'default': 47}
-
-
-def mock_task_factory(working_dir: str):
-  return MockTask(working_dir)
 
 
 # This mocks subprocess.Popen for interactive clang sessions
@@ -64,25 +65,15 @@ def mock_interactive_clang(cmdline, stderr, stdout):
   del stdout
   # do basic argument parsing
   fname = None
-  prev_arg = None
-  out_path = None
   for arg in cmdline:
-    if prev_arg and prev_arg == '-o':
-      out_path = arg
     if arg.startswith('--interactive='):
       fname = arg[len('--interactive='):]
       break
-    prev_arg = arg
-
-  assert out_path
 
   class MockProcess:
 
     def wait(self, timeout):
-      del timeout
-      # Need to write the module because the environment checks that it exists
-      with open(out_path, 'wt', encoding='utf8') as f:
-        f.write('Compiled module')
+      pass
 
     def kill(self):
       pass
@@ -144,13 +135,14 @@ class ClangSessionTest(tf.test.TestCase):
 
   @mock.patch('subprocess.Popen')
   def test_clang_session(self, mock_popen):
-    mock_task = mock_task_factory('')
+    mock_task = MockTask()
     with env.clang_session(
-        _CLANG_PATH, _MOCK_MODULE, mock_task_factory,
+        _CLANG_PATH, _MOCK_MODULE, MockTask,
         interactive=False) as clang_session:
-      cmdline = ([_CLANG_PATH] + list(_MOCK_MODULE.orig_options) +
-                 mock_task.get_clang_args() +
-                 ['-o', clang_session.compiled_module_path])
+      del clang_session
+      cmdline = mock_task.get_cmdline(_CLANG_PATH,
+                                      list(_MOCK_MODULE.orig_options), None,
+                                      '/tmp/mock/tmp/file')
       mock_popen.assert_called_once_with(
           cmdline, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
@@ -159,8 +151,7 @@ class ClangSessionTest(tf.test.TestCase):
     mock_popen.side_effect = mock_interactive_clang
 
     with env.clang_session(
-        _CLANG_PATH, _MOCK_MODULE, mock_task_factory,
-        interactive=True) as clang_session:
+        _CLANG_PATH, _MOCK_MODULE, MockTask, interactive=True) as clang_session:
       for idx in range(_NUM_STEPS):
         obs = clang_session.get_observation()
         self.assertEqual(
@@ -179,7 +170,7 @@ class MLGOEnvironmentTest(tf.test.TestCase):
 
     test_env = env.MLGOEnvironmentBase(
         clang_path=_CLANG_PATH,
-        task_factory=mock_task_factory,
+        task_type=MockTask,
         obs_spec={},
         action_spec={},
     )

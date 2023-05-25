@@ -77,12 +77,17 @@ import tf_agents as tfa
 # used for type annotation in a string (for 3.8 compat)
 # pylint: disable=unused-import
 from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import env
 
 types = tfa.typing.types
 
 
 class ProblemConfiguration(metaclass=abc.ABCMeta):
   """Abstraction of the APIs accessing a problem-specific configuration."""
+
+  @abc.abstractmethod
+  def get_env(self) -> env.MLGOEnvironmentBase:
+    raise NotImplementedError
 
   @abc.abstractmethod
   def get_signature_spec(
