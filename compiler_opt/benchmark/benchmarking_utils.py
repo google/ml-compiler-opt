@@ -37,11 +37,10 @@ def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
     use_existing_build: Whether or not to do an incremental build
     llvm_build_path: The path to where the LLVM build will go
     llvm_source_path: The path to the root of the llvm-project repository
-    tensorflow_c_lib_path: The path to the tensorflow c lib path
 
-  Note: llvm_source_path and tensorflow_c_lib_path aren't necessary if you have
-  set use_existing_build to true, you just need to make sure that the existing
-  build is already set up to enable the necessary MLGO flags.
+  Note: llvm_source_path is not necessary if you have set use_existing_build to
+  true, you just need to make sure that the existing build is already set up to
+  enable the necessary MLGO flags.
   """
   if not use_existing_build and os.path.exists(llvm_build_path):
     shutil.rmtree(llvm_build_path)
