@@ -29,6 +29,7 @@ current parameters, and output the new parameters.
 
 import abc
 import numpy as np
+from typing import List
 
 
 class GAOptimizer(metaclass=abc.ABCMeta):
@@ -39,7 +40,8 @@ class GAOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: np.ndarray,
+               gradient: np.ndarray[np.float32]) -> np.ndarray:
     """Conducts a single step of gradient ascent optimization.
 
     Conduct a single step of gradient ascent optimization procedure, given the
@@ -55,7 +57,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_state(self):
+  def get_state(self) -> List[np.float32]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -68,7 +70,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def set_state(self, state):
+  def set_state(self, state: np.ndarray[np.float32]) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -90,14 +92,15 @@ class MomentumOptimizer(GAOptimizer):
   the state is the moving average as a list
   """
 
-  def __init__(self, step_size, momentum):
+  def __init__(self, step_size: float, momentum: float):
     self.step_size = step_size
     self.momentum = momentum
 
     self.moving_average = np.asarray([], dtype=np.float32)
     super().__init__()
 
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: np.ndarray,
+               gradient: np.ndarray[np.float32]) -> np.ndarray:
     if self.moving_average.size == 0:
       # Initialize the moving average
       self.moving_average = np.zeros(len(current_input), dtype=np.float32)
@@ -114,10 +117,10 @@ class MomentumOptimizer(GAOptimizer):
 
     return current_input + step
 
-  def get_state(self):
+  def get_state(self) -> List[np.float32]:
     return self.moving_average.tolist()
 
-  def set_state(self, state):
+  def set_state(self, state: np.ndarray[np.float32]) -> None:
     self.moving_average = np.asarray(state, dtype=np.float32)
 
 
@@ -129,7 +132,11 @@ class AdamOptimizer(GAOptimizer):
   combined in that order into one list
   """
 
-  def __init__(self, step_size, beta1=0.9, beta2=0.999, epsilon=1e-07):
+  def __init__(self,
+               step_size: float,
+               beta1: float = 0.9,
+               beta2: float = 0.999,
+               epsilon: float = 1e-07):
     self.step_size = step_size
     self.beta1 = beta1
     self.beta2 = beta2
@@ -140,7 +147,8 @@ class AdamOptimizer(GAOptimizer):
     self.t = 0
     super().__init__()
 
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: np.ndarray,
+               gradient: np.ndarray[np.float32]) -> np.ndarray:
     if self.first_moment_moving_average.size == 0:
       # Initialize the moving averages
       self.first_moment_moving_average = np.zeros(
@@ -171,11 +179,11 @@ class AdamOptimizer(GAOptimizer):
 
     return current_input + step
 
-  def get_state(self):
+  def get_state(self) -> List[float]:
     return (self.first_moment_moving_average.tolist() +
             self.second_moment_moving_average.tolist() + [self.t])
 
-  def set_state(self, state):
+  def set_state(self, state: np.ndarray[np.float32]) -> None:
     total_len = len(state)
     if total_len % 2 != 1:
       raise ValueError("The dimension of the state should be odd")
