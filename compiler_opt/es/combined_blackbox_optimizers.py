@@ -35,12 +35,14 @@ import abc
 import math
 import numpy as np
 from sklearn import linear_model
+from typing import List, Dict, Callable, Tuple, Any, Optional
 
 import gradient_ascent_optimization_algorithms
 
 
-def filter_top_directions(perturbations, function_values, est_type,
-                          num_top_directions):
+def filter_top_directions(
+    perturbations: np.ndarray, function_values: np.ndarray, est_type: str,
+    num_top_directions: int) -> Tuple[np.ndarray, np.ndarray]:
   """Select the subset of top-performing perturbations.
 
   TODO(b/139662389): In the future, we may want (either here or inside the
@@ -69,17 +71,19 @@ def filter_top_directions(perturbations, function_values, est_type,
   if est_type == "forward_fd":
     top_index = np.argsort(-function_values)
   elif est_type == "antithetic":
-    top_index = np.argsort(-np.abs(function_values[0::2] - function_values[1::2]
-                                  ))
+    top_index = np.argsort(-np.abs(function_values[0::2] -
+                                   function_values[1::2]))
   top_index = top_index[:num_top_directions]
   if est_type == "forward_fd":
     perturbations = perturbations[top_index]
     function_values = function_values[top_index]
   elif est_type == "antithetic":
-    perturbations = np.concatenate((perturbations[2*top_index],
-                                    perturbations[2*top_index + 1]), axis=0)
-    function_values = np.concatenate((function_values[2*top_index],
-                                      function_values[2*top_index + 1]), axis=0)
+    perturbations = np.concatenate(
+        (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
+        axis=0)
+    function_values = np.concatenate(
+        (function_values[2 * top_index], function_values[2 * top_index + 1]),
+        axis=0)
   return (perturbations, function_values)
 
 
@@ -90,8 +94,8 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, perturbations, function_values, current_input,
-               current_value):
+  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
+               current_input: np.ndarray, current_value: float) -> np.ndarray:
     """Conducts a single step of blackbox optimization procedure.
 
     Conducts a single step of blackbox optimization procedure, given values of
@@ -110,7 +114,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_hyperparameters(self):
+  def get_hyperparameters(self) -> List[float]:
     """Returns the list of hyperparameters for blackbox function runs.
 
     Returns the list of hyperparameters for blackbox function runs that can be
@@ -124,7 +128,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_state(self):
+  def get_state(self) -> List:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -137,7 +141,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def update_state(self, evaluation_stats):
+  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
     """Updates the state for blackbox function runs.
 
     Updates the state of the optimizer for blackbox function runs.
@@ -150,7 +154,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def set_state(self, state):
+  def set_state(self, state: List | np.ndarray) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -166,15 +170,17 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 class MCBlackboxOptimizer(BlackboxOptimizer):
   """Class implementing GD optimizer with MC estimation of the gradient."""
 
-  def __init__(self,
-               precision_parameter,
-               est_type,
-               normalize_fvalues,
-               hyperparameters_update_method,
-               extra_params,
-               step_size=None,
-               num_top_directions=0,
-               ga_optimizer=None):
+  def __init__(
+      self,
+      precision_parameter: float,
+      est_type: str,
+      normalize_fvalues: bool,
+      hyperparameters_update_method: str,
+      extra_params: List,
+      step_size: Optional[float] = None,
+      num_top_directions: int = 0,
+      ga_optimizer: Optional[
+          gradient_ascent_optimization_algorithms.MomentumOptimizer] = None):
     # Check step_size and ga_optimizer
     if bool(step_size) == bool(ga_optimizer):
       raise ValueError(
@@ -198,8 +204,8 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     self.ga_optimizer = ga_optimizer
     super().__init__()
 
-  def run_step(self, perturbations, function_values, current_input,
-               current_value):
+  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
+               current_input: np.ndarray, current_value: float) -> np.ndarray:
     dim = len(current_input)
     if self.normalize_fvalues:
       values = function_values.tolist()
@@ -219,7 +225,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
         gradient_sample = (function_value - current_value) * perturbation
       elif self.est_type == "antithetic":
         gradient_sample = function_value * perturbation
-      gradient_sample /= self.precision_parameter ** 2
+      gradient_sample /= self.precision_parameter**2
       gradient += gradient_sample
     gradient /= len(top_ps)
     # this next line is for compatibility with the Blackbox used for Toaster.
@@ -232,13 +238,13 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     # gradients
     return self.ga_optimizer.run_step(current_input, gradient)
 
-  def get_hyperparameters(self):
+  def get_hyperparameters(self) -> List[float]:
     if self.hyperparameters_update_method == "state_normalization":
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
-  def get_state(self):
+  def get_state(self) -> List:
     ga_state = self.ga_optimizer.get_state()
     if self.hyperparameters_update_method == "state_normalization":
       current_state = [self.nb_steps]
@@ -249,7 +255,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     else:
       return ga_state
 
-  def update_state(self, evaluation_stats):
+  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
     if self.hyperparameters_update_method == "state_normalization":
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -273,7 +279,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state):
+  def set_state(self, state: List | np.ndarray) -> None:
     if self.hyperparameters_update_method == "state_normalization":
       self.nb_steps = state[0]
       state = state[1:]
@@ -287,15 +293,16 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
       state = state[self.state_dim:]
     self.ga_optimizer.set_state(state)
 
+
+###################
 """
 secondorder optimizers
 """
-
 r"""Experimental optimizers based on blackbox ES.
 
 See class descriptions for more detailed notes on each algorithm.
 """
-
+###################
 from absl import flags
 import scipy.optimize as sp_opt
 
@@ -325,9 +332,7 @@ _TR_SUBPROBLEM_MAXITER = flags.DEFINE_integer(
 _TR_MINIMUM_RADIUS = flags.DEFINE_float('tr_minimum_radius', 0.1,
                                         'Minimum radius of trust region.')
 
-
 DEFAULT_ARMIJO = 1e-4
-
 
 # pylint: disable=pointless-string-statement
 """Gradient estimators.
@@ -340,7 +345,8 @@ Implemented: mc_gradient
 """
 
 
-def normalize_function_values(function_values, current_value):
+def normalize_function_values(function_values: np.ndarray,
+                              current_value: float) -> Tuple[np.ndarray, List]:
   values = function_values.tolist()
   values.append(current_value)
   mean = sum(values) / float(len(values))
@@ -349,9 +355,12 @@ def normalize_function_values(function_values, current_value):
   return (np.array(normalized_values[:-1]), normalized_values[-1])
 
 
-def mc_gradient(precision_parameter, est_type,
-                perturbations, function_values, current_value,
-                energy=0):
+def mc_gradient(precision_parameter: float,
+                est_type: str,
+                perturbations: np.ndarray,
+                function_values: np.ndarray,
+                current_value: float,
+                energy: float = 0) -> np.ndarray:
   """Calculates Monte Carlo gradient.
 
   There are several ways of estimating the gradient. This is specified by the
@@ -382,17 +391,19 @@ def mc_gradient(precision_parameter, est_type,
 
   # the average is given by softmax weights
   # when the energy is 0 (default), it's the arithmetic mean
-  adj_function_values = energy*(function_values - max(function_values))
-  softmax_weights = np.divide(np.exp(adj_function_values),
-                              sum(np.exp(adj_function_values)))
+  adj_function_values = energy * (function_values - max(function_values))
+  softmax_weights = np.divide(
+      np.exp(adj_function_values), sum(np.exp(adj_function_values)))
   gradient = np.zeros(dim)
   for i in range(len(perturbations)):
     gradient += softmax_weights[i] * b_vector[i] * perturbations[i]
   return gradient
 
 
-def sklearn_regression_gradient(clf, est_type, perturbations, function_values,
-                                current_value):
+def sklearn_regression_gradient(clf: linear_model, est_type: str,
+                                perturbations: np.ndarray,
+                                function_values: np.ndarray,
+                                current_value: float) -> np.ndarray:
   """Calculates gradient by function difference regression.
 
   Args:
@@ -458,7 +469,7 @@ class QuadraticModel(object):
   f(x) = 1/2x^TAx + b^Tx + c
   """
 
-  def __init__(self, Av, b, c=0):
+  def __init__(self, Av: Callable, b: np.ndarray, c: float = 0):
     """Initialize quadratic function.
 
     Args:
@@ -471,7 +482,7 @@ class QuadraticModel(object):
     self.b = b
     self.c = c
 
-  def f(self, x):
+  def f(self, x: np.ndarray) -> float:
     """Evaluate the quadratic function.
 
     Args:
@@ -481,7 +492,7 @@ class QuadraticModel(object):
     """
     return 0.5 * np.dot(x, self.quad_v(x)) + np.dot(x, self.b) + self.c
 
-  def grad(self, x):
+  def grad(self, x: np.ndarray) -> np.ndarray:
     """Evaluate the gradient of the quadratic, Ax + b.
 
     Args:
@@ -504,7 +515,9 @@ class ProjectedGradientOptimizer(object):
    i.e. the input variables will not be mutated.
   """
 
-  def __init__(self, function_object, projection_operator, pgd_params, x_init):
+  def __init__(self, function_object: QuadraticModel,
+               projection_operator: Callable, pgd_params: Dict[str, Any],
+               x_init: np.ndarray[float]):
     self.f = function_object
     self.proj = projection_operator
     if pgd_params is not None:
@@ -515,7 +528,7 @@ class ProjectedGradientOptimizer(object):
     self.k = 0  # iteration counter
     self.x_diff_norm = np.Inf  # L2 norm of x^+ - x
 
-  def run_step(self):
+  def run_step(self) -> None:
     """Take a single step of projected gradient descent.
 
     Algorithm description:
@@ -533,8 +546,8 @@ class ProjectedGradientOptimizer(object):
     c2 = self.params.get('c2', -np.Inf)
     # since we have negative curvature, ignore Wolfe condition
     search_direction = -grad(self.x)
-    ls_result = sp_opt.line_search(fval, grad, self.x, search_direction,
-                                   c1=c1, c2=c2)
+    ls_result = sp_opt.line_search(
+        fval, grad, self.x, search_direction, c1=c1, c2=c2)
     if ls_result[0] is not None:
       step_size = ls_result[0]
     else:
@@ -547,17 +560,17 @@ class ProjectedGradientOptimizer(object):
     self.x = x_next
     self.k += 1
 
-  def get_solution(self):
+  def get_solution(self) -> np.ndarray:
     return self.x
 
-  def get_x_diff_norm(self):
+  def get_x_diff_norm(self) -> float:
     return self.x_diff_norm
 
-  def get_iterations(self):
+  def get_iterations(self) -> int:
     return self.k
 
 
-def make_projector(radius):
+def make_projector(radius: float) -> Callable:
   """Makes an L2 projector function centered at origin.
 
   Args:
@@ -565,12 +578,14 @@ def make_projector(radius):
   Returns:
     A function of one argument that projects onto L2 ball.
   """
+
   def projector(w):
     w_norm = np.linalg.norm(w, 2)
     if w_norm > radius:
-      return radius/w_norm * w
+      return radius / w_norm * w
     else:
       return w
+
   return projector
 
 
@@ -590,19 +605,22 @@ class TrustRegionSubproblemOptimizer(object):
    [1] Except for one `bad' case which does not occur almost surely.
   """
 
-  def __init__(self, model_function, trust_region_params, x_init=None):
+  def __init__(self,
+               model_function: QuadraticModel,
+               trust_region_params: Dict[str, Any],
+               x_init: Optional[np.ndarray[float]] = None):
     self.mf = model_function
     self.params = trust_region_params
     self.center = x_init
     self.radius = self.params['radius']
     self.dim = self.params['problem_dim']
-    self.params['const_step_size'] = 0.1*self.radius
+    self.params['const_step_size'] = 0.1 * self.radius
     if x_init is not None:
       self.x = np.copy(x_init)
     else:
       self.x = np.zeros(self.dim)
 
-  def solve_trust_region_subproblem(self):
+  def solve_trust_region_subproblem(self) -> None:
     """Solves the trust region subproblem.
 
     The currently implemented solver is Projected Gradient Descent.
@@ -625,7 +643,7 @@ class TrustRegionSubproblemOptimizer(object):
 
       self.x = pgd_solver.get_solution()
 
-  def get_solution(self):
+  def get_solution(self) -> np.ndarray:
     return self.x
 
 
@@ -726,8 +744,9 @@ class TrustRegionOptimizer(BlackboxOptimizer):
        schedule that would have to be tuned.
   """
 
-  def __init__(self, precision_parameter, est_type, normalize_fvalues,
-               hyperparameters_update_method, extra_params, tr_params):
+  def __init__(self, precision_parameter: float, est_type: str,
+               normalize_fvalues: bool, hyperparameters_update_method: str,
+               extra_params: List, tr_params: Dict[str, Any]):
     self.precision_parameter = precision_parameter
     self.est_type = est_type
     self.normalize_fvalues = normalize_fvalues
@@ -760,7 +779,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         self.clf = linear_model.Lasso(alpha=self.params['grad_reg_alpha'])
     self.is_returned_step = False
 
-  def trust_region_test(self, current_input, current_value):
+  def trust_region_test(self, current_input: np.ndarray,
+                        current_value: float) -> bool:
     """Test the next step to determine how to update the trust region.
 
     The possible outcomes:
@@ -790,23 +810,24 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         absolute_max_reward = abs(self.accepted_function_value)
       if absolute_max_reward < 1e-8:
         absolute_max_reward = 1e-8
-      abs_ratio = (abs(current_value - self.accepted_function_value)
-                   / absolute_max_reward)
+      abs_ratio = (
+          abs(current_value - self.accepted_function_value) /
+          absolute_max_reward)
       # pylint: disable=not-callable
       # this lint warning is incorrect. prev_mf is callable
-      tr_imp_ratio = ((current_value - self.accepted_function_value)
-                      / (-prev_mf(current_input)))
+      tr_imp_ratio = ((current_value - self.accepted_function_value) /
+                      (-prev_mf(current_input)))
       # pylint: enable=not-callable
 
       # test criteria for rejecting step/updating radius
-      should_reject = (not is_ascent
-                       and abs_ratio > self.params['reject_threshold'])
-      should_shrink = (not is_ascent
-                       and abs_ratio > self.params['shrink_neg_threshold'])
-      should_grow = ((is_ascent
-                      and tr_imp_ratio > self.params['grow_threshold']))
-      log_message = (' fval pct change: '
-                     + str(abs_ratio) + ' tr_ratio: ' + str(tr_imp_ratio))
+      should_reject = (not is_ascent and
+                       abs_ratio > self.params['reject_threshold'])
+      should_shrink = (not is_ascent and
+                       abs_ratio > self.params['shrink_neg_threshold'])
+      should_grow = ((is_ascent and
+                      tr_imp_ratio > self.params['grow_threshold']))
+      log_message = (' fval pct change: ' + str(abs_ratio) + ' tr_ratio: ' +
+                     str(tr_imp_ratio))
       if should_reject:
         self.radius *= self.params['reject_factor']
         if self.radius < self.params['minimum_radius']:
@@ -827,8 +848,9 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           print('Unchanged: ' + str(self.radius) + log_message)
     return True
 
-  def update_hessian_part(self, perturbations, function_values, current_value,
-                          is_update):
+  def update_hessian_part(self, perturbations: np.ndarray,
+                          function_values: np.ndarray, current_value: float,
+                          is_update: bool) -> None:
     """Updates the internal state which stores Hessian information.
 
     Recall that the Hessian is given by
@@ -860,9 +882,9 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     if self.params['dense_hessian']:
       new_hessian = np.zeros((dim, dim))
       for i, perturbation in enumerate(perturbations):
-        new_hessian += ((function_values[i] - current_point_estimate)
-                        *np.outer(perturbation, perturbation)
-                        / np.power(self.precision_parameter, 2))
+        new_hessian += ((function_values[i] - current_point_estimate) *
+                        np.outer(perturbation, perturbation) /
+                        np.power(self.precision_parameter, 2))
       # We subtract current_point_estimate since
       # E[(f(x+sg) - gs(x))gg^T] = E[f(x+sg)gg^T] - gs(x)I,
       # where gs(x) is the Gaussian smoothing at x. We don't have access
@@ -880,23 +902,23 @@ class TrustRegionOptimizer(BlackboxOptimizer):
       if not is_update:
         self.saved_hessian = new_hessian
       else:
-        self.saved_hessian = 0.5*self.saved_hessian + 0.5*new_hessian
+        self.saved_hessian = 0.5 * self.saved_hessian + 0.5 * new_hessian
     else:
       if not is_update:
         self.saved_perturbations = perturbations
         self.saved_function_values = function_values
       else:
-        self.saved_perturbations = np.append(self.saved_perturbations,
-                                             perturbations,
-                                             axis=0)
+        self.saved_perturbations = np.append(
+            self.saved_perturbations, perturbations, axis=0)
         self.saved_function_values = np.append(self.saved_function_values,
                                                function_values)
 
-  def create_hessv_function(self):
+  def create_hessv_function(self) -> Callable:
     """Returns a function of one argument that evaluates Hessian-vector product.
     """
     if self.params['dense_hessian']:
-      def hessv_func(x):
+
+      def hessv_func(x: np.ndarray) -> np.ndarray:
         """Calculates Hessian-vector product from dense Hessian.
 
         Args:
@@ -911,7 +933,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         hessv *= -1
         return hessv
     else:
-      def hessv_func(x):
+
+      def hessv_func(x: np.ndarray) -> np.ndarray:
         """Calculates Hessian-vector product from perturbation/value pairs.
 
         Args:
@@ -926,19 +949,21 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           current_point_estimate = np.mean(self.saved_function_values)
         hessv = np.zeros(dim)
         for i, perturbation in enumerate(self.saved_perturbations):
-          hessv += ((self.saved_function_values[i] - current_point_estimate)
-                    * np.dot(perturbation, x)
-                    * perturbation / np.power(self.precision_parameter, 2))
+          hessv += ((self.saved_function_values[i] - current_point_estimate) *
+                    np.dot(perturbation, x) * perturbation /
+                    np.power(self.precision_parameter, 2))
         hessv /= float(len(self.saved_perturbations))
         # Reminder:
         # If not using sensing-subspace Hessian, also subract diagonal gs(x)*I
         hessv /= np.power(self.precision_parameter, 2)
         hessv *= -1
         return hessv
+
     return hessv_func
 
-  def update_quadratic_model(self, perturbations, function_values,
-                             current_value, is_update):
+  def update_quadratic_model(self, perturbations: np.ndarray,
+                             function_values: np.ndarray, current_value: float,
+                             is_update: bool) -> QuadraticModel:
     """Updates the internal state of the optimizer with new perturbations.
 
     The gradient here is the standard Monte Carlo gradient, but could
@@ -959,8 +984,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     if not is_update:
       self.accepted_function_value = current_value
     else:
-      self.accepted_function_value = (0.5*current_value
-                                      + 0.5*self.accepted_function_value)
+      self.accepted_function_value = (0.5 * current_value +
+                                      0.5 * self.accepted_function_value)
     if self.normalize_fvalues:
       normalized_values = normalize_function_values(function_values,
                                                     current_value)
@@ -968,27 +993,24 @@ class TrustRegionOptimizer(BlackboxOptimizer):
       current_value = normalized_values[1]
       self.normalized_current_value = current_value
     if self.params['grad_type'] == 'regression':
-      new_gradient = sklearn_regression_gradient(self.clf,
-                                                 self.est_type,
-                                                 perturbations,
-                                                 function_values,
+      new_gradient = sklearn_regression_gradient(self.clf, self.est_type,
+                                                 perturbations, function_values,
                                                  current_value)
     else:
       new_gradient = mc_gradient(self.precision_parameter, self.est_type,
-                                 perturbations, function_values,
-                                 current_value)
+                                 perturbations, function_values, current_value)
     new_gradient *= -1  # TR subproblem solver performs minimization
     if not is_update:
       self.saved_gradient = new_gradient
     else:
-      self.saved_gradient = 0.5*new_gradient + 0.5*self.saved_gradient
+      self.saved_gradient = 0.5 * new_gradient + 0.5 * self.saved_gradient
 
     self.update_hessian_part(perturbations, function_values, current_value,
                              is_update)
     return QuadraticModel(self.create_hessv_function(), self.saved_gradient)
 
-  def run_step(self, perturbations, function_values, current_input,
-               current_value):
+  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
+               current_input: np.ndarray, current_value: float) -> np.ndarray:
     """Run a single step of trust region optimizer.
 
     Args:
@@ -1029,7 +1051,6 @@ class TrustRegionOptimizer(BlackboxOptimizer):
       self.accepted_weights = current_input
       # This step has been accepted, so store the most recent quadratic model
       # and the current weights.
-
     """
     The trust region problem at this point is defined by
     min_s 1/2 s^T Hess s + grad^T s
@@ -1037,27 +1058,27 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     Note that the generic optimizer routines perform minimization,
     so we pass in the grad/hessian of the negative reward.
     """
-    subproblem_params = {'subproblem_solver': 'PGD',
-                         'problem_dim': dim,
-                         'radius': self.radius,
-                         'sub_terminate_stable': self.params['sub_termination'],
-                         'subproblem_maxiter': self.params['subproblem_maxiter']
-                        }
+    subproblem_params = {
+        'subproblem_solver': 'PGD',
+        'problem_dim': dim,
+        'radius': self.radius,
+        'sub_terminate_stable': self.params['sub_termination'],
+        'subproblem_maxiter': self.params['subproblem_maxiter']
+    }
     subproblem_init_point = np.zeros(dim)
-    tr_sub_optimizer = TrustRegionSubproblemOptimizer(mf,
-                                                      subproblem_params,
+    tr_sub_optimizer = TrustRegionSubproblemOptimizer(mf, subproblem_params,
                                                       subproblem_init_point)
     tr_sub_optimizer.solve_trust_region_subproblem()
     x_update = tr_sub_optimizer.get_solution()
     return current_input + x_update
 
-  def get_hyperparameters(self):
+  def get_hyperparameters(self) -> List[float]:
     if self.hyperparameters_update_method == 'state_normalization':
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
-  def get_state(self):
+  def get_state(self) -> List[float]:
     if self.hyperparameters_update_method == 'state_normalization':
       current_state = [self.nb_steps]
       current_state += self.sum_state_vector
@@ -1067,7 +1088,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     else:
       return []
 
-  def update_state(self, evaluation_stats):
+  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -1091,7 +1112,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state):
+  def set_state(self, state: List | np.ndarray) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps = state[0]
       state = state[1:]

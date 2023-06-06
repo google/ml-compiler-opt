@@ -30,24 +30,22 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import gradient_ascent_optimization_algorithms
 
-
-perturbation_array = np.array([[0, 1], [2, -1], [4, 2], [-2, -2],
-                               [0, 3], [0, -3], [0, 4], [0, -4],
+perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
+                               [-2, -2], [0, 3], [0, -3], [0, 4], [0, -4],
                                [-1, 5], [1, -5], [2, 6], [8, -6]])
-function_value_array = np.array([-1, 1, 10, -10, -2, 2,
-                                 -0.5, 0.5, 4, -4, -8, 8])
+function_value_array = np.array(
+    [-1, 1, 10, -10, -2, 2, -0.5, 0.5, 4, -4, -8, 8])
 
 
 class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (perturbation_array, function_value_array, 'antithetic', 3,
-       np.array([[4, 2], [2, 6], [-1, 5], [-2, -2], [8, -6], [1, -5]]),
-       np.array([10, -8, 4, -10, 8, -4])),
+       np.array([[4, 2], [2, 6], [-1, 5], [-2, -2], [8, -6], [1, -5]
+                ]), np.array([10, -8, 4, -10, 8, -4])),
       (perturbation_array, function_value_array, 'forward_fd', 5,
-       np.array([[4, 2], [8, -6], [-1, 5], [0, -3], [2, -1]]),
-       np.array([10, 8, 4, 2, 1]))
-      )
+       np.array([[4, 2], [8, -6], [-1, 5], [0, -3], [2, -1]
+                ]), np.array([10, 8, 4, 2, 1])))
   def test_filtering(self, perturbations, function_values, est_type,
                      num_top_directions, expected_ps, expected_fs):
     top_ps, top_fs = cbo.filter_top_directions(perturbations, function_values,
@@ -57,14 +55,11 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (perturbation_array, function_value_array, 'antithetic', 3,
-       np.array([100, -16])),
-      (perturbation_array, function_value_array, 'forward_fd', 5,
-       np.array([76, -9])),
+       np.array([100, -16])), (perturbation_array, function_value_array,
+                               'forward_fd', 5, np.array([76, -9])),
       (perturbation_array, function_value_array, 'antithetic', 0,
-       np.array([102, -34])),
-      (perturbation_array, function_value_array, 'forward_fd', 0,
-       np.array([74, -34]))
-      )
+       np.array([102, -34])), (perturbation_array, function_value_array,
+                               'forward_fd', 0, np.array([74, -34])))
   def test_mc_gradient(self, perturbations, function_values, est_type,
                        num_top_directions, expected_gradient):
     precision_parameter = 0.1
@@ -86,14 +81,11 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (perturbation_array, function_value_array, 'antithetic', 3,
-       np.array([100, -16])),
-      (perturbation_array, function_value_array, 'forward_fd', 5,
-       np.array([76, -9])),
+       np.array([100, -16])), (perturbation_array, function_value_array,
+                               'forward_fd', 5, np.array([76, -9])),
       (perturbation_array, function_value_array, 'antithetic', 0,
-       np.array([102, -34])),
-      (perturbation_array, function_value_array, 'forward_fd', 0,
-       np.array([74, -34]))
-      )
+       np.array([102, -34])), (perturbation_array, function_value_array,
+                               'forward_fd', 0, np.array([74, -34])))
   def test_mc_gradient_with_ga_optimizer(self, perturbations, function_values,
                                          est_type, num_top_directions,
                                          expected_gradient):
@@ -119,6 +111,7 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
 """Tests for google3.learning.brain.contrib.blackbox.secondorder_blackbox_optimizers."""
 
+
 class SecondorderBlackboxOptimizersTest(absltest.TestCase):
 
   class GenericFunction(object):
@@ -135,9 +128,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     """
     super(SecondorderBlackboxOptimizersTest, self).setUp()
     # pylint: disable=bad-whitespace,invalid-name
-    self.A = np.array([[ 1,-1, 0],
-                       [-1, 0, 2],
-                       [ 0, 2,-1]])
+    self.A = np.array([[1, -1, 0], [-1, 0, 2], [0, 2, -1]])
     self.b = np.array([1, 0, 1])
     self.c = 2.5
     self.multiply_Av = lambda v: np.matmul(self.A, v)
@@ -161,8 +152,8 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     x = np.array([3.0, 3.0])
     projector = cbo.make_projector(radius)
     projected_point = projector(x)
-    self.assertTrue(np.isclose(3.0/np.sqrt(2), projected_point[0]))
-    self.assertTrue(np.isclose(3.0/np.sqrt(2), projected_point[0]))
+    self.assertTrue(np.isclose(3.0 / np.sqrt(2), projected_point[0]))
+    self.assertTrue(np.isclose(3.0 / np.sqrt(2), projected_point[0]))
 
   def testProjectedGradientOptimizer(self):
     """Simple test for correctness of PGD.
@@ -173,7 +164,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     The exact solution is (0,1).
     """
     cost_function = lambda x: (x[0] + 1)**2 + (x[1] - 1)**2
-    cost_gradient = lambda x: np.array([2*(x[0] + 1), 2*(x[1] - 1)])
+    cost_gradient = lambda x: np.array([2 * (x[0] + 1), 2 * (x[1] - 1)])
     projector = lambda x: np.maximum(0, x)
 
     objective_function = SecondorderBlackboxOptimizersTest.GenericFunction()
@@ -181,11 +172,10 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     objective_function.grad = cost_gradient
     pgd_params = {'const_step_size': 0.5}
     pgd_optimizer = cbo.ProjectedGradientOptimizer(objective_function,
-                                                   projector,
-                                                   pgd_params,
+                                                   projector, pgd_params,
                                                    np.array([1, 1]))
-    while (pgd_optimizer.get_iterations() <= 10
-           and pgd_optimizer.get_x_diff_norm() > 1e-9):
+    while (pgd_optimizer.get_iterations() <= 10 and
+           pgd_optimizer.get_x_diff_norm() > 1e-9):
       pgd_optimizer.run_step()
     solution = pgd_optimizer.get_solution()
     self.assertLess(abs(solution[0]), 1e-8)
@@ -199,14 +189,15 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     in setUp.
     """
     quad_model = cbo.QuadraticModel(self.multiply_Av, self.b, self.c)
-    tr_params = {'radius': 2,
-                 'problem_dim': 3,
-                 'subproblem_solver': 'PGD',
-                 'subproblem_maxiter': 100,
-                 'sub_terminate_stable': 1e-9
-                }
-    tr_subproblem_solver = cbo.TrustRegionSubproblemOptimizer(quad_model,
-                                                              tr_params)
+    tr_params = {
+        'radius': 2,
+        'problem_dim': 3,
+        'subproblem_solver': 'PGD',
+        'subproblem_maxiter': 100,
+        'sub_terminate_stable': 1e-9
+    }
+    tr_subproblem_solver = cbo.TrustRegionSubproblemOptimizer(
+        quad_model, tr_params)
     tr_subproblem_solver.solve_trust_region_subproblem()
     solution = tr_subproblem_solver.get_solution()
     self.assertLess(abs(solution[0] - 0.03157944), 1e-8)
