@@ -22,7 +22,7 @@
 #
 ###############################################################################
 """
-combined first and second order blackbox optimizers
+first and second order blackbox optimizers
 """
 r"""Library of blackbox optimization algorithms.
 
