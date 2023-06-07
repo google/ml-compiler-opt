@@ -36,13 +36,14 @@ import math
 import numpy as np
 from sklearn import linear_model
 from typing import List, Dict, Callable, Tuple, Any, Optional
+import numpy.typing as npt
 
 import gradient_ascent_optimization_algorithms
 
 
 def filter_top_directions(
-    perturbations: np.ndarray, function_values: np.ndarray, est_type: str,
-    num_top_directions: int) -> Tuple[np.ndarray, np.ndarray]:
+    perturbations: npt.NDArray, function_values: npt.NDArray, est_type: str,
+    num_top_directions: int) -> Tuple[npt.NDArray, npt.NDArray]:
   """Select the subset of top-performing perturbations.
 
   TODO(b/139662389): In the future, we may want (either here or inside the
@@ -94,8 +95,8 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
-               current_input: np.ndarray, current_value: float) -> np.ndarray:
+  def run_step(self, perturbations: npt.NDArray, function_values: npt.NDArray,
+               current_input: npt.NDArray, current_value: float) -> npt.NDArray:
     """Conducts a single step of blackbox optimization procedure.
 
     Conducts a single step of blackbox optimization procedure, given values of
@@ -141,7 +142,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
+  def update_state(self, evaluation_stats: List | npt.NDArray) -> None:
     """Updates the state for blackbox function runs.
 
     Updates the state of the optimizer for blackbox function runs.
@@ -154,7 +155,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def set_state(self, state: List | np.ndarray) -> None:
+  def set_state(self, state: List | npt.NDArray) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -204,8 +205,8 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     self.ga_optimizer = ga_optimizer
     super().__init__()
 
-  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
-               current_input: np.ndarray, current_value: float) -> np.ndarray:
+  def run_step(self, perturbations: npt.NDArray, function_values: npt.NDArray,
+               current_input: npt.NDArray, current_value: float) -> npt.NDArray:
     dim = len(current_input)
     if self.normalize_fvalues:
       values = function_values.tolist()
@@ -255,7 +256,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     else:
       return ga_state
 
-  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
+  def update_state(self, evaluation_stats: List | npt.NDArray) -> None:
     if self.hyperparameters_update_method == "state_normalization":
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -279,7 +280,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state: List | np.ndarray) -> None:
+  def set_state(self, state: List | npt.NDArray) -> None:
     if self.hyperparameters_update_method == "state_normalization":
       self.nb_steps = state[0]
       state = state[1:]
@@ -345,8 +346,8 @@ Implemented: mc_gradient
 """
 
 
-def normalize_function_values(function_values: np.ndarray,
-                              current_value: float) -> Tuple[np.ndarray, List]:
+def normalize_function_values(function_values: npt.NDArray,
+                              current_value: float) -> Tuple[npt.NDArray, List]:
   values = function_values.tolist()
   values.append(current_value)
   mean = sum(values) / float(len(values))
@@ -357,10 +358,10 @@ def normalize_function_values(function_values: np.ndarray,
 
 def mc_gradient(precision_parameter: float,
                 est_type: str,
-                perturbations: np.ndarray,
-                function_values: np.ndarray,
+                perturbations: npt.NDArray,
+                function_values: npt.NDArray,
                 current_value: float,
-                energy: float = 0) -> np.ndarray:
+                energy: float = 0) -> npt.NDArray:
   """Calculates Monte Carlo gradient.
 
   There are several ways of estimating the gradient. This is specified by the
@@ -401,9 +402,9 @@ def mc_gradient(precision_parameter: float,
 
 
 def sklearn_regression_gradient(clf: linear_model, est_type: str,
-                                perturbations: np.ndarray,
-                                function_values: np.ndarray,
-                                current_value: float) -> np.ndarray:
+                                perturbations: npt.NDArray,
+                                function_values: npt.NDArray,
+                                current_value: float) -> npt.NDArray:
   """Calculates gradient by function difference regression.
 
   Args:
@@ -469,7 +470,7 @@ class QuadraticModel(object):
   f(x) = 1/2x^TAx + b^Tx + c
   """
 
-  def __init__(self, Av: Callable, b: np.ndarray, c: float = 0):
+  def __init__(self, Av: Callable, b: npt.NDArray, c: float = 0):
     """Initialize quadratic function.
 
     Args:
@@ -482,7 +483,7 @@ class QuadraticModel(object):
     self.b = b
     self.c = c
 
-  def f(self, x: np.ndarray) -> float:
+  def f(self, x: npt.NDArray) -> float:
     """Evaluate the quadratic function.
 
     Args:
@@ -492,7 +493,7 @@ class QuadraticModel(object):
     """
     return 0.5 * np.dot(x, self.quad_v(x)) + np.dot(x, self.b) + self.c
 
-  def grad(self, x: np.ndarray) -> np.ndarray:
+  def grad(self, x: npt.NDArray) -> npt.NDArray:
     """Evaluate the gradient of the quadratic, Ax + b.
 
     Args:
@@ -517,7 +518,7 @@ class ProjectedGradientOptimizer(object):
 
   def __init__(self, function_object: QuadraticModel,
                projection_operator: Callable, pgd_params: Dict[str, Any],
-               x_init: np.ndarray[float]):
+               x_init: npt.NDArray[np.float32]):
     self.f = function_object
     self.proj = projection_operator
     if pgd_params is not None:
@@ -560,7 +561,7 @@ class ProjectedGradientOptimizer(object):
     self.x = x_next
     self.k += 1
 
-  def get_solution(self) -> np.ndarray:
+  def get_solution(self) -> npt.NDArray:
     return self.x
 
   def get_x_diff_norm(self) -> float:
@@ -608,7 +609,7 @@ class TrustRegionSubproblemOptimizer(object):
   def __init__(self,
                model_function: QuadraticModel,
                trust_region_params: Dict[str, Any],
-               x_init: Optional[np.ndarray[float]] = None):
+               x_init: Optional[npt.NDArray[np.float32]] = None):
     self.mf = model_function
     self.params = trust_region_params
     self.center = x_init
@@ -643,7 +644,7 @@ class TrustRegionSubproblemOptimizer(object):
 
       self.x = pgd_solver.get_solution()
 
-  def get_solution(self) -> np.ndarray:
+  def get_solution(self) -> npt.NDArray:
     return self.x
 
 
@@ -779,7 +780,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         self.clf = linear_model.Lasso(alpha=self.params['grad_reg_alpha'])
     self.is_returned_step = False
 
-  def trust_region_test(self, current_input: np.ndarray,
+  def trust_region_test(self, current_input: npt.NDArray,
                         current_value: float) -> bool:
     """Test the next step to determine how to update the trust region.
 
@@ -848,8 +849,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           print('Unchanged: ' + str(self.radius) + log_message)
     return True
 
-  def update_hessian_part(self, perturbations: np.ndarray,
-                          function_values: np.ndarray, current_value: float,
+  def update_hessian_part(self, perturbations: npt.NDArray,
+                          function_values: npt.NDArray, current_value: float,
                           is_update: bool) -> None:
     """Updates the internal state which stores Hessian information.
 
@@ -918,7 +919,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     """
     if self.params['dense_hessian']:
 
-      def hessv_func(x: np.ndarray) -> np.ndarray:
+      def hessv_func(x: npt.NDArray) -> npt.NDArray:
         """Calculates Hessian-vector product from dense Hessian.
 
         Args:
@@ -934,7 +935,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         return hessv
     else:
 
-      def hessv_func(x: np.ndarray) -> np.ndarray:
+      def hessv_func(x: npt.NDArray) -> npt.NDArray:
         """Calculates Hessian-vector product from perturbation/value pairs.
 
         Args:
@@ -961,8 +962,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
 
     return hessv_func
 
-  def update_quadratic_model(self, perturbations: np.ndarray,
-                             function_values: np.ndarray, current_value: float,
+  def update_quadratic_model(self, perturbations: npt.NDArray,
+                             function_values: npt.NDArray, current_value: float,
                              is_update: bool) -> QuadraticModel:
     """Updates the internal state of the optimizer with new perturbations.
 
@@ -1009,8 +1010,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
                              is_update)
     return QuadraticModel(self.create_hessv_function(), self.saved_gradient)
 
-  def run_step(self, perturbations: np.ndarray, function_values: np.ndarray,
-               current_input: np.ndarray, current_value: float) -> np.ndarray:
+  def run_step(self, perturbations: npt.NDArray, function_values: npt.NDArray,
+               current_input: npt.NDArray, current_value: float) -> npt.NDArray:
     """Run a single step of trust region optimizer.
 
     Args:
@@ -1088,7 +1089,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     else:
       return []
 
-  def update_state(self, evaluation_stats: List | np.ndarray) -> None:
+  def update_state(self, evaluation_stats: List | npt.NDArray) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -1112,7 +1113,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state: List | np.ndarray) -> None:
+  def set_state(self, state: List | npt.NDArray) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps = state[0]
       state = state[1:]
