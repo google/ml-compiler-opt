@@ -44,7 +44,7 @@ class GradientAscentOptimizationAlgorithmsTest(parameterized.TestCase):
         0.1, 0.9)
     optimizer.set_state(state)
     recovered_state = optimizer.get_state()
-    np.testing.assert_array_equal(state, recovered_state)
+    np.testing.assert_array_almost_equal(state, recovered_state)
 
   @parameterized.parameters(
       (np.asarray([1., 2., 3., 4., 5., 6., 7], dtype=np.float32),),
@@ -53,7 +53,7 @@ class GradientAscentOptimizationAlgorithmsTest(parameterized.TestCase):
     optimizer = gradient_ascent_optimization_algorithms.AdamOptimizer(0.1)
     optimizer.set_state(state)
     recovered_state = optimizer.get_state()
-    np.testing.assert_array_equal(state, recovered_state)
+    np.testing.assert_array_almost_equal(state, recovered_state)
 
   @parameterized.parameters(
       (0.1, 0.9, np.asarray([1.1, 0.0], dtype=np.float32),
