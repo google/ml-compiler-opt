@@ -34,7 +34,7 @@ import numpy as np
 from sklearn import linear_model
 from absl import flags
 import scipy.optimize as sp_opt
-from typing import List, Dict, Callable, Tuple, Any, Optional
+from typing import List, Dict, Callable, Tuple, Any, Optional, Union
 import numpy.typing as npt
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
@@ -137,7 +137,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def update_state(self, evaluation_stats: List | npt.NDArray) -> None:
+  def update_state(self, evaluation_stats: Union[List, npt.NDArray]) -> None:
     """Updates the state for blackbox function runs.
 
     Updates the state of the optimizer for blackbox function runs.
@@ -150,7 +150,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def set_state(self, state: List | npt.NDArray) -> None:
+  def set_state(self, state: Union[List, npt.NDArray]) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -251,7 +251,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     else:
       return ga_state
 
-  def update_state(self, evaluation_stats):
+  def update_state(self, evaluation_stats: Union[List, npt.NDArray]) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -275,7 +275,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state):
+  def set_state(self, state: Union[List, npt.NDArray]) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps = state[0]
       state = state[1:]
@@ -1079,7 +1079,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     else:
       return []
 
-  def update_state(self, evaluation_stats: List | npt.NDArray) -> None:
+  def update_state(self, evaluation_stats: Union[List, npt.NDArray]) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -1103,7 +1103,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state: List | npt.NDArray) -> None:
+  def set_state(self, state: Union[List, npt.NDArray]) -> None:
     if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps = state[0]
       state = state[1:]
