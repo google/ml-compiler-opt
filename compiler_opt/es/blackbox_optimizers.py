@@ -486,7 +486,6 @@ class QuadraticModel(object):
   Presents an interface for evaluating functions of the form
   f(x) = 1/2x^TAx + b^Tx + c
   """
-
   # pylint: disable=invalid-name
   # argument Av should be capitalized as such for mathematical convention
   def __init__(self,
