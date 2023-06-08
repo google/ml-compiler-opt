@@ -25,14 +25,10 @@
 
 import numpy as np
 
-# from google3.learning.brain.contrib.blackbox import gradient_ascent_optimization_algorithms
-# from google3.testing.pybase import googletest
-
-# from google3.testing.pybase import parameterized
-import gradient_ascent_optimization_algorithms
 from absl.testing import absltest
-
 from absl.testing import parameterized
+
+from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 
 class GradientAscentOptimizationAlgorithmsTest(parameterized.TestCase):
@@ -85,5 +81,4 @@ class GradientAscentOptimizationAlgorithmsTest(parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  # googletest.main()
   absltest.main()

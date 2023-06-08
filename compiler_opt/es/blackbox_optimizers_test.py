@@ -25,10 +25,11 @@
 
 import numpy as np
 
-import blackbox_optimizers as bo
 from absl.testing import absltest
 from absl.testing import parameterized
-import gradient_ascent_optimization_algorithms
+
+from compiler_opt.es import blackbox_optimizers as bo
+from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
                                [-2, -2], [0, 3], [0, -3], [0, 4], [0, -4],

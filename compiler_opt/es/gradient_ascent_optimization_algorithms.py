@@ -31,7 +31,6 @@ import abc
 import numpy as np
 
 
-# TODO(kchoro): Borrow JAXs optimizer library here. Integrated into Blackbox-v2.
 class GAOptimizer(metaclass=abc.ABCMeta):
   """Abstract class for general gradient ascent optimizers.
 

@@ -36,16 +36,12 @@ import math
 import numpy as np
 from sklearn import linear_model
 
-import gradient_ascent_optimization_algorithms
+from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 
 def filter_top_directions(perturbations, function_values, est_type,
                           num_top_directions):
   """Select the subset of top-performing perturbations.
-
-  TODO(b/139662389): In the future, we may want (either here or inside the
-  perturbation generator) to add assertions that Antithetic perturbations are
-  delivered in the expected order (i.e (p_1, -p_1, p_2, -p_2,...)).
 
   Args:
     perturbations: np array of perturbations
