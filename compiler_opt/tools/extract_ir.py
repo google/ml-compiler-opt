@@ -343,6 +343,8 @@ def main(argv):
 
   with multiprocessing.Pool(FLAGS.num_workers) as pool:
     relative_output_paths = pool.map(extract_artifacts, objs)
+    pool.close()
+    pool.join()
 
   # This comes first rather than later so global_command_override is at the top
   # of the .json after being written
