@@ -52,15 +52,17 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          cache: 'pipenv'
           cache-dependency-path: Pipfile.lock
       - name: Install Python, no cache
         if: needs.Envvars.outputs.do_cache == '0'
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - run: |
-          pip3 install pipenv
-          pipenv sync --categories="packages dev-packages ci" --system --verbose
+      - name: Install Pipenv
+        run: pip3 install pipenv
+      - name: Install Python Dependencies
+        run: pipenv sync --categories="packages dev-packages ci" --verbose
       - name: ${{ matrix.task }}
-        run: ${{ matrix.cmd }}
+        run: pipenv run ${{ matrix.cmd }}
+
