@@ -37,6 +37,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+
 from typing import Dict, List, Optional
 
 from absl import app
@@ -328,7 +329,6 @@ def extract_artifacts(obj: TrainingIRExtractor) -> Optional[str]:
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
-  flags.mark_flags_as_required(['output_dir'])
 
   objs = []
   if FLAGS.input is not None and FLAGS.thinlto_build == 'local':
@@ -354,6 +354,8 @@ def main(argv):
 
   with multiprocessing.Pool(FLAGS.num_workers) as pool:
     relative_output_paths = pool.map(extract_artifacts, objs)
+    pool.close()
+    pool.join()
 
   # This comes first rather than later so global_command_override is at the top
   # of the .json after being written
