@@ -207,10 +207,11 @@ class SamplerWithoutReplacement(Sampler):
     self._shuffle_order()
     self._idx = 0
 
-  def __call__(self, k: int) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int=10) -> List[ModuleSpec]:
     """
     Args:
       k: number of modules to sample
+      n: ignored
     Raises:
       CorpusExhaustedError if there are fewer than k elements left to sample in
       the corpus.
