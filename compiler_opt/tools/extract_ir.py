@@ -78,15 +78,15 @@ flags.mark_flags_as_required(['output_dir'])
 
 flags.DEFINE_string(
     'cmd_section_name', '.llvmcmd',
-    'Name of the section name passed to llvm-objcopy. For linux systems, the '
-    'default .llvmcmd is correct. On macos, one should use __LLVM,__cmdline'
-)
+    'The section name passed to llvm-objcopy. For ELF object files, the '
+    'default .llvmcmd is correct. For Mach-O object files, one should use '
+    'something like __LLVM,__cmdline')
 
 flags.DEFINE_string(
     'bitcode_section_name', '.llvmbc',
-    'Name of the section name passed to llvm-objcopy. For linux systems, the '
-    'default .llvmbc is correct. On macos, one should use __LLVM,__bitcode'
-)
+    'The section name passed to llvm-objcopy. For ELF object files, the '
+    'default .llvmbc is correct. For Mach-O object files, one should use '
+    '__LLVM,__bitcode')
 
 FLAGS = flags.FLAGS
 
