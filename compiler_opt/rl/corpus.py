@@ -207,7 +207,7 @@ class SamplerWithoutReplacement(Sampler):
     self._shuffle_order()
     self._idx = 0
 
-  def __call__(self, k: int, n: int=10) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
     """
     Args:
       k: number of modules to sample
