@@ -21,6 +21,8 @@ import sys
 from typing import List, Tuple
 
 import tensorflow as tf
+from tf_agents.system import system_multiprocessing as multiprocessing
+
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
