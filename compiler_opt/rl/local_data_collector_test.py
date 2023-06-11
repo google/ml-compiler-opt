@@ -116,16 +116,14 @@ class MyRunner(compilation_runner.CompilationRunner):
 class DeterministicSampler(corpus.Sampler):
   """A corpus sampler that returns modules in order, and can also be reset."""
 
-  def __init__(self):
+  def __init__(self, module_specs: Tuple[corpus.ModuleSpec]):
+    super().__init__(module_specs)
     self._cur_pos = 0
 
-  def __call__(self,
-               module_specs: Tuple[corpus.ModuleSpec],
-               k: int,
-               n: int = 20) -> List[corpus.ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> List[corpus.ModuleSpec]:
     ret = []
     for _ in range(k):
-      ret.append(module_specs[self._cur_pos % len(module_specs)])
+      ret.append(self._module_specs[self._cur_pos % len(self._module_specs)])
       self._cur_pos += 1
     return ret
 
