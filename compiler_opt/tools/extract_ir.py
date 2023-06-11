@@ -76,6 +76,18 @@ flags.DEFINE_enum(
     'passed in the local case.')
 flags.mark_flags_as_required(['output_dir'])
 
+flags.DEFINE_string(
+    'cmd_section_name', '.llvmcmd',
+    'The section name passed to llvm-objcopy. For ELF object files, the '
+    'default .llvmcmd is correct. For Mach-O object files, one should use '
+    'something like __LLVM,__cmdline')
+
+flags.DEFINE_string(
+    'bitcode_section_name', '.llvmbc',
+    'The section name passed to llvm-objcopy. For ELF object files, the '
+    'default .llvmbc is correct. For Mach-O object files, one should use '
+    '__LLVM,__bitcode')
+
 FLAGS = flags.FLAGS
 
 
@@ -98,10 +110,7 @@ def get_thinlto_index(cmdline: str, basedir: str) -> Optional[str]:
 
 
 class TrainingIRExtractor:
-  """IR and command line extraction from an object file.
-
-  The object file is assumed to have the .llvmbc and .llvmcmd sections.
-  """
+  """IR and command line extraction from an object file."""
 
   def __init__(self, obj_relative_path, output_base_dir, obj_base_dir=None):
     """Set up a TrainingIRExtractor.
@@ -156,16 +165,18 @@ class TrainingIRExtractor:
     return os.path.join(self.dest_dir(), self.module_name() + '.thinlto.bc')
 
   def _get_extraction_cmd_command(self, llvm_objcopy_path):
-    """Call llvm_objcopy to extract the .llvmcmd section in self._cmd_file."""
+    """Call llvm_objcopy to extract the llvmcmd section in self._cmd_file."""
     return [
-        llvm_objcopy_path, '--dump-section=.llvmcmd=' + self.cmd_file(),
+        llvm_objcopy_path,
+        '--dump-section=' + FLAGS.cmd_section_name + '=' + self.cmd_file(),
         self.input_obj(), '/dev/null'
     ]
 
   def _get_extraction_bc_command(self, llvm_objcopy_path):
-    """Call llvm_objcopy to extract the .llvmbc section in self._bc_file."""
+    """Call llvm_objcopy to extract the llvmbc section in self._bc_file."""
     return [
-        llvm_objcopy_path, '--dump-section=.llvmbc=' + self.bc_file(),
+        llvm_objcopy_path,
+        '--dump-section=' + FLAGS.bitcode_section_name + '=' + self.bc_file(),
         self.input_obj(), '/dev/null'
     ]
 
@@ -371,4 +382,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
+  multiprocessing.set_start_method('fork')
   app.run(main)
