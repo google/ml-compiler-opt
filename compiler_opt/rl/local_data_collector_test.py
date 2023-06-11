@@ -30,7 +30,6 @@ from compiler_opt.rl import data_collector
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import policy_saver
 
-
 _policy_str = 'policy'.encode(encoding='utf-8')
 
 _mock_policy = policy_saver.Policy(output_spec=bytes(), policy=_policy_str)
