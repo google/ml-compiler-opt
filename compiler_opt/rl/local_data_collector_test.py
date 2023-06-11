@@ -21,16 +21,14 @@ import sys
 from typing import List, Tuple
 
 import tensorflow as tf
-from tf_agents.system import system_multiprocessing as multiprocessing
-
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
-from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
-from compiler_opt.rl import compilation_runner
-from compiler_opt.rl import corpus
-from compiler_opt.rl import data_collector
-from compiler_opt.rl import local_data_collector
-from compiler_opt.rl import policy_saver
+from tf_agents.system import system_multiprocessing as multiprocessing
+
+from compiler_opt.distributed.local.local_worker_manager import \
+    LocalWorkerPoolManager
+from compiler_opt.rl import (compilation_runner, corpus, data_collector,
+                             local_data_collector, policy_saver)
 
 _policy_str = 'policy'.encode(encoding='utf-8')
 
@@ -150,16 +148,15 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
       return _test_iterator_fn
 
-    sampler = DeterministicSampler()
     with LocalWorkerPoolManager(worker_class=MyRunner, count=4) as lwp:
+      cps = corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[
+              corpus.ModuleSpec(name=f'dummy{i}', size=i) for i in range(100)
+          ],
+          sampler_type=DeterministicSampler)
       collector = local_data_collector.LocalDataCollector(
-          cps=corpus.create_corpus_for_testing(
-              location=self.create_tempdir(),
-              elements=[
-                  corpus.ModuleSpec(name=f'dummy{i}', size=i)
-                  for i in range(100)
-              ],
-              sampler=sampler),
+          cps=cps,
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
@@ -169,7 +166,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       # reset the sampler, so the next time we collect, we collect the same
       # modules. We do it before the collect_data call, because that's when
       # we'll re-sample to prefetch the next batch.
-      sampler.reset()
+      cps.reset()
 
       data_iterator, monitor_dict = collector.collect_data(
           policy=_mock_policy, model_id=0)
