@@ -23,12 +23,13 @@ from typing import List, Tuple
 import tensorflow as tf
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
-from tf_agents.system import system_multiprocessing as multiprocessing
+from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
+from compiler_opt.rl import compilation_runner
+from compiler_opt.rl import corpus
+from compiler_opt.rl import data_collector
+from compiler_opt.rl import local_data_collector
+from compiler_opt.rl import policy_saver
 
-from compiler_opt.distributed.local.local_worker_manager import \
-    LocalWorkerPoolManager
-from compiler_opt.rl import (compilation_runner, corpus, data_collector,
-                             local_data_collector, policy_saver)
 
 _policy_str = 'policy'.encode(encoding='utf-8')
 
