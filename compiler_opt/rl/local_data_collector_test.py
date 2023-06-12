@@ -116,16 +116,14 @@ class MyRunner(compilation_runner.CompilationRunner):
 class DeterministicSampler(corpus.Sampler):
   """A corpus sampler that returns modules in order, and can also be reset."""
 
-  def __init__(self):
+  def __init__(self, module_specs: Tuple[corpus.ModuleSpec]):
+    super().__init__(module_specs)
     self._cur_pos = 0
 
-  def __call__(self,
-               module_specs: Tuple[corpus.ModuleSpec],
-               k: int,
-               n: int = 20) -> List[corpus.ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> List[corpus.ModuleSpec]:
     ret = []
     for _ in range(k):
-      ret.append(module_specs[self._cur_pos % len(module_specs)])
+      ret.append(self._module_specs[self._cur_pos % len(self._module_specs)])
       self._cur_pos += 1
     return ret
 
@@ -152,16 +150,15 @@ class LocalDataCollectorTest(tf.test.TestCase):
 
       return _test_iterator_fn
 
-    sampler = DeterministicSampler()
     with LocalWorkerPoolManager(worker_class=MyRunner, count=4) as lwp:
+      cps = corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[
+              corpus.ModuleSpec(name=f'dummy{i}', size=i) for i in range(100)
+          ],
+          sampler_type=DeterministicSampler)
       collector = local_data_collector.LocalDataCollector(
-          cps=corpus.create_corpus_for_testing(
-              location=self.create_tempdir(),
-              elements=[
-                  corpus.ModuleSpec(name=f'dummy{i}', size=i)
-                  for i in range(100)
-              ],
-              sampler=sampler),
+          cps=cps,
           num_modules=9,
           worker_pool=lwp,
           parser=create_test_iterator_fn(),
@@ -171,7 +168,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       # reset the sampler, so the next time we collect, we collect the same
       # modules. We do it before the collect_data call, because that's when
       # we'll re-sample to prefetch the next batch.
-      sampler.reset()
+      cps.reset()
 
       data_iterator, monitor_dict = collector.collect_data(
           policy=_mock_policy, model_id=0)

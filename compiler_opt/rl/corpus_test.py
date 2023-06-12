@@ -237,6 +237,36 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(sample[2].name, 'small')
     self.assertEqual(sample[3].name, 'smol')
 
+  def test_sample_without_replacement(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
+        ],
+        sampler_type=corpus.SamplerWithoutReplacement)
+    samples = []
+    samples.extend(cps.sample(1, sort=True))
+    self.assertLen(samples, 1)
+    samples.extend(cps.sample(1, sort=True))
+    self.assertLen(samples, 2)
+    # Can't sample 3 from the corpus because there are only 2 elements left
+    with self.assertRaises(corpus.CorpusExhaustedError):
+      samples.extend(cps.sample(3, sort=True))
+    # But, we can sample exactly 2 more
+    self.assertLen(samples, 2)
+    samples.extend(cps.sample(2, sort=True))
+    self.assertLen(samples, 4)
+    with self.assertRaises(corpus.CorpusExhaustedError):
+      samples.extend(cps.sample(1, sort=True))
+    samples.sort(key=lambda m: m.size, reverse=True)
+    self.assertEqual(samples[0].name, 'largest')
+    self.assertEqual(samples[1].name, 'middle')
+    self.assertEqual(samples[2].name, 'small')
+    self.assertEqual(samples[3].name, 'smol')
+
   def test_filter(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),

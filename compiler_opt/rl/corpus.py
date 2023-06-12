@@ -20,7 +20,7 @@ import random
 
 from absl import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import json
 import os
@@ -126,13 +126,17 @@ class Sampler(metaclass=abc.ABCMeta):
   """Corpus sampler abstraction."""
 
   @abc.abstractmethod
-  def __call__(self,
-               module_specs: Tuple[ModuleSpec],
-               k: int,
-               n: int = 20) -> List[ModuleSpec]:
+  def __init__(self, module_specs: Tuple[ModuleSpec]):
+    self._module_specs = module_specs
+
+  @abc.abstractmethod
+  def reset(self):
+    pass
+
+  @abc.abstractmethod
+  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
     """
     Args:
-      module_specs: list of module_specs to sample from
       k: number of modules to sample
       n: number of buckets to use
     """
@@ -144,13 +148,14 @@ class SamplerBucketRoundRobin(Sampler):
   round-robin order. The buckets are sequential sections of module_specs of
   roughly equal lengths."""
 
-  def __init__(self):
+  def __init__(self, module_specs: Tuple[ModuleSpec]):
     self._ranges = {}
+    super().__init__(module_specs)
 
-  def __call__(self,
-               module_specs: Tuple[ModuleSpec],
-               k: int,
-               n: int = 20) -> List[ModuleSpec]:
+  def reset(self):
+    pass
+
+  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
     """
     Args:
       module_specs: list of module_specs to sample from
@@ -161,7 +166,7 @@ class SamplerBucketRoundRobin(Sampler):
     # Essentially, split module_specs into k buckets, then define the order of
     # visiting the k buckets such that it approximates the behaviour of having
     # n buckets.
-    specs_len = len(module_specs)
+    specs_len = len(self._module_specs)
     if (specs_len, k, n) not in self._ranges:
       quotient = k // n
       # rev_map maps from bucket # (implicitly via index) to order of visiting.
@@ -177,9 +182,46 @@ class SamplerBucketRoundRobin(Sampler):
            math.floor(bucket_size_float * (i + 1))) for i in mapping)
 
     return [
-        module_specs[random.randrange(start, end)]
+        self._module_specs[random.randrange(start, end)]
         for start, end in self._ranges[(specs_len, k, n)]
     ]
+
+
+class CorpusExhaustedError(Exception):
+  pass
+
+
+class SamplerWithoutReplacement(Sampler):
+  """Randomly samples the corpus, without replacement."""
+
+  def __init__(self, module_specs: Tuple[ModuleSpec]):
+    super().__init__(module_specs)
+    self._idx = 0
+    self._shuffle_order()
+
+  def _shuffle_order(self):
+    self._module_specs = tuple(
+        random.sample(self._module_specs, len(self._module_specs)))
+
+  def reset(self):
+    self._shuffle_order()
+    self._idx = 0
+
+  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
+    """
+    Args:
+      k: number of modules to sample
+      n: ignored
+    Raises:
+      CorpusExhaustedError if there are fewer than k elements left to sample in
+      the corpus.
+    """
+    endpoint = self._idx + k
+    if endpoint > len(self._module_specs):
+      raise CorpusExhaustedError()
+    results = self._module_specs[self._idx:endpoint]
+    self._idx = self._idx + k
+    return list(results)
 
 
 class Corpus:
@@ -230,7 +272,7 @@ class Corpus:
                additional_flags: Tuple[str, ...] = (),
                delete_flags: Tuple[str, ...] = (),
                replace_flags: Optional[Dict[str, str]] = None,
-               sampler: Sampler = SamplerBucketRoundRobin()):
+               sampler_type: Type[Sampler] = SamplerBucketRoundRobin):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
     sampling. Command line origin (.cmd file or override) is decided, and final
@@ -252,7 +294,6 @@ class Corpus:
         matching it. None to include everything.
     """
     self._base_dir = data_path
-    self._sampler = sampler
     # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
     # {additional|delete}_flags here
     with tf.io.gfile.GFile(
@@ -337,6 +378,10 @@ class Corpus:
               has_thinlto=has_thinlto), module_paths)
     self._module_specs = tuple(
         sorted(contents, key=lambda m: m.size, reverse=True))
+    self._sampler = sampler_type(self._module_specs)
+
+  def reset(self):
+    self._sampler.reset()
 
   def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
     """Samples `k` module_specs, optionally sorting by size descending.
@@ -349,7 +394,7 @@ class Corpus:
     k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    sampled_specs = self._sampler(self._module_specs, k=k)
+    sampled_specs = self._sampler(k=k)
     if sort:
       sampled_specs.sort(key=lambda m: m.size, reverse=True)
     return sampled_specs
