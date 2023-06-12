@@ -21,9 +21,6 @@
 # https://arxiv.org/abs/1804.02395
 #
 ###############################################################################
-"""
-first and second order blackbox optimizers
-"""
 r"""Library of blackbox optimization algorithms.
 
 Library of stateful blackbox optimization algorithms taking as input the values
@@ -35,17 +32,15 @@ import abc
 import math
 import numpy as np
 from sklearn import linear_model
+from absl import flags
+import scipy.optimize as sp_opt
 
-import gradient_ascent_optimization_algorithms
+from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 
 def filter_top_directions(perturbations, function_values, est_type,
                           num_top_directions):
   """Select the subset of top-performing perturbations.
-
-  TODO(b/139662389): In the future, we may want (either here or inside the
-  perturbation generator) to add assertions that Antithetic perturbations are
-  delivered in the expected order (i.e (p_1, -p_1, p_2, -p_2,...)).
 
   Args:
     perturbations: np array of perturbations
@@ -66,16 +61,16 @@ def filter_top_directions(perturbations, function_values, est_type,
   """
   if not num_top_directions > 0:
     return (perturbations, function_values)
-  if est_type == "forward_fd":
+  if est_type == 'forward_fd':
     top_index = np.argsort(-function_values)
-  elif est_type == "antithetic":
+  elif est_type == 'antithetic':
     top_index = np.argsort(-np.abs(function_values[0::2] -
                                    function_values[1::2]))
   top_index = top_index[:num_top_directions]
-  if est_type == "forward_fd":
+  if est_type == 'forward_fd':
     perturbations = perturbations[top_index]
     function_values = function_values[top_index]
-  elif est_type == "antithetic":
+  elif est_type == 'antithetic':
     perturbations = np.concatenate(
         (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
         axis=0)
@@ -109,7 +104,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
       New input obtained by conducting a single step of the blackbox
       optimization procedure.
     """
-    raise NotImplementedError("Abstract method")
+    raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
   def get_hyperparameters(self):
@@ -123,7 +118,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     Returns:
       The set of hyperparameters for blackbox function runs.
     """
-    raise NotImplementedError("Abstract method")
+    raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
   def get_state(self):
@@ -136,7 +131,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     Returns:
       The state of the optimizer.
     """
-    raise NotImplementedError("Abstract method")
+    raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
   def update_state(self, evaluation_stats):
@@ -149,7 +144,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 
     Returns:
     """
-    raise NotImplementedError("Abstract method")
+    raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
   def set_state(self, state):
@@ -162,7 +157,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 
     Returns:
     """
-    raise NotImplementedError("Abstract method")
+    raise NotImplementedError('Abstract method')
 
 
 class MCBlackboxOptimizer(BlackboxOptimizer):
@@ -178,9 +173,9 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
                num_top_directions=0,
                ga_optimizer=None):
     # Check step_size and ga_optimizer
-    if bool(step_size) == bool(ga_optimizer):
+    if (step_size is None) == (ga_optimizer is None):
       raise ValueError(
-          "Exactly one of step_size and ga_optimizer should be provided")
+          'Exactly one of step_size and ga_optimizer should be provided')
     if step_size:
       ga_optimizer = gradient_ascent_optimization_algorithms.MomentumOptimizer(
           step_size=step_size, momentum=0.0)
@@ -190,7 +185,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     self.normalize_fvalues = normalize_fvalues
     self.hyperparameters_update_method = hyperparameters_update_method
     self.num_top_directions = num_top_directions
-    if hyperparameters_update_method == "state_normalization":
+    if hyperparameters_update_method == 'state_normalization':
       self.state_dim = extra_params[0]
       self.nb_steps = 0
       self.sum_state_vector = [0.0] * self.state_dim
@@ -217,9 +212,9 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     gradient = np.zeros(dim)
     for i, perturbation in enumerate(top_ps):
       function_value = top_fs[i]
-      if self.est_type == "forward_fd":
+      if self.est_type == 'forward_fd':
         gradient_sample = (function_value - current_value) * perturbation
-      elif self.est_type == "antithetic":
+      elif self.est_type == 'antithetic':
         gradient_sample = function_value * perturbation
       gradient_sample /= self.precision_parameter**2
       gradient += gradient_sample
@@ -228,21 +223,21 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     # in that code, the denominator for antithetic was num_top_directions.
     # we maintain compatibility for now so that the same hyperparameters
     # currently used in Toaster will have the same effect
-    if self.est_type == "antithetic" and len(top_ps) < len(perturbations):
+    if self.est_type == 'antithetic' and len(top_ps) < len(perturbations):
       gradient *= 2
     # Use the gradient ascent optimizer to compute the next parameters with the
     # gradients
     return self.ga_optimizer.run_step(current_input, gradient)
 
   def get_hyperparameters(self):
-    if self.hyperparameters_update_method == "state_normalization":
+    if self.hyperparameters_update_method == 'state_normalization':
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
   def get_state(self):
     ga_state = self.ga_optimizer.get_state()
-    if self.hyperparameters_update_method == "state_normalization":
+    if self.hyperparameters_update_method == 'state_normalization':
       current_state = [self.nb_steps]
       current_state += self.sum_state_vector
       current_state += self.squares_state_vector
@@ -252,7 +247,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
       return ga_state
 
   def update_state(self, evaluation_stats):
-    if self.hyperparameters_update_method == "state_normalization":
+    if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
       first_half = evaluation_stats[:self.state_dim]
@@ -276,7 +271,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
       ]
 
   def set_state(self, state):
-    if self.hyperparameters_update_method == "state_normalization":
+    if self.hyperparameters_update_method == 'state_normalization':
       self.nb_steps = state[0]
       state = state[1:]
       self.sum_state_vector = state[:self.state_dim]
@@ -290,16 +285,13 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     self.ga_optimizer.set_state(state)
 
 
-"""
-secondorder optimizers
-"""
-r"""Experimental optimizers based on blackbox ES.
+# pylint: disable=pointless-string-statement
+"""Secondorder optimizers.
+
+Experimental optimizers based on blackbox ES.
 
 See class descriptions for more detailed notes on each algorithm.
 """
-
-from absl import flags
-import scipy.optimize as sp_opt
 
 _GRAD_TYPE = flags.DEFINE_string('grad_type', 'MC', 'Gradient estimator.')
 _TR_INIT_RADIUS = flags.DEFINE_float('tr_init_radius', 1,
@@ -328,8 +320,6 @@ _TR_MINIMUM_RADIUS = flags.DEFINE_float('tr_minimum_radius', 0.1,
                                         'Minimum radius of trust region.')
 
 DEFAULT_ARMIJO = 1e-4
-
-# pylint: disable=pointless-string-statement
 """Gradient estimators.
 The blackbox pipeline has two steps:
 estimate gradient/Hessian --> optimizer --> next weight
@@ -461,6 +451,8 @@ class QuadraticModel(object):
   f(x) = 1/2x^TAx + b^Tx + c
   """
 
+  # pylint: disable=invalid-name
+  # argument Av should be capitalized as such for mathematical convention
   def __init__(self, Av, b, c=0):
     """Initialize quadratic function.
 
@@ -474,6 +466,7 @@ class QuadraticModel(object):
     self.b = b
     self.c = c
 
+  # pylint: enable=invalid-name
   def f(self, x):
     """Evaluate the quadratic function.
 
@@ -793,8 +786,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         absolute_max_reward = abs(current_value)
       else:
         absolute_max_reward = abs(self.accepted_function_value)
-      if absolute_max_reward < 1e-8:
-        absolute_max_reward = 1e-8
+      absolute_max_reward = max(absolute_max_reward, 1e-08)
       abs_ratio = (
           abs(current_value - self.accepted_function_value) /
           absolute_max_reward)
@@ -1028,8 +1020,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
         # This point was just returned to after rejecting a step.
         # We update the model by averaging the previous gradient/Hessian
         # with the current perturbations. Then we set is_returned_step to False
-        # in preparation for taking the next step after re-solving the trust region
-        # at this point again, with smaller radius. """
+        # in preparation for taking the next step after re-solving the
+        # trust region at this point again, with smaller radius. """
       self.accepted_quadratic_model = mf
       self.accepted_weights = current_input
       # This step has been accepted, so store the most recent quadratic model

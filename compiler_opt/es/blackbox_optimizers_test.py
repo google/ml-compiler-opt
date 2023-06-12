@@ -21,14 +21,15 @@
 # https://arxiv.org/abs/1804.02395
 #
 ###############################################################################
-"""Tests for google3.learning.brain.contrib.blackbox.blackbox_optimization_algorithms."""
+r"""Tests for blackbox_optimization_algorithms."""
 
 import numpy as np
 
-import blackbox_optimizers as bo
 from absl.testing import absltest
 from absl.testing import parameterized
-import gradient_ascent_optimization_algorithms
+
+from compiler_opt.es import blackbox_optimizers as bo
+from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
                                [-2, -2], [0, 3], [0, -3], [0, 4], [0, -4],
@@ -109,9 +110,6 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_array_almost_equal(expected_gradient, gradient)
 
 
-"""Tests for google3.learning.brain.contrib.blackbox.secondorder_blackbox_optimizers."""
-
-
 class SecondorderBlackboxOptimizersTest(absltest.TestCase):
 
   class GenericFunction(object):
@@ -126,7 +124,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     The matrix A is indefinite and has eigs
     [2.15, 0.53, -2.67]
     """
-    super(SecondorderBlackboxOptimizersTest, self).setUp()
+    super().setUp()
     # pylint: disable=bad-whitespace,invalid-name
     self.A = np.array([[1, -1, 0], [-1, 0, 2], [0, 2, -1]])
     self.b = np.array([1, 0, 1])
@@ -163,9 +161,15 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     over the nonnegative orthant.
     The exact solution is (0,1).
     """
-    cost_function = lambda x: (x[0] + 1)**2 + (x[1] - 1)**2
-    cost_gradient = lambda x: np.array([2 * (x[0] + 1), 2 * (x[1] - 1)])
-    projector = lambda x: np.maximum(0, x)
+
+    def cost_function(x):
+      return (x[0] + 1)**2 + (x[1] - 1)**2
+
+    def cost_gradient(x):
+      return np.array([2 * (x[0] + 1), 2 * (x[1] - 1)])
+
+    def projector(x):
+      return np.maximum(0, x)
 
     objective_function = SecondorderBlackboxOptimizersTest.GenericFunction()
     objective_function.f = cost_function
