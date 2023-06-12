@@ -123,9 +123,10 @@ class MomentumOptimizer(GAOptimizer):
 
 class AdamOptimizer(GAOptimizer):
   """Class implementing ADAM gradient ascent optimizer.
-  
-  The state is the first moment moving average, the second moment moving average, 
-  and t (current step number) combined in that order into one list
+
+  The state is the first moment moving average, the second
+  moment moving average, and t (current step number)
+  combined in that order into one list
   """
 
   def __init__(self, step_size, beta1=0.9, beta2=0.999, epsilon=1e-07):

@@ -21,7 +21,7 @@
 # https://arxiv.org/abs/1804.02395
 #
 ###############################################################################
-"""Tests for google3.learning.brain.contrib.blackbox.gradient_ascent_optimization_algorithms."""
+r"""Tests for gradient_ascent_optimization_algorithms."""
 
 import numpy as np
 
