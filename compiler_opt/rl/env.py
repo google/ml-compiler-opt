@@ -16,19 +16,17 @@
 
 from __future__ import annotations
 
-import math
-import subprocess
 import abc
 import contextlib
 import io
+import math
 import os
+import subprocess
 import tempfile
-from typing import Any, Generator, List, Optional, Tuple, Type
+from typing import Any, Callable, Generator, List, Optional, Tuple, Type
 
 import numpy as np
-
-from compiler_opt.rl import corpus
-from compiler_opt.rl import log_reader
+from compiler_opt.rl import corpus, log_reader
 
 OBS_T = Any
 
@@ -110,6 +108,29 @@ class MLGOTask(metaclass=abc.ABCMeta):
       A dictionary mapping [context name] -> [score].
     """
     pass
+
+
+def get_simple_compile_and_score_task_type(
+    score_fn: Callable[[str], dict[str, float]]) -> Type[MLGOTask]:
+
+  class SimpleCompileAndScoreTask(MLGOTask):
+
+    def __init__(self):
+      self._score_fn = score_fn
+      self._module_name = 'compiled_module'
+
+    def get_cmdline(self, clang_path: str, base_args: List[str],
+                    interactive_base_path: Optional[str],
+                    working_dir: str) -> List[str]:
+      del interactive_base_path
+      compiled_module_path = os.path.join(working_dir, self._module_name)
+      return [clang_path] + base_args + ['-o', compiled_module_path]
+
+    def get_module_scores(self, working_dir: str) -> dict[str, float]:
+      compiled_module_path = os.path.join(working_dir, self._module_name)
+      return score_fn(compiled_module_path)
+
+  return SimpleCompileAndScoreTask
 
 
 class ClangProcess:
