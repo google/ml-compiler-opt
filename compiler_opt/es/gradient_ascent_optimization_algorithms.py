@@ -29,7 +29,7 @@ current parameters, and output the new parameters.
 
 import abc
 import numpy as np
-from typing import List
+from typing import List, Optional
 import numpy.typing as npt
 
 
@@ -41,8 +41,8 @@ class GAOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, current_input: npt.NDArray,
-               gradient: npt.NDArray[np.float32]) -> npt.NDArray:
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     """Conducts a single step of gradient ascent optimization.
 
     Conduct a single step of gradient ascent optimization procedure, given the
@@ -100,8 +100,8 @@ class MomentumOptimizer(GAOptimizer):
     self.moving_average = np.asarray([], dtype=np.float32)
     super().__init__()
 
-  def run_step(self, current_input: npt.NDArray,
-               gradient: npt.NDArray[np.float32]) -> npt.NDArray:
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     if self.moving_average.size == 0:
       # Initialize the moving average
       self.moving_average = np.zeros(len(current_input), dtype=np.float32)
@@ -135,9 +135,9 @@ class AdamOptimizer(GAOptimizer):
 
   def __init__(self,
                step_size: float,
-               beta1: float = 0.9,
-               beta2: float = 0.999,
-               epsilon: float = 1e-07):
+               beta1: Optional[float] = 0.9,
+               beta2: Optional[float] = 0.999,
+               epsilon: Optional[float] = 1e-07):
     self.step_size = step_size
     self.beta1 = beta1
     self.beta2 = beta2
@@ -148,8 +148,8 @@ class AdamOptimizer(GAOptimizer):
     self.t = 0
     super().__init__()
 
-  def run_step(self, current_input: npt.NDArray,
-               gradient: npt.NDArray[np.float32]) -> npt.NDArray:
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     if self.first_moment_moving_average.size == 0:
       # Initialize the moving averages
       self.first_moment_moving_average = np.zeros(
