@@ -112,9 +112,6 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
 class SecondorderBlackboxOptimizersTest(absltest.TestCase):
 
-  class GenericFunction(object):
-    pass
-
   def setUp(self):
     """Create common data matrices for tests.
 
@@ -162,18 +159,23 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     The exact solution is (0,1).
     """
 
-    def cost_function(x):
-      return (x[0] + 1)**2 + (x[1] - 1)**2
+    class GenericFunction(bo.QuadraticModel):
 
-    def cost_gradient(x):
-      return np.array([2 * (x[0] + 1), 2 * (x[1] - 1)])
+      def __init__(self):  # pylint: disable=super-init-not-called
+        pass
+
+      def f(self, x):
+        return (x[0] + 1)**2 + (x[1] - 1)**2
+
+      def grad(self, x):
+        return np.array([2 * (x[0] + 1), 2 * (x[1] - 1)])
 
     def projector(x):
       return np.maximum(0, x)
 
-    objective_function = SecondorderBlackboxOptimizersTest.GenericFunction()
-    objective_function.f = cost_function
-    objective_function.grad = cost_gradient
+    objective_function = GenericFunction()
+    # objective_function.f = cost_function
+    # objective_function.grad = cost_gradient
     pgd_params = {'const_step_size': 0.5}
     pgd_optimizer = bo.ProjectedGradientOptimizer(objective_function, projector,
                                                   pgd_params, np.array([1, 1]))

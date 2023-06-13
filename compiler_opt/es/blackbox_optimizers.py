@@ -35,7 +35,7 @@ import numpy.typing as npt
 from sklearn import linear_model
 from absl import flags
 import scipy.optimize as sp_opt
-from typing import List, Callable, Tuple, Any, Optional, Union, Literal, Mapping, Sequence
+from typing import List, Dict, Callable, Tuple, Any, Optional, Union, Literal, Mapping, Sequence
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
@@ -180,7 +180,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
       est_type: Union[Literal['forward_fd'], Literal['antithetic']],
       normalize_fvalues: bool,
       hyperparameters_update_method: Union[Literal['state_normalization'], str],
-      extra_params: Sequence[int],
+      extra_params: Optional[Sequence[int]],
       step_size: Optional[float] = None,
       num_top_directions: int = 0,
       gradient_ascent_optimizer: Optional[
@@ -407,8 +407,9 @@ def monte_carlo_gradient(
 
 
 def sklearn_regression_gradient(
-    clf: linear_model, est_type: Union[Literal['forward_fd'],
-                                       Literal['antithetic']],
+    clf: Union[linear_model.Ridge,
+               linear_model.Lasso], est_type: Union[Literal['forward_fd'],
+                                                    Literal['antithetic']],
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32],
     current_value: float) -> npt.NDArray[np.float32]:
@@ -624,7 +625,7 @@ class TrustRegionSubproblemOptimizer(object):
 
   def __init__(self,
                model_function: QuadraticModel,
-               trust_region_params: Mapping[str, Any],
+               trust_region_params: Dict[str, Any],
                x_init: Optional[npt.NDArray[np.float32]] = None):
     self.mf = model_function
     self.params = trust_region_params
