@@ -68,16 +68,12 @@ def get_compiled_module_size(compiled_module_path: str,
   return native_size
 
 
-def compile_module_and_get_size(module: corpus.LoadedModuleSpec,
-                                clang_path: str, llvm_size_path: str) -> float:
+def compile_module_and_get_score(module: corpus.LoadedModuleSpec,
+                                 clang_path: str,
+                                 score_fn: Callable[[str], float]) -> float:
 
   def _score_fn(compiled_module_path: str) -> Dict[str, float]:
-    return {
-        'default':
-            get_compiled_module_size(
-                compiled_module_path=compiled_module_path,
-                llvm_size_path=llvm_size_path)
-    }
+    return {'default': score_fn(compiled_module_path)}
 
   task_type = env.get_simple_compile_and_score_task_type(score_fn=_score_fn)
   with env.clang_session(
@@ -92,12 +88,53 @@ def for_each_fn_compile_and_get_size(
     module: corpus.LoadedModuleSpec, fns: List[str], clang_path: str,
     llvm_size_path: str, llvm_extract_path: str) -> Dict[str, float]:
 
+  def _score_compiled_fn(compiled_module_path: str) -> float:
+    return get_compiled_module_size(
+        compiled_module_path=compiled_module_path,
+        llvm_size_path=llvm_size_path)
+
   def _score_fn(fn_module: corpus.LoadedModuleSpec) -> float:
-    return compile_module_and_get_size(
-        module=fn_module, clang_path=clang_path, llvm_size_path=llvm_size_path)
+    return compile_module_and_get_score(
+        module=fn_module, clang_path=clang_path, score_fn=_score_compiled_fn)
 
   return compute_per_fn_score(
       module=module,
+      fns=fns,
+      score_module_fn=_score_fn,
+      llvm_extract_path=llvm_extract_path)
+
+
+def get_mca_score(module_assembly_path: str, llvm_mca_path: str) -> int:
+  cmdline = [llvm_mca_path, module_assembly_path]
+  completed_proc = subprocess.run(cmdline, capture_output=True)
+  if not completed_proc.stdout:
+    return 0
+    #raise RuntimeError(f'Empty llvm-mca output: {" ".join(cmdline)}')
+  output = completed_proc.stdout.decode('utf-8')
+  tmp = output.split('\n')
+  if len(tmp) < 3:
+    raise RuntimeError(f'Wrong llvm-size output {output}')
+  tmp = tmp[2].split()
+  cycles = int(tmp[-1])
+  return cycles
+
+
+def for_each_fn_compile_and_get_mca_score(
+    module: corpus.LoadedModuleSpec, fns: List[str], clang_path: str,
+    llvm_mca_path: str, llvm_extract_path: str) -> Dict[str, float]:
+
+  def _score_compiled_fn(compiled_module_path: str) -> float:
+    return get_mca_score(
+        module_assembly_path=compiled_module_path, llvm_mca_path=llvm_mca_path)
+
+  def _score_fn(fn_module: corpus.LoadedModuleSpec) -> float:
+    return compile_module_and_get_score(
+        module=fn_module, clang_path=clang_path, score_fn=_score_compiled_fn)
+
+  to_assembly_module = dataclasses.replace(
+      module, orig_options=module.orig_options + ('-S',))
+  return compute_per_fn_score(
+      module=to_assembly_module,
       fns=fns,
       score_module_fn=_score_fn,
       llvm_extract_path=llvm_extract_path)
