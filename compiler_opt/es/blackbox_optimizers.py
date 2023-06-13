@@ -634,7 +634,7 @@ class TrustRegionSubproblemOptimizer(object):
 
   def __init__(self,
                model_function: QuadraticModel,
-               trust_region_params: Mapping[str, Any],
+               trust_region_params: Dict[str, Any],
                x_init: Optional[npt.NDArray[np.float32]] = None):
     self.mf = model_function
     self.params = trust_region_params
