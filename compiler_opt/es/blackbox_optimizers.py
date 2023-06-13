@@ -486,6 +486,7 @@ class QuadraticModel(object):
   Presents an interface for evaluating functions of the form
   f(x) = 1/2x^TAx + b^Tx + c
   """
+
   # pylint: disable=invalid-name
   # argument Av should be capitalized as such for mathematical convention
   def __init__(self,
@@ -633,7 +634,7 @@ class TrustRegionSubproblemOptimizer(object):
 
   def __init__(self,
                model_function: QuadraticModel,
-               trust_region_params: Dict[str, Any],
+               trust_region_params: Mapping[str, Any],
                x_init: Optional[npt.NDArray[np.float32]] = None):
     self.mf = model_function
     self.params = trust_region_params
