@@ -59,7 +59,7 @@ class GradientAscentOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_state(self) -> List[np.float32]:
+  def get_state(self) -> List[float]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -116,7 +116,7 @@ class MomentumOptimizer(GradientAscentOptimizer):
 
     return current_input + step
 
-  def get_state(self) -> List[np.float32]:
+  def get_state(self) -> List[float]:
     return self.moving_average.tolist()
 
   def set_state(self, state: npt.NDArray[np.float32]) -> None:
