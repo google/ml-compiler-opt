@@ -23,10 +23,9 @@
 ###############################################################################
 r"""Tests for gradient_ascent_optimization_algorithms."""
 
-import numpy as np
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 

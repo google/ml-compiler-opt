@@ -28,10 +28,13 @@ current parameters, and output the new parameters.
 """
 
 import abc
+
 import numpy as np
+import numpy.typing as npt
+from typing import List, Optional
 
 
-class GAOptimizer(metaclass=abc.ABCMeta):
+class GradientAscentOptimizer(metaclass=abc.ABCMeta):
   """Abstract class for general gradient ascent optimizers.
 
   Class is responsible for encoding different gradient ascent optimization
@@ -39,7 +42,8 @@ class GAOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     """Conducts a single step of gradient ascent optimization.
 
     Conduct a single step of gradient ascent optimization procedure, given the
@@ -55,7 +59,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_state(self):
+  def get_state(self) -> List[np.float32]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -68,7 +72,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def set_state(self, state):
+  def set_state(self, state: npt.NDArray[np.float32]) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -81,7 +85,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
 
-class MomentumOptimizer(GAOptimizer):
+class MomentumOptimizer(GradientAscentOptimizer):
   """Class implementing momentum gradient ascent optimizer.
 
   Setting momentum coefficient to zero is equivalent to vanilla gradient
@@ -90,14 +94,15 @@ class MomentumOptimizer(GAOptimizer):
   the state is the moving average as a list
   """
 
-  def __init__(self, step_size, momentum):
+  def __init__(self, step_size: float, momentum: float):
     self.step_size = step_size
     self.momentum = momentum
 
     self.moving_average = np.asarray([], dtype=np.float32)
     super().__init__()
 
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     if self.moving_average.size == 0:
       # Initialize the moving average
       self.moving_average = np.zeros(len(current_input), dtype=np.float32)
@@ -105,23 +110,20 @@ class MomentumOptimizer(GAOptimizer):
       raise ValueError(
           "Dimensions of the parameters and moving average do not match")
 
-    if not isinstance(gradient, np.ndarray):
-      gradient = np.asarray(gradient, dtype=np.float32)
-
     self.moving_average = self.momentum * self.moving_average + (
         1 - self.momentum) * gradient
     step = self.step_size * self.moving_average
 
     return current_input + step
 
-  def get_state(self):
+  def get_state(self) -> List[np.float32]:
     return self.moving_average.tolist()
 
-  def set_state(self, state):
+  def set_state(self, state: npt.NDArray[np.float32]) -> None:
     self.moving_average = np.asarray(state, dtype=np.float32)
 
 
-class AdamOptimizer(GAOptimizer):
+class AdamOptimizer(GradientAscentOptimizer):
   """Class implementing ADAM gradient ascent optimizer.
 
   The state is the first moment moving average, the second
@@ -129,7 +131,11 @@ class AdamOptimizer(GAOptimizer):
   combined in that order into one list
   """
 
-  def __init__(self, step_size, beta1=0.9, beta2=0.999, epsilon=1e-07):
+  def __init__(self,
+               step_size: float,
+               beta1: Optional[float] = 0.9,
+               beta2: Optional[float] = 0.999,
+               epsilon: Optional[float] = 1e-07):
     self.step_size = step_size
     self.beta1 = beta1
     self.beta2 = beta2
@@ -140,7 +146,8 @@ class AdamOptimizer(GAOptimizer):
     self.t = 0
     super().__init__()
 
-  def run_step(self, current_input, gradient):
+  def run_step(self, current_input: npt.NDArray[np.float32],
+               gradient: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     if self.first_moment_moving_average.size == 0:
       # Initialize the moving averages
       self.first_moment_moving_average = np.zeros(
@@ -152,9 +159,6 @@ class AdamOptimizer(GAOptimizer):
     elif len(self.first_moment_moving_average) != len(current_input):
       raise ValueError(
           "Dimensions of the parameters and moving averages do not match")
-
-    if not isinstance(gradient, np.ndarray):
-      gradient = np.asarray(gradient, dtype=np.float32)
 
     self.first_moment_moving_average = (
         self.beta1 * self.first_moment_moving_average +
@@ -171,11 +175,11 @@ class AdamOptimizer(GAOptimizer):
 
     return current_input + step
 
-  def get_state(self):
+  def get_state(self) -> List[float]:
     return (self.first_moment_moving_average.tolist() +
             self.second_moment_moving_average.tolist() + [self.t])
 
-  def set_state(self, state):
+  def set_state(self, state: npt.NDArray[np.float32]) -> None:
     total_len = len(state)
     if total_len % 2 != 1:
       raise ValueError("The dimension of the state should be odd")
