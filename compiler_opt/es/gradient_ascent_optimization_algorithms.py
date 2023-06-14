@@ -28,12 +28,13 @@ current parameters, and output the new parameters.
 """
 
 import abc
+
 import numpy as np
-from typing import List, Optional
 import numpy.typing as npt
+from typing import List, Optional
 
 
-class GAOptimizer(metaclass=abc.ABCMeta):
+class GradientAscentOptimizer(metaclass=abc.ABCMeta):
   """Abstract class for general gradient ascent optimizers.
 
   Class is responsible for encoding different gradient ascent optimization
@@ -84,7 +85,7 @@ class GAOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
 
-class MomentumOptimizer(GAOptimizer):
+class MomentumOptimizer(GradientAscentOptimizer):
   """Class implementing momentum gradient ascent optimizer.
 
   Setting momentum coefficient to zero is equivalent to vanilla gradient
@@ -109,9 +110,6 @@ class MomentumOptimizer(GAOptimizer):
       raise ValueError(
           "Dimensions of the parameters and moving average do not match")
 
-    if not isinstance(gradient, np.ndarray):
-      gradient = np.asarray(gradient, dtype=np.float32)
-
     self.moving_average = self.momentum * self.moving_average + (
         1 - self.momentum) * gradient
     step = self.step_size * self.moving_average
@@ -125,7 +123,7 @@ class MomentumOptimizer(GAOptimizer):
     self.moving_average = np.asarray(state, dtype=np.float32)
 
 
-class AdamOptimizer(GAOptimizer):
+class AdamOptimizer(GradientAscentOptimizer):
   """Class implementing ADAM gradient ascent optimizer.
 
   The state is the first moment moving average, the second
@@ -161,9 +159,6 @@ class AdamOptimizer(GAOptimizer):
     elif len(self.first_moment_moving_average) != len(current_input):
       raise ValueError(
           "Dimensions of the parameters and moving averages do not match")
-
-    if not isinstance(gradient, np.ndarray):
-      gradient = np.asarray(gradient, dtype=np.float32)
 
     self.first_moment_moving_average = (
         self.beta1 * self.first_moment_moving_average +

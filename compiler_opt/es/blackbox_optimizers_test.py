@@ -23,12 +23,12 @@
 ###############################################################################
 r"""Tests for blackbox_optimization_algorithms."""
 
-import numpy as np
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
-from compiler_opt.es import blackbox_optimizers as bo
+from compiler_opt.es import blackbox_optimizers
+from compiler_opt.es.blackbox_optimizers import EstimatorType, UpdateMethod
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
@@ -41,34 +41,35 @@ function_value_array = np.array(
 class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, 'antithetic', 3,
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
        np.array([[4, 2], [2, 6], [-1, 5], [-2, -2], [8, -6], [1, -5]
                 ]), np.array([10, -8, 4, -10, 8, -4])),
-      (perturbation_array, function_value_array, 'forward_fd', 5,
+      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 5,
        np.array([[4, 2], [8, -6], [-1, 5], [0, -3], [2, -1]
                 ]), np.array([10, 8, 4, 2, 1])))
   def test_filtering(self, perturbations, function_values, est_type,
                      num_top_directions, expected_ps, expected_fs):
-    top_ps, top_fs = bo.filter_top_directions(perturbations, function_values,
-                                              est_type, num_top_directions)
+    top_ps, top_fs = blackbox_optimizers.filter_top_directions(
+        perturbations, function_values, est_type, num_top_directions)
     np.testing.assert_array_equal(expected_ps, top_ps)
     np.testing.assert_array_equal(expected_fs, top_fs)
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, 'antithetic', 3,
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
        np.array([100, -16])), (perturbation_array, function_value_array,
-                               'forward_fd', 5, np.array([76, -9])),
-      (perturbation_array, function_value_array, 'antithetic', 0,
-       np.array([102, -34])), (perturbation_array, function_value_array,
-                               'forward_fd', 0, np.array([74, -34])))
-  def test_mc_gradient(self, perturbations, function_values, est_type,
-                       num_top_directions, expected_gradient):
+                               EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
+       np.array([102, -34])),
+      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
+       np.array([74, -34])))
+  def test_monte_carlo_gradient(self, perturbations, function_values, est_type,
+                                num_top_directions, expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
     current_value = 2
-    blackbox_object = bo.MCBlackboxOptimizer(precision_parameter, est_type,
-                                             False, 'no_method', None,
-                                             step_size, num_top_directions)
+    blackbox_object = blackbox_optimizers.MonteCarloBlackboxOptimizer(
+        precision_parameter, est_type, False, UpdateMethod.NO_METHOD, None,
+        step_size, num_top_directions)
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)
@@ -81,23 +82,26 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_array_almost_equal(expected_gradient, gradient)
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, 'antithetic', 3,
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
        np.array([100, -16])), (perturbation_array, function_value_array,
-                               'forward_fd', 5, np.array([76, -9])),
-      (perturbation_array, function_value_array, 'antithetic', 0,
-       np.array([102, -34])), (perturbation_array, function_value_array,
-                               'forward_fd', 0, np.array([74, -34])))
-  def test_mc_gradient_with_ga_optimizer(self, perturbations, function_values,
-                                         est_type, num_top_directions,
-                                         expected_gradient):
+                               EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
+       np.array([102, -34])),
+      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
+       np.array([74, -34])))
+  def test_monte_carlo_gradient_with_gradient_ascent_optimizer(
+      self, perturbations, function_values, est_type, num_top_directions,
+      expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
     current_value = 2
-    ga_optimizer = gradient_ascent_optimization_algorithms.MomentumOptimizer(
-        step_size, 0.0)
-    blackbox_object = bo.MCBlackboxOptimizer(precision_parameter, est_type,
-                                             False, 'no_method', None, None,
-                                             num_top_directions, ga_optimizer)
+    gradient_ascent_optimizer = (
+        gradient_ascent_optimization_algorithms.MomentumOptimizer(
+            step_size, 0.0))
+    blackbox_object = (
+        blackbox_optimizers.MonteCarloBlackboxOptimizer(
+            precision_parameter, est_type, False, UpdateMethod.NO_METHOD, None,
+            None, num_top_directions, gradient_ascent_optimizer))
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)
@@ -130,12 +134,14 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     # pylint: enable=bad-whitespace,invalid-name
 
   def testQuadraticModelFunctionValue(self):
-    quad_model = bo.QuadraticModel(self.multiply_Av, self.b, self.c)
+    quad_model = blackbox_optimizers.QuadraticModel(self.multiply_Av, self.b,
+                                                    self.c)
     x = np.array([1, 0, -2])
     self.assertEqual(0.0, quad_model.f(x))
 
   def testQuadraticModelGradient(self):
-    quad_model = bo.QuadraticModel(self.multiply_Av, self.b, self.c)
+    quad_model = blackbox_optimizers.QuadraticModel(self.multiply_Av, self.b,
+                                                    self.c)
     x = np.array([1, 0, -2])
     gradient = quad_model.grad(x)
     self.assertEqual(gradient[0], 2.0)
@@ -145,7 +151,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
   def testMakeProjector(self):
     radius = 3.0
     x = np.array([3.0, 3.0])
-    projector = bo.make_projector(radius)
+    projector = blackbox_optimizers.make_projector(radius)
     projected_point = projector(x)
     self.assertTrue(np.isclose(3.0 / np.sqrt(2), projected_point[0]))
     self.assertTrue(np.isclose(3.0 / np.sqrt(2), projected_point[0]))
@@ -159,7 +165,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     The exact solution is (0,1).
     """
 
-    class GenericFunction(bo.QuadraticModel):
+    class GenericFunction(blackbox_optimizers.QuadraticModel):
 
       def __init__(self):  # pylint: disable=super-init-not-called
         pass
@@ -174,11 +180,9 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
       return np.maximum(0, x)
 
     objective_function = GenericFunction()
-    # objective_function.f = cost_function
-    # objective_function.grad = cost_gradient
     pgd_params = {'const_step_size': 0.5}
-    pgd_optimizer = bo.ProjectedGradientOptimizer(objective_function, projector,
-                                                  pgd_params, np.array([1, 1]))
+    pgd_optimizer = blackbox_optimizers.ProjectedGradientOptimizer(
+        objective_function, projector, pgd_params, np.array([1, 1]))
     while (pgd_optimizer.get_iterations() <= 10 and
            pgd_optimizer.get_x_diff_norm() > 1e-9):
       pgd_optimizer.run_step()
@@ -193,7 +197,8 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
     1/2x^TAx + b^Tx over the ball of radius 2, where A, b are created
     in setUp.
     """
-    quad_model = bo.QuadraticModel(self.multiply_Av, self.b, self.c)
+    quad_model = blackbox_optimizers.QuadraticModel(self.multiply_Av, self.b,
+                                                    self.c)
     tr_params = {
         'radius': 2,
         'problem_dim': 3,
@@ -201,7 +206,7 @@ class SecondorderBlackboxOptimizersTest(absltest.TestCase):
         'subproblem_maxiter': 100,
         'sub_terminate_stable': 1e-9
     }
-    tr_subproblem_solver = bo.TrustRegionSubproblemOptimizer(
+    tr_subproblem_solver = blackbox_optimizers.TrustRegionSubproblemOptimizer(
         quad_model, tr_params)
     tr_subproblem_solver.solve_trust_region_subproblem()
     solution = tr_subproblem_solver.get_solution()

@@ -29,22 +29,40 @@ point obtained after conducting one optimization step.
 """
 
 import abc
+import enum
 import math
+
+from absl import flags
 import numpy as np
 import numpy.typing as npt
-from sklearn import linear_model
-from absl import flags
 import scipy.optimize as sp_opt
-from typing import List, Dict, Callable, Tuple, Any, Optional, Union, Literal, Mapping, Sequence
+from sklearn import linear_model
+from typing import Any, Callable, Dict, List, Mapping, Tuple, Optional, Sequence, Union
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
+
+SequenceOfFloats = Union[Sequence[float], npt.NDArray[np.float32]]
+
+
+class EstimatorType(enum.Enum):
+  FORWARD_FD = 1
+  ANTITHETIC = 2
+
+
+class UpdateMethod(enum.Enum):
+  STATE_NORMALIZATION = 1
+  NO_METHOD = 2
+
+
+class LinearModel(enum.Enum):
+  LASSO = linear_model.Lasso
+  RIDGE = linear_model.Ridge
 
 
 def filter_top_directions(
     perturbations: npt.NDArray[np.float32],
-    function_values: npt.NDArray[np.float32],
-    est_type: Union[Literal['forward_fd'],
-                    Literal['antithetic']], num_top_directions: int
+    function_values: npt.NDArray[np.float32], est_type: EstimatorType,
+    num_top_directions: int
 ) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
   """Select the subset of top-performing perturbations.
 
@@ -67,16 +85,16 @@ def filter_top_directions(
   """
   if not num_top_directions > 0:
     return (perturbations, function_values)
-  if est_type == 'forward_fd':
+  if est_type == EstimatorType.FORWARD_FD:
     top_index = np.argsort(-function_values)
-  elif est_type == 'antithetic':
+  elif est_type == EstimatorType.ANTITHETIC:
     top_index = np.argsort(-np.abs(function_values[0::2] -
                                    function_values[1::2]))
   top_index = top_index[:num_top_directions]
-  if est_type == 'forward_fd':
+  if est_type == EstimatorType.FORWARD_FD:
     perturbations = perturbations[top_index]
     function_values = function_values[top_index]
-  elif est_type == 'antithetic':
+  elif est_type == EstimatorType.ANTITHETIC:
     perturbations = np.concatenate(
         (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
         axis=0)
@@ -129,7 +147,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def get_state(self) -> List:
+  def get_state(self) -> List[float]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -142,9 +160,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def update_state(
-      self, evaluation_stats: Union[Sequence[float],
-                                    npt.NDArray[np.float32]]) -> None:
+  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
     """Updates the state for blackbox function runs.
 
     Updates the state of the optimizer for blackbox function runs.
@@ -157,8 +173,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def set_state(self, state: Union[Sequence[float],
-                                   npt.NDArray[np.float32]]) -> None:
+  def set_state(self, state: SequenceOfFloats) -> None:
     """Sets up the internal state of the optimizer.
 
     Sets up the internal state of the optimizer.
@@ -171,15 +186,15 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
 
-class MCBlackboxOptimizer(BlackboxOptimizer):
+class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
   """Class implementing GD optimizer with MC estimation of the gradient."""
 
   def __init__(
       self,
       precision_parameter: float,
-      est_type: Union[Literal['forward_fd'], Literal['antithetic']],
+      est_type: EstimatorType,
       normalize_fvalues: bool,
-      hyperparameters_update_method: Union[Literal['state_normalization'], str],
+      hyperparameters_update_method: UpdateMethod,
       extra_params: Optional[Sequence[int]],
       step_size: Optional[float] = None,
       num_top_directions: int = 0,
@@ -199,7 +214,7 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     self.normalize_fvalues = normalize_fvalues
     self.hyperparameters_update_method = hyperparameters_update_method
     self.num_top_directions = num_top_directions
-    if hyperparameters_update_method == 'state_normalization':
+    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.state_dim = extra_params[0]
       self.nb_steps = 0
       self.sum_state_vector = [0.0] * self.state_dim
@@ -228,9 +243,9 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     gradient = np.zeros(dim)
     for i, perturbation in enumerate(top_ps):
       function_value = top_fs[i]
-      if self.est_type == 'forward_fd':
+      if self.est_type == EstimatorType.FORWARD_FD:
         gradient_sample = (function_value - current_value) * perturbation
-      elif self.est_type == 'antithetic':
+      elif self.est_type == EstimatorType.ANTITHETIC:
         gradient_sample = function_value * perturbation
       gradient_sample /= self.precision_parameter**2
       gradient += gradient_sample
@@ -239,21 +254,22 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     # in that code, the denominator for antithetic was num_top_directions.
     # we maintain compatibility for now so that the same hyperparameters
     # currently used in Toaster will have the same effect
-    if self.est_type == 'antithetic' and len(top_ps) < len(perturbations):
+    if self.est_type == EstimatorType.ANTITHETIC and \
+    len(top_ps) < len(perturbations):
       gradient *= 2
     # Use the gradient ascent optimizer to compute the next parameters with the
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
   def get_hyperparameters(self):
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
   def get_state(self) -> List[float]:
     gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       current_state = [self.nb_steps]
       current_state += self.sum_state_vector
       current_state += self.squares_state_vector
@@ -262,10 +278,8 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
     else:
       return gradient_ascent_state
 
-  def update_state(
-      self, evaluation_stats: Union[Sequence[float],
-                                    npt.NDArray[np.float32]]) -> None:
-    if self.hyperparameters_update_method == 'state_normalization':
+  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
       first_half = evaluation_stats[:self.state_dim]
@@ -288,9 +302,8 @@ class MCBlackboxOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state: Union[Sequence[float],
-                                   npt.NDArray[np.float32]]) -> None:
-    if self.hyperparameters_update_method == 'state_normalization':
+  def set_state(self, state: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps = state[0]
       state = state[1:]
       self.sum_state_vector = state[:self.state_dim]
@@ -362,7 +375,7 @@ def normalize_function_values(
 
 def monte_carlo_gradient(
     precision_parameter: float,
-    est_type: Union[Literal['forward_fd'], Literal['antithetic']],
+    est_type: EstimatorType,
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32],
     current_value: float,
@@ -385,11 +398,11 @@ def monte_carlo_gradient(
   """
   dim = len(perturbations[0])
   b_vector = None
-  if est_type == 'forward_fd':
+  if est_type == EstimatorType.FORWARD_FD:
     b_vector = (function_values -
                 np.array([current_value] * len(function_values))) / (
                     precision_parameter * precision_parameter)
-  elif est_type == 'antithetic':
+  elif est_type == EstimatorType.ANTITHETIC:
     b_vector = function_values / (2.0 * precision_parameter *
                                   precision_parameter)
   else:
@@ -407,9 +420,7 @@ def monte_carlo_gradient(
 
 
 def sklearn_regression_gradient(
-    clf: Union[linear_model.Ridge,
-               linear_model.Lasso], est_type: Union[Literal['forward_fd'],
-                                                    Literal['antithetic']],
+    clf: LinearModel, est_type: EstimatorType,
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32],
     current_value: float) -> npt.NDArray[np.float32]:
@@ -427,11 +438,11 @@ def sklearn_regression_gradient(
   matrix = None
   b_vector = None
   dim = perturbations[0].size
-  if est_type == 'forward_fd':
+  if est_type == EstimatorType.FORWARD_FD:
     matrix = np.array(perturbations)
     b_vector = (
         function_values - np.array([current_value] * len(function_values)))
-  elif est_type == 'antithetic':
+  elif est_type == EstimatorType.ANTITHETIC:
     matrix = np.transpose(np.array(perturbations[::2]))
     function_even_values = np.array(function_values.tolist()[::2])
     function_odd_values = np.array(function_values.tolist()[1::2])
@@ -762,17 +773,15 @@ class TrustRegionOptimizer(BlackboxOptimizer):
        schedule that would have to be tuned.
   """
 
-  def __init__(
-      self, precision_parameter: float, est_type: Union[Literal['forward_fd'],
-                                                        Literal['antithetic']],
-      normalize_fvalues: bool,
-      hyperparameters_update_method: Union[Literal['state_normalization'], str],
-      extra_params: Sequence[int], tr_params: Mapping[str, Any]):
+  def __init__(self, precision_parameter: float, est_type: EstimatorType,
+               normalize_fvalues: bool,
+               hyperparameters_update_method: UpdateMethod,
+               extra_params: Sequence[int], tr_params: Mapping[str, Any]):
     self.precision_parameter = precision_parameter
     self.est_type = est_type
     self.normalize_fvalues = normalize_fvalues
     self.hyperparameters_update_method = hyperparameters_update_method
-    if hyperparameters_update_method == 'state_normalization':
+    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.state_dim = extra_params[0]
       self.nb_steps = 0
       self.sum_state_vector = [0.0] * self.state_dim
@@ -1098,13 +1107,13 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     return current_input + x_update
 
   def get_hyperparameters(self) -> List[float]:
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
   def get_state(self) -> List[float]:
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       current_state = [self.nb_steps]
       current_state += self.sum_state_vector
       current_state += self.squares_state_vector
@@ -1116,7 +1125,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
   def update_state(
       self, evaluation_stats: Union[Sequence[float],
                                     npt.NDArray[np.float32]]) -> None:
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
       first_half = evaluation_stats[:self.state_dim]
@@ -1141,7 +1150,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
 
   def set_state(self, state: Union[Sequence[float],
                                    npt.NDArray[np.float32]]) -> None:
-    if self.hyperparameters_update_method == 'state_normalization':
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps = state[0]
       state = state[1:]
       self.sum_state_vector = state[:self.state_dim]
