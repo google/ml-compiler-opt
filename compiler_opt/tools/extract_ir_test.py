@@ -17,19 +17,15 @@
 # pylint: disable=protected-access
 import os.path
 
-from absl import flags
 from absl.testing import absltest
 
-from compiler_opt.tools import extract_ir
-
-flags.FLAGS['num_workers'].allow_override = True
-flags.FLAGS['output_dir'].value = ''
+from compiler_opt.tools import extract_ir_lib
 
 
 class ExtractIrTest(absltest.TestCase):
 
   def test_one_conversion(self):
-    obj = extract_ir.convert_compile_command_to_objectfile(
+    obj = extract_ir_lib.convert_compile_command_to_objectfile(
         {
             'directory': '/output/directory',
             'command': '-cc1 -c /some/path/lib/foo/bar.cc -o lib/bar.o',
@@ -47,7 +43,7 @@ class ExtractIrTest(absltest.TestCase):
     # pytype: enable=attribute-error
 
   def test_arr_conversion(self):
-    res = extract_ir.load_from_compile_commands([{
+    res = extract_ir_lib.load_from_compile_commands([{
         'directory': '/output/directory',
         'command': '-cc1 -c /some/path/lib/foo/bar.cc -o lib/bar.o',
         'file': '/some/path/lib/foo/bar.cc'
@@ -76,33 +72,34 @@ class ExtractIrTest(absltest.TestCase):
                      '/corpus/destination/path/lib/other/baz.o.thinlto.bc')
 
   def test_command_extraction(self):
-    obj = extract_ir.TrainingIRExtractor(
+    obj = extract_ir_lib.TrainingIRExtractor(
         obj_relative_path='lib/obj_file.o',
         output_base_dir='/where/corpus/goes',
         obj_base_dir='/foo/bar')
     self.assertEqual(
-        obj._get_extraction_cmd_command('/bin/llvm_objcopy_path'), [
+        obj._get_extraction_cmd_command('/bin/llvm_objcopy_path', '.llvmcmd'), [
             '/bin/llvm_objcopy_path',
             '--dump-section=.llvmcmd=/where/corpus/goes/lib/obj_file.o.cmd',
             '/foo/bar/lib/obj_file.o', '/dev/null'
         ])
     self.assertEqual(
-        obj._get_extraction_bc_command('/bin/llvm_objcopy_path'), [
+        obj._get_extraction_bc_command('/bin/llvm_objcopy_path', '.llvmbc'), [
             '/bin/llvm_objcopy_path',
             '--dump-section=.llvmbc=/where/corpus/goes/lib/obj_file.o.bc',
             '/foo/bar/lib/obj_file.o', '/dev/null'
         ])
 
   def test_command_extraction_no_basedir(self):
-    obj = extract_ir.TrainingIRExtractor('lib/obj_file.o', '/where/corpus/goes')
+    obj = extract_ir_lib.TrainingIRExtractor('lib/obj_file.o',
+                                             '/where/corpus/goes')
     self.assertEqual(
-        obj._get_extraction_cmd_command('/bin/llvm_objcopy_path'), [
+        obj._get_extraction_cmd_command('/bin/llvm_objcopy_path', '.llvmcmd'), [
             '/bin/llvm_objcopy_path',
             '--dump-section=.llvmcmd=/where/corpus/goes/lib/obj_file.o.cmd',
             'lib/obj_file.o', '/dev/null'
         ])
     self.assertEqual(
-        obj._get_extraction_bc_command('/bin/llvm_objcopy_path'), [
+        obj._get_extraction_bc_command('/bin/llvm_objcopy_path', '.llvmbc'), [
             '/bin/llvm_objcopy_path',
             '--dump-section=.llvmbc=/where/corpus/goes/lib/obj_file.o.bc',
             'lib/obj_file.o', '/dev/null'
@@ -113,7 +110,8 @@ class ExtractIrTest(absltest.TestCase):
         '-o', 'output/dir/exe', 'lib/obj1.o', 'somelib.a', '-W,blah',
         'lib/dir/obj2.o'
     ]
-    obj = extract_ir.load_from_lld_params(lld_opts, '/some/path', '/tmp/out')
+    obj = extract_ir_lib.load_from_lld_params(lld_opts, '/some/path',
+                                              '/tmp/out')
     self.assertLen(obj, 2)
     self.assertEqual(obj[0].input_obj(), '/some/path/lib/obj1.o')
     self.assertEqual(obj[0].relative_output_path(), 'lib/obj1.o')
@@ -131,7 +129,8 @@ class ExtractIrTest(absltest.TestCase):
     tempdir.create_file(file_path='2.thinlto.bc')
     tempdir.create_file(file_path='3.thinlto.bc')
     outdir = self.create_tempdir()
-    obj = extract_ir.load_for_lld_thinlto(tempdir.full_path, outdir.full_path)
+    obj = extract_ir_lib.load_for_lld_thinlto(tempdir.full_path,
+                                              outdir.full_path)
     self.assertLen(obj, 3)
     for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
       self.assertEqual(o._obj_relative_path, f'{i + 1:d}')
@@ -148,7 +147,7 @@ class ExtractIrTest(absltest.TestCase):
     tempdir.create_file(file_path='2.thinlto.bc')
     tempdir.create_file(file_path='3.thinlto.bc')
     outdir = self.create_tempdir()
-    obj = extract_ir.load_for_lld_thinlto(outer.full_path, outdir.full_path)
+    obj = extract_ir_lib.load_for_lld_thinlto(outer.full_path, outdir.full_path)
     self.assertLen(obj, 3)
     for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
       self.assertEqual(o._obj_relative_path, f'nest/{i + 1:d}')
@@ -165,7 +164,7 @@ class ExtractIrTest(absltest.TestCase):
     tempdir.create_file(file_path='2.thinlto.bc')
     tempdir.create_file(file_path='3.thinlto.bc')
     outdir = self.create_tempdir()
-    obj = extract_ir.load_for_lld_thinlto(outer.full_path, outdir.full_path)
+    obj = extract_ir_lib.load_for_lld_thinlto(outer.full_path, outdir.full_path)
     for i, o in enumerate(sorted(obj, key=lambda x: x._obj_relative_path)):
       mod_path = o.extract(thinlto_build='local')
       self.assertEqual(mod_path, f'nest/{i + 1:d}')
@@ -181,16 +180,16 @@ class ExtractIrTest(absltest.TestCase):
 
   def test_filtering(self):
     cmdline = '-cc1\0x/y/foobar.cpp\0-Oz\0-Ifoo\0-o\0bin/out.o'
-    self.assertTrue(extract_ir.should_include_module(cmdline, None))
-    self.assertTrue(extract_ir.should_include_module(cmdline, '.*'))
-    self.assertTrue(extract_ir.should_include_module(cmdline, '^-Oz$'))
-    self.assertFalse(extract_ir.should_include_module(cmdline, '^-O3$'))
+    self.assertTrue(extract_ir_lib.should_include_module(cmdline, None))
+    self.assertTrue(extract_ir_lib.should_include_module(cmdline, '.*'))
+    self.assertTrue(extract_ir_lib.should_include_module(cmdline, '^-Oz$'))
+    self.assertFalse(extract_ir_lib.should_include_module(cmdline, '^-O3$'))
 
   def test_thinlto_index_extractor(self):
     cmdline = ('-cc1\0x/y/foobar.cpp\0-Oz\0-Ifoo\0-o\0bin/'
                'out.o\0-fthinlto-index=foo/bar.thinlto.bc')
     self.assertEqual(
-        extract_ir.get_thinlto_index(cmdline, '/the/base/dir'),
+        extract_ir_lib.get_thinlto_index(cmdline, '/the/base/dir'),
         '/the/base/dir/foo/bar.thinlto.bc')
 
 
