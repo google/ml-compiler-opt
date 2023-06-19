@@ -15,8 +15,10 @@ dependencies = [
   "tensorflow>=2.12.0",
   "dm-reverb>=0.11.0"
 ]
-version="0.0.1"
+dynamic = ["version"]
 
 [tool.setuptools.packages.find]
 include = ["compiler_opt*"]
 
+[tool.setuptools.dynamic]
+version = {attr = "compiler_opt.package_config.__version__"}
