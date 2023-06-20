@@ -41,10 +41,12 @@ from compiler_opt.tools import extract_ir_lib
 
 flags.DEFINE_string(
     'input', None,
-    'Input file - either compile_commands.json or a linker parameter list')
+    'Input file or directory - either compile_commands.json, a linker parameter'
+    'list, or a path to a directory containing object files.')
 flags.DEFINE_enum(
-    'input_type', 'json', ['json', 'params'],
-    'Input file type - json or params. The latter refers to lld params.')
+    'input_type', 'json', ['json', 'params', 'directory'],
+    'Input file type - json, params, or directory. params latter refers to lld'
+    'params.')
 flags.DEFINE_string('output_dir', None, 'Output directory')
 flags.DEFINE_integer(
     'num_workers', None,
@@ -110,6 +112,13 @@ def main(argv):
       objs = extract_ir_lib.load_from_lld_params(
           [l.strip() for l in f.readlines()], FLAGS.obj_base_dir,
           FLAGS.output_dir)
+  elif FLAGS.input_type == 'directory':
+    logging.warning(
+        'Using the directory input is only reccomended if the build system'
+        'your project uses does not support any structured output that'
+        'ml-compiler-opt understands. If your build system provides a'
+        'structured compilation database, use that instead')
+    objs = extract_ir_lib.load_from_directory(FLAGS.input, FLAGS.output_dir)
   else:
     logging.error('Unknown input type: %s', FLAGS.input_type)
 

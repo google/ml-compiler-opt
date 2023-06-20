@@ -250,6 +250,19 @@ def load_from_lld_params(params_array: List[str], obj_base_dir: str,
   return [make_obj(obj_file) for obj_file in just_obj_paths]
 
 
+def load_from_directory(obj_base_dir: str,
+                        output_dir: str) -> List[TrainingIRExtractor]:
+  paths = [str(p) for p in pathlib.Path(obj_base_dir).glob('**/*.o')]
+
+  def make_spec(obj_file: str):
+    return TrainingIRExtractor(
+        obj_relative_path=os.path.relpath(obj_file, start=obj_base_dir),
+        output_base_dir=output_dir,
+        obj_base_dir=obj_base_dir)
+
+  return [make_spec(path) for path in paths]
+
+
 def load_for_lld_thinlto(obj_base_dir: str,
                          output_dir: str) -> List[TrainingIRExtractor]:
   # .3.import.bc is the suffix attached to post-merge-pre-opt ('postimport')
