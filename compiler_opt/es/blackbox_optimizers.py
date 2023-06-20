@@ -59,6 +59,9 @@ class LinearModel(enum.Enum):
   RIDGE = linear_model.Ridge
 
 
+DEFAULT_ARMIJO = 1e-4
+
+
 def filter_top_directions(
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32], est_type: EstimatorType,
@@ -324,34 +327,6 @@ Experimental optimizers based on blackbox ES.
 
 See class descriptions for more detailed notes on each algorithm.
 """
-
-_GRAD_TYPE = flags.DEFINE_string('grad_type', 'MC', 'Gradient estimator.')
-_TR_INIT_RADIUS = flags.DEFINE_float('tr_init_radius', 1,
-                                     'Initial radius for TR method.')
-_TR_GROW_THRESHOLD = flags.DEFINE_float('tr_grow_threshold', 1e-4,
-                                        'Growth test for TR method.')
-_TR_GROW_FACTOR = flags.DEFINE_float('tr_grow_factor', 1.1,
-                                     'Growth factor for TR method.')
-_TR_SHRINK_NEG_THRESHOLD = flags.DEFINE_float('tr_shrink_neg_threshold', 0.1,
-                                              'Shrink test for TR method')
-_TR_SHRINK_FACTOR = flags.DEFINE_float('tr_shrink_factor', 0.9,
-                                       'Shrink factor for TR method.')
-_TR_REJECT_THRESHOLD = flags.DEFINE_float('tr_reject_threshold', 0.5,
-                                          'Reject test for TR method.')
-_TR_REJECT_FACTOR = flags.DEFINE_float(
-    'tr_reject_factor', 0.5, 'Rejection shrink factor for TR method.')
-_TR_DENSE_HESSIAN = flags.DEFINE_bool('tr_dense_hessian', True,
-                                      'Store dense Hessian for TR.')
-_TR_SUB_TERMINATION = flags.DEFINE_float(
-    'tr_sub_termination', 1e-3,
-    'Subproblem gradient norm termination for TR method.')
-_TR_SUBPROBLEM_MAXITER = flags.DEFINE_integer(
-    'tr_subproblem_maxiter', 10,
-    'Maximum iterations when TR subproblem line search fails.')
-_TR_MINIMUM_RADIUS = flags.DEFINE_float('tr_minimum_radius', 0.1,
-                                        'Minimum radius of trust region.')
-
-DEFAULT_ARMIJO = 1e-4
 """Gradient estimators.
 The blackbox pipeline has two steps:
 estimate gradient/Hessian --> optimizer --> next weight
