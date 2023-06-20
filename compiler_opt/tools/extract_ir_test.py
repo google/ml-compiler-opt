@@ -120,6 +120,21 @@ class ExtractIrTest(absltest.TestCase):
                      '/tmp/out/lib/obj1.o.thinlto.bc')
     self.assertEqual(obj[1].input_obj(), '/some/path/lib/dir/obj2.o')
 
+  def test_load_from_directory(self):
+    tempdir = self.create_tempdir()
+    subdir = tempdir.mkdir(dir_path='subdir')
+    subdir.create_file(file_path='test1.o')
+    subdir.create_file(file_path='test2.o')
+    outdir = self.create_tempdir()
+    objs = extract_ir_lib.load_from_directory(tempdir.full_path,
+                                              outdir.full_path)
+    self.assertLen(objs, 2)
+    for index, obj in enumerate(
+        sorted(objs, key=lambda x: x._obj_relative_path)):
+      self.assertEqual(obj._obj_relative_path, f'subdir/test{index + 1:d}.o')
+      self.assertEqual(obj._obj_base_dir, tempdir.full_path)
+      self.assertEqual(obj._output_base_dir, outdir.full_path)
+
   def test_lld_thinlto_discovery(self):
     tempdir = self.create_tempdir()
     tempdir.create_file(file_path='1.3.import.bc')
