@@ -34,54 +34,22 @@ generates combinedcorpus/corpus_description.json file. In this way corpus1
 and corpus2 are combined into combinedcorpus.
 """
 
-import json
-import os
-
 from absl import app
 from absl import flags
-from absl import logging
 
-import tensorflow as tf
+from compiler_opt.tools import combine_training_corpus_lib
 
 flags.DEFINE_string('root_dir', '', 'root dir of module paths to combine.')
 
 FLAGS = flags.FLAGS
-
-_FILE_NAME = 'corpus_description.json'
 
 
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
-  module_names = []
-  output_corpus_description = {}
 
-  for sub_dir in tf.io.gfile.listdir(FLAGS.root_dir):
-    path = os.path.join(FLAGS.root_dir, sub_dir, _FILE_NAME)
-
-    logging.info('processing %s', path)
-
-    if not tf.io.gfile.exists(path):
-      logging.error('%s does not exist.', path)
-      continue
-
-    with tf.io.gfile.GFile(path, 'r') as f:
-      corpus_description = json.load(f)
-      module_names.extend([
-          os.path.join(sub_dir, name) for name in corpus_description['modules']
-      ])
-      del corpus_description['modules']
-      if len(output_corpus_description) == 0:
-        output_corpus_description = corpus_description
-      elif corpus_description != output_corpus_description:
-        raise ValueError('Input corpora differ more than modules.')
-
-  output_corpus_description['modules'] = module_names
-
-  with tf.io.gfile.GFile(os.path.join(FLAGS.root_dir, _FILE_NAME), 'w') as f:
-    json.dump(output_corpus_description, f, indent=2)
-
+combine_training_corpus_lib.combine_corpus(FLAGS.root_dir)
 
 if __name__ == '__main__':
   app.run(main)
