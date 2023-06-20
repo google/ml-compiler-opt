@@ -60,11 +60,16 @@ import numpy as np
 import numpy.typing as npt
 import scipy.optimize as sp_opt
 from sklearn import linear_model
-from typing import Any, Callable, Dict, List, Mapping, Tuple, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 SequenceOfFloats = Union[Sequence[float], npt.NDArray[np.float32]]
+
+
+class CurrentPointEstimate(enum.Enum):
+  CURRENT = 1
+  AVERAGE = 2
 
 
 class EstimatorType(enum.Enum):
@@ -72,14 +77,20 @@ class EstimatorType(enum.Enum):
   ANTITHETIC = 2
 
 
+class GradientType(enum.Enum):
+  MC = 1
+  REGRESSION = 2
+
+
+class RegressionType(enum.Enum):
+  LASSO = 1
+  RIDGE = 2
+  LINEAR = 3
+
+
 class UpdateMethod(enum.Enum):
   STATE_NORMALIZATION = 1
   NO_METHOD = 2
-
-
-class LinearModel(enum.Enum):
-  LASSO = linear_model.Lasso
-  RIDGE = linear_model.Ridge
 
 
 DEFAULT_ARMIJO = 1e-4
@@ -226,7 +237,7 @@ class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
       num_top_directions: int = 0,
       gradient_ascent_optimizer: Optional[
           gradient_ascent_optimization_algorithms.MomentumOptimizer] = None):
-    # Check step_size and ga_optimizer
+    # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and \
             gradient_ascent_optimizer should be provided')
@@ -287,7 +298,141 @@ class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
-  def get_hyperparameters(self):
+  def get_hyperparameters(self) -> List[float]:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      return self.mean_state_vector + self.std_state_vector
+    else:
+      return []
+
+  def get_state(self) -> List[float]:
+    gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      current_state = [self.nb_steps]
+      current_state += self.sum_state_vector
+      current_state += self.squares_state_vector
+      current_state += self.mean_state_vector + self.std_state_vector
+      return current_state + gradient_ascent_state
+    else:
+      return gradient_ascent_state
+
+  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      self.nb_steps += evaluation_stats[0]
+      evaluation_stats = evaluation_stats[1:]
+      first_half = evaluation_stats[:self.state_dim]
+      second_half = evaluation_stats[self.state_dim:]
+      self.sum_state_vector = [
+          sum(x) for x in zip(self.sum_state_vector, first_half)
+      ]
+      self.squares_state_vector = [
+          sum(x) for x in zip(self.squares_state_vector, second_half)
+      ]
+      self.mean_state_vector = [
+          x / float(self.nb_steps) for x in self.sum_state_vector
+      ]
+      mean_squares_state_vector = [
+          x / float(self.nb_steps) for x in self.squares_state_vector
+      ]
+
+      self.std_state_vector = [
+          math.sqrt(max(a - b * b, 0.0))
+          for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
+      ]
+
+  def set_state(self, state: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      self.nb_steps = state[0]
+      state = state[1:]
+      self.sum_state_vector = state[:self.state_dim]
+      state = state[self.state_dim:]
+      self.squares_state_vector = state[:self.state_dim]
+      state = state[self.state_dim:]
+      self.mean_state_vector = state[:self.state_dim]
+      state = state[self.state_dim:]
+      self.std_state_vector = state[:self.state_dim]
+      state = state[self.state_dim:]
+    self.gradient_ascent_optimizer.set_state(state)
+
+
+class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
+  """Class implementing GD optimizer with regression for grad. estimation."""
+
+  def __init__(
+      self,
+      regression_method: RegressionType,
+      regularizer: float,
+      est_type: EstimatorType,
+      normalize_fvalues: bool,
+      hyperparameters_update_method: UpdateMethod,
+      extra_params: Optional[Sequence[int]],
+      step_size: Optional[float] = None,
+      gradient_ascent_optimizer: Optional[
+          gradient_ascent_optimization_algorithms.MomentumOptimizer] = None):
+    # Check step_size and gradient_ascent_optimizer
+    if (step_size is None) == (gradient_ascent_optimizer is None):
+      raise ValueError('Exactly one of step_size and gradient_ascent_optimizer \
+            should be provided')
+    if step_size:
+      gradient_ascent_optimizer = (
+          gradient_ascent_optimization_algorithms.MomentumOptimizer(
+              step_size=step_size, momentum=0.0))
+
+    if regression_method == RegressionType.LASSO:
+      self.clf = linear_model.Lasso(alpha=regularizer)
+    elif regression_method == RegressionType.RIDGE:
+      self.clf = linear_model.Ridge(alpha=regularizer)
+    elif regression_method == RegressionType.LINEAR:
+      self.clf = linear_model.LinearRegression()
+    else:
+      raise ValueError('Optimization procedure option not available')
+    self.normalize_fvalues = normalize_fvalues
+    self.est_type = est_type
+    self.hyperparameters_update_method = hyperparameters_update_method
+    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      self.state_dim = extra_params[0]
+      self.nb_steps = 0
+      self.sum_state_vector = [0.0] * self.state_dim
+      self.squares_state_vector = [0.0] * self.state_dim
+      self.mean_state_vector = [0.0] * self.state_dim
+      self.std_state_vector = [1.0] * self.state_dim
+    self.gradient_ascent_optimizer = gradient_ascent_optimizer
+    super().__init__()
+
+  def run_step(self, perturbations: npt.NDArray[np.float32],
+               function_values: npt.NDArray[np.float32],
+               current_input: npt.NDArray[np.float32],
+               current_value: float) -> npt.NDArray[np.float32]:
+    dim = len(current_input)
+    if self.normalize_fvalues:
+      values = function_values.tolist()
+      values.append(current_value)
+      mean = sum(values) / float(len(values))
+      stdev = np.std(np.array(values))
+      normalized_values = [(x - mean) / stdev for x in values]
+      function_values = np.array(normalized_values[:-1])
+      current_value = normalized_values[-1]
+
+    matrix = None
+    b_vector = None
+    if self.est_type == EstimatorType.FORWARD_FD:
+      matrix = np.array(perturbations)
+      b_vector = (
+          function_values - np.array([current_value] * len(function_values)))
+    elif self.est_type == EstimatorType.ANTITHETIC:
+      matrix = np.transpose(np.array(perturbations[::2]))
+      function_even_values = np.array(function_values.tolist()[::2])
+      function_odd_values = np.array(function_values.tolist()[1::2])
+      b_vector = (function_even_values - function_odd_values) / 2.0
+    else:
+      raise ValueError('FD method not available.')
+
+    self.clf.fit(matrix, b_vector)
+    gradient = self.clf.coef_[0:dim]
+    # Use the gradient ascent optimizer to compute the next parameters with the
+    # gradients
+    return self.gradient_ascent_optimizer.run_step(current_input, gradient)
+
+  def get_hyperparameters(self) -> List[float]:
     if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       return self.mean_state_vector + self.std_state_vector
     else:
@@ -418,7 +563,7 @@ def monte_carlo_gradient(
 
 
 def sklearn_regression_gradient(
-    clf: LinearModel, est_type: EstimatorType,
+    clf: RegressionType, est_type: EstimatorType,
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32],
     current_value: float) -> npt.NDArray[np.float32]:
@@ -774,7 +919,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
   def __init__(self, precision_parameter: float, est_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Sequence[int], tr_params: Mapping[str, Any]):
+               extra_params: Optional[Sequence[int]], tr_params: Mapping[str,
+                                                                         Any]):
     self.precision_parameter = precision_parameter
     self.est_type = est_type
     self.normalize_fvalues = normalize_fvalues
@@ -798,12 +944,12 @@ class TrustRegionOptimizer(BlackboxOptimizer):
 
     self.params = tr_params
     self.radius = self.params['init_radius']
-    self.current_point_estimate = 'current'  # ('current' | 'average')
+    self.current_point_estimate = CurrentPointEstimate.CURRENT
 
-    if self.params['grad_type'] == 'regression':
-      if self.params['grad_reg_type'] == 'ridge':
+    if self.params['grad_type'] == GradientType.REGRESSION:
+      if self.params['grad_reg_type'] == RegressionType.RIDGE:
         self.clf = linear_model.Ridge(alpha=self.params['grad_reg_alpha'])
-      elif self.params['grad_reg_type'] == 'lasso':
+      elif self.params['grad_reg_type'] == RegressionType.LASSO:
         self.clf = linear_model.Lasso(alpha=self.params['grad_reg_alpha'])
     self.is_returned_step = False
 
@@ -902,9 +1048,9 @@ class TrustRegionOptimizer(BlackboxOptimizer):
       is_update: whether the new perturbations should be added, or overwrite
     """
     dim = perturbations[0].size
-    if self.current_point_estimate == 'current':
+    if self.current_point_estimate == CurrentPointEstimate.CURRENT:
       current_point_estimate = current_value
-    elif self.current_point_estimate == 'average':
+    elif self.current_point_estimate == CurrentPointEstimate.AVERAGE:
       current_point_estimate = np.mean(function_values)
     if self.params['dense_hessian']:
       new_hessian = np.zeros((dim, dim))
@@ -971,9 +1117,9 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           Hessian-vector product.
         """
         dim = self.saved_perturbations[0].size
-        if self.current_point_estimate == 'current':
+        if self.current_point_estimate == CurrentPointEstimate.CURRENT:
           current_point_estimate = self.normalized_current_value
-        elif self.current_point_estimate == 'average':
+        elif self.current_point_estimate == CurrentPointEstimate.AVERAGE:
           current_point_estimate = np.mean(self.saved_function_values)
         hessv = np.zeros(dim)
         for i, perturbation in enumerate(self.saved_perturbations):
@@ -1021,7 +1167,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
       function_values = normalized_values[0]
       current_value = normalized_values[1]
       self.normalized_current_value = current_value
-    if self.params['grad_type'] == 'regression':
+    if self.params['grad_type'] == GradientType.REGRESSION:
       new_gradient = sklearn_regression_gradient(self.clf, self.est_type,
                                                  perturbations, function_values,
                                                  current_value)
@@ -1120,9 +1266,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     else:
       return []
 
-  def update_state(
-      self, evaluation_stats: Union[Sequence[float],
-                                    npt.NDArray[np.float32]]) -> None:
+  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
     if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps += evaluation_stats[0]
       evaluation_stats = evaluation_stats[1:]
@@ -1146,8 +1290,7 @@ class TrustRegionOptimizer(BlackboxOptimizer):
           for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
       ]
 
-  def set_state(self, state: Union[Sequence[float],
-                                   npt.NDArray[np.float32]]) -> None:
+  def set_state(self, state: SequenceOfFloats) -> None:
     if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.nb_steps = state[0]
       state = state[1:]
