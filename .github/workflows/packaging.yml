@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.10'
           cache: 'pip'
-      - run: pip3 install build==0.1.0 setuptools==67.8.0 twine==4.0.2
+      - run: pip3 install build==0.10.0 setuptools==68.0.00 twine==4.0.2
         name: Install Packaging Dependencies
         # TODO(boomanaiden154): Switch this install step over to using pipenv
         # once regenerating the lockfile has been fixed.
