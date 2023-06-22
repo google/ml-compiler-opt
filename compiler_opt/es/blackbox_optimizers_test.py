@@ -52,7 +52,7 @@ from absl.testing import parameterized
 import numpy as np
 
 from compiler_opt.es import blackbox_optimizers
-from compiler_opt.es.blackbox_optimizers import EstimatorType, UpdateMethod
+from compiler_opt.es.blackbox_optimizers import EstimatorType, UpdateMethod, RegressionType
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
@@ -126,6 +126,38 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
         blackbox_optimizers.MonteCarloBlackboxOptimizer(
             precision_parameter, est_type, False, UpdateMethod.NO_METHOD, None,
             None, num_top_directions, gradient_ascent_optimizer))
+    current_input = np.zeros(2)
+    step = blackbox_object.run_step(perturbations, function_values,
+                                    current_input, current_value)
+    gradient = step * (precision_parameter**2) / step_size
+    if num_top_directions == 0:
+      gradient *= len(perturbations)
+    else:
+      gradient *= num_top_directions
+
+    np.testing.assert_array_almost_equal(expected_gradient, gradient)
+
+  @parameterized.parameters(
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
+       np.array([0.00483, -0.007534])),
+      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 5,
+       np.array([0.012585, 0.000748])),
+      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
+       np.array([0.019319, -0.030134])),
+      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
+       np.array([0.030203, 0.001796])))
+  def test_sklearn_gradient(self, perturbations, function_values, est_type,
+                            num_top_directions, expected_gradient):
+    precision_parameter = 0.1
+    step_size = 0.01
+    current_value = 2
+    regularizer = 0.01
+    gradient_ascent_optimizer = (
+        gradient_ascent_optimization_algorithms.MomentumOptimizer(
+            step_size, 0.0))
+    blackbox_object = blackbox_optimizers.SklearnRegressionBlackboxOptimizer(
+        RegressionType.RIDGE, regularizer, est_type, True,
+        UpdateMethod.NO_METHOD, [], None, gradient_ascent_optimizer)
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)

@@ -66,6 +66,9 @@ from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 SequenceOfFloats = Union[Sequence[float], npt.NDArray[np.float32]]
 
+LinearModel = Union[linear_model.Ridge, linear_model.Lasso,
+                    linear_model.LinearRegression]
+
 
 class CurrentPointEstimate(enum.Enum):
   CURRENT = 1
@@ -226,17 +229,17 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
   """Class implementing GD optimizer with MC estimation of the gradient."""
 
-  def __init__(
-      self,
-      precision_parameter: float,
-      est_type: EstimatorType,
-      normalize_fvalues: bool,
-      hyperparameters_update_method: UpdateMethod,
-      extra_params: Optional[Sequence[int]],
-      step_size: Optional[float] = None,
-      num_top_directions: int = 0,
-      gradient_ascent_optimizer: Optional[
-          gradient_ascent_optimization_algorithms.MomentumOptimizer] = None):
+  def __init__(self,
+               precision_parameter: float,
+               est_type: EstimatorType,
+               normalize_fvalues: bool,
+               hyperparameters_update_method: UpdateMethod,
+               extra_params: Optional[Sequence[int]],
+               step_size: Optional[float] = None,
+               num_top_directions: int = 0,
+               gradient_ascent_optimizer: Optional[
+                   gradient_ascent_optimization_algorithms
+                   .GradientAscentOptimizer] = None):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and \
@@ -357,17 +360,17 @@ class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
 class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
   """Class implementing GD optimizer with regression for grad. estimation."""
 
-  def __init__(
-      self,
-      regression_method: RegressionType,
-      regularizer: float,
-      est_type: EstimatorType,
-      normalize_fvalues: bool,
-      hyperparameters_update_method: UpdateMethod,
-      extra_params: Optional[Sequence[int]],
-      step_size: Optional[float] = None,
-      gradient_ascent_optimizer: Optional[
-          gradient_ascent_optimization_algorithms.MomentumOptimizer] = None):
+  def __init__(self,
+               regression_method: RegressionType,
+               regularizer: float,
+               est_type: EstimatorType,
+               normalize_fvalues: bool,
+               hyperparameters_update_method: UpdateMethod,
+               extra_params: Optional[Sequence[int]],
+               step_size: Optional[float] = None,
+               gradient_ascent_optimizer: Optional[
+                   gradient_ascent_optimization_algorithms
+                   .GradientAscentOptimizer] = None):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and gradient_ascent_optimizer \
@@ -419,7 +422,7 @@ class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
       b_vector = (
           function_values - np.array([current_value] * len(function_values)))
     elif self.est_type == EstimatorType.ANTITHETIC:
-      matrix = np.transpose(np.array(perturbations[::2]))
+      matrix = np.array(perturbations[::2])
       function_even_values = np.array(function_values.tolist()[::2])
       function_odd_values = np.array(function_values.tolist()[1::2])
       b_vector = (function_even_values - function_odd_values) / 2.0
@@ -563,7 +566,7 @@ def monte_carlo_gradient(
 
 
 def sklearn_regression_gradient(
-    clf: RegressionType, est_type: EstimatorType,
+    clf: LinearModel, est_type: EstimatorType,
     perturbations: npt.NDArray[np.float32],
     function_values: npt.NDArray[np.float32],
     current_value: float) -> npt.NDArray[np.float32]:
@@ -586,7 +589,7 @@ def sklearn_regression_gradient(
     b_vector = (
         function_values - np.array([current_value] * len(function_values)))
   elif est_type == EstimatorType.ANTITHETIC:
-    matrix = np.transpose(np.array(perturbations[::2]))
+    matrix = np.array(perturbations[::2])
     function_even_values = np.array(function_values.tolist()[::2])
     function_odd_values = np.array(function_values.tolist()[1::2])
     b_vector = (function_even_values - function_odd_values) / 2.0
