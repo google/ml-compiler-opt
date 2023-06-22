@@ -105,7 +105,9 @@ class TrainingIRExtractor:
 
   def _get_extraction_cmd_command(self, llvm_objcopy_path: str,
                                   cmd_section_name: str):
-    """Call llvm_objcopy to extract the llvmcmd section in self._cmd_file."""
+    """Get llvm-objcopy and process args to a produce a command string that,
+    when invoked, will extract the cmd section info ths self.cmd_file() file.
+    """
     return [
         llvm_objcopy_path,
         '--dump-section=' + cmd_section_name + '=' + self.cmd_file(),
@@ -114,7 +116,10 @@ class TrainingIRExtractor:
 
   def _get_extraction_bc_command(self, llvm_objcopy_path: str,
                                  bitcode_section_name: str):
-    """Call llvm_objcopy to extract the llvmbc section in self._bc_file."""
+    """Gets llvm-objcopy and process args to produce a command string that,
+    when invoked, will extract the bitcode section into the self.bc_file()
+    file.
+    """
     return [
         llvm_objcopy_path,
         '--dump-section=' + bitcode_section_name + '=' + self.bc_file(),
@@ -252,6 +257,14 @@ def load_from_lld_params(params_array: List[str], obj_base_dir: str,
 
 def load_from_directory(obj_base_dir: str,
                         output_dir: str) -> List[TrainingIRExtractor]:
+  """Create an object file array by globbing an entire drectory.
+
+  Args:
+    obj_base_dir: The base build directory that all object files will be
+      written out as being relative to.
+    output_dir: The output directory where extracted .bc and .cmd files should
+      be placed.
+  """
   paths = [str(p) for p in pathlib.Path(obj_base_dir).glob('**/*.o')]
 
   def make_spec(obj_file: str):
@@ -292,6 +305,24 @@ def extract_artifacts(obj: TrainingIRExtractor, llvm_objcopy_path: str,
 def run_extraction(objs: List[TrainingIRExtractor], num_workers: int,
                    llvm_objcopy_path: str, cmd_filter: str, thinlto_build: str,
                    cmd_section_name: str, bitcode_section_name: str):
+  """Extracts all specified object files into the corpus directory.
+
+  Args:
+    objs: A list of TrainingIRExtractor Objects that represent the object files
+      to extract bitcode/commands from.
+    num_workers: The number of parallel processes to spawn to run the
+      extraction.
+    llvm_objcopy_path: The path to the llvm-objcopy to use for dumping sections.
+    cmd_filter: A regular expression that is used to select for compilations
+      performed with specific flags. If you want to include all compilations,
+      set this to None.
+    thinlto_build: Whether or not this is a ThinLTO build, and if so, the type.
+      Set this to None if the build was not done with ThinLTO.
+    cmd_section_name: The name of the command line section created by the
+      bitcode embedding.
+    bitcode_section_name: The name of the bitcode section created by the
+      bitcode embedding.
+  """
   extract_artifacts_function = functools.partial(
       extract_artifacts,
       llvm_objcopy_path=llvm_objcopy_path,
@@ -308,6 +339,18 @@ def run_extraction(objs: List[TrainingIRExtractor], num_workers: int,
 
 def write_corpus_manifest(thinlto_build: str, relative_output_paths: List[str],
                           output_dir: str):
+  """Writes a corpus_manifest.json containing all necessary information about
+  the corpus.
+
+  Args:
+    thinlto_build: Whether or not the build was done with ThinLTO and if so,
+      what kind of ThinLTO. Set this to none if the build was not performed with
+      ThinLTO.
+    relative_output_paths: The relative (to the corpus directory) output paths
+      of all the bitcode files that should be placed in the corpus manifest
+    output_dir: The corpus directory where the corpus manifest should be
+      placed.
+  """
   # This comes first rather than later so global_command_override is at the top
   # of the .json after being written
   if thinlto_build == 'local':
