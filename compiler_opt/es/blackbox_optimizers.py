@@ -226,7 +226,84 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
 
-class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
+class StatefulOptimizer(BlackboxOptimizer):
+  """Intermediate parent class for stateful optimizers.
+
+  Class contains common methods for handling the state.
+  """
+
+  def __init__(self, est_type: EstimatorType, normalize_fvalues: bool,
+               hyperparameters_update_method: UpdateMethod,
+               extra_params: Optional[Sequence[int]]):
+
+    self.est_type = est_type
+    self.normalize_fvalues = normalize_fvalues
+    self.hyperparameters_update_method = hyperparameters_update_method
+    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      self.state_dim = extra_params[0]
+      self.nb_steps = 0
+      self.sum_state_vector = [0.0] * self.state_dim
+      self.squares_state_vector = [0.0] * self.state_dim
+      self.mean_state_vector = [0.0] * self.state_dim
+      self.std_state_vector = [1.0] * self.state_dim
+    super().__init__()
+
+  def get_hyperparameters(self) -> List[float]:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      return self.mean_state_vector + self.std_state_vector
+    else:
+      return []
+
+  def get_state(self) -> List[float]:
+    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
+      current_state = [self.nb_steps]
+      current_state += self.sum_state_vector
+      current_state += self.squares_state_vector
+      current_state += self.mean_state_vector + self.std_state_vector
+      return current_state
+    else:
+      return []
+
+  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method != UpdateMethod.STATE_NORMALIZATION:
+      return
+    self.nb_steps += evaluation_stats[0]
+    evaluation_stats = evaluation_stats[1:]
+    first_half = evaluation_stats[:self.state_dim]
+    second_half = evaluation_stats[self.state_dim:]
+    self.sum_state_vector = [
+        sum(x) for x in zip(self.sum_state_vector, first_half)
+    ]
+    self.squares_state_vector = [
+        sum(x) for x in zip(self.squares_state_vector, second_half)
+    ]
+    self.mean_state_vector = [
+        x / float(self.nb_steps) for x in self.sum_state_vector
+    ]
+    mean_squares_state_vector = [
+        x / float(self.nb_steps) for x in self.squares_state_vector
+    ]
+
+    self.std_state_vector = [
+        math.sqrt(max(a - b * b, 0.0))
+        for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
+    ]
+
+  def set_state(self, state: SequenceOfFloats) -> None:
+    if self.hyperparameters_update_method != UpdateMethod.STATE_NORMALIZATION:
+      return
+    self.nb_steps = state[0]
+    state = state[1:]
+    self.sum_state_vector = state[:self.state_dim]
+    state = state[self.state_dim:]
+    self.squares_state_vector = state[:self.state_dim]
+    state = state[self.state_dim:]
+    self.mean_state_vector = state[:self.state_dim]
+    state = state[self.state_dim:]
+    self.std_state_vector = state[:self.state_dim]
+
+
+class MonteCarloBlackboxOptimizer(StatefulOptimizer):
   """Class implementing GD optimizer with MC estimation of the gradient."""
 
   def __init__(self,
@@ -250,19 +327,10 @@ class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
               step_size=step_size, momentum=0.0))
 
     self.precision_parameter = precision_parameter
-    self.est_type = est_type
-    self.normalize_fvalues = normalize_fvalues
-    self.hyperparameters_update_method = hyperparameters_update_method
     self.num_top_directions = num_top_directions
-    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.state_dim = extra_params[0]
-      self.nb_steps = 0
-      self.sum_state_vector = [0.0] * self.state_dim
-      self.squares_state_vector = [0.0] * self.state_dim
-      self.mean_state_vector = [0.0] * self.state_dim
-      self.std_state_vector = [1.0] * self.state_dim
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
-    super().__init__()
+    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
+                     extra_params)
 
   def run_step(self, perturbations: npt.NDArray[np.float32],
                function_values: npt.NDArray[np.float32],
@@ -301,63 +369,16 @@ class MonteCarloBlackboxOptimizer(BlackboxOptimizer):
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
-  def get_hyperparameters(self) -> List[float]:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      return self.mean_state_vector + self.std_state_vector
-    else:
-      return []
-
   def get_state(self) -> List[float]:
     gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      current_state = [self.nb_steps]
-      current_state += self.sum_state_vector
-      current_state += self.squares_state_vector
-      current_state += self.mean_state_vector + self.std_state_vector
-      return current_state + gradient_ascent_state
-    else:
-      return gradient_ascent_state
-
-  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps += evaluation_stats[0]
-      evaluation_stats = evaluation_stats[1:]
-      first_half = evaluation_stats[:self.state_dim]
-      second_half = evaluation_stats[self.state_dim:]
-      self.sum_state_vector = [
-          sum(x) for x in zip(self.sum_state_vector, first_half)
-      ]
-      self.squares_state_vector = [
-          sum(x) for x in zip(self.squares_state_vector, second_half)
-      ]
-      self.mean_state_vector = [
-          x / float(self.nb_steps) for x in self.sum_state_vector
-      ]
-      mean_squares_state_vector = [
-          x / float(self.nb_steps) for x in self.squares_state_vector
-      ]
-
-      self.std_state_vector = [
-          math.sqrt(max(a - b * b, 0.0))
-          for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
-      ]
+    return super().get_state() + gradient_ascent_state
 
   def set_state(self, state: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps = state[0]
-      state = state[1:]
-      self.sum_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.squares_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.mean_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.std_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
+    super().set_state(state)
     self.gradient_ascent_optimizer.set_state(state)
 
 
-class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
+class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
   """Class implementing GD optimizer with regression for grad. estimation."""
 
   def __init__(self,
@@ -388,18 +409,9 @@ class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
       self.clf = linear_model.LinearRegression()
     else:
       raise ValueError('Optimization procedure option not available')
-    self.normalize_fvalues = normalize_fvalues
-    self.est_type = est_type
-    self.hyperparameters_update_method = hyperparameters_update_method
-    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.state_dim = extra_params[0]
-      self.nb_steps = 0
-      self.sum_state_vector = [0.0] * self.state_dim
-      self.squares_state_vector = [0.0] * self.state_dim
-      self.mean_state_vector = [0.0] * self.state_dim
-      self.std_state_vector = [1.0] * self.state_dim
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
-    super().__init__()
+    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
+                     extra_params)
 
   def run_step(self, perturbations: npt.NDArray[np.float32],
                function_values: npt.NDArray[np.float32],
@@ -435,59 +447,12 @@ class SklearnRegressionBlackboxOptimizer(BlackboxOptimizer):
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
-  def get_hyperparameters(self) -> List[float]:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      return self.mean_state_vector + self.std_state_vector
-    else:
-      return []
-
   def get_state(self) -> List[float]:
     gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      current_state = [self.nb_steps]
-      current_state += self.sum_state_vector
-      current_state += self.squares_state_vector
-      current_state += self.mean_state_vector + self.std_state_vector
-      return current_state + gradient_ascent_state
-    else:
-      return gradient_ascent_state
-
-  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps += evaluation_stats[0]
-      evaluation_stats = evaluation_stats[1:]
-      first_half = evaluation_stats[:self.state_dim]
-      second_half = evaluation_stats[self.state_dim:]
-      self.sum_state_vector = [
-          sum(x) for x in zip(self.sum_state_vector, first_half)
-      ]
-      self.squares_state_vector = [
-          sum(x) for x in zip(self.squares_state_vector, second_half)
-      ]
-      self.mean_state_vector = [
-          x / float(self.nb_steps) for x in self.sum_state_vector
-      ]
-      mean_squares_state_vector = [
-          x / float(self.nb_steps) for x in self.squares_state_vector
-      ]
-
-      self.std_state_vector = [
-          math.sqrt(max(a - b * b, 0.0))
-          for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
-      ]
+    return super().get_state + gradient_ascent_state
 
   def set_state(self, state: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps = state[0]
-      state = state[1:]
-      self.sum_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.squares_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.mean_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.std_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
+    super().set_state(state)
     self.gradient_ascent_optimizer.set_state(state)
 
 
@@ -827,7 +792,7 @@ class TrustRegionSubproblemOptimizer(object):
 """
 
 
-class TrustRegionOptimizer(BlackboxOptimizer):
+class TrustRegionOptimizer(StatefulOptimizer):
   r"""A second-order trust region method for solving the ES problem.
 
   ####################
@@ -925,16 +890,8 @@ class TrustRegionOptimizer(BlackboxOptimizer):
                extra_params: Optional[Sequence[int]], tr_params: Mapping[str,
                                                                          Any]):
     self.precision_parameter = precision_parameter
-    self.est_type = est_type
-    self.normalize_fvalues = normalize_fvalues
-    self.hyperparameters_update_method = hyperparameters_update_method
-    if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.state_dim = extra_params[0]
-      self.nb_steps = 0
-      self.sum_state_vector = [0.0] * self.state_dim
-      self.squares_state_vector = [0.0] * self.state_dim
-      self.mean_state_vector = [0.0] * self.state_dim
-      self.std_state_vector = [1.0] * self.state_dim
+    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
+                     extra_params)
 
     self.accepted_quadratic_model = None
     self.accepted_function_value = None
@@ -1252,55 +1209,3 @@ class TrustRegionOptimizer(BlackboxOptimizer):
     tr_sub_optimizer.solve_trust_region_subproblem()
     x_update = tr_sub_optimizer.get_solution()
     return current_input + x_update
-
-  def get_hyperparameters(self) -> List[float]:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      return self.mean_state_vector + self.std_state_vector
-    else:
-      return []
-
-  def get_state(self) -> List[float]:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      current_state = [self.nb_steps]
-      current_state += self.sum_state_vector
-      current_state += self.squares_state_vector
-      current_state += self.mean_state_vector + self.std_state_vector
-      return current_state
-    else:
-      return []
-
-  def update_state(self, evaluation_stats: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps += evaluation_stats[0]
-      evaluation_stats = evaluation_stats[1:]
-      first_half = evaluation_stats[:self.state_dim]
-      second_half = evaluation_stats[self.state_dim:]
-      self.sum_state_vector = [
-          sum(x) for x in zip(self.sum_state_vector, first_half)
-      ]
-      self.squares_state_vector = [
-          sum(x) for x in zip(self.squares_state_vector, second_half)
-      ]
-      self.mean_state_vector = [
-          x / float(self.nb_steps) for x in self.sum_state_vector
-      ]
-      mean_squares_state_vector = [
-          x / float(self.nb_steps) for x in self.squares_state_vector
-      ]
-
-      self.std_state_vector = [
-          math.sqrt(max(a - b * b, 0.0))
-          for a, b in zip(mean_squares_state_vector, self.mean_state_vector)
-      ]
-
-  def set_state(self, state: SequenceOfFloats) -> None:
-    if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
-      self.nb_steps = state[0]
-      state = state[1:]
-      self.sum_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.squares_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.mean_state_vector = state[:self.state_dim]
-      state = state[self.state_dim:]
-      self.std_state_vector = state[:self.state_dim]
