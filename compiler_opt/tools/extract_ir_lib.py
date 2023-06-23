@@ -19,7 +19,6 @@ import pathlib
 import re
 import shutil
 import subprocess
-import functools
 import multiprocessing
 import json
 
@@ -294,14 +293,6 @@ def load_for_lld_thinlto(obj_base_dir: str,
   return [make_spec(path) for path in paths]
 
 
-def extract_artifacts(obj: TrainingIRExtractor, llvm_objcopy_path: str,
-                      cmd_filter: str, thinlto_build: str,
-                      cmd_section_name: str,
-                      bitcode_section_name) -> Optional[str]:
-  return obj.extract(llvm_objcopy_path, cmd_filter, thinlto_build,
-                     cmd_section_name, bitcode_section_name)
-
-
 def run_extraction(objs: List[TrainingIRExtractor], num_workers: int,
                    llvm_objcopy_path: str, cmd_filter: str, thinlto_build: str,
                    cmd_section_name: str, bitcode_section_name: str):
@@ -323,15 +314,13 @@ def run_extraction(objs: List[TrainingIRExtractor], num_workers: int,
     bitcode_section_name: The name of the bitcode section created by the
       bitcode embedding.
   """
-  extract_artifacts_function = functools.partial(
-      extract_artifacts,
-      llvm_objcopy_path=llvm_objcopy_path,
-      cmd_filter=cmd_filter,
-      thinlto_build=thinlto_build,
-      cmd_section_name=cmd_section_name,
-      bitcode_section_name=bitcode_section_name)
+
+  def extract_artifacts(obj: TrainingIRExtractor) -> Optional[str]:
+    return obj.extract(llvm_objcopy_path, cmd_filter, thinlto_build,
+                       cmd_section_name, bitcode_section_name)
+
   with multiprocessing.Pool(num_workers) as pool:
-    relative_output_paths = pool.map(extract_artifacts_function, objs)
+    relative_output_paths = pool.map(extract_artifacts, objs)
     pool.close()
     pool.join()
   return relative_output_paths
