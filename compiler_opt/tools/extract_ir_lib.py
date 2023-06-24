@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import multiprocessing
+import functools
 import json
 
 from typing import Dict, List, Optional
@@ -314,10 +315,13 @@ def run_extraction(objs: List[TrainingIRExtractor], num_workers: int,
     bitcode_section_name: The name of the bitcode section created by the
       bitcode embedding.
   """
-
-  def extract_artifacts(obj: TrainingIRExtractor) -> Optional[str]:
-    return obj.extract(llvm_objcopy_path, cmd_filter, thinlto_build,
-                       cmd_section_name, bitcode_section_name)
+  extract_artifacts = functools.partial(
+      TrainingIRExtractor.extract,
+      llvm_objcopy_path=llvm_objcopy_path,
+      cmd_filter=cmd_filter,
+      thinlto_build=thinlto_build,
+      cmd_section_name=cmd_section_name,
+      bitcode_section_name=bitcode_section_name)
 
   with multiprocessing.Pool(num_workers) as pool:
     relative_output_paths = pool.map(extract_artifacts, objs)
