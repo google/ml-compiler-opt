@@ -69,19 +69,18 @@ flags.DEFINE_enum(
     '-mllvm -lto-embed-bitcode=post-merge-pre-opt passed in the distributed '
     'case, or -Wl,--save-temps=import and -Wl,--thinlto-emit-index-files '
     'passed in the local case.')
-flags.mark_flags_as_required(['output_dir'])
-
 flags.DEFINE_string(
     'cmd_section_name', '.llvmcmd',
     'The section name passed to llvm-objcopy. For ELF object files, the '
     'default .llvmcmd is correct. For Mach-O object files, one should use '
     'something like __LLVM,__cmdline')
-
 flags.DEFINE_string(
     'bitcode_section_name', '.llvmbc',
     'The section name passed to llvm-objcopy. For ELF object files, the '
     'default .llvmbc is correct. For Mach-O object files, one should use '
     '__LLVM,__bitcode')
+
+flags.mark_flag_as_required('output_dir')
 
 FLAGS = flags.FLAGS
 
@@ -114,7 +113,7 @@ def main(argv):
           FLAGS.output_dir)
   elif FLAGS.input_type == 'directory':
     logging.warning(
-        'Using the directory input is only reccomended if the build system'
+        'Using the directory input is only recommended if the build system'
         'your project uses does not support any structured output that'
         'ml-compiler-opt understands. If your build system provides a'
         'structured compilation database, use that instead')
