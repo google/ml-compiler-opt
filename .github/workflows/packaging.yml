@@ -28,3 +28,4 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{secrets.PYPI_TOKEN}}
         name: Publish the package
+        if: ${{github.repository_owner == 'google' && github.ref_name == 'main'}}
