@@ -19,8 +19,8 @@ the following command:
 
 PYTHONPATH=$PYTHONPATH:. python3 ./compiler_opt/tools/make_corpus.py \
   --input_dir=<path to input directory> \
-  --output_dir=<path to output direcotry> \
-  --default_flags="<list of space separated flags>"
+  --output_dir=<path to output directory> \
+  --default_args="<list of space separated flags>"
 """
 
 from absl import app
@@ -32,7 +32,7 @@ from compiler_opt.tools import make_corpus_lib
 flags.DEFINE_string('input_dir', None, 'The input directory.')
 flags.DEFINE_string('output_dir', None, 'The output directory.')
 flags.DEFINE_string(
-    'default_flags', '',
+    'default_args', '',
     'The compiler flags to compile with when using downstream tooling.')
 
 flags.mark_flag_as_required('input_dir')
@@ -50,7 +50,7 @@ def main(_):
   make_corpus_lib.copy_bitcode(relative_paths, FLAGS.input_dir,
                                FLAGS.output_dir)
   make_corpus_lib.write_corpus_manifest(relative_paths, FLAGS.output_dir,
-                                        FLAGS.default_flags.split())
+                                        FLAGS.default_args.split())
 
 
 if __name__ == '__main__':

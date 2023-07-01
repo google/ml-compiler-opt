@@ -49,15 +49,15 @@ class MakeCorpusTest(absltest.TestCase):
   def test_write_corpus_manifest(self):
     relative_output_paths = ['test/test1.bc', 'test/test2.bc']
     output_dir = self.create_tempdir()
-    default_flags = ['-O3', '-c']
+    default_args = ['-O3', '-c']
     make_corpus_lib.write_corpus_manifest(relative_output_paths, output_dir,
-                                          default_flags)
+                                          default_args)
     with open(
         os.path.join(output_dir, 'corpus_description.json'),
         encoding='utf-8') as corpus_description_file:
       corpus_description = json.load(corpus_description_file)
     self.assertEqual(corpus_description['global_command_override'],
-                     default_flags)
+                     default_args)
     self.assertEqual(corpus_description['has_thinlto'], False)
     self.assertEqual(corpus_description['modules'], relative_output_paths)
 

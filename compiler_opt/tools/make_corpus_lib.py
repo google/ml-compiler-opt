@@ -22,7 +22,7 @@ import json
 from typing import List, Optional
 
 
-def load_bitcode_from_directory(bitcode_base_dir: str):
+def load_bitcode_from_directory(bitcode_base_dir: str) -> List[str]:
   """Finds bitcode files to extract from a given directory.
 
   Args:
@@ -41,7 +41,7 @@ def load_bitcode_from_directory(bitcode_base_dir: str):
 
 
 def copy_bitcode(relative_paths: List[str], bitcode_base_dir: str,
-                 output_dir: str):
+                 output_dir: str) -> None:
   """Copies bitcode files from the base directory to the output directory.
 
   Args:
@@ -59,19 +59,19 @@ def copy_bitcode(relative_paths: List[str], bitcode_base_dir: str,
 
 def write_corpus_manifest(relative_output_paths: List[str],
                           output_dir: str,
-                          default_flags: Optional[List[str]] = None):
+                          default_args: Optional[List[str]] = None) -> None:
   """Creates a corpus manifest describing the bitcode that has been found.
 
   Args:
     relative_output_paths: A list of paths to each bitcode file relative to the
       output directory.
     outout_dir: The output directory where the corpus is being created.
-    default_flags: An array of compiler flags that should be used to compile
+    default_args: An array of compiler flags that should be used to compile
       the bitcode when using further downstream tooling."""
-  if default_flags is None:
-    default_flags = []
+  if default_args is None:
+    default_args = []
   corpus_description = {
-      'global_command_override': default_flags,
+      'global_command_override': default_args,
       'has_thinlto': False,
       'modules': [path for path in relative_output_paths if path is not None]
   }
