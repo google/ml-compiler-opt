@@ -82,7 +82,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   agent_cfg = agent_config_type(
       time_step_spec=time_step_spec, action_spec=action_spec)
   agent: tf_agent.TFAgent = agent_config.create_agent(
-      agent_cfg.agent, preprocessing_layer_creator=preprocessing_layer_creator)
+      agent_cfg, preprocessing_layer_creator=preprocessing_layer_creator)
   # create the random network distillation object
   random_network_distillation = None
   if use_random_network_distillation:

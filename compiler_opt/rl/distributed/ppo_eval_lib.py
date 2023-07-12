@@ -60,7 +60,7 @@ def evaluate(root_dir: str, corpus_path: str,
   agent_cfg = agent_config.DistributedPPOAgentConfig(
       time_step_spec=time_step_spec, action_spec=action_spec)
   agent = agent_config.create_agent(
-      agent_cfg.agent,
+      agent_cfg,
       preprocessing_layer_creator=problem_config
       .get_preprocessing_layer_creator())
 
