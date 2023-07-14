@@ -42,5 +42,8 @@ RUN ./build_tflite.sh
 COPY . /ml-compiler-opt
 WORKDIR /ml-compiler-opt
 RUN pip3 install pipenv && pipenv sync --categories "packages dev-packages ci" --system && pipenv --clear
+RUN apt-get autoremove -y --purge \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /
 
