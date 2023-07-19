@@ -127,9 +127,12 @@ class VectorTest(absltest.TestCase):
     length_of_a_perturbation = 17218
     params = np.arange(length_of_a_perturbation, dtype=np.float32)
     policy_utils.set_vectorized_parameters_for_policy(policy, params)
-    # iterate through variables and check their values
+    expected_variable_shapes = [(71, 64), (64), (64, 64), (64), (64, 64), (64),
+                                (64, 64), (64), (64, 2), (2)]
+    # iterate through variables and check their shapes and values
     idx = 0
-    for variable in policy.variables():  # pylint: disable=not-callable
+    for i, variable in enumerate(policy.variables()):  # pylint: disable=not-callable
+      self.assertEqual(variable.shape, expected_variable_shapes[i])
       nums = variable.numpy().flatten()
       for num in nums:
         if idx != num:
@@ -140,16 +143,15 @@ class VectorTest(absltest.TestCase):
     sm = tf.saved_model.load(policy_save_path + '/policy')
     self.assertIsInstance(sm, autotrackable.AutoTrackable)
     self.assertNotIsInstance(sm, tf_policy.TFPolicy)
-    params = params[::-1]
     policy_utils.set_vectorized_parameters_for_policy(sm, params)
-    val = length_of_a_perturbation - 1
-    for variable in sm.model_variables:
+    idx = 0
+    for i, variable in enumerate(sm.model_variables):
+      self.assertEqual(variable.shape, expected_variable_shapes[i])
       nums = variable.numpy().flatten()
       for num in nums:
-        if val != num:
-          raise AssertionError(
-              f'values at index {length_of_a_perturbation - val} do not match')
-        val -= 1
+        if idx != num:
+          raise AssertionError(f'values at index {idx} do not match')
+        idx += 1
 
   def test_get_vectorized_parameters_from_policy(self):
     # create a policy
@@ -193,11 +195,57 @@ class VectorTest(absltest.TestCase):
     sm = tf.saved_model.load(policy_save_path + '/policy')
     self.assertIsInstance(sm, autotrackable.AutoTrackable)
     self.assertNotIsInstance(sm, tf_policy.TFPolicy)
-    params = params[::-1]
     policy_utils.set_vectorized_parameters_for_policy(sm, params)
     # vectorize and check if the outcome is the same as the start
     output = policy_utils.get_vectorized_parameters_from_policy(sm)
     np.testing.assert_array_almost_equal(output, params)
+
+  def test_tfpolicy_and_loaded_policy_produce_same_variable_order(self):
+    # create a policy
+    problem_config = registry.get_configuration(implementation=InliningConfig)
+    time_step_spec, action_spec = problem_config.get_signature_spec()
+    creator = inlining_config.get_observation_processing_layer_creator(
+        quantile_file_dir='compiler_opt/rl/inlining/vocab/',
+        with_sqrt=False,
+        with_z_score_normalization=False)
+    layers = tf.nest.map_structure(creator, time_step_spec.observation)
+
+    actor_network = actor_distribution_network.ActorDistributionNetwork(
+        input_tensor_spec=time_step_spec.observation,
+        output_tensor_spec=action_spec,
+        preprocessing_layers=layers,
+        preprocessing_combiner=tf.keras.layers.Concatenate(),
+        fc_layer_params=(64, 64, 64, 64),
+        dropout_layer_params=None,
+        activation_fn=tf.keras.activations.relu)
+
+    policy = actor_policy.ActorPolicy(
+        time_step_spec=time_step_spec,
+        action_spec=action_spec,
+        actor_network=actor_network)
+    saver = policy_saver.PolicySaver({'policy': policy})
+
+    # save the policy
+    testing_path = self.create_tempdir()
+    policy_save_path = os.path.join(testing_path, 'temp_output/policy')
+    saver.save(policy_save_path)
+
+    length_of_a_perturbation = 17218
+    params = np.arange(length_of_a_perturbation, dtype=np.float32)
+    # set the values of the variables
+    policy_utils.set_vectorized_parameters_for_policy(policy, params)
+    # save the changes
+    saver.save(policy_save_path)
+    # vectorize the tfpolicy
+    tf_params = policy_utils.get_vectorized_parameters_from_policy(policy)
+
+    # get loaded policy
+    sm = tf.saved_model.load(policy_save_path + '/policy')
+    # vectorize the loaded policy
+    loaded_params = policy_utils.get_vectorized_parameters_from_policy(sm)
+
+    # assert that they result in the same order of values
+    np.testing.assert_array_almost_equal(tf_params, loaded_params)
 
 
 if __name__ == '__main__':

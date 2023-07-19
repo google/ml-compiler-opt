@@ -62,7 +62,8 @@ def get_vectorized_parameters_from_policy(
   elif hasattr(policy, 'model_variables'):
     variables = policy.model_variables
   else:
-    raise ValueError('policy must be a TFPolicy or a loaded SavedModel')
+    raise ValueError(f'Policy must be a TFPolicy or a loaded SavedModel. '
+                     f'Passed policy: {policy}')
 
   parameters = [var.numpy().flatten() for var in variables]
   parameters = np.concatenate(parameters, axis=0)
@@ -79,7 +80,8 @@ def set_vectorized_parameters_for_policy(
   elif hasattr(policy, 'model_variables'):
     variables = policy.model_variables
   else:
-    raise ValueError('policy must be a TFPolicy or a loaded SavedModel')
+    raise ValueError(f'Policy must be a TFPolicy or a loaded SavedModel. '
+                     f'Passed policy: {policy}')
 
   param_pos = 0
   for variable in variables:
@@ -91,7 +93,7 @@ def set_vectorized_parameters_for_policy(
   if param_pos != len(parameters):
     raise ValueError(
         f'Parameter dimensions are not matched! Expected {len(parameters)} '
-        'but only found {param_pos}.')
+        f'but only found {param_pos}.')
 
 
 def save_policy(policy: Union[tf_policy.TFPolicy, autotrackable.AutoTrackable],
