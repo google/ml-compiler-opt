@@ -18,7 +18,6 @@ from absl.testing import absltest
 import numpy as np
 import os
 import tensorflow as tf
-from tensorflow.python.trackable import autotrackable
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import actor_policy, tf_policy
 
@@ -141,7 +140,6 @@ class VectorTest(absltest.TestCase):
 
     # get saved model to test a loaded policy
     sm = tf.saved_model.load(policy_save_path + '/policy')
-    self.assertIsInstance(sm, autotrackable.AutoTrackable)
     self.assertNotIsInstance(sm, tf_policy.TFPolicy)
     policy_utils.set_vectorized_parameters_for_policy(sm, params)
     idx = 0
@@ -193,7 +191,6 @@ class VectorTest(absltest.TestCase):
 
     # get saved model to test a loaded policy
     sm = tf.saved_model.load(policy_save_path + '/policy')
-    self.assertIsInstance(sm, autotrackable.AutoTrackable)
     self.assertNotIsInstance(sm, tf_policy.TFPolicy)
     policy_utils.set_vectorized_parameters_for_policy(sm, params)
     # vectorize and check if the outcome is the same as the start

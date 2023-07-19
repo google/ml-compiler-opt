@@ -18,12 +18,15 @@ import gin
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-from tensorflow.python.trackable import autotrackable
-from typing import Union
+from typing import Protocol, Sequence
 
+from compiler_opt.rl import policy_saver, registry
 from tf_agents.networks import network
 from tf_agents.policies import actor_policy, greedy_policy, tf_policy
-from compiler_opt.rl import policy_saver, registry
+
+
+class HasModelVariables(Protocol):
+  model_variables: Sequence[float]
 
 
 # TODO(abenalaast): Issue #280
@@ -54,8 +57,7 @@ def create_actor_policy(actor_network_ctor: network.DistributionNetwork,
 
 
 def get_vectorized_parameters_from_policy(
-    policy: Union[tf_policy.TFPolicy, autotrackable.AutoTrackable]
-) -> npt.NDArray[np.float32]:
+    policy: tf_policy.TFPolicy | HasModelVariables) -> npt.NDArray[np.float32]:
   """Returns a policy's variable values as a single np array."""
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
@@ -71,7 +73,7 @@ def get_vectorized_parameters_from_policy(
 
 
 def set_vectorized_parameters_for_policy(
-    policy: Union[tf_policy.TFPolicy, autotrackable.AutoTrackable],
+    policy: tf_policy.TFPolicy | HasModelVariables,
     parameters: npt.NDArray[np.float32]) -> None:
   """Separates values in parameters into the policy's shapes
   and sets the policy variables to those values"""
@@ -96,7 +98,7 @@ def set_vectorized_parameters_for_policy(
         f'but only found {param_pos}.')
 
 
-def save_policy(policy: Union[tf_policy.TFPolicy, autotrackable.AutoTrackable],
+def save_policy(policy: tf_policy.TFPolicy | HasModelVariables,
                 parameters: npt.NDArray[np.float32], save_folder: str,
                 policy_name: str) -> None:
   """Assigns a policy the name policy_name
