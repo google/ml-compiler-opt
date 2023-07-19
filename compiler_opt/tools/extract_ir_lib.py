@@ -135,9 +135,13 @@ class TrainingIRExtractor:
       return None
     os.makedirs(self.dest_dir(), exist_ok=True)
     try:
+      subprocess_output = None if logging.get_verbosity(
+      ) == logging.INFO else subprocess.DEVNULL
       subprocess.run(
           self._get_extraction_cmd_command(llvm_objcopy_path, cmd_section_name),
-          check=True)
+          check=True,
+          stdout=subprocess_output,
+          stderr=subprocess_output)
       if cmd_filter is not None or is_thinlto:
         with open(self.cmd_file(), encoding='utf-8') as f:
           lines = f.readlines()
