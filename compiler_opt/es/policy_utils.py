@@ -18,15 +18,16 @@ import gin
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-from typing import Protocol, Sequence
+from typing import Any, Protocol, Sequence, Union
 
 from compiler_opt.rl import policy_saver, registry
 from tf_agents.networks import network
 from tf_agents.policies import actor_policy, greedy_policy, tf_policy
 
 
+# TODO(abenalaast): Replace Any type annotation with HasModelVariables Protocol
 class HasModelVariables(Protocol):
-  model_variables: Sequence[float]
+  model_variables = Sequence[Sequence[float]]
 
 
 # TODO(abenalaast): Issue #280
@@ -57,7 +58,7 @@ def create_actor_policy(actor_network_ctor: network.DistributionNetwork,
 
 
 def get_vectorized_parameters_from_policy(
-    policy: tf_policy.TFPolicy | HasModelVariables) -> npt.NDArray[np.float32]:
+    policy: Union[tf_policy.TFPolicy, Any]) -> npt.NDArray[np.float32]:
   """Returns a policy's variable values as a single np array."""
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
@@ -73,8 +74,8 @@ def get_vectorized_parameters_from_policy(
 
 
 def set_vectorized_parameters_for_policy(
-    policy: tf_policy.TFPolicy | HasModelVariables,
-    parameters: npt.NDArray[np.float32]) -> None:
+    policy: Union[tf_policy.TFPolicy,
+                  Any], parameters: npt.NDArray[np.float32]) -> None:
   """Separates values in parameters into the policy's shapes
   and sets the policy variables to those values"""
   if isinstance(policy, tf_policy.TFPolicy):
@@ -98,9 +99,9 @@ def set_vectorized_parameters_for_policy(
         f'but only found {param_pos}.')
 
 
-def save_policy(policy: tf_policy.TFPolicy | HasModelVariables,
-                parameters: npt.NDArray[np.float32], save_folder: str,
-                policy_name: str) -> None:
+def save_policy(policy: Union[tf_policy.TFPolicy,
+                              Any], parameters: npt.NDArray[np.float32],
+                save_folder: str, policy_name: str) -> None:
   """Assigns a policy the name policy_name
   and saves it to the directory of save_folder
   with the values in parameters."""
