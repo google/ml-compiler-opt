@@ -30,9 +30,9 @@ In a local ThinLTO case, the compilation is assumedto have been performed
 specifying -Wl,--save-temps=import -Wl,--thinlto-emit-index-files
 
 To change the logging verbosity, pass an integer representing the desired
-verbosity to the --verbosity flag. Use 0 for all logs and detailed debug
-information, -1 for solely warnings, and -2 to only print a status message at
-the end.
+verbosity to the --verbosity flag. Use 0 for all logs, status information, 
+and detailed debug information, -1 for solely warnings, and -2 to not produce
+any output.
 """
 
 import json
@@ -132,9 +132,6 @@ def main(argv):
 
   extract_ir_lib.write_corpus_manifest(FLAGS.thinlto_build,
                                        relative_output_paths, FLAGS.output_dir)
-
-  # Reset logging verbosity so that we print status messages
-  logging.set_verbosity(logging.INFO)
 
   logging.info('Converted %d files out of %d',
                len(objs) - relative_output_paths.count(None), len(objs))
