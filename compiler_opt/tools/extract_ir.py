@@ -28,6 +28,11 @@ specifying -mllvm -lto-embed-bitcode=post-merge-pre-opt.
 
 In a local ThinLTO case, the compilation is assumedto have been performed
 specifying -Wl,--save-temps=import -Wl,--thinlto-emit-index-files
+
+To change the logging verbosity, pass an integer representing the desired
+verbosity to the --verbosity flag. Use 0 for all logs, status information,
+and detailed debug information, -1 for solely warnings, and -2 to not produce
+any output.
 """
 
 import json

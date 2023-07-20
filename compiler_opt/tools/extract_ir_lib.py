@@ -135,9 +135,10 @@ class TrainingIRExtractor:
       return None
     os.makedirs(self.dest_dir(), exist_ok=True)
     try:
-      subprocess.run(
+      subprocess.check_output(
           self._get_extraction_cmd_command(llvm_objcopy_path, cmd_section_name),
-          check=True)
+          stderr=subprocess.STDOUT,
+          encoding='utf-8')
       if cmd_filter is not None or is_thinlto:
         with open(self.cmd_file(), encoding='utf-8') as f:
           lines = f.readlines()
@@ -153,13 +154,15 @@ class TrainingIRExtractor:
           index_file = get_thinlto_index(cmdline, self.obj_base_dir())
           shutil.copy(index_file, self.thinlto_index_file())
 
-      subprocess.run(
+      subprocess.check_output(
           self._get_extraction_bc_command(llvm_objcopy_path,
                                           bitcode_section_name),
-          check=True)
+          stderr=subprocess.STDOUT,
+          encoding='utf-8')
     except subprocess.CalledProcessError as e:
       # This may happen if  .o file was build from asm (.S source).
       logging.warning('%s was not processed: %s', self.input_obj(), e)
+      logging.info(e.output)
       return None
     assert (os.path.exists(self.cmd_file()) and
             os.path.exists(self.bc_file()) and
