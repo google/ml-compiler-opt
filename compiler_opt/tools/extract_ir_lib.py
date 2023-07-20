@@ -134,36 +134,40 @@ class TrainingIRExtractor:
       logging.info('%s does not exist.', self.input_obj())
       return None
     os.makedirs(self.dest_dir(), exist_ok=True)
-    try:
-      subprocess_output = None if logging.get_verbosity(
-      ) == logging.INFO else subprocess.DEVNULL
-      subprocess.run(
-          self._get_extraction_cmd_command(llvm_objcopy_path, cmd_section_name),
-          check=True,
-          stdout=subprocess_output,
-          stderr=subprocess_output)
-      if cmd_filter is not None or is_thinlto:
-        with open(self.cmd_file(), encoding='utf-8') as f:
-          lines = f.readlines()
-        assert len(lines) == 1
-        cmdline = lines[0]
-        if not should_include_module(cmdline, cmd_filter):
-          logging.info(
-              'Excluding module %s because it does not match the filter',
-              self.input_obj())
-          os.remove(self.cmd_file())
-          return None
-        if is_thinlto:
-          index_file = get_thinlto_index(cmdline, self.obj_base_dir())
-          shutil.copy(index_file, self.thinlto_index_file())
+    cmd_objcopy_output = subprocess.run(
+        self._get_extraction_cmd_command(llvm_objcopy_path, cmd_section_name),
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True)
+    if cmd_objcopy_output.returncode != 0:
+      logging.warning('%s was not processed.', self.input_obj())
+      logging.info(cmd_objcopy_output.stdout)
+      return None
+    if cmd_filter is not None or is_thinlto:
+      with open(self.cmd_file(), encoding='utf-8') as f:
+        lines = f.readlines()
+      assert len(lines) == 1
+      cmdline = lines[0]
+      if not should_include_module(cmdline, cmd_filter):
+        logging.info('Excluding module %s because it does not match the filter',
+                     self.input_obj())
+        os.remove(self.cmd_file())
+        return None
+      if is_thinlto:
+        index_file = get_thinlto_index(cmdline, self.obj_base_dir())
+        shutil.copy(index_file, self.thinlto_index_file())
 
-      subprocess.run(
-          self._get_extraction_bc_command(llvm_objcopy_path,
-                                          bitcode_section_name),
-          check=True)
-    except subprocess.CalledProcessError as e:
-      # This may happen if  .o file was build from asm (.S source).
-      logging.warning('%s was not processed: %s', self.input_obj(), e)
+    bc_objcopy_output = subprocess.run(
+        self._get_extraction_bc_command(llvm_objcopy_path,
+                                        bitcode_section_name),
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True)
+    if bc_objcopy_output.returncode != 0:
+      logging.warning('%s was not processed.', self.input_obj())
+      logging.info(bc_objcopy_output.stdout)
       return None
     assert (os.path.exists(self.cmd_file()) and
             os.path.exists(self.bc_file()) and
