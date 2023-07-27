@@ -14,26 +14,31 @@
 # limitations under the License.
 """Tests for policy_utils."""
 
+import os
+
 from absl.testing import absltest
 import numpy as np
-import os
 import tensorflow as tf
 from tf_agents.networks import actor_distribution_network
-from tf_agents.policies import actor_policy, tf_policy
+from tf_agents.policies import actor_policy
+from tf_agents.policies import tf_policy
 
 from compiler_opt.es import policy_utils
-from compiler_opt.rl import policy_saver, registry
+from compiler_opt.rl import inlining
+from compiler_opt.rl import policy_saver
+from compiler_opt.rl import regalloc
+from compiler_opt.rl import registry
 from compiler_opt.rl.inlining import config as inlining_config
-from compiler_opt.rl.inlining import InliningConfig
 from compiler_opt.rl.regalloc import config as regalloc_config
-from compiler_opt.rl.regalloc import RegallocEvictionConfig, regalloc_network
+from compiler_opt.rl.regalloc import regalloc_network
 
 
 class ConfigTest(absltest.TestCase):
 
   # TODO(abenalaast): Issue #280
   def test_inlining_config(self):
-    problem_config = registry.get_configuration(implementation=InliningConfig)
+    problem_config = registry.get_configuration(
+        implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
@@ -64,7 +69,7 @@ class ConfigTest(absltest.TestCase):
   # TODO(abenalaast): Issue #280
   def test_regalloc_config(self):
     problem_config = registry.get_configuration(
-        implementation=RegallocEvictionConfig)
+        implementation=regalloc.RegallocEvictionConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     quantile_file_dir = os.path.join('compiler_opt', 'rl', 'regalloc', 'vocab')
     creator = regalloc_config.get_observation_processing_layer_creator(
@@ -105,7 +110,8 @@ class VectorTest(absltest.TestCase):
   # TODO(abenalaast): Issue #280
   def test_set_vectorized_parameters_for_policy(self):
     # create a policy
-    problem_config = registry.get_configuration(implementation=InliningConfig)
+    problem_config = registry.get_configuration(
+        implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
@@ -167,7 +173,8 @@ class VectorTest(absltest.TestCase):
   # TODO(abenalaast): Issue #280
   def test_get_vectorized_parameters_from_policy(self):
     # create a policy
-    problem_config = registry.get_configuration(implementation=InliningConfig)
+    problem_config = registry.get_configuration(
+        implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
@@ -214,7 +221,8 @@ class VectorTest(absltest.TestCase):
   # TODO(abenalaast): Issue #280
   def test_tfpolicy_and_loaded_policy_produce_same_variable_order(self):
     # create a policy
-    problem_config = registry.get_configuration(implementation=InliningConfig)
+    problem_config = registry.get_configuration(
+        implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
     quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(

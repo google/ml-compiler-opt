@@ -14,15 +14,19 @@
 # limitations under the License.
 """Util functions to create and edit a tf_agent policy."""
 
+from typing import Protocol, Sequence, Type
+
 import gin
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-from typing import Protocol, Sequence
-
-from compiler_opt.rl import policy_saver, registry
 from tf_agents.networks import network
-from tf_agents.policies import actor_policy, greedy_policy, tf_policy
+from tf_agents.policies import actor_policy
+from tf_agents.policies import greedy_policy
+from tf_agents.policies import tf_policy
+
+from compiler_opt.rl import policy_saver
+from compiler_opt.rl import registry
 
 
 class HasModelVariables(Protocol):
@@ -31,8 +35,10 @@ class HasModelVariables(Protocol):
 
 # TODO(abenalaast): Issue #280
 @gin.configurable(module='policy_utils')
-def create_actor_policy(actor_network_ctor: network.DistributionNetwork,
-                        greedy: bool = False) -> tf_policy.TFPolicy:
+def create_actor_policy(
+    actor_network_ctor: Type[network.DistributionNetwork],
+    greedy: bool = False,
+) -> tf_policy.TFPolicy:
   """Creates an actor policy."""
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
