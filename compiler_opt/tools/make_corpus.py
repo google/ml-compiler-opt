@@ -42,10 +42,11 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-  logging.warn('Using this tool does not guarnatee that the bitcode is taken at'
-               'the correct stage for consumption during model training. Make'
-               'sure to validate assumptions about where the bitcode is coming'
-               'from before using it in production.')
+  logging.warning(
+      'Using this tool does not guarantee that the bitcode is taken at '
+      'the correct stage for consumption during model training. Make '
+      'sure to validate assumptions about where the bitcode is coming '
+      'from before using it in production.')
   relative_paths = make_corpus_lib.load_bitcode_from_directory(FLAGS.input_dir)
   make_corpus_lib.copy_bitcode(relative_paths, FLAGS.input_dir,
                                FLAGS.output_dir)
