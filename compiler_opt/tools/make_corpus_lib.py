@@ -21,6 +21,8 @@ import json
 
 from typing import List, Optional
 
+BITCODE_EXTENSION = '.bc'
+
 
 def load_bitcode_from_directory(bitcode_base_dir: str) -> List[str]:
   """Finds bitcode files to extract from a given directory.
@@ -33,7 +35,10 @@ def load_bitcode_from_directory(bitcode_base_dir: str) -> List[str]:
   Returns an array of paths representing the relative path to the bitcode
   file from the base direcotry.
   """
-  paths = [str(p) for p in pathlib.Path(bitcode_base_dir).glob('**/*.bc')]
+  paths = [
+      str(p)[:-len(BITCODE_EXTENSION)]
+      for p in pathlib.Path(bitcode_base_dir).glob('**/*' + BITCODE_EXTENSION)
+  ]
 
   return [
       os.path.relpath(full_path, start=bitcode_base_dir) for full_path in paths
@@ -51,8 +56,10 @@ def copy_bitcode(relative_paths: List[str], bitcode_base_dir: str,
     output_dir: The output directory to place the bitcode in.
   """
   for relative_path in relative_paths:
-    base_path = os.path.join(bitcode_base_dir, relative_path)
-    destination_path = os.path.join(output_dir, relative_path)
+    base_path = os.path.join(bitcode_base_dir,
+                             relative_path + BITCODE_EXTENSION)
+    destination_path = os.path.join(output_dir,
+                                    relative_path + BITCODE_EXTENSION)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
     shutil.copy(base_path, destination_path)
 
