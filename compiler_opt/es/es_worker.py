@@ -31,8 +31,8 @@ class ESWorker(worker.Worker):
     self._kwarg = kwarg
     self.function_value = 0.0
 
-  def temp_compile(self, policy: List[bytes],
-                   samples: List[List[corpus.ModuleSpec]]) -> float:
+  def temp_compile(self, policy: bytes,
+                   samples: List[corpus.ModuleSpec]) -> float:
     if policy and samples:
       self.function_value += 1.0
       return self.function_value
