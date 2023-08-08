@@ -61,7 +61,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.optimize as sp_opt
 from sklearn import linear_model
-from typing import Annotated, Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
