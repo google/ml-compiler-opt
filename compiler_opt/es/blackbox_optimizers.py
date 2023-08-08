@@ -54,6 +54,7 @@ point obtained after conducting one optimization step.
 
 import abc
 import enum
+import gin
 import math
 
 import numpy as np
@@ -63,6 +64,8 @@ from sklearn import linear_model
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
+
+ArrayOfFloatArrays = Sequence[npt.NDArray[np.float32]]
 
 SequenceOfFloats = Union[Sequence[float], npt.NDArray[np.float32]]
 
@@ -75,6 +78,14 @@ class CurrentPointEstimate(enum.Enum):
   AVERAGE = 2
 
 
+@gin.constants_from_enum(module='blackbox_optimizers')
+class Algorithm(enum.Enum):
+  MONTE_CARLO = 1
+  TRUST_REGION = 2
+  SKLEARN_REGRESSION = 3
+
+
+@gin.constants_from_enum(module='blackbox_optimizers')
 class EstimatorType(enum.Enum):
   FORWARD_FD = 1
   ANTITHETIC = 2
@@ -91,6 +102,7 @@ class RegressionType(enum.Enum):
   LINEAR = 3
 
 
+@gin.constants_from_enum(module='blackbox_optimizers')
 class UpdateMethod(enum.Enum):
   STATE_NORMALIZATION = 1
   NO_METHOD = 2
@@ -100,9 +112,8 @@ DEFAULT_ARMIJO = 1e-4
 
 
 def filter_top_directions(
-    perturbations: npt.NDArray[np.float32],
-    function_values: npt.NDArray[np.float32], est_type: EstimatorType,
-    num_top_directions: int
+    perturbations: ArrayOfFloatArrays, function_values: npt.NDArray[np.float32],
+    est_type: EstimatorType, num_top_directions: int
 ) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
   """Select the subset of top-performing perturbations.
 
@@ -151,7 +162,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def run_step(self, perturbations: npt.NDArray[np.float32],
+  def run_step(self, perturbations: ArrayOfFloatArrays,
                function_values: npt.NDArray[np.float32],
                current_input: npt.NDArray[np.float32],
                current_value: float) -> npt.NDArray[np.float32]:
@@ -332,7 +343,8 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
                      extra_params)
 
-  def run_step(self, perturbations: npt.NDArray[np.float32],
+  # TODO: Issue #285
+  def run_step(self, perturbations: ArrayOfFloatArrays,
                function_values: npt.NDArray[np.float32],
                current_input: npt.NDArray[np.float32],
                current_value: float) -> npt.NDArray[np.float32]:
@@ -413,7 +425,7 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
     super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
                      extra_params)
 
-  def run_step(self, perturbations: npt.NDArray[np.float32],
+  def run_step(self, perturbations: ArrayOfFloatArrays,
                function_values: npt.NDArray[np.float32],
                current_input: npt.NDArray[np.float32],
                current_value: float) -> npt.NDArray[np.float32]:
@@ -487,7 +499,7 @@ def normalize_function_values(
 def monte_carlo_gradient(
     precision_parameter: float,
     est_type: EstimatorType,
-    perturbations: npt.NDArray[np.float32],
+    perturbations: ArrayOfFloatArrays,
     function_values: npt.NDArray[np.float32],
     current_value: float,
     energy: Optional[float] = 0) -> npt.NDArray[np.float32]:
@@ -532,8 +544,7 @@ def monte_carlo_gradient(
 
 def sklearn_regression_gradient(
     clf: LinearModel, est_type: EstimatorType,
-    perturbations: npt.NDArray[np.float32],
-    function_values: npt.NDArray[np.float32],
+    perturbations: ArrayOfFloatArrays, function_values: npt.NDArray[np.float32],
     current_value: float) -> npt.NDArray[np.float32]:
   """Calculates gradient by function difference regression.
 
@@ -981,7 +992,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
           print('Unchanged: ' + str(self.radius) + log_message)
     return True
 
-  def update_hessian_part(self, perturbations: npt.NDArray[np.float32],
+  def update_hessian_part(self, perturbations: ArrayOfFloatArrays,
                           function_values: npt.NDArray[np.float32],
                           current_value: float, is_update: bool) -> None:
     """Updates the internal state which stores Hessian information.
@@ -1095,7 +1106,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
 
     return hessv_func
 
-  def update_quadratic_model(self, perturbations: npt.NDArray[np.float32],
+  def update_quadratic_model(self, perturbations: ArrayOfFloatArrays,
                              function_values: npt.NDArray[np.float32],
                              current_value: float,
                              is_update: bool) -> QuadraticModel:
@@ -1145,7 +1156,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
                              is_update)
     return QuadraticModel(self.create_hessv_function(), self.saved_gradient)
 
-  def run_step(self, perturbations: npt.NDArray[np.float32],
+  def run_step(self, perturbations: ArrayOfFloatArrays,
                function_values: npt.NDArray[np.float32],
                current_input: npt.NDArray[np.float32],
                current_value: float) -> npt.NDArray[np.float32]:
