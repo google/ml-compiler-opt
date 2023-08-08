@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Main routine of the RPC client coordinating RPC blackbox optimization."""
+"""Class for coordinating blackbox optimization."""
 
 from absl import logging
 import concurrent.futures
