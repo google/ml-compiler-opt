@@ -24,7 +24,7 @@ import numpy as np
 import numpy.typing as npt
 import tempfile
 import tensorflow as tf
-from typing import Any, Callable, List, Optional
+from typing import List, Optional, Protocol
 
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.worker import FixedWorkerPool
@@ -113,6 +113,16 @@ def _prune_skipped_perturbations(perturbations: List[npt.NDArray[np.float32]],
   return len(indices_to_prune)
 
 
+class PolicySaverCallableType(Protocol):
+  """Protocol for the policy saver function.
+  A Protocol is required to type annotate
+  the function with keyword arguments"""
+
+  def __call__(self, parameters: npt.NDArray[np.float32],
+               policy_name: str) -> None:
+    ...
+
+
 class BlackboxLearner:
   """Implementation of blackbox learning."""
 
@@ -121,7 +131,7 @@ class BlackboxLearner:
                sampler: corpus.Corpus,
                tf_policy_path: str,
                output_dir: str,
-               policy_saver_fn: Callable[..., Any],
+               policy_saver_fn: PolicySaverCallableType,
                model_weights: npt.NDArray[np.float32],
                config: BlackboxLearnerConfig,
                initial_step: int = 0,
@@ -138,7 +148,7 @@ class BlackboxLearner:
       config: configuration for blackbox optimization.
       stubs: grpc stubs to inlining/regalloc servers
       initial_step: the initial step for learning.
-      deadline: the deadline for requests to the inlining server.
+      deadline: the deadline in seconds for requests to the inlining server.
     """
     self._blackbox_opt = blackbox_opt
     self._sampler = sampler
@@ -156,12 +166,13 @@ class BlackboxLearner:
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
-  def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
+  def _get_perturbations(self, seed=None) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
     perturbations = []
+    rng = np.random.default_rng(seed=seed)
     for _ in range(self._config.total_num_perturbations):
       perturbations.append(
-          np.random.normal(size=(len(self._model_weights))) *
+          rng.normal(size=(len(self._model_weights))) *
           self._config.precision_parameter)
     return perturbations
 
@@ -173,6 +184,9 @@ class BlackboxLearner:
     for i in range(len(results)):
       if not results[i].exception():
         rewards[i] = results[i].result()
+      else:
+        logging.info('Error retrieving result from future: %s',
+                     str(results[i].exception()))
 
     return rewards
 
@@ -244,7 +258,7 @@ class BlackboxLearner:
     compile_args = zip(perturbations, self._samples)
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.temp_compile(v[0], v[1]),
+        action=lambda w, v: w.compile(v[0], v[1]),
         jobs=compile_args,
         worker_pool=pool)
 
@@ -279,7 +293,9 @@ class BlackboxLearner:
       return policy_obj.policy
 
   def run_step(self, pool: FixedWorkerPool) -> None:
-    """Run a single step of blackbox learning."""
+    """Run a single step of blackbox learning.
+    This does not instantaneously return due to several I/O
+    and executions running while this waits for the responses"""
     logging.info('-' * 80)
     logging.info('Step [%d]', self._step)
 
