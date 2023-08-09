@@ -48,8 +48,8 @@ def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
+  combine_training_corpus_lib.combine_corpus(FLAGS.root_dir)
 
-combine_training_corpus_lib.combine_corpus(FLAGS.root_dir)
 
 if __name__ == '__main__':
   app.run(main)
