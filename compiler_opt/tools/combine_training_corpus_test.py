@@ -54,6 +54,36 @@ class CombineTrainingCorpusTest(absltest.TestCase):
     self.assertIn('subcorpus2/test3.o', combined_corpus_description['modules'])
     self.assertIn('subcorpus2/test4.o', combined_corpus_description['modules'])
 
+  def test_empty_folder(self):
+    corpus_dir = self.create_tempdir()
+    subcorpus1_dir = corpus_dir.mkdir(dir_path='subcorpus1')
+    _ = corpus_dir.mkdir(dir_path='empty_dir')
+    subcorpus1_description = {'modules': ['test1.o', 'test2.o']}
+    subcorpus1_description_file = subcorpus1_dir.create_file(
+        file_path='corpus_description.json')
+    subcorpus1_description_file.write_text(json.dumps(subcorpus1_description))
+    combine_training_corpus_lib.combine_corpus(corpus_dir.full_path)
+    with open(
+        os.path.join(corpus_dir, 'corpus_description.json'),
+        encoding='utf-8') as combined_corpus_description_file:
+      combined_corpus_description = json.load(combined_corpus_description_file)
+    self.assertLen(combined_corpus_description['modules'], 2)
+
+  def test_ignore_extra_file(self):
+    corpus_dir = self.create_tempdir()
+    subcorpus1_dir = corpus_dir.mkdir(dir_path='subcorpus1')
+    _ = corpus_dir.create_file(file_path='empty.log')
+    subcorpus1_description = {'modules': ['test1.o', 'test2.o']}
+    subcorpus1_description_file = subcorpus1_dir.create_file(
+        file_path='corpus_description.json')
+    subcorpus1_description_file.write_text(json.dumps(subcorpus1_description))
+    combine_training_corpus_lib.combine_corpus(corpus_dir.full_path)
+    with open(
+        os.path.join(corpus_dir, 'corpus_description.json'),
+        encoding='utf-8') as combined_corpus_description_file:
+      combined_corpus_description = json.load(combined_corpus_description_file)
+    self.assertLen(combined_corpus_description['modules'], 2)
+
   def test_different_corpora(self):
     corpus_dir = self.create_tempdir()
     subcorpus1_dir = corpus_dir.mkdir(dir_path='subcorpus1')
