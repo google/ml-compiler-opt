@@ -28,17 +28,13 @@ def combine_corpus(root_dir: str) -> None:
   module_names = []
   output_corpus_description = {}
 
-  for sub_dir in tf.io.gfile.listdir(root_dir):
-    path = os.path.join(root_dir, sub_dir, _FILE_NAME)
+  corpus_description_glob = os.path.join(root_dir, '*/' + _FILE_NAME)
+  for corpus_description_path in tf.io.gfile.glob(corpus_description_glob):
+    logging.info('processing %s', corpus_description_path)
 
-    logging.info('processing %s', path)
-
-    if not tf.io.gfile.exists(path):
-      logging.error('%s does not exist.', path)
-      continue
-
-    with tf.io.gfile.GFile(path, 'r') as f:
+    with tf.io.gfile.GFile(corpus_description_path, 'r') as f:
       corpus_description = json.load(f)
+      sub_dir = os.path.basename(os.path.dirname(corpus_description_path))
       module_names.extend([
           os.path.join(sub_dir, name) for name in corpus_description['modules']
       ])
