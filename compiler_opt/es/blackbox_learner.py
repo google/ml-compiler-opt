@@ -135,7 +135,8 @@ class BlackboxLearner:
                model_weights: npt.NDArray[np.float32],
                config: BlackboxLearnerConfig,
                initial_step: int = 0,
-               deadline: float = 30.0):
+               deadline: float = 30.0,
+               seed: Optional[int] = None):
     """Construct a BlackboxLeaner.
 
     Args:
@@ -159,6 +160,7 @@ class BlackboxLearner:
     self._config = config
     self._step = initial_step
     self._deadline = deadline
+    self._seed = seed
 
     # While we're waiting for the ES requests, we can
     # collect samples for the next round of training.
@@ -166,10 +168,10 @@ class BlackboxLearner:
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
-  def _get_perturbations(self, seed=None) -> List[npt.NDArray[np.float32]]:
+  def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
     perturbations = []
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng(seed=self._seed)
     for _ in range(self._config.total_num_perturbations):
       perturbations.append(
           rng.normal(size=(len(self._model_weights))) *
@@ -219,7 +221,7 @@ class BlackboxLearner:
 
       tf.summary.scalar(
           'reward/regression_avg_train',
-          np.mean(train_regressions),
+          np.mean(train_regressions) if len(train_regressions) > 0 else 0,
           step=self._step)
 
       # The "max regression" is the min value, as the regressions are negative.
