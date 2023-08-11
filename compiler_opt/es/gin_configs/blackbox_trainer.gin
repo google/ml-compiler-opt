@@ -1,4 +1,4 @@
-import compiler_opt.es.es_worker
+import compiler_opt.es.blackbox_learner_test
 # List of flags to add to clang compilation command. The flag names should
 # match the actual flags provided to clang. An example for AFDO reinjection:
 # train_eval.additional_flags=('-fprofile-sample-use=/path/to/gwp.afdo','-fprofile-remapping-file=/path/to/prof_remap.txt')
@@ -8,4 +8,4 @@ train.additional_compilation_flags=()
 # should match the actual flags provided to clang.'
 train.delete_compilation_flags=('-split-dwarf-file','-split-dwarf-output','-fthinlto-index','-fprofile-sample-use','-fprofile-remapping-file')
 
-train.worker_class=@es_worker.ESWorker
+train.worker_class=@blackbox_learner_test.ESWorker
