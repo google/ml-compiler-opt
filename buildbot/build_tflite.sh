@@ -34,14 +34,8 @@ readonly NEON_2_SSE_TAG="cef9501d1d1c47223466bf2b8cd43f3368c37773"
 readonly FLATBUFFERS_REPOSITORY="https://github.com/google/flatbuffers"
 readonly FLATBUFFERS_TAG="615616cb5549a34bdf288c04bc1b94bd7a65c396"
 
-readonly GEMMLOWP_REPOSITORY="https://github.com/google/gemmlowp"
-readonly GEMMLOWP_TAG="08e4bb339e34017a0835269d4a37c4ea04d15a69"
-
-readonly ML_DTYPES_REPOSITORY="https://github.com/jax-ml/ml_dtypes"
-readonly ML_DTYPES_TAG="780b6d0ee01ffbfac45f7ec5418bc08f2b166483"
-
 readonly TENSORFLOW_REPOSITORY="https://github.com/tensorflow/tensorflow"
-readonly TENSORFLOW_TAG="b276e31ff3140e1fd20900d8df01b91900a7886d"
+readonly TENSORFLOW_TAG="d74d591e8f9e42be640dd93cfa0584914e25e98e"
 
 # cpuinfo
 git clone --filter=tree:0 --no-checkout ${CPUINFO_REPOSITORY} cpuinfo/src/cpuinfo
@@ -115,18 +109,6 @@ cmake -GNinja -S flatbuffers/src/flatbuffers -B flatbuffers/src/flatbuffers-buil
   -DFLATBUFFERS_BUILD_TESTS:BOOL=OFF
 ninja -C flatbuffers/src/flatbuffers-build install
 
-# gemmlowp
-git clone --filter=tree:0 --no-checkout ${GEMMLOWP_REPOSITORY} gemmlowp/src/gemmlowp
-git -C gemmlowp/src/gemmlowp checkout ${GEMMLOWP_TAG}
-cmake -GNinja -S gemmlowp/src/gemmlowp/contrib -B gemmlowp/src/gemmlowp-build \
-  -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/gemmlowp \
-  -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
-ninja -C gemmlowp/src/gemmlowp-build install
-
-# ml_dtypes
-git clone --filter=tree:0 --no-checkout ${ML_DTYPES_REPOSITORY} ml_dtypes/src/ml_dtypes
-git -C ml_dtypes/src/ml_dtypes checkout ${ML_DTYPES_TAG}
-
 # tflite
 git clone --filter=tree:0 --no-checkout ${TENSORFLOW_REPOSITORY} tensorflow/src/tensorflow
 git -C tensorflow/src/tensorflow checkout ${TENSORFLOW_TAG}
@@ -137,15 +119,12 @@ cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/ten
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DTFLITE_ENABLE_INSTALL:BOOL=ON \
   -DTFLITE_ENABLE_XNNPACK:BOOL=OFF \
-  -DSYSTEM_PTHREADPOOL=ON \
   -Dcpuinfo_DIR:PATH=${PWD}/cpuinfo/share/cpuinfo \
   -Druy_DIR:PATH=${PWD}/ruy/lib/cmake/ruy \
   -Dabsl_DIR:PATH=${PWD}/abseil-cpp/lib/cmake/absl \
   -DEigen3_DIR:PATH=${PWD}/eigen/share/eigen3/cmake \
-  -Dgemmlowp_DIR:PATH=${PWD}/gemmlowp/lib/cmake/gemmlowp \
   -DNEON_2_SSE_DIR:PATH=${PWD}/ARM_NEON_2_x86_SSE/lib/cmake/NEON_2_SSE \
-  -DFlatbuffers_DIR:PATH=${PWD}/flatbuffers/lib/cmake/flatbuffers \
-  -DML_DTYPES_SOURCE_DIR:PATH=${PWD}/ml_dtypes/src/ml_dtypes
+  -DFlatbuffers_DIR:PATH=${PWD}/flatbuffers/lib/cmake/flatbuffers
 ninja -C tensorflow/src/tensorflow-build install
 
 # CMake cache file
@@ -155,7 +134,6 @@ set(ruy_DIR "${PWD}/ruy/lib/cmake/ruy" CACHE PATH "")
 set(absl_DIR "${PWD}/abseil-cpp/lib/cmake/absl" CACHE PATH "")
 set(Eigen3_DIR "${PWD}/eigen/share/eigen3/cmake" CACHE PATH "")
 set(NEON_2_SSE_DIR "${PWD}/ARM_NEON_2_x86_SSE/lib/cmake/NEON_2_SSE" CACHE PATH "")
-set(gemmlowp_DIR "${PWD}/gemmlowp/lib/cmake/gemmlowp" CACHE PATH "")
 set(Flatbuffers_DIR "${PWD}/flatbuffers/lib/cmake/flatbuffers" CACHE PATH "")
 set(tensorflow-lite_DIR "${PWD}/tensorflow/lib/cmake/tensorflow-lite" CACHE PATH "")
 set(TENSORFLOW_SRC_DIR "${PWD}/tensorflow/src/tensorflow" CACHE PATH "")
