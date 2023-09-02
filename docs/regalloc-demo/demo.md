@@ -303,6 +303,7 @@ directory and run the following command:
 cd $WORKING_DIR/chromium/src/out/Release
 ninja -t commands chrome
 ```
+(**Note** - `libchrome` instead of `chrome` if targeting Android)
 
 The last command should look something like this:
 
