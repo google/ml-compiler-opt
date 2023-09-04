@@ -207,14 +207,20 @@ class TrainingIRExtractor:
 def convert_compile_command_to_objectfile(
     command: Dict[str, str], output_dir: str) -> Optional[TrainingIRExtractor]:
   obj_base_dir = command['directory']
-  cmd = command['command']
+  if 'arguments' in command:
+    cmd_parts = command['arguments']
+  elif 'command' in command:
+    cmd_parts = command['command'].split()
+  else:
+    logging.info('compile_commands element has no command and arguments: %s',
+                 cmd_parts)
+    return None
 
-  cmd_parts = cmd.split()
   try:
     obj_index = cmd_parts.index('-o') + 1
   except ValueError:
     # This could happen if there are non-clang commands in compile_commands.json
-    logging.info('Command has no -o option: %s', cmd)
+    logging.info('Command has no -o option: %s', cmd_parts)
     return None
   obj_rel_path = cmd_parts[obj_index]
   # TODO(mtrofin): is the obj_base_dir correct for thinlto index bc files?
