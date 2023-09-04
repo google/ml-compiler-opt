@@ -212,7 +212,7 @@ def convert_compile_command_to_objectfile(
   elif 'command' in command:
     cmd_parts = command['command'].split()
   else:
-    logging.info('compile_commands element has no command and arguments)
+    logging.info('compile_commands element has no command and arguments')
     return None
 
   try:
