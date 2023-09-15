@@ -41,7 +41,7 @@ class StepType(Enum):
 
 @dataclasses.dataclass
 class TimeStep:
-  obs: Optional[dict[str, np.array]]
+  obs: Optional[dict[str, np.NDArray]]
   reward: Optional[dict[str, float]]
   score_policy: Optional[dict[str, float]]
   score_default: Optional[dict[str, float]]
@@ -339,7 +339,10 @@ class MLGOEnvironmentBase:
   def action_spec(self):
     return self._action_spec
 
-  def _get_observation(self) -> StepType:
+  def observation(self):
+    return self._last_obs
+
+  def _get_observation(self) -> TimeStep:
     self._last_obs = self._iclang.get_observation()
     if self._last_obs.step_type == StepType.LAST:
       self._last_obs.score_policy = self._iclang.get_scores()
