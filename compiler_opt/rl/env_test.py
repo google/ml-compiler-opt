@@ -178,15 +178,15 @@ class MLGOEnvironmentTest(tf.test.TestCase):
     for env_itr in range(3):
       del env_itr
       step = test_env.reset(_MOCK_MODULE)
-      self.assertEqual(step.step_type, env.StepType.first)
+      self.assertEqual(step.step_type, env.StepType.FIRST)
 
       for step_itr in range(_NUM_STEPS - 1):
         del step_itr
         step = test_env.step(np.array([1], dtype=np.int64))
-        self.assertEqual(step.step_type, env.StepType.mid)
+        self.assertEqual(step.step_type, env.StepType.MID)
 
       step = test_env.step(np.array([1], dtype=np.int64))
-      self.assertEqual(step.step_type, env.StepType.last)
+      self.assertEqual(step.step_type, env.StepType.LAST)
 
 
 if __name__ == '__main__':

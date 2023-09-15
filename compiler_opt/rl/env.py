@@ -34,9 +34,9 @@ from compiler_opt.rl import log_reader
 
 
 class StepType(Enum):
-  first = 1
-  mid = 2
-  last = 3
+  FIRST = 1
+  MID = 2
+  LAST = 3
 
 
 @dataclasses.dataclass
@@ -151,7 +151,7 @@ class InteractiveClang(ClangProcess):
         context=None,
         module_name=module_name,
         obs_id=None,
-        step_type=StepType.last,
+        step_type=StepType.LAST,
     )
 
   def _running(self) -> bool:
@@ -162,7 +162,7 @@ class InteractiveClang(ClangProcess):
       return self._terminal_obs
 
     def _get_step_type() -> StepType:
-      step_type = StepType.first if self._is_first_obs else StepType.mid
+      step_type = StepType.FIRST if self._is_first_obs else StepType.MID
       self._is_first_obs = False
       return step_type
 
@@ -341,7 +341,7 @@ class MLGOEnvironmentBase:
 
   def _get_observation(self) -> StepType:
     self._last_obs = self._iclang.get_observation()
-    if self._last_obs.step_type == StepType.last:
+    if self._last_obs.step_type == StepType.LAST:
       self._last_obs.score_policy = self._iclang.get_scores()
       self._last_obs.score_default = self._clang.get_scores()
       self._last_obs.reward = compute_relative_rewards(
