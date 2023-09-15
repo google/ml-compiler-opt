@@ -25,7 +25,7 @@ import contextlib
 import io
 import os
 import tempfile
-from typing import Any, Callable, Generator, List, Optional, Tuple, Type
+from typing import Callable, Generator, List, Optional, Tuple, Type
 
 import numpy as np
 
