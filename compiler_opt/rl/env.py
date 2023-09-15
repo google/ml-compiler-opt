@@ -339,9 +339,6 @@ class MLGOEnvironmentBase:
   def action_spec(self):
     return self._action_spec
 
-  def observation(self):
-    return self._last_obs
-
   def _get_observation(self) -> StepType:
     self._last_obs = self._iclang.get_observation()
     if self._last_obs.step_type == StepType.last:
@@ -349,7 +346,7 @@ class MLGOEnvironmentBase:
       self._last_obs.score_default = self._clang.get_scores()
       self._last_obs.reward = compute_relative_rewards(
           self._last_obs.score_policy, self._last_obs.score_default)
-    return self.observation()
+    return self._last_obs
 
   def reset(self, module: corpus.LoadedModuleSpec):
     # On the first call to reset(...), sending None starts the coroutine.
