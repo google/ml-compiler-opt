@@ -155,10 +155,10 @@ class ClangSessionTest(tf.test.TestCase):
       for idx in range(_NUM_STEPS):
         obs = clang_session.get_observation()
         self.assertEqual(
-            obs[env.OBS_KEY]['times_called'],
+            obs.obs['times_called'],
             np.array([idx], dtype=np.int64),
         )
-        self.assertEqual(obs[env.CONTEXT_KEY], f'context_{idx}')
+        self.assertEqual(obs.context, f'context_{idx}')
       mock_popen.assert_called_once()
 
 
@@ -178,15 +178,15 @@ class MLGOEnvironmentTest(tf.test.TestCase):
     for env_itr in range(3):
       del env_itr
       step = test_env.reset(_MOCK_MODULE)
-      self.assertEqual(step[env.STEP_TYPE_KEY], env.FIRST_STEP_STR)
+      self.assertEqual(step.step_type, env.StepType.FIRST)
 
       for step_itr in range(_NUM_STEPS - 1):
         del step_itr
         step = test_env.step(np.array([1], dtype=np.int64))
-        self.assertEqual(step[env.STEP_TYPE_KEY], env.MID_STEP_STR)
+        self.assertEqual(step.step_type, env.StepType.MID)
 
       step = test_env.step(np.array([1], dtype=np.int64))
-      self.assertEqual(step[env.STEP_TYPE_KEY], env.LAST_STEP_STR)
+      self.assertEqual(step.step_type, env.StepType.LAST)
 
 
 if __name__ == '__main__':
