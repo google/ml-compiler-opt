@@ -4,7 +4,7 @@ This folder contains dockerfiles with all the dependencies necessary to do
 development work with MLGO. Note that these dockerfiles do not contain a
 clone of LLVM, only system dependencies, python dependencies, and the current
 repository. You are expected to clone LLVM and configure the build yourself.
-To see how to do this, the [inliner demo](../docs/demo/demo.md) should have
+To see how to do this, the [inliner demo](../../docs/inlining-demo/demo.md) should have
 some useful guidance.
 
 ### Building the image
