@@ -6,10 +6,9 @@ In this demo, we look at how to:
   * perform that training
   * use the trained policy to build a 'release' clang which embeds the policy
 
-For the first two steps, we use a 'development' mode clang which depends on the
-Tensorflow C API dynamic library and allows swapping policies from the command
-line - which is necessary to enable the reinforcement training loop iterate and
-improve over policies.
+For the first two steps, we use a 'development' mode clang which depends on TFLite
+and allows swapping policies from the command line - which is necessary to enable
+the reinforcement training loop iterate and improve over policies.
 
 The 'release' mode compiler does not have this option. The policy is fixed and
 embedded in the compiler, and a user opts in to using it via a command line flag
