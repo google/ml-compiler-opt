@@ -14,19 +14,14 @@
 # limitations under the License.
 """Map between tf, ctypes, and string names for scalar types."""
 import ctypes
-from typing import Any, List, Tuple, Union
+from typing import List, Tuple, Union
 import tensorflow as tf
-import sys
 
-# ctypes doesn't have a 'ctype base type' that'd also be public.
-if sys.version_info.minor < 9:
-  ScalarCType = Any
-else:
-  ScalarCType = Union[type[ctypes.c_float], type[ctypes.c_double],
-                      type[ctypes.c_int8], type[ctypes.c_int16],
-                      type[ctypes.c_uint16], type[ctypes.c_int32],
-                      type[ctypes.c_uint32], type[ctypes.c_int64],
-                      type[ctypes.c_uint64]]
+ScalarCType = Union['type[ctypes.c_float]', 'type[ctypes.c_double]',
+                    'type[ctypes.c_int8]', 'type[ctypes.c_int16]',
+                    'type[ctypes.c_uint16]', 'type[ctypes.c_int32]',
+                    'type[ctypes.c_uint32]', 'type[ctypes.c_int64]',
+                    'type[ctypes.c_uint64]']
 
 TYPE_ASSOCIATIONS: List[Tuple[str, ScalarCType,
                               tf.DType]] = [
