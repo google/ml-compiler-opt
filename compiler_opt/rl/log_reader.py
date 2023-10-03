@@ -61,29 +61,17 @@ import dataclasses
 import json
 import math
 
+from compiler_opt import type_map
 from typing import Any, BinaryIO, Dict, Generator, List, Optional, Union
 import numpy as np
 import tensorflow as tf
 
-_element_type_name_map = {
-    'float': (ctypes.c_float, tf.float32),
-    'double': (ctypes.c_double, tf.float64),
-    'int8_t': (ctypes.c_int8, tf.int8),
-    'uint8_t': (ctypes.c_uint8, tf.uint8),
-    'int16_t': (ctypes.c_int16, tf.int16),
-    'uint16_t': (ctypes.c_uint16, tf.uint16),
-    'int32_t': (ctypes.c_int32, tf.int32),
-    'uint32_t': (ctypes.c_uint32, tf.uint32),
-    'int64_t': (ctypes.c_int64, tf.int64),
-    'uint64_t': (ctypes.c_uint64, tf.uint64)
-}
-
 _element_type_name_to_dtype = {
-    name: dtype for name, (_, dtype) in _element_type_name_map.items()
+    name: dtype for name, _, dtype in type_map.TYPE_ASSOCIATIONS
 }
 
 _dtype_to_ctype = {
-    dtype: ctype for _, (ctype, dtype) in _element_type_name_map.items()
+    dtype: ctype for _, ctype, dtype in type_map.TYPE_ASSOCIATIONS
 }
 
 

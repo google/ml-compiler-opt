@@ -18,6 +18,8 @@ import dataclasses
 import json
 import os
 
+from compiler_opt import type_map
+
 import tensorflow as tf
 from tf_agents.policies import tf_policy
 from tf_agents.policies import policy_saver
@@ -27,17 +29,8 @@ from typing import Dict, Tuple
 OUTPUT_SIGNATURE = 'output_spec.json'
 TFLITE_MODEL_NAME = 'model.tflite'
 
-_TYPE_CONVERSION_DICT = {
-    tf.float32: 'float',
-    tf.float64: 'double',
-    tf.int8: 'int8_t',
-    tf.uint8: 'uint8_t',
-    tf.int16: 'int16_t',
-    tf.uint16: 'uint16_t',
-    tf.int32: 'int32_t',
-    tf.uint32: 'uint32_t',
-    tf.int64: 'int64_t',
-    tf.uint64: 'uint64_t',
+_dtype_to_name_map = {
+    dtype: name for name, _, dtype in type_map.TYPE_ASSOCIATIONS
 }
 
 
@@ -215,7 +208,7 @@ class PolicySaver(object):
         'tensor_spec': {
             'name': tensor_op,
             'port': tensor_port,
-            'type': _TYPE_CONVERSION_DICT[sm_action_decision.dtype],
+            'type': _dtype_to_name_map[sm_action_decision.dtype],
             'shape': sm_action_decision.shape.as_list(),
         }
     }]
@@ -229,7 +222,7 @@ class PolicySaver(object):
           'tensor_spec': {
               'name': tensor_op,
               'port': tensor_port,
-              'type': _TYPE_CONVERSION_DICT[sm_action_info.dtype],
+              'type': _dtype_to_name_map[sm_action_info.dtype],
               'shape': sm_action_info.shape.as_list(),
           }
       })
