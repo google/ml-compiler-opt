@@ -14,7 +14,7 @@ git clone https://github.com/google/ml-compiler-opt
 ```
 And for benchmarking using the llvm-test-suite:
 ```bash
-git clone https://github.com/llvm-test-suite
+git clone https://github.com/llvm/llvm-test-suite
 ```
 
 For acquiring the chromium source code, please see [their](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md)
