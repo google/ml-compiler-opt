@@ -28,6 +28,7 @@ The worker process dequeues tasks promptly and either re-enqueues them to a
 local thread pool, or, if the task is 'urgent', it executes it promptly.
 """
 import concurrent.futures
+import cloudpickle
 import dataclasses
 import functools
 import multiprocessing
@@ -59,8 +60,11 @@ class TaskResult:
   value: Any
 
 
-def _run_impl(pipe: connection.Connection, worker_class: 'type[worker.Worker]',
-              *args, **kwargs):
+SerializedClass = bytes
+
+
+def _run_impl(pipe: connection.Connection, worker_class: SerializedClass, *args,
+              **kwargs):
   """Worker process entrypoint."""
 
   # A setting of 1 does not inhibit the while loop below from running since
@@ -69,7 +73,7 @@ def _run_impl(pipe: connection.Connection, worker_class: 'type[worker.Worker]',
   # spawned at a time which execute given tasks. In the typical clang-spawning
   # jobs, this effectively limits the number of clang instances spawned.
   pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-  obj = worker_class(*args, **kwargs)
+  obj = cloudpickle.loads(worker_class)(*args, **kwargs)
 
   # Pipes are not thread safe
   pipe_lock = threading.Lock()
@@ -103,8 +107,8 @@ def _run_impl(pipe: connection.Connection, worker_class: 'type[worker.Worker]',
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
 
 
-def _run(pipe: connection.Connection, worker_class: 'type[worker.Worker]',
-         *args, **kwargs):
+def _run(pipe: connection.Connection, worker_class: SerializedClass, *args,
+         **kwargs):
   try:
     _run_impl(pipe, worker_class, *args, **kwargs)
   except BaseException as e:
@@ -127,7 +131,8 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
       # to handle high priority requests. The expectation is that the user
       # achieves concurrency through multiprocessing, not multithreading.
       self._process = multiprocessing.get_context().Process(
-          target=functools.partial(_run, child_pipe, cls, *args, **kwargs))
+          target=functools.partial(_run, child_pipe, cloudpickle.dumps(cls), *
+                                   args, **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
       # when we stop.
       self._lock = threading.Lock()
