@@ -78,7 +78,6 @@ def _run_impl(pipe: connection.Connection, worker_class: SerializedClass, *args,
   # jobs, this effectively limits the number of clang instances spawned.
   pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
   obj = cloudpickle.loads(worker_class)(*args, **kwargs)
-  obj = cloudpickle.loads(worker_class)(*args, **kwargs)
 
   # Pipes are not thread safe
   pipe_lock = threading.Lock()
