@@ -480,7 +480,7 @@ This script will take quite a while to run. Probably most of the day on pretty
 powerful hardware (~100+ vCPUs), and potentially many days on less powerful
 hardware.
 
-## Evaluting the Policy
+## Evaluating the Policy
 
 If you interested in seeing how the trained policy performs, you can go
 through two different avenues. You can run the `generate_default_trace.py`
