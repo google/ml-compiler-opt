@@ -34,7 +34,8 @@ RUN apt-get update && \
     software-properties-common \
     cmake \
     git \
-    vim
+    vim \
+    libpthreadpool-dev
 RUN mkdir /tflite
 WORKDIR /tflite
 COPY buildbot/build_tflite.sh ./
