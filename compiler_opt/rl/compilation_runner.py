@@ -408,12 +408,6 @@ class CompilationRunner(Worker):
 
     with tempdir_context as tempdir:
       final_cmd_line = loaded_module_spec.build_command_line(tempdir)
-      # TODO(mtrofin): remove this once the compiler only generates this by
-      # default
-      final_cmd_line += (
-          '-mllvm',
-          '-tfutils-use-simplelogger',
-      )
       tf_policy_path = ''
       if policy is not None:
         model_id_suffix = f'-{model_id}' if model_id is not None else ''
