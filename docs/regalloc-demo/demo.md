@@ -260,13 +260,25 @@ To start off training, we need to extract a corpus from the Chromium compile.
 The procedure for this will depend upon how you built your corpus, particularly
 whether or not you used thinLTO.
 
+### Installing the corpus extraction tooling
+
+Install the corpus extraction tooling:
+
+```bash
+pip3 install mlgo-utils
+```
+
+Make sure that the local binary directory that Python installs executables into
+(typically `~/.local/bin`) is on your `$PATH` so that the invocations below will
+work as expected.
+
 ### Corpus extraction (non-thinLTO case)
 
 For corpus extraction in the non-thinLTO case, you can simply run the following
 command:
 
 ```bash
-PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
+extract_ir \
   --cmd_filter="^-O2|-O3" \
   --input=$WORKING_DIR/chromium/src/out/Release/compile_commands.json \
   --input_type=json \
@@ -285,7 +297,7 @@ running the following command to do the initial step in the corpus extraction
 process:
 
 ```bash
-PYTHONPATH=$PYTHONPATH:. python3 compiler_opt/tools/extract_ir.py \
+extract_ir.py \
   --cmd_filter="^-O2|-O3" \
   --llvm_objcopy_path=$WORKING_DIR/llvm-build/bin/llvm-objcopy \
   --output_dir=$WORKING_DIR/corpus \
