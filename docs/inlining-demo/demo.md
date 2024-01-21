@@ -209,16 +209,27 @@ fx compdb
 
 This produces a `compile_commands.json` compilation database, akin cmake's.
 
+Install the corpus extraction utilities:
+```shell
+pip3 install mlgo-utils
+```
+
+and then run the `extract_ir` script to extract the corpus:
+
 ```shell
 export CORPUS=$HOME/corpus
 cd ~/ml-compiler-opt
-python3 compiler_opt/tools/extract_ir.py \
+extract_ir \
   --cmd_filter="^-O2|-Os|-Oz$" \
   --input=$FUCHSIA_SRCDIR/out/default/compile_commands.json \
   --input_type=json \
   --llvm_objcopy_path=$LLVM_INSTALLDIR/bin/llvm-objcopy \
   --output_dir=$CORPUS
 ```
+
+If you get an error saying the `extract_ir` script cannot be found, make sure
+the local binary directory that Python installs scripts to is in your `$PATH`.
+In most cases this is `~/.local/bin`.
 
 ### Collect Trace and Generate Vocab
 
