@@ -1,8 +1,3 @@
 __pycache__
 .vscode
 .idea
-
-# Python packaging build directories
-build/*
-dist/*
-ml_compiler_opt.egg-info/*
