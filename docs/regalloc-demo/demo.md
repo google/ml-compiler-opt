@@ -297,7 +297,7 @@ running the following command to do the initial step in the corpus extraction
 process:
 
 ```bash
-extract_ir.py \
+extract_ir \
   --cmd_filter="^-O2|-O3" \
   --llvm_objcopy_path=$WORKING_DIR/llvm-build/bin/llvm-objcopy \
   --output_dir=$WORKING_DIR/corpus \
