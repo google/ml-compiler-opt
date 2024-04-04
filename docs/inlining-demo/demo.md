@@ -332,14 +332,14 @@ size under the trained policy at `$OUTPUT_PERFORMANCE_PATH`.
 
 ```shell
 export OUTPUT_PERFORMANCE_PATH=$HOME/performance_report && \
-PYTHONPATH=$PYTHONPATH:. && \
-python3 compiler_opt/tools/generate_default_trace.py \
+PYTHONPATH=$PYTHONPATH:. python3 \
+compiler_opt/tools/generate_default_trace.py \
   --data_path=$CORPUS \
   --policy_path=$OUTPUT_DIR/saved_policy \
   --output_performance_path=$OUTPUT_PERFORMANCE_PATH \
   --gin_files=compiler_opt/rl/inlining/gin_configs/common.gin \
   --gin_bindings=clang_path="'$LLVM_INSTALLDIR/bin/clang'" \
-  --gin_bindings=llvm_size_path"'=$LLVM_INSTALLDIR/bin/llvm-size'" \
+  --gin_bindings=llvm_size_path="'$LLVM_INSTALLDIR/bin/llvm-size'" \
   --sampling_rate=0.2
 ```
 
