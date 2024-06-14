@@ -109,7 +109,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         actor_network=actor_network)
 
     # make the policy all zeros to be deterministic
-    expected_policy_length = 17218
+    expected_policy_length = 17154
     policy_utils.set_vectorized_parameters_for_policy(policy, [0.0] *
                                                       expected_policy_length)
     init_params = policy_utils.get_vectorized_parameters_from_policy(policy)
@@ -183,7 +183,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         ESWorker, count=3, arg='', kwarg='') as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
       # expected length calculated from expected shapes of variables
-      self.assertEqual(len(self._learner.get_model_weights()), 17218)
+      self.assertEqual(len(self._learner.get_model_weights()), 17154)
       # check that first 5 weights are not all zero
       # this will indicate general validity of all the values
       for value in self._learner.get_model_weights()[:5]:

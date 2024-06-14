@@ -31,7 +31,7 @@ def _create_test_data(batch_size, sequence_length):
   test_trajectory = trajectory.Trajectory(
       step_type=tf.fill([batch_size, sequence_length], 1),
       observation={
-          'inlining_default':
+          'callee_users':
               tf.fill([batch_size, sequence_length],
                       tf.constant(10, dtype=tf.int64))
       },
@@ -54,8 +54,8 @@ class TrainerTest(tf.test.TestCase):
 
   def setUp(self):
     observation_spec = {
-        'inlining_default':
-            tf.TensorSpec(dtype=tf.int64, shape=(), name='inlining_default')
+        'callee_users':
+            tf.TensorSpec(dtype=tf.int64, shape=(), name='callee_users')
     }
     self._time_step_spec = time_step.time_step_spec(observation_spec)
     self._action_spec = tensor_spec.BoundedTensorSpec(
@@ -69,7 +69,7 @@ class TrainerTest(tf.test.TestCase):
         action_spec=self._action_spec,
         lstm_size=(40,),
         preprocessing_layers={
-            'inlining_default': tf.keras.layers.Lambda(lambda x: x)
+            'callee_users': tf.keras.layers.Lambda(lambda x: x)
         })
     super().setUp()
 

@@ -100,7 +100,7 @@ class ConfigTest(absltest.TestCase):
 
 class VectorTest(absltest.TestCase):
 
-  expected_variable_shapes = [(71, 64), (64), (64, 64), (64), (64, 64), (64),
+  expected_variable_shapes = [(70, 64), (64), (64, 64), (64), (64, 64), (64),
                               (64, 64), (64), (64, 2), (2)]
   expected_length_of_a_perturbation = sum(
       np.prod(shape) for shape in expected_variable_shapes)
