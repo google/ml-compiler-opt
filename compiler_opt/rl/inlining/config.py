@@ -64,10 +64,7 @@ def get_inlining_signature_spec():
           'is_multiple_blocks',
           'nested_inlines',
           'nested_inline_cost_estimate',
-          'threshold',
-
-          # inlining_default is not used as feature in training.
-          'inlining_default'))
+          'threshold'))
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(
@@ -86,9 +83,6 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
   def observation_processing_layer(obs_spec):
     """Creates the layer to process observation given obs_spec."""
-    if obs_spec.name == 'inlining_default':
-      return tf.keras.layers.Lambda(feature_ops.discard_fn)
-
     quantile = quantile_map[obs_spec.name]
     return tf.keras.layers.Lambda(
         feature_ops.get_normalize_fn(quantile, with_sqrt,
@@ -98,4 +92,4 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
 
 
 def get_nonnormalized_features():
-  return ['reward', 'inlining_default', 'inlining_decision']
+  return ['reward', 'inlining_decision']
