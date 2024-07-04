@@ -41,7 +41,7 @@ readonly ML_DTYPES_REPOSITORY="https://github.com/jax-ml/ml_dtypes"
 readonly ML_DTYPES_TAG="f739b2f0256d543e68caf214cd54b367302fbf68"
 
 readonly TENSORFLOW_REPOSITORY="https://github.com/tensorflow/tensorflow"
-readonly TENSORFLOW_TAG="125f8bc2f69e62590a633eebcc2dc894e6f6b1ed"
+readonly TENSORFLOW_TAG="bbed5f60cd2efbbc3f1032a4e7f9fe393a1760af"
 
 # cpuinfo
 git clone --filter=tree:0 --no-checkout ${CPUINFO_REPOSITORY} cpuinfo/src/cpuinfo
