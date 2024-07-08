@@ -17,31 +17,31 @@
 set -e
 
 readonly CPUINFO_REPOSITORY="https://github.com/pytorch/cpuinfo"
-readonly CPUINFO_TAG="5e63739504f0f8e18e941bd63b2d6d42536c7d90"
+readonly CPUINFO_TAG="05332fd802d9109a2a151ec32154b107c1e5caf9"
 
 readonly RUY_REPOSITORY="https://github.com/google/ruy"
-readonly RUY_TAG="97ebb72aa0655c0af98896b317476a5d0dacad9c"
+readonly RUY_TAG="c08ec529fc91722bde519628d9449258082eb847"
 
 readonly ABSEIL_REPOSITORY="https://github.com/abseil/abseil-cpp"
-readonly ABSEIL_TAG="dc370a82467cb35066475537b797197aee3e5164"
+readonly ABSEIL_TAG="1278ee9bd9bd4916181521fac96d6fa1100e38e6"
 
 readonly EIGEN_REPOSITORY="https://gitlab.com/libeigen/eigen"
-readonly EIGEN_TAG="0e187141679fdb91da33249d18cb79a011c0e2ea"
+readonly EIGEN_TAG="d791d48859c6fc7850c9fd5270d2b236c818068d"
 
 readonly NEON_2_SSE_REPOSITORY="https://github.com/intel/ARM_NEON_2_x86_SSE"
-readonly NEON_2_SSE_TAG="cef9501d1d1c47223466bf2b8cd43f3368c37773"
+readonly NEON_2_SSE_TAG="697bb1c077b495b9bb6a7ea2db5674f357751dee"
 
 readonly FLATBUFFERS_REPOSITORY="https://github.com/google/flatbuffers"
-readonly FLATBUFFERS_TAG="48da2389205ca5fbd0d1f40ad52d9c0b8685a076"
+readonly FLATBUFFERS_TAG="fb9afbafc7dfe226b9db54d4923bfb8839635274"
 
 readonly GEMMLOWP_REPOSITORY="https://github.com/google/gemmlowp"
-readonly GEMMLOWP_TAG="08e4bb339e34017a0835269d4a37c4ea04d15a69"
+readonly GEMMLOWP_TAG="16e8662c34917be0065110bfcd9cc27d30f52fdf"
 
 readonly ML_DTYPES_REPOSITORY="https://github.com/jax-ml/ml_dtypes"
-readonly ML_DTYPES_TAG="780b6d0ee01ffbfac45f7ec5418bc08f2b166483"
+readonly ML_DTYPES_TAG="f739b2f0256d543e68caf214cd54b367302fbf68"
 
 readonly TENSORFLOW_REPOSITORY="https://github.com/tensorflow/tensorflow"
-readonly TENSORFLOW_TAG="b1bf09989871721a23f936617a97bb60b3d27a58"
+readonly TENSORFLOW_TAG="bbed5f60cd2efbbc3f1032a4e7f9fe393a1760af"
 
 # cpuinfo
 git clone --filter=tree:0 --no-checkout ${CPUINFO_REPOSITORY} cpuinfo/src/cpuinfo
@@ -137,7 +137,6 @@ cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/ten
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DTFLITE_ENABLE_INSTALL:BOOL=ON \
   -DTFLITE_ENABLE_XNNPACK:BOOL=OFF \
-  -DSYSTEM_PTHREADPOOL=ON \
   -Dcpuinfo_DIR:PATH=${PWD}/cpuinfo/share/cpuinfo \
   -Druy_DIR:PATH=${PWD}/ruy/lib/cmake/ruy \
   -Dabsl_DIR:PATH=${PWD}/abseil-cpp/lib/cmake/absl \
