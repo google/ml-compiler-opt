@@ -22,7 +22,7 @@ import pathlib
 import shutil
 
 
-def compile_corpus(corpus_path, output_path, clang_path, tflite_dir = None):
+def compile_corpus(corpus_path, output_path, clang_path, tflite_dir=None):
   with open(
       os.path.join(corpus_path, 'corpus_description.json'),
       encoding='utf-8') as corpus_description_handle:
@@ -44,12 +44,12 @@ def compile_corpus(corpus_path, output_path, clang_path, tflite_dir = None):
     command_vector.extend(module_command_line)
     command_vector.extend(
         [module_full_input_path, '-o', module_full_output_path])
-    
+
     if tflite_dir is not None:
       command_vector.extend(['-mllvm', '-regalloc-enable-advisor=development'])
-      command_vector.extend(['-mllvm', '-ml-regalloc-model=' + tflite_dir])
+      command_vector.extend(['-mllvm', '-regalloc-model=' + tflite_dir])
 
-    subprocess.run(command_vector)
+    subprocess.run(command_vector, check=True)
     logging.info(
         f'Just finished compiling {module_full_output_path} ({module_index + 1}/{len(corpus_description["modules"])})'
     )
@@ -57,3 +57,20 @@ def compile_corpus(corpus_path, output_path, clang_path, tflite_dir = None):
   shutil.copy(
       os.path.join(corpus_path, 'corpus_description.json'),
       os.path.join(output_path, 'corpus_description.json'))
+
+
+def evaluate_compiled_corpus(compiled_corpus_path, trace_path,
+                             bb_trace_model_path):
+  command_vector = [
+      bb_trace_model_path, '--bb_trace_path=' + trace_path,
+      '--corpus_path=' + compiled_corpus_path
+  ]
+
+  process_return = subprocess.run(
+      command_vector,
+      check=True,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.STDOUT)
+  output = process_return.stdout.decode('utf-8')
+
+  return int(output)

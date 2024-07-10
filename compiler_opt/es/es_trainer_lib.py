@@ -55,7 +55,15 @@ _PRETRAINED_POLICY_PATH = flags.DEFINE_string(
     "pretrained_policy_path", None,
     "The path of the pretrained policy. If not provided, it will \
         construct a new policy with randomly initialized weights.")
-_CORPUS_DIR = flags.DEFINE_string("corpus_dir", None, "The path to the corpus to use")
+_CORPUS_DIR = flags.DEFINE_string("corpus_dir", None,
+                                  "The path to the corpus to use")
+_CLANG_PATH = flags.DEFINE_string("clang_path", None,
+                                  "The path to the clang binary to use.")
+_TRACE_PATH = flags.DEFINE_string("trace_path", None,
+                                  "The path to the BB trace to use.")
+_BB_TRACE_MODEL_PATH = flags.DEFINE_string(
+    "bb_trace_model_path", None,
+    "THe path to the basic_block_trace_model binary to use.")
 
 
 class ESWorker(worker.Worker):
@@ -67,7 +75,12 @@ class ESWorker(worker.Worker):
     self._template_dir = tempfile.mkdtemp()
     saver.save(self._template_dir)
 
-  def es_compile(self, params: list[float]) -> float:
+    self._corpus_dir = '/usr/local/google/home/aidengrossman/programming/test_traces/corpus_subset'
+    self._clang_path = '/usr/local/google/home/aidengrossman/programming/test_traces/clang'
+    self._trace_path = '/usr/local/google/home/aidengrossman/programming/test_traces/execution_trace.pb'
+    self._bb_trace_model_path = '/usr/local/google/home/aidengrossman/programming/test_traces/basic_block_trace_model'
+
+  def es_compile(self, params: list[float], baseline_score: float) -> float:
     with tempfile.TemporaryDirectory() as tempdir:
       smdir = os.path.join(tempdir, 'sm')
       my_model = tf.saved_model.load(
@@ -81,9 +94,14 @@ class ESWorker(worker.Worker):
           os.path.join(self._template_dir, POLICY_NAME,
                        policy_saver.OUTPUT_SIGNATURE),
           os.path.join(tflitedir, policy_saver.OUTPUT_SIGNATURE))
-      
-      print(os.listdir(tflitedir))
-      return 1.0
+
+      trace_data_collector.compile_corpus(self._corpus_dir, tempdir,
+                                          self._clang_path, tflitedir)
+      score = trace_data_collector.evaluate_compiled_corpus(
+          tempdir, self._trace_path, self._bb_trace_model_path)
+      print(score)
+
+      return compilation_runner._calculate_reward(score, baseline_score)
 
 
 @gin.configurable
@@ -208,6 +226,13 @@ def train(worker_class=None):
     raise ValueError(
         f"Unknown optimizer: '{learner_config.blackbox_optimizer}'")
 
+  # Get baseline score
+  with tempfile.TemporaryDirectory() as tempdir:
+    trace_data_collector.compile_corpus(_CORPUS_DIR.value, tempdir,
+                                        _CLANG_PATH.value)
+    baseline_score = trace_data_collector.evaluate_compiled_corpus(
+        tempdir, _TRACE_PATH.value, _BB_TRACE_MODEL_PATH.value)
+
   logging.info("Initializing blackbox learner.")
   learner = blackbox_learner.BlackboxLearner(
       blackbox_opt=blackbox_optimizer,
@@ -216,7 +241,8 @@ def train(worker_class=None):
       policy_saver_fn=policy_saver_function,
       model_weights=init_current_input,
       config=learner_config,
-      initial_step=init_iteration)
+      initial_step=init_iteration,
+      baseline_score=baseline_score)
 
   if not worker_class:
     logging.info("No Worker class selected. Stopping.")

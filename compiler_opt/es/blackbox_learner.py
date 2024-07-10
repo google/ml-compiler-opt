@@ -125,6 +125,7 @@ class BlackboxLearner:
                model_weights: npt.NDArray[np.float32],
                config: BlackboxLearnerConfig,
                initial_step: int = 0,
+               baseline_score: int = 1,
                deadline: float = 30.0,
                seed: Optional[int] = None):
     """Construct a BlackboxLeaner.
@@ -149,6 +150,7 @@ class BlackboxLearner:
     self._step = initial_step
     self._deadline = deadline
     self._seed = seed
+    self._baseline_score = baseline_score
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
@@ -233,7 +235,9 @@ class BlackboxLearner:
       self, pool: FixedWorkerPool,
       perturbations: List[bytes]) -> List[concurrent.futures.Future]:
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.es_compile(params=self._model_weights + v),
+        action=lambda w, v: w.es_compile(
+            params=self._model_weights + v, baseline_score=self._baseline_score
+        ),
         jobs=perturbations,
         worker_pool=pool)
 

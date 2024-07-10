@@ -68,6 +68,9 @@ _GIN_FILES = flags.DEFINE_multi_string(
 _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
+_CORPUS_DIR = flags.DEFINE_string('corpus_dir', None, 'The path to the corpus.')
+_CLANG_PATH = flags.DEFINE_string('clang_path', None,
+                                  'The path to the clang binary to use.')
 
 ResultsQueueEntry = Union[Optional[Tuple[str, List[str],
                                          Dict[str,
