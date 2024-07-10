@@ -208,7 +208,7 @@ def start_cancellable_process(
   command_env = os.environ.copy()
   # Disable tensorflow info messages during data collection
   if _QUIET.value:
-    command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    command_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
   else:
     logging.info(shlex.join(cmdline))
   with subprocess.Popen(

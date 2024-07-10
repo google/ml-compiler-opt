@@ -22,7 +22,7 @@ import pathlib
 import shutil
 
 
-def compile_corpus(corpus_path, output_path, clang_path):
+def compile_corpus(corpus_path, output_path, clang_path, tflite_dir = None):
   with open(
       os.path.join(corpus_path, 'corpus_description.json'),
       encoding='utf-8') as corpus_description_handle:
@@ -34,20 +34,26 @@ def compile_corpus(corpus_path, output_path, clang_path):
     module_full_output_path = os.path.join(output_path, module_path) + '.bc.o'
     pathlib.Path(os.path.dirname(module_full_output_path)).mkdir(
         parents=True, exist_ok=True)
-  
+
     module_command_full_path = os.path.join(corpus_path, module_path) + '.cmd'
     with open(module_command_full_path) as module_command_handle:
-      module_command_line = tuple(module_command_handle.read().replace(r'{', r'{{').replace(r'}',
-                                                            r'}}').split('\0'))
+      module_command_line = tuple(module_command_handle.read().replace(
+          r'{', r'{{').replace(r'}', r'}}').split('\0'))
 
-    command_vector = [
-        clang_path]
+    command_vector = [clang_path]
     command_vector.extend(module_command_line)
-    command_vector.extend([module_full_input_path, '-o', module_full_output_path])
+    command_vector.extend(
+        [module_full_input_path, '-o', module_full_output_path])
+    
+    if tflite_dir is not None:
+      command_vector.extend(['-mllvm', '-regalloc-enable-advisor=development'])
+      command_vector.extend(['-mllvm', '-ml-regalloc-model=' + tflite_dir])
 
     subprocess.run(command_vector)
     logging.info(
         f'Just finished compiling {module_full_output_path} ({module_index + 1}/{len(corpus_description["modules"])})'
     )
-  
-  shutil.copy(os.path.join(corpus_path, 'corpus_description.json'), os.path.join(output_path, 'corpus_description.json'))
+
+  shutil.copy(
+      os.path.join(corpus_path, 'corpus_description.json'),
+      os.path.join(output_path, 'corpus_description.json'))

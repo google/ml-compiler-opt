@@ -63,15 +63,6 @@ class BlackboxLearnerConfig:
   # 0 means all
   num_top_directions: int
 
-  # How many IR files to try a single perturbation on?
-  num_ir_repeats_within_worker: int
-
-  # How many times should we reuse IR to test different policies?
-  num_ir_repeats_across_worker: int
-
-  # How many IR files to sample from the test corpus at each iteration
-  num_exact_evals: int
-
   # How many perturbations to attempt at each perturbation
   total_num_perturbations: int
 
@@ -128,7 +119,6 @@ class BlackboxLearner:
 
   def __init__(self,
                blackbox_opt: blackbox_optimizers.BlackboxOptimizer,
-               sampler: corpus.Corpus,
                tf_policy_path: str,
                output_dir: str,
                policy_saver_fn: PolicySaverCallableType,
@@ -141,7 +131,6 @@ class BlackboxLearner:
 
     Args:
       blackbox_opt: the blackbox optimizer to use
-      train_sampler: corpus_sampler for training data.
       tf_policy_path: where to write the tf policy
       output_dir: the directory to write all outputs
       policy_saver_fn: function to save a policy to cns
@@ -152,7 +141,6 @@ class BlackboxLearner:
       deadline: the deadline in seconds for requests to the inlining server.
     """
     self._blackbox_opt = blackbox_opt
-    self._sampler = sampler
     self._tf_policy_path = tf_policy_path
     self._output_dir = output_dir
     self._policy_saver_fn = policy_saver_fn
@@ -161,10 +149,6 @@ class BlackboxLearner:
     self._step = initial_step
     self._deadline = deadline
     self._seed = seed
-
-    # While we're waiting for the ES requests, we can
-    # collect samples for the next round of training.
-    self._samples = []
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
@@ -248,20 +232,9 @@ class BlackboxLearner:
   def _get_results(
       self, pool: FixedWorkerPool,
       perturbations: List[bytes]) -> List[concurrent.futures.Future]:
-    if not self._samples:
-      for _ in range(self._config.total_num_perturbations):
-        sample = self._sampler.sample(self._config.num_ir_repeats_within_worker)
-        self._samples.append(sample)
-        # add copy of sample for antithetic perturbation pair
-        if self._config.est_type == (
-            blackbox_optimizers.EstimatorType.ANTITHETIC):
-          self._samples.append(sample)
-
-    compile_args = zip(perturbations, self._samples)
-
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile(v[0], v[1]),
-        jobs=compile_args,
+        action=lambda w, v: w.es_compile(params=self._model_weights + v),
+        jobs=perturbations,
         worker_pool=pool)
 
     not_done = futures
@@ -272,27 +245,6 @@ class BlackboxLearner:
           not_done, return_when=concurrent.futures.FIRST_COMPLETED)
 
     return futures
-
-  def _get_policy_as_bytes(self,
-                           perturbation: npt.NDArray[np.float32]) -> bytes:
-    sm = tf.saved_model.load(self._tf_policy_path)
-    # devectorize the perturbation
-    policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-      sm_dir = os.path.join(tmpdir, 'sm')
-      tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
-      src = os.path.join(self._tf_policy_path, policy_saver.OUTPUT_SIGNATURE)
-      dst = os.path.join(sm_dir, policy_saver.OUTPUT_SIGNATURE)
-      tf.io.gfile.copy(src, dst)
-
-      # convert to tflite
-      tfl_dir = os.path.join(tmpdir, 'tfl')
-      policy_saver.convert_mlgo_model(sm_dir, tfl_dir)
-
-      # create and return policy
-      policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)
-      return policy_obj.policy
 
   def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning.
@@ -308,14 +260,7 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    # convert to bytes for compile job
-    # TODO: current conversion is inefficient.
-    # consider doing this on the worker side
-    perturbations_as_bytes = []
-    for perturbation in initial_perturbations:
-      perturbations_as_bytes.append(self._get_policy_as_bytes(perturbation))
-
-    results = self._get_results(pool, perturbations_as_bytes)
+    results = self._get_results(pool, initial_perturbations)
     rewards = self._get_rewards(results)
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
