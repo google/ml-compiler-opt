@@ -3,8 +3,8 @@ import compiler_opt.rl.gin_external_configurables
 import compiler_opt.es.blackbox_optimizers
 
 # Blackbox learner config
-BlackboxLearnerConfig.total_steps = 1
-BlackboxLearnerConfig.total_num_perturbations = 5
+BlackboxLearnerConfig.total_steps = 100
+BlackboxLearnerConfig.total_num_perturbations = 100
 BlackboxLearnerConfig.blackbox_optimizer = %blackbox_optimizers.Algorithm.MONTE_CARLO
 BlackboxLearnerConfig.est_type = %blackbox_optimizers.EstimatorType.ANTITHETIC
 # BlackboxLearnerConfig.est_type = %blackbox_optimizers.EstimatorType.FORWARD_FD
