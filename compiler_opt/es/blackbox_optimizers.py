@@ -60,10 +60,15 @@ import math
 import numpy as np
 import numpy.typing as npt
 import scipy.optimize as sp_opt
+import scipy.version
 from sklearn import linear_model
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
+
+_SCIPI_VERSION = scipy.version.version.split('.')
+_IS_SCIPI_PRE_12 = len(
+    _SCIPI_VERSION) >= 2 and _SCIPI_VERSION[0] == 1 and _SCIPI_VERSION[1] < 12
 
 FloatArray = npt.NDArray[np.float32]
 
@@ -690,7 +695,10 @@ class ProjectedGradientOptimizer(object):
 
     # Line search for a step size
     c1 = self.params.get('c1', DEFAULT_ARMIJO)
-    c2 = self.params.get('c2', -np.Inf)
+    # SciPy enforces after v. 1.12 that this parameter is in (0,1). 0.9 is
+    # default.
+    # https://github.com/scipy/scipy/blob/87c46641a8b3b5b47b81de44c07b840468f7ebe7/scipy/optimize/_linesearch.py#L29
+    c2 = self.params.get('c2', -np.Inf if _IS_SCIPI_PRE_12 else 0.9)
     # since we have negative curvature, ignore Wolfe condition
     search_direction = -grad(self.x)
     ls_result = sp_opt.line_search(
