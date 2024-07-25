@@ -678,7 +678,7 @@ class ProjectedGradientOptimizer(object):
       self.params = {}
     self.x = np.copy(x_init)
     self.k = 0  # iteration counter
-    self.x_diff_norm = np.Inf  # L2 norm of x^+ - x
+    self.x_diff_norm = np.inf  # L2 norm of x^+ - x
 
   def run_step(self) -> None:
     """Take a single step of projected gradient descent.
@@ -698,7 +698,7 @@ class ProjectedGradientOptimizer(object):
     # SciPy enforces after v. 1.12 that this parameter is in (0,1). 0.9 is
     # default.
     # https://github.com/scipy/scipy/blob/87c46641a8b3b5b47b81de44c07b840468f7ebe7/scipy/optimize/_linesearch.py#L29
-    c2 = self.params.get('c2', -np.Inf if _IS_SCIPI_PRE_12 else 0.9)
+    c2 = self.params.get('c2', -np.inf if _IS_SCIPI_PRE_12 else 0.9)
     # since we have negative curvature, ignore Wolfe condition
     search_direction = -grad(self.x)
     ls_result = sp_opt.line_search(
