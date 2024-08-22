@@ -76,10 +76,10 @@ class ESWorker(worker.Worker):
     self._template_dir = tempfile.mkdtemp()
     saver.save(self._template_dir)
 
-    self._corpus_dir = '/usr/local/google/home/aidengrossman/programming/test_traces/corpus_subset'
-    self._clang_path = '/usr/local/google/home/aidengrossman/programming/test_traces/clang'
-    self._trace_path = '/usr/local/google/home/aidengrossman/programming/test_traces/execution_trace.pb'
-    self._bb_trace_model_path = '/usr/local/google/home/aidengrossman/programming/test_traces/basic_block_trace_model'
+    self._corpus_dir = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/corpus'
+    self._clang_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/clang'
+    self._trace_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/execution_trace.pb'
+    self._bb_trace_model_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/basic_block_trace_model'
     self._models_for_test_path = '/usr/local/google/home/aidengrossman/programming/output_traces/'
 
   def es_compile(self, params: list[float], baseline_score: float) -> float:
@@ -98,7 +98,7 @@ class ESWorker(worker.Worker):
           os.path.join(tflitedir, policy_saver.OUTPUT_SIGNATURE))
 
       trace_data_collector.compile_corpus(self._corpus_dir, tempdir,
-                                          self._clang_path, tflitedir)
+                                          self._clang_path, tflitedir, single_threaded=True)
       score = trace_data_collector.evaluate_compiled_corpus(
           tempdir, self._trace_path, self._bb_trace_model_path)
       
@@ -106,7 +106,7 @@ class ESWorker(worker.Worker):
       print(reward)
 
       output_path = os.path.join(self._models_for_test_path, "model" + str(reward))
-      if reward > 0.2 and not os.path.exists(output_path):
+      if reward > 0 and not os.path.exists(output_path):
         shutil.copytree(tflitedir, output_path)
       return compilation_runner._calculate_reward(score, baseline_score)
 
