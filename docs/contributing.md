@@ -27,6 +27,32 @@ that is used by this repository along with other development tools can be
 installed with `pipenv sync --categories="dev-packages" --system` and run on 
 the entire repository with `yapf . -ir`.
 
+## Linting
+
+We use `pylint` to ensure that the code meets a certain set of linting
+guidelines. To lint the repository, you can run the following command from
+the root directory:
+
+```
+pylint --rcfile .pylintrc --recursive yes .
+```
+
+Pull requests will automatically be linted through Github Actions. We require
+the lint job to pass before merging a PR.
+
+## Typing
+
+We use python type annotations to improve code quality. To validate our type
+annotations, we use `pytype`. To run `pytype` against all the files in the
+repository, you can run the following command:
+
+```
+pytype -j auto --overriding-parameter-count-checks .
+```
+
+Pull requests will automatically be type-checked through Github Actions. We
+require the type-checking jobs to succeed before merging a PR.
+
 ## Code reviews
 
 All submissions, including submissions by project members, require review. We
