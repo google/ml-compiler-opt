@@ -31,15 +31,17 @@ def main(_):
   policy1 = tf.saved_model.load(policy1_path, tags=None, options=None)
   policy2 = tf.saved_model.load(policy2_path, tags=None, options=None)
   combined_policy = cfa_lib.CombinedTFPolicy(
-     tf_policies={policy1_name:policy1, policy2_name:policy2},
-     time_step_spec=expected_signature,
-     action_spec=action_spec
-  )
+      tf_policies={
+          policy1_name: policy1,
+          policy2_name: policy2
+      },
+      time_step_spec=expected_signature,
+      action_spec=action_spec)
   combined_policy_path = input("Save combined policy path: ")
   policy_dict = {'combined_policy': combined_policy}
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
   saver.save(combined_policy_path)
 
-if __name__ == "__main__": 
-    app.run(main)
 
+if __name__ == "__main__":
+  app.run(main)
