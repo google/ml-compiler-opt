@@ -22,12 +22,22 @@ from tf_agents.trajectories import time_step as ts
 import tf_agents
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import policy_step
+from tf_agents.typing import types
 import hashlib
 import numpy as np
 
 
+def client_side_model_selector_calculation(policy_name: str) -> types.Tensor:
+  m = hashlib.md5()
+  m.update(policy_name.encode('utf-8'))
+  high = int.from_bytes(m.digest()[8:], 'little')
+  low = int.from_bytes(m.digest()[:8], 'little')
+  model_selector = tf.constant([[high, low]], dtype=tf.uint64)
+  return model_selector
+
+
 class AddOnePolicy(tf_agents.policies.TFPolicy):
-  """Test policy which adds one to obs feature."""
+  """Test policy which increments the obs feature."""
 
   def __init__(self):
     obs_spec = {'obs': tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)}
@@ -38,19 +48,22 @@ class AddOnePolicy(tf_agents.policies.TFPolicy):
     super().__init__(time_step_spec=time_step_spec, action_spec=act_spec)
 
   def _distribution(self, time_step):
+    """Boilerplate function for TFPolicy."""
     pass
 
   def _variables(self):
+    """Boilerplate function for TFPolicy."""
     return ()
 
   def _action(self, time_step, policy_state, seed):
+    """Boilerplate function for TFPolicy."""
     observation = time_step.observation['obs'][0]
     action = tf.reshape(observation + 1, (1,))
     return policy_step.PolicyStep(action, policy_state)
 
 
 class SubtractOnePolicy(tf_agents.policies.TFPolicy):
-  """Test policy which subtracts one to obs feature."""
+  """Test policy which decrements the obs feature."""
 
   def __init__(self):
     obs_spec = {'obs': tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)}
@@ -61,12 +74,15 @@ class SubtractOnePolicy(tf_agents.policies.TFPolicy):
     super().__init__(time_step_spec=time_step_spec, action_spec=act_spec)
 
   def _distribution(self, time_step):
+    """Boilerplate function for TFPolicy."""
     pass
 
   def _variables(self):
+    """Boilerplate function for TFPolicy."""
     return ()
 
   def _action(self, time_step, policy_state, seed):
+    """Boilerplate function for TFPolicy."""
     observation = time_step.observation['obs'][0]
     action = tf.reshape(observation - 1, (1,))
     return policy_step.PolicyStep(action, policy_state)
@@ -95,13 +111,9 @@ class FeatureImportanceTest(absltest.TestCase):
         time_step_spec=observation_spec,
         action_spec=action_spec)
 
-    m = hashlib.md5()
-    m.update('add_one'.encode('utf-8'))
-    high = int.from_bytes(m.digest()[8:], 'little')
-    low = int.from_bytes(m.digest()[:8], 'little')
-    model_selector = tf.constant([[high, low]], dtype=tf.uint64)
+    model_selector = client_side_model_selector_calculation('add_one')
 
-    state = tf_agents.trajectories.TimeStep(
+    state = ts.TimeStep(
         discount=tf.constant(np.array([0.]), dtype=tf.float32),
         observation={
             'obs': tf.constant(np.array([0]), dtype=tf.int64),
@@ -124,13 +136,9 @@ class FeatureImportanceTest(absltest.TestCase):
         time_step_spec=observation_spec,
         action_spec=action_spec)
 
-    m = hashlib.md5()
-    m.update('subtract_one'.encode('utf-8'))
-    high = int.from_bytes(m.digest()[8:], 'little')
-    low = int.from_bytes(m.digest()[:8], 'little')
-    model_selector = tf.constant([[high, low]], dtype=tf.uint64)
+    model_selector = client_side_model_selector_calculation('subtract_one')
 
-    state = tf_agents.trajectories.TimeStep(
+    state = ts.TimeStep(
         discount=tf.constant(np.array([0.]), dtype=tf.float32),
         observation={
             'obs': tf.constant(np.array([0]), dtype=tf.int64),

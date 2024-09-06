@@ -13,9 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Combines two tf-agent policies with the given state and action spec."""
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
-import gin
 import tensorflow as tf
 import hashlib
 
@@ -23,7 +22,6 @@ import tf_agents
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 from tf_agents.trajectories import policy_step
-from tf_agents.specs import tensor_spec
 import tensorflow_probability as tfp
 
 
@@ -55,14 +53,18 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
                   int.from_bytes(m.digest()[:8], "little"), dtype=tf.uint64)
           ]))
     self.high_low_tensors = tf.stack(high_low_tensors)
-
+    # Related LLVM commit: https://github.com/llvm/llvm-project/pull/96276
     m = hashlib.md5()
     m.update(self.tf_policy_names[0].encode("utf-8"))
     self.high = int.from_bytes(m.digest()[8:], "little")
     self.low = int.from_bytes(m.digest()[:8], "little")
     self.high_low_tensor = tf.constant([self.high, self.low], dtype=tf.uint64)
 
-  def _process_observation(self, observation: types.NestedSpecTensorOrArray):
+  def _process_observation(
+      self, observation: types.NestedSpecTensorOrArray
+  ) -> Tuple[types.NestedSpecTensorOrArray, types.TensorOrArray]:
+    assert "model_selector" in self.sorted_keys
+    high_low_tensor = self.high_low_tensor
     for name in self.sorted_keys:
       if name in ["model_selector"]:
         switch_tensor = observation.pop(name)[0]
@@ -75,7 +77,8 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
                         tf.equal(high_low_tensor, self.high_low_tensors),
                         axis=1)), True),
             [high_low_tensor, self.high_low_tensors])
-        return observation, switch_tensor
+
+    return observation, high_low_tensor
 
   def _create_distribution(self, inlining_prediction):
     probs = [inlining_prediction, 1.0 - inlining_prediction]
@@ -133,61 +136,3 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
         f1)
     return policy_step.PolicyStep(
         action=self._create_distribution(distribution), state=policy_state)
-
-
-@gin.configurable()
-def get_input_signature():
-  """Returns a list of inlining features to be used with the combined models."""
-  # int64 features
-  inputs = dict((key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key))
-                for key in [
-                    "caller_basic_block_count",
-                    "caller_conditionally_executed_blocks",
-                    "caller_users",
-                    "callee_basic_block_count",
-                    "callee_conditionally_executed_blocks",
-                    "callee_users",
-                    "nr_ctant_params",
-                    "node_count",
-                    "edge_count",
-                    "callsite_height",
-                    "cost_estimate",
-                    "inlining_default",
-                    "sroa_savings",
-                    "sroa_losses",
-                    "load_elimination",
-                    "call_penalty",
-                    "call_argument_setup",
-                    "load_relative_intrinsic",
-                    "lowered_call_arg_setup",
-                    "indirect_call_penalty",
-                    "jump_table_penalty",
-                    "case_cluster_penalty",
-                    "switch_penalty",
-                    "unsimplified_common_instructions",
-                    "num_loops",
-                    "dead_blocks",
-                    "simplified_instructions",
-                    "constant_args",
-                    "constant_offset_ptr_args",
-                    "callsite_cost",
-                    "cold_cc_penalty",
-                    "last_call_to_static_bonus",
-                    "is_multiple_blocks",
-                    "nested_inlines",
-                    "nested_inline_cost_estimate",
-                    "threshold",
-                    "is_callee_avail_external",
-                    "is_caller_avail_external",
-                ])
-  inputs.update({
-      "model_selector":
-          tf.TensorSpec(shape=(2,), dtype=tf.uint64, name="model_selector")
-  })
-  return ts.time_step_spec(inputs)
-
-
-@gin.configurable()
-def get_action_spec():
-  return tensor_spec.BoundedTensorSpec(
-      dtype=tf.int64, shape=(), name="inlining_decision", minimum=0, maximum=1)
