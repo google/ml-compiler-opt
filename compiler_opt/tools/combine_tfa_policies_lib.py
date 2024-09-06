@@ -32,7 +32,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
 
   def __init__(self, *args, tf_policies: Dict[str, tf_agents.policies.TFPolicy],
                **kwargs):
-    super(CombinedTFPolicy, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     self.tf_policies = []
     self.tf_policy_names = []
