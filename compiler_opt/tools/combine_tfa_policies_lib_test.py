@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for the feature_importance_utils.py module"""
+"""Tests for the combine_tfa_policies_lib.py module"""
 
 from absl.testing import absltest
 
 import tensorflow as tf
 from compiler_opt.tools import combine_tfa_policies_lib
-from tf_agents.trajectories import time_step
+from tf_agents.trajectories import time_step as ts
 import tf_agents
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import policy_step
@@ -27,19 +27,20 @@ import numpy as np
 
 
 class AddOnePolicy(tf_agents.policies.TFPolicy):
+  """Test policy which adds one to obs feature."""
 
   def __init__(self):
-    observation_spec = {
+    obs_spec = {
         'obs': tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
     }
-    time_step_spec = time_step.time_step_spec(observation_spec)
+    time_step_spec = ts.time_step_spec(obs_spec)
 
-    action_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
+    act_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
 
     super(AddOnePolicy, self).__init__(
-        time_step_spec=time_step_spec, action_spec=action_spec)
+        time_step_spec=time_step_spec, action_spec=act_spec)
 
-  def _distribution(self, time_step):
+  def _distribution(self, t_step):
     pass
 
   def _variables(self):
@@ -52,19 +53,20 @@ class AddOnePolicy(tf_agents.policies.TFPolicy):
 
 
 class SubtractOnePolicy(tf_agents.policies.TFPolicy):
+  """Test policy which subtracts one to obs feature."""
 
   def __init__(self):
-    observation_spec = {
+    obs_spec = {
         'obs': tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
     }
-    time_step_spec = time_step.time_step_spec(observation_spec)
+    time_step_spec = ts.time_step_spec(obs_spec)
 
-    action_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
+    act_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
 
     super(SubtractOnePolicy, self).__init__(
-        time_step_spec=time_step_spec, action_spec=action_spec)
+        time_step_spec=time_step_spec, action_spec=act_spec)
 
-  def _distribution(self, time_step):
+  def _distribution(self, t_step):
     pass
 
   def _variables(self):
@@ -76,7 +78,7 @@ class SubtractOnePolicy(tf_agents.policies.TFPolicy):
     return policy_step.PolicyStep(action, policy_state)
 
 
-observation_spec = time_step.time_step_spec({
+observation_spec = ts.time_step_spec({
     'obs':
         tf.TensorSpec(dtype=tf.int32, shape=(), name='obs'),
     'model_selector':

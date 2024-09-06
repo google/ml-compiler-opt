@@ -38,7 +38,7 @@ def main(_):
       time_step_spec=expected_signature,
       action_spec=action_spec)
   combined_policy_path = input("Save combined policy path: ")
-  policy_dict = {'combined_policy': combined_policy}
+  policy_dict = {"combined_policy": combined_policy}
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
   saver.save(combined_policy_path)
 
