@@ -40,7 +40,7 @@ class AddOnePolicy(tf_agents.policies.TFPolicy):
     super(AddOnePolicy, self).__init__(
         time_step_spec=time_step_spec, action_spec=act_spec)
 
-  def _distribution(self, t_step):
+  def _distribution(self, time_step):
     pass
 
   def _variables(self):
@@ -66,7 +66,7 @@ class SubtractOnePolicy(tf_agents.policies.TFPolicy):
     super(SubtractOnePolicy, self).__init__(
         time_step_spec=time_step_spec, action_spec=act_spec)
 
-  def _distribution(self, t_step):
+  def _distribution(self, time_step):
     pass
 
   def _variables(self):
