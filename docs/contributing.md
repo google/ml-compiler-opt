@@ -37,7 +37,8 @@ the root directory:
 pylint --rcfile .pylintrc --recursive yes .
 ```
 
-Pull requests will automatically be linted through Github Actions. We require
+Pull requests will automatically be linted through Github Actions. You can find
+the exact invocation used in the CI in `.github/workflows/main.yml`. We require
 the lint job to pass before merging a PR.
 
 ## Typing
@@ -50,8 +51,9 @@ repository, you can run the following command:
 pytype -j auto --overriding-parameter-count-checks .
 ```
 
-Pull requests will automatically be type-checked through Github Actions. We
-require the type-checking jobs to succeed before merging a PR.
+Pull requests will automatically be type-checked through Github Actions. You
+can find the exact invocation used in the CI in '.github/workflows/main.yml`.
+We require the type-checking jobs to succeed before merging a PR.
 
 ## Code reviews
 
