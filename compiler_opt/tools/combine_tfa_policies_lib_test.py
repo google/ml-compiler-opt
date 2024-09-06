@@ -35,8 +35,7 @@ class AddOnePolicy(tf_agents.policies.TFPolicy):
 
     act_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
 
-    super().__init__(
-        time_step_spec=time_step_spec, action_spec=act_spec)
+    super().__init__(time_step_spec=time_step_spec, action_spec=act_spec)
 
   def _distribution(self, time_step):
     pass
@@ -59,8 +58,7 @@ class SubtractOnePolicy(tf_agents.policies.TFPolicy):
 
     act_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
 
-    super().__init__(
-        time_step_spec=time_step_spec, action_spec=act_spec)
+    super().__init__(time_step_spec=time_step_spec, action_spec=act_spec)
 
   def _distribution(self, time_step):
     pass
