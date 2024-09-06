@@ -62,7 +62,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
     self.low = int.from_bytes(m.digest()[:8], "little")
     self.high_low_tensor = tf.constant([self.high, self.low], dtype=tf.uint64)
 
-  def _process_observation(self, observation):
+  def _process_observation(self, observation: types.NestedSpecTensorOrArray):
     for name in self.sorted_keys:
       if name in ["model_selector"]:
         switch_tensor = observation.pop(name)[0]
@@ -105,7 +105,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
     action = tf.cond(
         tf.math.reduce_all(tf.equal(switch_tensor, self.high_low_tensor)), f0,
         f1)
-    return tf_agents.trajectories.PolicyStep(action=action, state=policy_state)
+    return policy_step.PolicyStep(action=action, state=policy_state)
 
   def _distribution(
       self, time_step: ts.TimeStep,
@@ -131,7 +131,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
     distribution = tf.cond(
         tf.math.reduce_all(tf.equal(switch_tensor, self.high_low_tensor)), f0,
         f1)
-    return tf_agents.trajectories.PolicyStep(
+    return policy_step.PolicyStep(
         action=self._create_distribution(distribution), state=policy_state)
 
 
