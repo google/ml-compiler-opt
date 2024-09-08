@@ -3,8 +3,8 @@ import compiler_opt.rl.gin_external_configurables
 import compiler_opt.es.blackbox_optimizers
 
 # Blackbox learner config
-BlackboxLearnerConfig.total_steps = 100
-BlackboxLearnerConfig.total_num_perturbations = 100
+BlackboxLearnerConfig.total_steps = 10000
+BlackboxLearnerConfig.total_num_perturbations = 25
 BlackboxLearnerConfig.blackbox_optimizer = %blackbox_optimizers.Algorithm.MONTE_CARLO
 BlackboxLearnerConfig.est_type = %blackbox_optimizers.EstimatorType.ANTITHETIC
 # BlackboxLearnerConfig.est_type = %blackbox_optimizers.EstimatorType.FORWARD_FD
@@ -17,5 +17,5 @@ BlackboxLearnerConfig.num_top_directions = 0
 BlackboxLearnerConfig.precision_parameter = 0.5
 
 # Try the 0.0005 step size next
-BlackboxLearnerConfig.step_size = 0.005 
+BlackboxLearnerConfig.step_size = 0.005
 # BlackboxLearnerConfig.step_size = 0.0005

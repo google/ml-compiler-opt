@@ -24,7 +24,8 @@ import shutil
 import multiprocessing
 
 
-def compile_module(module_path, corpus_path, clang_path, tflite_dir, output_path):
+def compile_module(module_path, corpus_path, clang_path, tflite_dir,
+                   output_path):
   module_full_input_path = os.path.join(corpus_path, module_path) + '.bc'
   module_full_output_path = os.path.join(output_path, module_path) + '.bc.o'
   module_command_full_path = os.path.join(corpus_path, module_path) + '.cmd'
@@ -36,20 +37,21 @@ def compile_module(module_path, corpus_path, clang_path, tflite_dir, output_path
 
   command_vector = [clang_path]
   command_vector.extend(module_command_line)
-  command_vector.extend(
-      [module_full_input_path, '-o', module_full_output_path])
+  command_vector.extend([module_full_input_path, '-o', module_full_output_path])
 
   if tflite_dir is not None:
     command_vector.extend(['-mllvm', '-regalloc-enable-advisor=development'])
     command_vector.extend(['-mllvm', '-regalloc-model=' + tflite_dir])
 
   subprocess.run(command_vector, check=True)
-  logging.info(
-      f'Just finished compiling {module_full_output_path}'
-  )
+  logging.info(f'Just finished compiling {module_full_output_path}')
 
 
-def compile_corpus(corpus_path, output_path, clang_path, tflite_dir=None, single_threaded=False):
+def compile_corpus(corpus_path,
+                   output_path,
+                   clang_path,
+                   tflite_dir=None,
+                   thread_count=multiprocessing.cpu_count()):
   with open(
       os.path.join(corpus_path, 'corpus_description.json'),
       encoding='utf-8') as corpus_description_handle:
@@ -61,12 +63,14 @@ def compile_corpus(corpus_path, output_path, clang_path, tflite_dir=None, single
     # Compile each module.
     to_compile.append(module_path)
 
-  if single_threaded:
-    for module_to_compile in to_compile:
-      compile_module(module_to_compile, corpus_path, clang_path, tflite_dir, output_path)
-  else:
-    with multiprocessing.Pool() as pool:
-      pool.map(functools.partial(compile_module, corpus_path=corpus_path, clang_path=clang_path, tflite_dir=tflite_dir, output_path=output_path), to_compile)
+  with multiprocessing.Pool(thread_count) as pool:
+    pool.map(
+        functools.partial(
+            compile_module,
+            corpus_path=corpus_path,
+            clang_path=clang_path,
+            tflite_dir=tflite_dir,
+            output_path=output_path), to_compile)
 
   shutil.copy(
       os.path.join(corpus_path, 'corpus_description.json'),
@@ -74,18 +78,25 @@ def compile_corpus(corpus_path, output_path, clang_path, tflite_dir=None, single
 
 
 def evaluate_compiled_corpus(compiled_corpus_path, trace_path,
-                             bb_trace_model_path):
-  corpus_description_path = os.path.join(compiled_corpus_path, 'corpus_description.json')
+                             function_index_path, bb_trace_model_path, thread_count=multiprocessing.cpu_count()):
+  corpus_description_path = os.path.join(compiled_corpus_path,
+                                         'corpus_description.json')
   command_vector = [
       bb_trace_model_path, '--bb_trace_path=' + trace_path,
-      '--corpus_path=' + corpus_description_path, '--cpu_name=skylake-avx512'
+      '--corpus_path=' + corpus_description_path, '--cpu_name=skylake-avx512',
+      '--function_index_path=' + function_index_path, '--thread_count=' + str(thread_count)
   ]
 
   process_return = subprocess.run(
-      command_vector,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.STDOUT)
+      command_vector, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
   output = process_return.stdout.decode('utf-8')
 
-  return int(output)
+  total_cost = 0.0
+
+  for line in output.split('\n'):
+    if line == '':
+      continue
+    total_cost += float(line)
+
+  return total_cost

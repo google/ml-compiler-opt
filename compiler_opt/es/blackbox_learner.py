@@ -196,10 +196,9 @@ class BlackboxLearner:
     with self._summary_writer.as_default():
       tf.summary.scalar(
           'reward/average_reward_train', np.mean(rewards), step=self._step)
-      
+
       tf.summary.scalar(
-           'reward/maximum_reward_train', np.max(rewards), step=self._step
-      )
+          'reward/maximum_reward_train', np.max(rewards), step=self._step)
 
       tf.summary.histogram('reward/reward_train', rewards, step=self._step)
 

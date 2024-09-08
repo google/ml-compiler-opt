@@ -56,15 +56,12 @@ _PRETRAINED_POLICY_PATH = flags.DEFINE_string(
     "pretrained_policy_path", None,
     "The path of the pretrained policy. If not provided, it will \
         construct a new policy with randomly initialized weights.")
-_CORPUS_DIR = flags.DEFINE_string("corpus_dir", None,
-                                  "The path to the corpus to use")
-_CLANG_PATH = flags.DEFINE_string("clang_path", None,
-                                  "The path to the clang binary to use.")
-_TRACE_PATH = flags.DEFINE_string("trace_path", None,
-                                  "The path to the BB trace to use.")
-_BB_TRACE_MODEL_PATH = flags.DEFINE_string(
-    "bb_trace_model_path", None,
-    "THe path to the basic_block_trace_model binary to use.")
+
+_CORPUS_DIR = '/usr/local/google/home/aidengrossman/opt_mlregalloc/corpus_subset'
+_CLANG_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/clang'
+_TRACE_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/bb_trace.pb'
+_FUNCTION_INDEX_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/function_index.pb'
+_BB_TRACE_MODEL_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/basic_block_trace_model'
 
 
 class ESWorker(worker.Worker):
@@ -76,11 +73,7 @@ class ESWorker(worker.Worker):
     self._template_dir = tempfile.mkdtemp()
     saver.save(self._template_dir)
 
-    self._corpus_dir = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/corpus'
-    self._clang_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/clang'
-    self._trace_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/execution_trace.pb'
-    self._bb_trace_model_path = '/usr/local/google/home/aidengrossman/programming/opt_mlregalloc/basic_block_trace_model'
-    self._models_for_test_path = '/usr/local/google/home/aidengrossman/programming/output_traces/'
+    self._models_for_test_path = '/usr/local/google/home/aidengrossman/output_models/'
 
   def es_compile(self, params: list[float], baseline_score: float) -> float:
     with tempfile.TemporaryDirectory() as tempdir:
@@ -97,15 +90,16 @@ class ESWorker(worker.Worker):
                        policy_saver.OUTPUT_SIGNATURE),
           os.path.join(tflitedir, policy_saver.OUTPUT_SIGNATURE))
 
-      trace_data_collector.compile_corpus(self._corpus_dir, tempdir,
-                                          self._clang_path, tflitedir, single_threaded=True)
+      trace_data_collector.compile_corpus(
+          _CORPUS_DIR, tempdir, _CLANG_PATH, tflitedir, thread_count=4)
       score = trace_data_collector.evaluate_compiled_corpus(
-          tempdir, self._trace_path, self._bb_trace_model_path)
-      
+          tempdir, _TRACE_PATH, _FUNCTION_INDEX_PATH, _BB_TRACE_MODEL_PATH, 4)
+
       reward = compilation_runner._calculate_reward(score, baseline_score)
       print(reward)
 
-      output_path = os.path.join(self._models_for_test_path, "model" + str(reward))
+      output_path = os.path.join(self._models_for_test_path,
+                                 "model" + str(reward))
       if reward > 0 and not os.path.exists(output_path):
         shutil.copytree(tflitedir, output_path)
       return compilation_runner._calculate_reward(score, baseline_score)
@@ -235,10 +229,9 @@ def train(worker_class=None):
 
   # Get baseline score
   with tempfile.TemporaryDirectory() as tempdir:
-    trace_data_collector.compile_corpus(_CORPUS_DIR.value, tempdir,
-                                        _CLANG_PATH.value)
+    trace_data_collector.compile_corpus(_CORPUS_DIR, tempdir, _CLANG_PATH)
     baseline_score = trace_data_collector.evaluate_compiled_corpus(
-        tempdir, _TRACE_PATH.value, _BB_TRACE_MODEL_PATH.value)
+        tempdir, _TRACE_PATH, _FUNCTION_INDEX_PATH, _BB_TRACE_MODEL_PATH)
 
   logging.info("Initializing blackbox learner.")
   learner = blackbox_learner.BlackboxLearner(
