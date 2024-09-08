@@ -77,14 +77,18 @@ def compile_corpus(corpus_path,
       os.path.join(output_path, 'corpus_description.json'))
 
 
-def evaluate_compiled_corpus(compiled_corpus_path, trace_path,
-                             function_index_path, bb_trace_model_path, thread_count=multiprocessing.cpu_count()):
+def evaluate_compiled_corpus(compiled_corpus_path,
+                             trace_path,
+                             function_index_path,
+                             bb_trace_model_path,
+                             thread_count=multiprocessing.cpu_count()):
   corpus_description_path = os.path.join(compiled_corpus_path,
                                          'corpus_description.json')
   command_vector = [
       bb_trace_model_path, '--bb_trace_path=' + trace_path,
       '--corpus_path=' + corpus_description_path, '--cpu_name=skylake-avx512',
-      '--function_index_path=' + function_index_path, '--thread_count=' + str(thread_count)
+      '--function_index_path=' + function_index_path,
+      '--thread_count=' + str(thread_count)
   ]
 
   process_return = subprocess.run(
