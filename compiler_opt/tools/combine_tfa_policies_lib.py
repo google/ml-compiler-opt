@@ -93,7 +93,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
         discount=time_step.discount,
         observation=new_observation)
 
-    # TODO(359): We only support combining two policies.Generalize this to
+    # TODO(359): We only support combining two policies. Generalize this to
     # handle multiple policies.
     def f0():
       return tf.cast(

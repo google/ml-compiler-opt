@@ -28,15 +28,11 @@ from compiler_opt.rl import registry
 from compiler_opt.tools import combine_tfa_policies_lib as cfa_lib
 
 _COMBINE_POLICIES_NAMES = flags.DEFINE_multi_string(
-    'policies_names',
-    [],
-    'List in order of policy names for combined policies. Order must match that of policies_paths.'  # pylint: disable=line-too-long
-)
+    'policies_names', [], 'List in order of policy names for combined policies.'
+    'Order must match that of policies_paths.')
 _COMBINE_POLICIES_PATHS = flags.DEFINE_multi_string(
-    'policies_paths',
-    [],
-    'List in order of policy paths for combined policies. Order must match that of policies_names.'  # pylint: disable=line-too-long
-)
+    'policies_paths', [], 'List in order of policy paths for combined policies.'
+    'Order must match that of policies_names.')
 _COMBINED_POLICY_PATH = flags.DEFINE_string(
     'combined_policy_path', '', 'Path to save the combined policy.')
 _GIN_FILES = flags.DEFINE_multi_string(
