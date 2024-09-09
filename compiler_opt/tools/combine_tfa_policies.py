@@ -15,6 +15,9 @@
 """Runs the policy combiner."""
 from absl import app
 from absl import flags
+from absl import logging
+
+import sys
 
 import gin
 
@@ -25,11 +28,15 @@ from compiler_opt.rl import registry
 from compiler_opt.tools import combine_tfa_policies_lib as cfa_lib
 
 _COMBINE_POLICIES_NAMES = flags.DEFINE_multi_string(
-    'policies_names', [],
-    'List in order of policy names for combined policies.')
+    'policies_names',
+    [],
+    'List in order of policy names for combined policies. Order must match that of policies_paths.'  # pylint: disable=line-too-long
+)
 _COMBINE_POLICIES_PATHS = flags.DEFINE_multi_string(
-    'policies_paths', [],
-    'List in order of policy paths for combined policies.')
+    'policies_paths',
+    [],
+    'List in order of policy paths for combined policies. Order must match that of policies_names.'  # pylint: disable=line-too-long
+)
 _COMBINED_POLICY_PATH = flags.DEFINE_string(
     'combined_policy_path', '', 'Path to save the combined policy.')
 _GIN_FILES = flags.DEFINE_multi_string(
@@ -43,8 +50,11 @@ def main(_):
   flags.mark_flag_as_required('policies_names')
   flags.mark_flag_as_required('policies_paths')
   flags.mark_flag_as_required('combined_policy_path')
-  assert len(_COMBINE_POLICIES_NAMES.value) == len(
-      _COMBINE_POLICIES_PATHS.value)
+  if len(_COMBINE_POLICIES_NAMES.value) != len(_COMBINE_POLICIES_PATHS.value):
+    logging.error(
+        'Length of policies_names: %d must equal length of policies_paths: %d.',
+        len(_COMBINE_POLICIES_NAMES.value), len(_COMBINE_POLICIES_PATHS.value))
+    sys.exit(1)
   gin.add_config_file_search_path(
       'compiler_opt/rl/inlining/gin_configs/common.gin')
   gin.parse_config_files_and_bindings(
@@ -56,9 +66,12 @@ def main(_):
       'model_selector':
           tf.TensorSpec(shape=(2,), dtype=tf.uint64, name='model_selector')
   })
-  assert len(_COMBINE_POLICIES_NAMES.value
-            ) == 2, 'Combiner supports only two policies.'
-
+  # TODO(359): We only support combining two policies.Generalize this to handle
+  # multiple policies.
+  if len(_COMBINE_POLICIES_NAMES.value) != 2:
+    logging.error('Policy combiner only supports two policies, %d given.',
+                  len(_COMBINE_POLICIES_NAMES.value))
+    sys.exit(1)
   policy1_name = _COMBINE_POLICIES_NAMES.value[0]
   policy1_path = _COMBINE_POLICIES_PATHS.value[0]
   policy2_name = _COMBINE_POLICIES_NAMES.value[1]

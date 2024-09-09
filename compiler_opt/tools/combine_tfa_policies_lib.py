@@ -67,6 +67,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
     high_low_tensor = self.high_low_tensor
     for name in self.sorted_keys:
       if name in ["model_selector"]:
+        # model_selector is a Tensor of shape (1,) which requires indexing [0]
         switch_tensor = observation.pop(name)[0]
         high_low_tensor = switch_tensor
 
@@ -81,6 +82,12 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
     return observation, high_low_tensor
 
   def _create_distribution(self, inlining_prediction):
+    """Ensures that even deterministic policies return a distribution.
+
+    This will not change the behavior of the action function which is
+    what is used at inference time. The change for the distribution
+    function is so that we can always support sampling even for
+    deterministic policies."""
     probs = [inlining_prediction, 1.0 - inlining_prediction]
     logits = [[0.0, tf.math.log(probs[1] / (1.0 - probs[1]))]]
     return tfp.distributions.Categorical(logits=logits)
@@ -97,6 +104,8 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
         discount=time_step.discount,
         observation=new_observation)
 
+    # TODO(359): We only support combining two policies.Generalize this to
+    # handle multiple policies.
     def f0():
       return tf.cast(
           self.tf_policies[0].action(updated_step).action[0], dtype=tf.int64)
@@ -121,6 +130,8 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
         discount=time_step.discount,
         observation=new_observation)
 
+    # TODO(359): We only support combining two policies.Generalize this to
+    # handle multiple policies.
     def f0():
       return tf.cast(
           self.tf_policies[0].distribution(updated_step).action.cdf(0)[0],

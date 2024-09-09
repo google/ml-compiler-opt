@@ -98,7 +98,8 @@ observation_spec = ts.time_step_spec({
 action_spec = tensor_spec.TensorSpec(shape=(1,), dtype=tf.int64)
 
 
-class FeatureImportanceTest(absltest.TestCase):
+class CombinedTFPolicyTest(absltest.TestCase):
+  """Test for CombinedTFPolicy."""
 
   def test_select_add_policy(self):
     policy1 = AddOnePolicy()
@@ -116,14 +117,14 @@ class FeatureImportanceTest(absltest.TestCase):
     state = ts.TimeStep(
         discount=tf.constant(np.array([0.]), dtype=tf.float32),
         observation={
-            'obs': tf.constant(np.array([0]), dtype=tf.int64),
+            'obs': tf.constant(np.array([42]), dtype=tf.int64),
             'model_selector': model_selector
         },
         reward=tf.constant(np.array([0]), dtype=tf.float64),
         step_type=tf.constant(np.array([0]), dtype=tf.int64))
 
     self.assertEqual(
-        combined_policy.action(state).action, tf.constant(1, dtype=tf.int64))
+        combined_policy.action(state).action, tf.constant(43, dtype=tf.int64))
 
   def test_select_subtract_policy(self):
     policy1 = AddOnePolicy()
@@ -141,11 +142,11 @@ class FeatureImportanceTest(absltest.TestCase):
     state = ts.TimeStep(
         discount=tf.constant(np.array([0.]), dtype=tf.float32),
         observation={
-            'obs': tf.constant(np.array([0]), dtype=tf.int64),
+            'obs': tf.constant(np.array([42]), dtype=tf.int64),
             'model_selector': model_selector
         },
         reward=tf.constant(np.array([0]), dtype=tf.float64),
         step_type=tf.constant(np.array([0]), dtype=tf.int64))
 
     self.assertEqual(
-        combined_policy.action(state).action, tf.constant(-1, dtype=tf.int64))
+        combined_policy.action(state).action, tf.constant(41, dtype=tf.int64))
