@@ -55,8 +55,6 @@ def main(_):
         'Length of policies_names: %d must equal length of policies_paths: %d.',
         len(_COMBINE_POLICIES_NAMES.value), len(_COMBINE_POLICIES_PATHS.value))
     sys.exit(1)
-  gin.add_config_file_search_path(
-      'compiler_opt/rl/inlining/gin_configs/common.gin')
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
 

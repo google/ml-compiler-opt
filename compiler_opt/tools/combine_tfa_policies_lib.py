@@ -81,17 +81,6 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
 
     return observation, high_low_tensor
 
-  def _create_distribution(self, inlining_prediction):
-    """Ensures that even deterministic policies return a distribution.
-
-    This will not change the behavior of the action function which is
-    what is used at inference time. The change for the distribution
-    function is so that we can always support sampling even for
-    deterministic policies."""
-    probs = [inlining_prediction, 1.0 - inlining_prediction]
-    logits = [[0.0, tf.math.log(probs[1] / (1.0 - probs[1]))]]
-    return tfp.distributions.Categorical(logits=logits)
-
   def _action(self,
               time_step: ts.TimeStep,
               policy_state: types.NestedTensorSpec,
@@ -122,28 +111,6 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
   def _distribution(
       self, time_step: ts.TimeStep,
       policy_state: types.NestedTensorSpec) -> policy_step.PolicyStep:
-    new_observation = time_step.observation
-    new_observation, switch_tensor = self._process_observation(new_observation)
-    updated_step = ts.TimeStep(
-        step_type=time_step.step_type,
-        reward=time_step.reward,
-        discount=time_step.discount,
-        observation=new_observation)
-
-    # TODO(359): We only support combining two policies.Generalize this to
-    # handle multiple policies.
-    def f0():
-      return tf.cast(
-          self.tf_policies[0].distribution(updated_step).action.cdf(0)[0],
-          dtype=tf.float32)
-
-    def f1():
-      return tf.cast(
-          self.tf_policies[1].distribution(updated_step).action.cdf(0)[0],
-          dtype=tf.float32)
-
-    distribution = tf.cond(
-        tf.math.reduce_all(tf.equal(switch_tensor, self.high_low_tensor)), f0,
-        f1)
+    """Placeholder for distribution as every TFPolicy requires it."""
     return policy_step.PolicyStep(
-        action=self._create_distribution(distribution), state=policy_state)
+        action=tfp.distributions.Deterministic(2.), state=policy_state)
