@@ -203,7 +203,7 @@ def train(additional_compilation_flags=(),
   logging.info("Initializing blackbox learner.")
   learner = blackbox_learner.BlackboxLearner(
       blackbox_opt=blackbox_optimizer,
-      sampler=cps,
+      train_corpus=cps,
       tf_policy_path=os.path.join(policy_save_path, POLICY_NAME),
       output_dir=_OUTPUT_PATH.value,
       policy_saver_fn=policy_saver_function,

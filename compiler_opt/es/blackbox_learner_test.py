@@ -134,7 +134,7 @@ class BlackboxLearnerTests(absltest.TestCase):
             .NO_METHOD,
             extra_params=None,
             step_size=1),
-        sampler=self._cps,
+        train_corpus=self._cps,
         tf_policy_path=os.path.join(policy_save_path, policy_name),
         output_dir=output_dir,
         policy_saver_fn=_policy_saver_fn,
