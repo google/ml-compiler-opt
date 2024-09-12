@@ -267,6 +267,34 @@ class CorpusTest(tf.test.TestCase):
     self.assertEqual(samples[2].name, 'small')
     self.assertEqual(samples[3].name, 'smol')
 
+  def test_whole_corpus_sampler(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.ModuleSpec(name='xsmall', size=1),
+            corpus.ModuleSpec(name='small', size=5),
+            corpus.ModuleSpec(name='middle', size=20),
+            corpus.ModuleSpec(name='large', size=100)
+        ],
+        sampler_type=corpus.WholeCorpusSampler)
+    sample = cps.sample(4, sort=True)
+    self.assertLen(sample, 4)
+    self.assertEqual(sample[0].name, 'large')
+    self.assertEqual(sample[1].name, 'middle')
+    self.assertEqual(sample[2].name, 'small')
+    self.assertEqual(sample[3].name, 'xsmall')
+
+  def test_whole_corpus_sampler_invalid_count(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.ModuleSpec(name='small', size=1),
+            corpus.ModuleSpec(name='middle', size=2),
+        ],
+        sampler_type=corpus.WholeCorpusSampler)
+    with self.assertRaises(ValueError):
+      cps.sample(1)
+
   def test_filter(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),

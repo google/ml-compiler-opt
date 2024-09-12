@@ -224,6 +224,40 @@ class SamplerWithoutReplacement(Sampler):
     return list(results)
 
 
+class WholeCorpusSampler(Sampler):
+  """Returns the entire corpus every time a sample is requested."""
+
+  # We need to include this method even if it is a useless super delegation
+  # as super().__init__ is an abstract method that we need to override to
+  # execute it without throwing an error.
+  def __init__(self, module_specs: Tuple[ModuleSpec]):  # pylint: disable=useless-super-delegation
+    super().__init__(module_specs)
+
+  def reset(self):
+    pass
+
+  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
+    """Returns the entire corpus a list of module specs.
+
+    Args:
+      k: The number of modules to sample. This must be equal to the number
+        of modules in the corpus.
+      n: Ignored for this sampler.
+
+    Returns:
+      A list of all the modules in the corpus.
+
+    Raises:
+      ValueError: If the requested number of modules is not equal to the number
+        of modules in the corpus.
+    """
+    if len(self._module_specs) != k:
+      raise ValueError(
+          f'The number of modules requested {k} is not equal to '
+          f'the number of modules in the corpus, {len(self._module_specs)}')
+    return list(self._module_specs)
+
+
 class Corpus:
   """Represents a corpus.
 
