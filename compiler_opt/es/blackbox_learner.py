@@ -128,7 +128,7 @@ class BlackboxLearner:
 
   def __init__(self,
                blackbox_opt: blackbox_optimizers.BlackboxOptimizer,
-               sampler: corpus.Corpus,
+               train_corpus: corpus.Corpus,
                tf_policy_path: str,
                output_dir: str,
                policy_saver_fn: PolicySaverCallableType,
@@ -141,7 +141,7 @@ class BlackboxLearner:
 
     Args:
       blackbox_opt: the blackbox optimizer to use
-      train_sampler: corpus_sampler for training data.
+      train_corpus: the training corpus to utiilize
       tf_policy_path: where to write the tf policy
       output_dir: the directory to write all outputs
       policy_saver_fn: function to save a policy to cns
@@ -152,7 +152,7 @@ class BlackboxLearner:
       deadline: the deadline in seconds for requests to the inlining server.
     """
     self._blackbox_opt = blackbox_opt
-    self._sampler = sampler
+    self._train_corpus = train_corpus
     self._tf_policy_path = tf_policy_path
     self._output_dir = output_dir
     self._policy_saver_fn = policy_saver_fn
@@ -250,7 +250,8 @@ class BlackboxLearner:
       perturbations: List[bytes]) -> List[concurrent.futures.Future]:
     if not self._samples:
       for _ in range(self._config.total_num_perturbations):
-        sample = self._sampler.sample(self._config.num_ir_repeats_within_worker)
+        sample = self._train_corpus.sample(
+            self._config.num_ir_repeats_within_worker)
         self._samples.append(sample)
         # add copy of sample for antithetic perturbation pair
         if self._config.est_type == (
