@@ -16,7 +16,6 @@
 
 import os
 from absl.testing import absltest
-import concurrent.futures
 import gin
 import tempfile
 from typing import List
@@ -32,6 +31,7 @@ from compiler_opt.es import blackbox_learner, policy_utils
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.rl import corpus, inlining, policy_saver, registry
 from compiler_opt.rl.inlining import config as inlining_config
+from compiler_opt.es import blackbox_evaluator
 
 
 @gin.configurable
@@ -59,6 +59,10 @@ class BlackboxLearnerTests(absltest.TestCase):
   def setUp(self):
     super().setUp()
 
+    gin.bind_parameter('SamplingBlackboxEvaluator.total_num_perturbations', 5)
+    gin.bind_parameter('SamplingBlackboxEvaluator.num_ir_repeats_within_worker',
+                       5)
+
     self._learner_config = blackbox_learner.BlackboxLearnerConfig(
         total_steps=1,
         blackbox_optimizer=blackbox_optimizers.Algorithm.MONTE_CARLO,
@@ -67,9 +71,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         hyperparameters_update_method=blackbox_optimizers.UpdateMethod
         .NO_METHOD,
         num_top_directions=0,
-        num_ir_repeats_within_worker=1,
-        num_ir_repeats_across_worker=0,
-        num_exact_evals=1,
+        evaluator=blackbox_evaluator.SamplingBlackboxEvaluator,
         total_num_perturbations=3,
         precision_parameter=1,
         step_size=1.0)
@@ -149,28 +151,6 @@ class BlackboxLearnerTests(absltest.TestCase):
     for perturbation in perturbations:
       for value in perturbation:
         self.assertAlmostEqual(value, rng.normal())
-
-  def test_get_results(self):
-    with local_worker_manager.LocalWorkerPoolManager(
-        ESWorker, count=3, arg='', kwarg='') as pool:
-      self._samples = [[corpus.ModuleSpec(name='name1', size=1)],
-                       [corpus.ModuleSpec(name='name2', size=1)],
-                       [corpus.ModuleSpec(name='name3', size=1)]]
-      perturbations = [b'00', b'01', b'10']
-      # pylint: disable=protected-access
-      results = self._learner._get_results(pool, perturbations)
-      # pylint: enable=protected-access
-      self.assertSequenceAlmostEqual([result.result() for result in results],
-                                     [1.0, 1.0, 1.0])
-
-  def test_get_rewards(self):
-    f1 = concurrent.futures.Future()
-    f1.set_exception(None)
-    f2 = concurrent.futures.Future()
-    f2.set_result(2)
-    results = [f1, f2]
-    rewards = self._learner._get_rewards(results)  # pylint: disable=protected-access
-    self.assertEqual(rewards, [None, 2])
 
   def test_prune_skipped_perturbations(self):
     perturbations = [1, 2, 3, 4, 5]
