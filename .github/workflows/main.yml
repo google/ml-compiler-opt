@@ -57,14 +57,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Python With Cached pip Packages
         if: needs.Envvars.outputs.do_cache == '1'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pipenv'
           cache-dependency-path: Pipfile.lock
       - name: Install Python, no cache
         if: needs.Envvars.outputs.do_cache == '0'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Pipenv
