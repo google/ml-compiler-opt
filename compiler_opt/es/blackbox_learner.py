@@ -223,8 +223,10 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
-  def _get_policy_as_bytes(self,
-                           perturbation: npt.NDArray[np.float32]) -> bytes:
+  # TODO: The current conversion is inefficient (performance-wise). We should
+  # consider doing this on the worker side.
+  def _get_policy_from_perturbation(
+      self, perturbation: npt.NDArray[np.float32]) -> policy_saver.Policy:
     sm = tf.saved_model.load(self._tf_policy_path)
     # devectorize the perturbation
     policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
@@ -242,7 +244,7 @@ class BlackboxLearner:
 
       # create and return policy
       policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)
-      return policy_obj.policy
+      return policy_obj
 
   def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning.
@@ -258,14 +260,12 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    # convert to bytes for compile job
-    # TODO: current conversion is inefficient.
-    # consider doing this on the worker side
-    perturbations_as_bytes = []
+    perturbations_as_policies = []
     for perturbation in initial_perturbations:
-      perturbations_as_bytes.append(self._get_policy_as_bytes(perturbation))
+      perturbations_as_policies.append(
+          self._get_policy_from_perturbation(perturbation))
 
-    results = self._evaluator.get_results(pool, perturbations_as_bytes)
+    results = self._evaluator.get_results(pool, perturbations_as_policies)
     rewards = self._evaluator.get_rewards(results)
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
