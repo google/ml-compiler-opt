@@ -16,7 +16,7 @@ jobs:
   LicenseCheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: ./check-license.sh
   Envvars:
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
           - task: Test
             cmd: pytest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Python With Cached pip Packages
         if: needs.Envvars.outputs.do_cache == '1'
         uses: actions/setup-python@v4
