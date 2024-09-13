@@ -207,7 +207,7 @@ class SamplerWithoutReplacement(Sampler):
     self._shuffle_order()
     self._idx = 0
 
-  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
+  def __call__(self, k: Optional[int], n: int = 10) -> List[ModuleSpec]:
     """
     Args:
       k: number of modules to sample
@@ -217,7 +217,7 @@ class SamplerWithoutReplacement(Sampler):
       the corpus.
     """
     endpoint = self._idx + k
-    if endpoint > len(self._module_specs):
+    if k and endpoint > len(self._module_specs):
       raise CorpusExhaustedError()
     results = self._module_specs[self._idx:endpoint]
     self._idx = self._idx + k
@@ -237,7 +237,7 @@ class WholeCorpusSampler(Sampler):
     pass
 
   def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
-    """Returns the entire corpus a list of module specs.
+    """Returns the entire corpus as a list of module specs.
 
     Args:
       k: The number of modules to sample. This must be equal to the number
