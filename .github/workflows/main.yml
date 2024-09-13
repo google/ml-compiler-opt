@@ -2,7 +2,15 @@
 
 name: MLGO CI
 
-on: [push, repository_dispatch, pull_request]
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'main'
+  repository_dispatch:
+  pull_request:
 
 jobs:
   LicenseCheck:
