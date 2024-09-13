@@ -25,6 +25,7 @@ from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.distributed import buffered_scheduler
+from compiler_opt.rl import policy_saver
 
 
 class BlackboxEvaluator(metaclass=abc.ABCMeta):
@@ -36,8 +37,8 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool, perturbations: List[policy_saver.Policy]
+  ) -> List[concurrent.futures.Future]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -66,8 +67,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     super().__init__(train_corpus)
 
   def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool, perturbations: List[policy_saver.Policy]
+  ) -> List[concurrent.futures.Future]:
     if not self._samples:
       for _ in range(self._total_num_perturbations):
         sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)

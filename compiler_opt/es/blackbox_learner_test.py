@@ -45,7 +45,8 @@ class ESWorker(worker.Worker):
     self._kwarg = kwarg
     self.function_value = 0.0
 
-  def compile(self, policy: bytes, samples: List[corpus.ModuleSpec]) -> float:
+  def compile(self, policy: policy_saver.Policy,
+              samples: List[corpus.ModuleSpec]) -> float:
     if policy and samples:
       self.function_value += 1.0
       return self.function_value
