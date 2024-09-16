@@ -19,7 +19,6 @@ from absl.testing import absltest
 import concurrent.futures
 import gin
 import tempfile
-from typing import List
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
@@ -45,8 +44,9 @@ class ESWorker(worker.Worker):
     self._kwarg = kwarg
     self.function_value = 0.0
 
-  def compile(self, policy: bytes, samples: List[corpus.ModuleSpec]) -> float:
-    if policy and samples:
+  def compile(self, policy: bytes,
+              samples: blackbox_learner.CorpusSample) -> float:
+    if policy and samples.modules:
       self.function_value += 1.0
       return self.function_value
     else:
