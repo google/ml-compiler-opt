@@ -122,6 +122,12 @@ class ModuleSpec:
   has_thinlto: bool = False
 
 
+@dataclass(frozen=True)
+class CorpusSample:
+  """A sample of a corpus."""
+  modules: List[ModuleSpec]
+
+
 class Sampler(metaclass=abc.ABCMeta):
   """Corpus sampler abstraction."""
 
@@ -134,7 +140,7 @@ class Sampler(metaclass=abc.ABCMeta):
     pass
 
   @abc.abstractmethod
-  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> CorpusSample:
     """
     Args:
       k: number of modules to sample
@@ -155,7 +161,7 @@ class SamplerBucketRoundRobin(Sampler):
   def reset(self):
     pass
 
-  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> CorpusSample:
     """
     Args:
       module_specs: list of module_specs to sample from
@@ -181,10 +187,11 @@ class SamplerBucketRoundRobin(Sampler):
           (math.floor(bucket_size_float * i),
            math.floor(bucket_size_float * (i + 1))) for i in mapping)
 
-    return [
+    sampled_modules = [
         self._module_specs[random.randrange(start, end)]
         for start, end in self._ranges[(specs_len, k, n)]
     ]
+    return CorpusSample(sampled_modules)
 
 
 class CorpusExhaustedError(Exception):
@@ -207,7 +214,7 @@ class SamplerWithoutReplacement(Sampler):
     self._shuffle_order()
     self._idx = 0
 
-  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 10) -> CorpusSample:
     """
     Args:
       k: number of modules to sample
@@ -221,7 +228,7 @@ class SamplerWithoutReplacement(Sampler):
       raise CorpusExhaustedError()
     results = self._module_specs[self._idx:endpoint]
     self._idx = self._idx + k
-    return list(results)
+    return CorpusSample(list(results))
 
 
 class Corpus:
@@ -383,7 +390,7 @@ class Corpus:
   def reset(self):
     self._sampler.reset()
 
-  def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
+  def sample(self, k: int, sort: bool = False) -> CorpusSample:
     """Samples `k` module_specs, optionally sorting by size descending.
 
     Use load_module_spec to get LoadedModuleSpecs - this allows the user to
@@ -394,10 +401,10 @@ class Corpus:
     k = min(len(self._module_specs), k)
     if k < 1:
       raise ValueError('Attempting to sample <1 module specs from corpus.')
-    sampled_specs = self._sampler(k=k)
+    corpus_sample = self._sampler(k=k)
     if sort:
-      sampled_specs.sort(key=lambda m: m.size, reverse=True)
-    return sampled_specs
+      corpus_sample.modules.sort(key=lambda m: m.size, reverse=True)
+    return corpus_sample
 
   def load_module_spec(self, module_spec: ModuleSpec) -> LoadedModuleSpec:
     with tf.io.gfile.GFile(

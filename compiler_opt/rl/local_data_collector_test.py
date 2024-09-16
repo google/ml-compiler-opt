@@ -18,7 +18,7 @@
 import collections
 import string
 import sys
-from typing import List, Tuple
+from typing import Tuple
 
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
@@ -120,12 +120,12 @@ class DeterministicSampler(corpus.Sampler):
     super().__init__(module_specs)
     self._cur_pos = 0
 
-  def __call__(self, k: int, n: int = 20) -> List[corpus.ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> corpus.CorpusSample:
     ret = []
     for _ in range(k):
       ret.append(self._module_specs[self._cur_pos % len(self._module_specs)])
       self._cur_pos += 1
-    return ret
+    return corpus.CorpusSample(ret)
 
   def reset(self):
     self._cur_pos = 0

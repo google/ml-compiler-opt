@@ -144,7 +144,7 @@ def generate_trace(
   sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
   # sort files by size, to process the large files upfront, hopefully while
   # other smaller files are processed in parallel
-  corpus_elements = cps.sample(k=sampled_modules, sort=True)
+  corpus_elements = cps.sample(k=sampled_modules, sort=True).modules
 
   tfrecord_context = (
       tf.io.TFRecordWriter(_OUTPUT_PATH.value)

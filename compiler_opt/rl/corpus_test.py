@@ -230,7 +230,7 @@ class CorpusTest(tf.test.TestCase):
             corpus.ModuleSpec(name='largest', size=500),
             corpus.ModuleSpec(name='small', size=100)
         ])
-    sample = cps.sample(4, sort=True)
+    sample = cps.sample(4, sort=True).modules
     self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'largest')
     self.assertEqual(sample[1].name, 'middle')
@@ -248,19 +248,19 @@ class CorpusTest(tf.test.TestCase):
         ],
         sampler_type=corpus.SamplerWithoutReplacement)
     samples = []
-    samples.extend(cps.sample(1, sort=True))
+    samples.extend(cps.sample(1, sort=True).modules)
     self.assertLen(samples, 1)
-    samples.extend(cps.sample(1, sort=True))
+    samples.extend(cps.sample(1, sort=True).modules)
     self.assertLen(samples, 2)
     # Can't sample 3 from the corpus because there are only 2 elements left
     with self.assertRaises(corpus.CorpusExhaustedError):
-      samples.extend(cps.sample(3, sort=True))
+      samples.extend(cps.sample(3, sort=True).modules)
     # But, we can sample exactly 2 more
     self.assertLen(samples, 2)
-    samples.extend(cps.sample(2, sort=True))
+    samples.extend(cps.sample(2, sort=True).modules)
     self.assertLen(samples, 4)
     with self.assertRaises(corpus.CorpusExhaustedError):
-      samples.extend(cps.sample(1, sort=True))
+      samples.extend(cps.sample(1, sort=True).modules)
     samples.sort(key=lambda m: m.size, reverse=True)
     self.assertEqual(samples[0].name, 'largest')
     self.assertEqual(samples[1].name, 'middle')
@@ -277,7 +277,7 @@ class CorpusTest(tf.test.TestCase):
             corpus.ModuleSpec(name='small', size=100)
         ],
         module_filter=lambda name: re.compile(r'.+l').match(name))
-    sample = cps.sample(999, sort=True)
+    sample = cps.sample(999, sort=True).modules
     self.assertLen(sample, 3)
     self.assertEqual(sample[0].name, 'middle')
     self.assertEqual(sample[1].name, 'small')
@@ -298,7 +298,7 @@ class CorpusTest(tf.test.TestCase):
     # Odds of passing once by pure luck with random.sample: 1.779e-07
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = cps.sample(k=20, sort=True)
+      sample = cps.sample(k=20, sort=True).modules
       self.assertLen(sample, 20)
       for idx, s in enumerate(sample):
         # Each bucket should be size 5, since n=20 in the sampler
@@ -314,7 +314,7 @@ class CorpusTest(tf.test.TestCase):
 
     # Try 32 times, for good measure.
     for i in range(32):
-      sample = cps.sample(k=101, sort=True)
+      sample = cps.sample(k=101, sort=True).modules
       self.assertLen(sample, 101)
       for idx, s in enumerate(sample):
         # Since everything is sampled, it should be in perfect order.
@@ -328,7 +328,7 @@ class CorpusTest(tf.test.TestCase):
 
     # Try all 19 possible values 0 < i < n
     for i in range(1, 20):
-      sample = cps.sample(k=i, sort=True)
+      sample = cps.sample(k=i, sort=True).modules
       self.assertLen(sample, i)
 
 

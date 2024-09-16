@@ -71,7 +71,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def _prefetch_next_sample(self):
     t1 = time.time()
-    sample = self._corpus.sample(k=self._num_modules, sort=False)
+    sample = self._corpus.sample(k=self._num_modules, sort=False).modules
     ret = [
         self._prefetch_pool.submit(self._corpus.load_module_spec, element)
         for element in sample
