@@ -18,40 +18,19 @@ import os
 from absl.testing import absltest
 import gin
 import tempfile
-from typing import List
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import actor_policy
 
-from compiler_opt.distributed import worker
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.es import blackbox_learner, policy_utils
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.rl import corpus, inlining, policy_saver, registry
 from compiler_opt.rl.inlining import config as inlining_config
 from compiler_opt.es import blackbox_evaluator
-
-
-@gin.configurable
-class ESWorker(worker.Worker):
-  """Temporary placeholder worker.
-  Each time a worker is called, the function value
-  it will return increases."""
-
-  def __init__(self, arg, *, kwarg):
-    self._arg = arg
-    self._kwarg = kwarg
-    self.function_value = 0.0
-
-  def compile(self, policy: policy_saver.Policy,
-              samples: List[corpus.ModuleSpec]) -> float:
-    if policy and samples:
-      self.function_value += 1.0
-      return self.function_value
-    else:
-      return 0.0
+from compiler_opt.es import blackbox_test_utils
 
 
 class BlackboxLearnerTests(absltest.TestCase):
@@ -161,7 +140,7 @@ class BlackboxLearnerTests(absltest.TestCase):
 
   def test_run_step(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        ESWorker, count=3, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESWorker, count=3, arg='', kwarg='') as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
       # expected length calculated from expected shapes of variables
       self.assertEqual(len(self._learner.get_model_weights()), 17154)
