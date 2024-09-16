@@ -137,7 +137,7 @@ class Sampler(metaclass=abc.ABCMeta):
   def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
     """
     Args:
-      k: number of modules to sample
+      k: The number of corpus elements to sample.
       n: number of buckets to use
     """
     raise NotImplementedError()
@@ -159,7 +159,7 @@ class SamplerBucketRoundRobin(Sampler):
     """
     Args:
       module_specs: list of module_specs to sample from
-      k: number of modules to sample
+      k: The number of corpus elements (modules) to sample
       n: number of buckets to use
     """
     # Credits to yundi@ for the highly optimized algo.
@@ -210,7 +210,7 @@ class SamplerWithoutReplacement(Sampler):
   def __call__(self, k: Optional[int], n: int = 10) -> List[ModuleSpec]:
     """
     Args:
-      k: number of modules to sample
+      k: number of corpus elements (modules) to sample
       n: ignored
     Raises:
       CorpusExhaustedError if there are fewer than k elements left to sample in
@@ -240,8 +240,8 @@ class WholeCorpusSampler(Sampler):
     """Returns the entire corpus as a list of module specs.
 
     Args:
-      k: The number of modules to sample. This must be equal to the number
-        of modules in the corpus.
+      k: The number of corpus elements to sample. Given a corpus element is
+        the whole corpus in this case, k should always be one.
       n: Ignored for this sampler.
 
     Returns:
@@ -251,10 +251,10 @@ class WholeCorpusSampler(Sampler):
       ValueError: If the requested number of modules is not equal to the number
         of modules in the corpus.
     """
-    if len(self._module_specs) != k:
+    if k != 1:
       raise ValueError(
-          f'The number of modules requested {k} is not equal to '
-          f'the number of modules in the corpus, {len(self._module_specs)}')
+          f'The number of corpus elements requested {k} is not equal to '
+          f'1, the number of corpus elements (whole corpora) present.')
     return list(self._module_specs)
 
 
@@ -418,9 +418,9 @@ class Corpus:
     self._sampler.reset()
 
   def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
-    """Samples `k` module_specs, optionally sorting by size descending.
+    """Samples `k` corpus elements, optionally sorting by size descending.
 
-    Use load_corpus_element to get LoadedModuleSpecs - this allows the user
+    Use load_module_spec to get LoadedModuleSpecs - this allows the user to
     decide how the loading should happen (e.g. may want to use a threadpool)
     """
     # Note: sampler is intentionally defaulted to a mutable object, as the
