@@ -16,7 +16,6 @@
 
 import os
 from absl import logging
-import concurrent.futures
 import dataclasses
 import gin
 import math
@@ -26,12 +25,12 @@ import tempfile
 import tensorflow as tf
 from typing import List, Optional, Protocol
 
-from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import policy_utils
 from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
+from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
@@ -63,14 +62,8 @@ class BlackboxLearnerConfig:
   # 0 means all
   num_top_directions: int
 
-  # How many IR files to try a single perturbation on?
-  num_ir_repeats_within_worker: int
-
-  # How many times should we reuse IR to test different policies?
-  num_ir_repeats_across_worker: int
-
-  # How many IR files to sample from the test corpus at each iteration
-  num_exact_evals: int
+  # The type of evaluator to use.
+  evaluator: 'type[blackbox_evaluator.BlackboxEvaluator]'
 
   # How many perturbations to attempt at each perturbation
   total_num_perturbations: int
@@ -162,11 +155,10 @@ class BlackboxLearner:
     self._deadline = deadline
     self._seed = seed
 
-    # While we're waiting for the ES requests, we can
-    # collect samples for the next round of training.
-    self._samples = []
-
     self._summary_writer = tf.summary.create_file_writer(output_dir)
+
+    self._evaluator = self._config.evaluator(self._train_corpus,
+                                             self._config.est_type)
 
   def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
@@ -177,20 +169,6 @@ class BlackboxLearner:
           rng.normal(size=(len(self._model_weights))) *
           self._config.precision_parameter)
     return perturbations
-
-  def _get_rewards(
-      self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    """Convert ES results to reward numbers."""
-    rewards = [None] * len(results)
-
-    for i in range(len(results)):
-      if not results[i].exception():
-        rewards[i] = results[i].result()
-      else:
-        logging.info('Error retrieving result from future: %s',
-                     str(results[i].exception()))
-
-    return rewards
 
   def _update_model(self, perturbations: List[npt.NDArray[np.float32]],
                     rewards: List[float]) -> None:
@@ -245,35 +223,6 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
-  def _get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
-    if not self._samples:
-      for _ in range(self._config.total_num_perturbations):
-        sample = self._train_corpus.sample(
-            self._config.num_ir_repeats_within_worker)
-        self._samples.append(sample)
-        # add copy of sample for antithetic perturbation pair
-        if self._config.est_type == (
-            blackbox_optimizers.EstimatorType.ANTITHETIC):
-          self._samples.append(sample)
-
-    compile_args = zip(perturbations, self._samples)
-
-    _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile(v[0], v[1]),
-        jobs=compile_args,
-        worker_pool=pool)
-
-    not_done = futures
-    # wait for all futures to finish
-    while not_done:
-      # update lists as work gets done
-      _, not_done = concurrent.futures.wait(
-          not_done, return_when=concurrent.futures.FIRST_COMPLETED)
-
-    return futures
-
   def _get_policy_as_bytes(self,
                            perturbation: npt.NDArray[np.float32]) -> bytes:
     sm = tf.saved_model.load(self._tf_policy_path)
@@ -316,8 +265,8 @@ class BlackboxLearner:
     for perturbation in initial_perturbations:
       perturbations_as_bytes.append(self._get_policy_as_bytes(perturbation))
 
-    results = self._get_results(pool, perturbations_as_bytes)
-    rewards = self._get_rewards(results)
+    results = self._evaluator.get_results(pool, perturbations_as_bytes)
+    rewards = self._evaluator.get_rewards(results)
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
     logging.info('Pruned [%d]', num_pruned)
