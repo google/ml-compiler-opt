@@ -254,8 +254,7 @@ class WholeCorpusSampler(Sampler):
     if k != 1:
       raise ValueError(
           f'The number of corpus elements requested {k} is not equal to '
-          f'1, the number of corpus elements (whole corpora) present.'
-      )
+          f'1, the number of corpus elements (whole corpora) present.')
     return list(self._module_specs)
 
 
