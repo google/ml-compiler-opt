@@ -14,7 +14,9 @@
 # limitations under the License.
 """Local ES trainer."""
 
-from absl import app, flags, logging
+from absl import app
+from absl import flags
+from absl import logging
 import gin
 
 from compiler_opt.es import es_trainer_lib

@@ -25,7 +25,8 @@ from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 from compiler_opt.es import blackbox_learner
 from compiler_opt.es import policy_utils
-from compiler_opt.rl import policy_saver, corpus
+from compiler_opt.rl import policy_saver
+from compiler_opt.rl import corpus
 
 POLICY_NAME = "policy"
 
