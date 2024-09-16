@@ -82,6 +82,12 @@ class BlackboxLearnerConfig:
   step_size: float
 
 
+@dataclasses.dataclass(frozen=True)
+class CorpusSample:
+  """A sample of a corpus."""
+  modules: List[corpus.ModuleSpec]
+
+
 def _prune_skipped_perturbations(perturbations: List[npt.NDArray[np.float32]],
                                  rewards: List[Optional[float]]):
   """Remove perturbations that were skipped during the training step.
@@ -250,8 +256,9 @@ class BlackboxLearner:
       perturbations: List[bytes]) -> List[concurrent.futures.Future]:
     if not self._samples:
       for _ in range(self._config.total_num_perturbations):
-        sample = self._train_corpus.sample(
-            self._config.num_ir_repeats_within_worker)
+        sample = CorpusSample(
+            self._train_corpus.sample(
+                self._config.num_ir_repeats_within_worker))
         self._samples.append(sample)
         # add copy of sample for antithetic perturbation pair
         if self._config.est_type == (
