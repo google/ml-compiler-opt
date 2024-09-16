@@ -420,7 +420,7 @@ class Corpus:
   def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
     """Samples `k` corpus elements, optionally sorting by size descending.
 
-    Use load_corpus_element to get LoadedModuleSpecs - this allows the user
+    Use load_module_spec to get LoadedModuleSpecs - this allows the user to
     decide how the loading should happen (e.g. may want to use a threadpool)
     """
     # Note: sampler is intentionally defaulted to a mutable object, as the
