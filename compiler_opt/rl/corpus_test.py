@@ -277,7 +277,7 @@ class CorpusTest(tf.test.TestCase):
             corpus.ModuleSpec(name='large', size=100)
         ],
         sampler_type=corpus.WholeCorpusSampler)
-    sample = cps.sample(4, sort=True)
+    sample = cps.sample(1, sort=True)
     self.assertLen(sample, 4)
     self.assertEqual(sample[0].name, 'large')
     self.assertEqual(sample[1].name, 'middle')
@@ -293,7 +293,7 @@ class CorpusTest(tf.test.TestCase):
         ],
         sampler_type=corpus.WholeCorpusSampler)
     with self.assertRaises(ValueError):
-      cps.sample(1)
+      cps.sample(2)
 
   def test_filter(self):
     cps = corpus.create_corpus_for_testing(
