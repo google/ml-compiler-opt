@@ -359,6 +359,7 @@ class MLGOEnvironmentBase:
     self._clang_generator.send(None)
     # pytype: disable=attribute-error
     self._iclang, self._clang = self._clang_generator.send(module)
+    # pytype: enable=attribute-error
     return self._get_observation()
 
   def step(self, action: np.ndarray):
