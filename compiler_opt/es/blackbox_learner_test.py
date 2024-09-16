@@ -19,7 +19,6 @@ from absl.testing import absltest
 import concurrent.futures
 import gin
 import tempfile
-from typing import List
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
