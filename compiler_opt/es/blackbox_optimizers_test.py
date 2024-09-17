@@ -52,7 +52,6 @@ from absl.testing import parameterized
 import numpy as np
 
 from compiler_opt.es import blackbox_optimizers
-from compiler_opt.es.blackbox_optimizers import EstimatorType, UpdateMethod, RegressionType
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
 perturbation_array = np.array([[0, 1], [2, -1], [4, 2],
@@ -65,10 +64,12 @@ function_value_array = np.array(
 class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.ANTITHETIC, 3,
        np.array([[4, 2], [2, 6], [-1, 5], [-2, -2], [8, -6], [1, -5]
                 ]), np.array([10, -8, 4, -10, 8, -4])),
-      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 5,
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.FORWARD_FD, 5,
        np.array([[4, 2], [8, -6], [-1, 5], [0, -3], [2, -1]
                 ]), np.array([10, 8, 4, 2, 1])))
   def test_filtering(self, perturbations, function_values, est_type,
@@ -79,21 +80,23 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_array_equal(expected_fs, top_fs)
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
-       np.array([100, -16])), (perturbation_array, function_value_array,
-                               EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
-       np.array([102, -34])),
-      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
-       np.array([74, -34])))
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.ANTITHETIC, 3, np.array([100, -16])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.ANTITHETIC, 0, np.array([102, -34])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.FORWARD_FD, 0, np.array([74, -34])))
   def test_monte_carlo_gradient(self, perturbations, function_values, est_type,
                                 num_top_directions, expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
     current_value = 2
     blackbox_object = blackbox_optimizers.MonteCarloBlackboxOptimizer(
-        precision_parameter, est_type, False, UpdateMethod.NO_METHOD, None,
-        step_size, num_top_directions)
+        precision_parameter, est_type, False,
+        blackbox_optimizers.UpdateMethod.NO_METHOD, None, step_size,
+        num_top_directions)
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)
@@ -106,13 +109,14 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_array_almost_equal(expected_gradient, gradient)
 
   @parameterized.parameters(
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
-       np.array([100, -16])), (perturbation_array, function_value_array,
-                               EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
-       np.array([102, -34])),
-      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
-       np.array([74, -34])))
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.ANTITHETIC, 3, np.array([100, -16])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.FORWARD_FD, 5, np.array([76, -9])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.ANTITHETIC, 0, np.array([102, -34])),
+      (perturbation_array, function_value_array,
+       blackbox_optimizers.EstimatorType.FORWARD_FD, 0, np.array([74, -34])))
   def test_monte_carlo_gradient_with_gradient_ascent_optimizer(
       self, perturbations, function_values, est_type, num_top_directions,
       expected_gradient):
@@ -124,8 +128,9 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
             step_size, 0.0))
     blackbox_object = (
         blackbox_optimizers.MonteCarloBlackboxOptimizer(
-            precision_parameter, est_type, False, UpdateMethod.NO_METHOD, None,
-            None, num_top_directions, gradient_ascent_optimizer))
+            precision_parameter, est_type, False,
+            blackbox_optimizers.UpdateMethod.NO_METHOD, None, None,
+            num_top_directions, gradient_ascent_optimizer))
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)
@@ -137,15 +142,18 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
 
     np.testing.assert_array_almost_equal(expected_gradient, gradient)
 
-  @parameterized.parameters(
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 3,
-       np.array([0.00483, -0.007534])),
-      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 5,
-       np.array([0.012585, 0.000748])),
-      (perturbation_array, function_value_array, EstimatorType.ANTITHETIC, 0,
-       np.array([0.019319, -0.030134])),
-      (perturbation_array, function_value_array, EstimatorType.FORWARD_FD, 0,
-       np.array([0.030203, 0.001796])))
+  @parameterized.parameters((perturbation_array, function_value_array,
+                             blackbox_optimizers.EstimatorType.ANTITHETIC, 3,
+                             np.array([0.00483, -0.007534])),
+                            (perturbation_array, function_value_array,
+                             blackbox_optimizers.EstimatorType.FORWARD_FD, 5,
+                             np.array([0.012585, 0.000748])),
+                            (perturbation_array, function_value_array,
+                             blackbox_optimizers.EstimatorType.ANTITHETIC, 0,
+                             np.array([0.019319, -0.030134])),
+                            (perturbation_array, function_value_array,
+                             blackbox_optimizers.EstimatorType.FORWARD_FD, 0,
+                             np.array([0.030203, 0.001796])))
   def test_sklearn_gradient(self, perturbations, function_values, est_type,
                             num_top_directions, expected_gradient):
     precision_parameter = 0.1
@@ -156,8 +164,9 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
         gradient_ascent_optimization_algorithms.MomentumOptimizer(
             step_size, 0.0))
     blackbox_object = blackbox_optimizers.SklearnRegressionBlackboxOptimizer(
-        RegressionType.RIDGE, regularizer, est_type, True,
-        UpdateMethod.NO_METHOD, [], None, gradient_ascent_optimizer)
+        blackbox_optimizers.RegressionType.RIDGE, regularizer, est_type, True,
+        blackbox_optimizers.UpdateMethod.NO_METHOD, [], None,
+        gradient_ascent_optimizer)
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,
                                     current_input, current_value)

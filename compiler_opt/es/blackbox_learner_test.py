@@ -27,9 +27,13 @@ from tf_agents.policies import actor_policy
 
 from compiler_opt.distributed import worker
 from compiler_opt.distributed.local import local_worker_manager
-from compiler_opt.es import blackbox_learner, policy_utils
+from compiler_opt.es import blackbox_learner
+from compiler_opt.es import policy_utils
 from compiler_opt.es import blackbox_optimizers
-from compiler_opt.rl import corpus, inlining, policy_saver, registry
+from compiler_opt.rl import corpus
+from compiler_opt.rl import inlining
+from compiler_opt.rl import policy_saver
+from compiler_opt.rl import registry
 from compiler_opt.rl.inlining import config as inlining_config
 from compiler_opt.es import blackbox_evaluator
 
