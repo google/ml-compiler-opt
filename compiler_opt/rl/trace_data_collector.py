@@ -23,12 +23,14 @@ import pathlib
 import shutil
 import multiprocessing
 
+PROFILE_PATH = "/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/combined.profdata"
 
 def compile_module(module_path, corpus_path, clang_path, tflite_dir,
                    output_path):
   module_full_input_path = os.path.join(corpus_path, module_path) + '.bc'
   module_full_output_path = os.path.join(output_path, module_path) + '.bc.o'
   module_command_full_path = os.path.join(corpus_path, module_path) + '.cmd'
+  thinlto_index_path = os.path.join(corpus_path, module_path) + '.thinlto.bc'
   pathlib.Path(os.path.dirname(module_full_output_path)).mkdir(
       parents=True, exist_ok=True)
   with open(module_command_full_path) as module_command_handle:
@@ -42,6 +44,35 @@ def compile_module(module_path, corpus_path, clang_path, tflite_dir,
   if tflite_dir is not None:
     command_vector.extend(['-mllvm', '-regalloc-enable-advisor=development'])
     command_vector.extend(['-mllvm', '-regalloc-model=' + tflite_dir])
+  
+  try:
+    advisor_flag_index = command_vector.index("-regalloc-enable-advisor=release")
+    command_vector.pop(advisor_flag_index - 1)
+    command_vector.pop(advisor_flag_index - 1)
+  except ValueError:
+    pass
+
+  try:
+    split_dwarf_file_index = command_vector.index("-split-dwarf-file")
+    command_vector.pop(split_dwarf_file_index)
+    command_vector.pop(split_dwarf_file_index)
+  except ValueError:
+    pass
+
+  try:
+    split_dwarf_output_index = command_vector.index("-split-dwarf-output")
+    command_vector.pop(split_dwarf_output_index)
+    command_vector.pop(split_dwarf_output_index)
+  except ValueError:
+    pass
+
+  for index, cli_option in enumerate(command_vector):
+    if cli_option.startswith("-fprofile-instrument-use-path="):
+      command_vector[index] = f"-fprofile-instrument-use-path={PROFILE_PATH}"
+    if cli_option.startswith("-fthinlto-index="):
+      command_vector[index] = f"-fthinlto-index={thinlto_index_path}"
+  
+  command_vector.extend(["-mllvm", "-thinlto-assume-merged"])
 
   subprocess.run(command_vector, check=True)
   logging.info(f'Just finished compiling {module_full_output_path}')

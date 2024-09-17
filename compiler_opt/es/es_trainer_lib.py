@@ -57,11 +57,11 @@ _PRETRAINED_POLICY_PATH = flags.DEFINE_string(
     "The path of the pretrained policy. If not provided, it will \
         construct a new policy with randomly initialized weights.")
 
-_CORPUS_DIR = '/usr/local/google/home/aidengrossman/opt_mlregalloc/corpus_subset'
-_CLANG_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/clang'
-_TRACE_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/bb_trace.pb'
-_FUNCTION_INDEX_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/function_index.pb'
-_BB_TRACE_MODEL_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc/basic_block_trace_model'
+_CORPUS_DIR = '/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/corpus_subset'
+_CLANG_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/clang'
+_TRACE_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/bb_trace.pb'
+_FUNCTION_INDEX_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/function_index.pb'
+_BB_TRACE_MODEL_PATH = '/usr/local/google/home/aidengrossman/opt_mlregalloc_pgo/basic_block_trace_model'
 
 
 class ESWorker(worker.Worker):
@@ -229,6 +229,7 @@ def train(worker_class=None):
 
   # Get baseline score
   with tempfile.TemporaryDirectory() as tempdir:
+    tempdir = "/tmp/compiled_corpus"
     trace_data_collector.compile_corpus(_CORPUS_DIR, tempdir, _CLANG_PATH)
     baseline_score = trace_data_collector.evaluate_compiled_corpus(
         tempdir, _TRACE_PATH, _FUNCTION_INDEX_PATH, _BB_TRACE_MODEL_PATH)
