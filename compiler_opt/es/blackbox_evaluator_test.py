@@ -20,7 +20,7 @@ from absl.testing import absltest
 
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.rl import corpus
-from compiler_opt.es import blackbox_learner_test
+from compiler_opt.es import blackbox_test_utils
 from compiler_opt.es import blackbox_evaluator
 
 
@@ -29,7 +29,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_sampling_get_results(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_learner_test.ESWorker, count=3, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESWorker, count=3, arg='', kwarg='') as pool:
       perturbations = [b'00', b'01', b'10']
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(None, 5, 5, None)
       # pylint: disable=protected-access
