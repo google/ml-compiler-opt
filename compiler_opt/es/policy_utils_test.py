@@ -32,6 +32,8 @@ from compiler_opt.rl.inlining import config as inlining_config
 from compiler_opt.rl.regalloc import config as regalloc_config
 from compiler_opt.rl.regalloc import regalloc_network
 
+TEST_PATH_PREFIX = ''
+
 
 class ConfigTest(absltest.TestCase):
 
@@ -40,7 +42,8 @@ class ConfigTest(absltest.TestCase):
     problem_config = registry.get_configuration(
         implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
-    quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
+    quantile_file_dir = os.path.join(TEST_PATH_PREFIX, 'compiler_opt', 'rl',
+                                     'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
         quantile_file_dir=quantile_file_dir,
         with_sqrt=False,
@@ -71,7 +74,8 @@ class ConfigTest(absltest.TestCase):
     problem_config = registry.get_configuration(
         implementation=regalloc.RegallocEvictionConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
-    quantile_file_dir = os.path.join('compiler_opt', 'rl', 'regalloc', 'vocab')
+    quantile_file_dir = os.path.join(TEST_PATH_PREFIX, 'compiler_opt', 'rl',
+                                     'regalloc', 'vocab')
     creator = regalloc_config.get_observation_processing_layer_creator(
         quantile_file_dir=quantile_file_dir,
         with_sqrt=False,
@@ -113,7 +117,8 @@ class VectorTest(absltest.TestCase):
     problem_config = registry.get_configuration(
         implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
-    quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
+    quantile_file_dir = os.path.join(TEST_PATH_PREFIX, 'compiler_opt', 'rl',
+                                     'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
         quantile_file_dir=quantile_file_dir,
         with_sqrt=False,
@@ -176,7 +181,8 @@ class VectorTest(absltest.TestCase):
     problem_config = registry.get_configuration(
         implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
-    quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
+    quantile_file_dir = os.path.join(TEST_PATH_PREFIX, 'compiler_opt', 'rl',
+                                     'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
         quantile_file_dir=quantile_file_dir,
         with_sqrt=False,
@@ -224,7 +230,8 @@ class VectorTest(absltest.TestCase):
     problem_config = registry.get_configuration(
         implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
-    quantile_file_dir = os.path.join('compiler_opt', 'rl', 'inlining', 'vocab')
+    quantile_file_dir = os.path.join(TEST_PATH_PREFIX, 'compiler_opt', 'rl',
+                                     'inlining', 'vocab')
     creator = inlining_config.get_observation_processing_layer_creator(
         quantile_file_dir=quantile_file_dir,
         with_sqrt=False,
