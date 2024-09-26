@@ -35,6 +35,9 @@ from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
 
+# The percentiles to report as individual values in Tensorboard.
+_PERCENTILES_TO_REPORT = [25, 50, 75]
+
 
 @gin.configurable
 @dataclasses.dataclass(frozen=True)
@@ -187,6 +190,16 @@ class BlackboxLearner:
     with self._summary_writer.as_default():
       tf.summary.scalar(
           'reward/average_reward_train', np.mean(rewards), step=self._step)
+
+      tf.summary.scalar(
+          'reward/maximum_reward_train', np.max(rewards), step=self._step)
+
+      for percentile_to_report in _PERCENTILES_TO_REPORT:
+        percentile_value = np.percentile(rewards, percentile_to_report)
+        tf.summary.scalar(
+            f'reward/{percentile_value}_percentile',
+            percentile_value,
+            step=self._step)
 
       tf.summary.histogram('reward/reward_train', rewards, step=self._step)
 
