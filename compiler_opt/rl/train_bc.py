@@ -29,8 +29,10 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
+from tensorflow import summary
 from tf_agents.agents import tf_agent
 from tf_agents.policies import tf_policy
+from tensorboard.plugins.hparams import api as hp
 
 from typing import Dict
 
@@ -86,6 +88,14 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
 
   # Save final policy.
   saver.save(root_dir)
+
+  # Save (command line specified) hyperparameter information.
+  with summary.create_file_writer(_ROOT_DIR.value).as_default():
+    hparams = {}
+    for gin_binding in _GIN_BINDINGS.value:
+      param_name, param_value = gin_binding.split('=')
+      hparams[param_name] = param_value
+    hp.hparams(hparams)
 
 
 def main(_):
