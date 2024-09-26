@@ -139,6 +139,7 @@ def filter_top_directions(
                         For antithetic, the total number of perturbations will
                         be 2* this number, because we count p, -p as a single
                         direction
+
   Returns:
     A pair (perturbations, function_values) consisting of the top perturbations.
     function_values[i] is the reward of perturbations[i]
@@ -199,8 +200,6 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     Returns the list of hyperparameters for blackbox function runs that can be
     updated on the fly.
 
-    Args:
-
     Returns:
       The set of hyperparameters for blackbox function runs.
     """
@@ -211,8 +210,6 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
-
-    Args:
 
     Returns:
       The state of the optimizer.
@@ -227,8 +224,6 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 
     Args:
       evaluation_stats: stats from evaluation used to update hyperparameters
-
-    Returns:
     """
     raise NotImplementedError('Abstract method')
 
@@ -240,8 +235,6 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
 
     Args:
       state: state to be set up
-
-    Returns:
     """
     raise NotImplementedError('Abstract method')
 
@@ -520,8 +513,12 @@ def monte_carlo_gradient(precision_parameter: float,
     function_values: reward from perturbations (possibly normalized)
     current_value: estimated reward at current point (possibly normalized)
     energy: optional, for softmax weighting of the average (default = 0)
+
   Returns:
     The Monte Carlo gradient estimate.
+
+  Raises:
+    ValueError: When an invalid estimator type is specified.
   """
   dim = len(perturbations[0])
   b_vector = None
@@ -558,8 +555,12 @@ def sklearn_regression_gradient(clf: LinearModel, est_type: EstimatorType,
     perturbations: the simulated perturbations
     function_values: reward from perturbations (possibly normalized)
     current_value: estimated reward at current point (possibly normalized)
+
   Returns:
     The regression estimate of the gradient.
+
+  Raises:
+    ValueError: When an invalid estimator type is specified.
   """
   matrix = None
   b_vector = None
@@ -639,6 +640,7 @@ class QuadraticModel(object):
 
     Args:
       x: numpy vector
+
     Returns:
       Scalar f(x)
     """
@@ -649,6 +651,7 @@ class QuadraticModel(object):
 
     Args:
       x: input vector
+
     Returns:
       A vector of the same dimension as x, the gradient of the quadratic at x.
     """
@@ -729,7 +732,8 @@ def make_projector(radius: float) -> Callable[[FloatArray], FloatArray]:
   """Makes an L2 projector function centered at origin.
 
   Args:
-    radius: the radius to project on
+    radius: the radius to project on.
+
   Returns:
     A function of one argument that projects onto L2 ball.
   """
@@ -946,6 +950,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
     Args:
       current_input: the weights of current candidate point
       current_value: the reward of the current point
+
     Returns:
       TRUE if the step is accepted
       FALSE is the step is rejected
@@ -1015,7 +1020,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
     See run_step() for a description of arguments.
 
     Args:
-      perturbations:
+      perturbations: The perturbations to process.
       function_values: (possibly normalized) function values
       current_value: (possibly normalized) current value, used as the
                       Gaussian smoothing estimate if current_point_estimate
@@ -1071,6 +1076,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
 
         Args:
           x: the direction to evaluate the product, i.e Hx
+
         Returns:
           Hessian-vector product.
         """
@@ -1087,6 +1093,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
 
         Args:
           x: the direction to evaluate the product, i.e Hx
+
         Returns:
           Hessian-vector product.
         """
@@ -1126,6 +1133,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
       current_value: unnormalized reward of the current policy
       is_update: whether the previous step was rejected and this is the same
                  as the last accepted policy
+
     Returns:
       A QuadraticModel object with the local quadratic model after the updates.
     """
@@ -1167,6 +1175,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
       function_values: list of scalars, reward corresponding to perturbation
       current_input: numpy vector, current model weights
       current_value: scalar, reward of current model
+
     Returns:
       updated model weights
     """

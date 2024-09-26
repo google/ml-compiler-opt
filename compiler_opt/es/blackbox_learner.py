@@ -140,7 +140,6 @@ class BlackboxLearner:
       policy_saver_fn: function to save a policy to cns
       model_weights: the weights of the current model
       config: configuration for blackbox optimization.
-      stubs: grpc stubs to inlining/regalloc servers
       initial_step: the initial step for learning.
       deadline: the deadline in seconds for requests to the inlining server.
     """
