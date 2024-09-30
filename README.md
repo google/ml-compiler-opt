@@ -72,17 +72,16 @@ pip3 install pipenv
 
 The actual dependencies:
 ```shell
-pipenv sync --system
+pipenv sync --system --categories "packages dev-packages ci"
 ```
 Note that the above command will only work from the root of the repository
 since it needs to have `Pipfile.lock` in the working directory at the time
 of execution.
 
-If you plan on doing development work, make sure you grab the development
-and CI categories of packages as well:
-```shell
-pipenv sync --system --categories "dev-packages ci"
-```
+The above command will also install all the packages, including development
+packages (the `dev-packages` category), and packages only needed in CI (the
+`ci` category). If you do not need those, you can omit them from the categories
+option.
 
 Optionally, to run tests (run_tests.sh), you also need:
 

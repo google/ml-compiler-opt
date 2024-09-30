@@ -12,12 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Worker for ES Training."""
+"""Test facilities for Blackbox classes."""
+
+from typing import List
 
 import gin
-from typing import List
+
 from compiler_opt.distributed import worker
 from compiler_opt.rl import corpus
+from compiler_opt.rl import policy_saver
 
 
 @gin.configurable
@@ -31,8 +34,8 @@ class ESWorker(worker.Worker):
     self._kwarg = kwarg
     self.function_value = 0.0
 
-  def temp_compile(self, policy: bytes,
-                   samples: List[corpus.ModuleSpec]) -> float:
+  def compile(self, policy: policy_saver.Policy,
+              samples: List[corpus.ModuleSpec]) -> float:
     if policy and samples:
       self.function_value += 1.0
       return self.function_value

@@ -16,7 +16,6 @@
 
 import os
 from absl import logging
-import concurrent.futures
 import dataclasses
 import gin
 import math
@@ -26,15 +25,18 @@ import tempfile
 import tensorflow as tf
 from typing import List, Optional, Protocol
 
-from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import policy_utils
 from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
+from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
+
+# The percentiles to report as individual values in Tensorboard.
+_PERCENTILES_TO_REPORT = [25, 50, 75]
 
 
 @gin.configurable
@@ -63,14 +65,8 @@ class BlackboxLearnerConfig:
   # 0 means all
   num_top_directions: int
 
-  # How many IR files to try a single perturbation on?
-  num_ir_repeats_within_worker: int
-
-  # How many times should we reuse IR to test different policies?
-  num_ir_repeats_across_worker: int
-
-  # How many IR files to sample from the test corpus at each iteration
-  num_exact_evals: int
+  # The type of evaluator to use.
+  evaluator: 'type[blackbox_evaluator.BlackboxEvaluator]'
 
   # How many perturbations to attempt at each perturbation
   total_num_perturbations: int
@@ -128,7 +124,7 @@ class BlackboxLearner:
 
   def __init__(self,
                blackbox_opt: blackbox_optimizers.BlackboxOptimizer,
-               sampler: corpus.Corpus,
+               train_corpus: corpus.Corpus,
                tf_policy_path: str,
                output_dir: str,
                policy_saver_fn: PolicySaverCallableType,
@@ -141,18 +137,17 @@ class BlackboxLearner:
 
     Args:
       blackbox_opt: the blackbox optimizer to use
-      train_sampler: corpus_sampler for training data.
+      train_corpus: the training corpus to utiilize
       tf_policy_path: where to write the tf policy
       output_dir: the directory to write all outputs
       policy_saver_fn: function to save a policy to cns
       model_weights: the weights of the current model
       config: configuration for blackbox optimization.
-      stubs: grpc stubs to inlining/regalloc servers
       initial_step: the initial step for learning.
       deadline: the deadline in seconds for requests to the inlining server.
     """
     self._blackbox_opt = blackbox_opt
-    self._sampler = sampler
+    self._train_corpus = train_corpus
     self._tf_policy_path = tf_policy_path
     self._output_dir = output_dir
     self._policy_saver_fn = policy_saver_fn
@@ -162,11 +157,10 @@ class BlackboxLearner:
     self._deadline = deadline
     self._seed = seed
 
-    # While we're waiting for the ES requests, we can
-    # collect samples for the next round of training.
-    self._samples = []
-
     self._summary_writer = tf.summary.create_file_writer(output_dir)
+
+    self._evaluator = self._config.evaluator(self._train_corpus,
+                                             self._config.est_type)
 
   def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
@@ -177,20 +171,6 @@ class BlackboxLearner:
           rng.normal(size=(len(self._model_weights))) *
           self._config.precision_parameter)
     return perturbations
-
-  def _get_rewards(
-      self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    """Convert ES results to reward numbers."""
-    rewards = [None] * len(results)
-
-    for i in range(len(results)):
-      if not results[i].exception():
-        rewards[i] = results[i].result()
-      else:
-        logging.info('Error retrieving result from future: %s',
-                     str(results[i].exception()))
-
-    return rewards
 
   def _update_model(self, perturbations: List[npt.NDArray[np.float32]],
                     rewards: List[float]) -> None:
@@ -210,6 +190,16 @@ class BlackboxLearner:
     with self._summary_writer.as_default():
       tf.summary.scalar(
           'reward/average_reward_train', np.mean(rewards), step=self._step)
+
+      tf.summary.scalar(
+          'reward/maximum_reward_train', np.max(rewards), step=self._step)
+
+      for percentile_to_report in _PERCENTILES_TO_REPORT:
+        percentile_value = np.percentile(rewards, percentile_to_report)
+        tf.summary.scalar(
+            f'reward/{percentile_value}_percentile',
+            percentile_value,
+            step=self._step)
 
       tf.summary.histogram('reward/reward_train', rewards, step=self._step)
 
@@ -245,36 +235,10 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
-  def _get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
-    if not self._samples:
-      for _ in range(self._config.total_num_perturbations):
-        sample = self._sampler.sample(self._config.num_ir_repeats_within_worker)
-        self._samples.append(sample)
-        # add copy of sample for antithetic perturbation pair
-        if self._config.est_type == (
-            blackbox_optimizers.EstimatorType.ANTITHETIC):
-          self._samples.append(sample)
-
-    compile_args = zip(perturbations, self._samples)
-
-    _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile(v[0], v[1]),
-        jobs=compile_args,
-        worker_pool=pool)
-
-    not_done = futures
-    # wait for all futures to finish
-    while not_done:
-      # update lists as work gets done
-      _, not_done = concurrent.futures.wait(
-          not_done, return_when=concurrent.futures.FIRST_COMPLETED)
-
-    return futures
-
-  def _get_policy_as_bytes(self,
-                           perturbation: npt.NDArray[np.float32]) -> bytes:
+  # TODO: The current conversion is inefficient (performance-wise). We should
+  # consider doing this on the worker side.
+  def _get_policy_from_perturbation(
+      self, perturbation: npt.NDArray[np.float32]) -> policy_saver.Policy:
     sm = tf.saved_model.load(self._tf_policy_path)
     # devectorize the perturbation
     policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
@@ -292,7 +256,7 @@ class BlackboxLearner:
 
       # create and return policy
       policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)
-      return policy_obj.policy
+      return policy_obj
 
   def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning.
@@ -308,15 +272,13 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    # convert to bytes for compile job
-    # TODO: current conversion is inefficient.
-    # consider doing this on the worker side
-    perturbations_as_bytes = []
+    perturbations_as_policies = []
     for perturbation in initial_perturbations:
-      perturbations_as_bytes.append(self._get_policy_as_bytes(perturbation))
+      perturbations_as_policies.append(
+          self._get_policy_from_perturbation(perturbation))
 
-    results = self._get_results(pool, perturbations_as_bytes)
-    rewards = self._get_rewards(results)
+    results = self._evaluator.get_results(pool, perturbations_as_policies)
+    rewards = self._evaluator.get_rewards(results)
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
     logging.info('Pruned [%d]', num_pruned)

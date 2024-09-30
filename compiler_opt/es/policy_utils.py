@@ -82,8 +82,11 @@ def get_vectorized_parameters_from_policy(
 def set_vectorized_parameters_for_policy(
     policy: 'tf_policy.TFPolicy | HasModelVariables',
     parameters: npt.NDArray[np.float32]) -> None:
-  """Separates values in parameters into the policy's shapes
-  and sets the policy variables to those values"""
+  """Separates values in parameters.
+
+  Packs parameters into the policy's shapes and sets the policy variables to
+  those values.
+  """
   if isinstance(policy, tf_policy.TFPolicy):
     variables = policy.variables()
   elif hasattr(policy, 'model_variables'):
@@ -108,9 +111,14 @@ def set_vectorized_parameters_for_policy(
 def save_policy(policy: 'tf_policy.TFPolicy | HasModelVariables',
                 parameters: npt.NDArray[np.float32], save_folder: str,
                 policy_name: str) -> None:
-  """Assigns a policy the name policy_name
-  and saves it to the directory of save_folder
-  with the values in parameters."""
+  """Assigns a policy a name and writes it to disk.
+
+  Args:
+    policy: The policy to save.
+    parameters: The model weights for the policy.
+    save_folder: The location to save the policy to.
+    policy_name: The value to name the policy.
+  """
   set_vectorized_parameters_for_policy(policy, parameters)
   saver = policy_saver.PolicySaver({policy_name: policy})
   saver.save(save_folder)
