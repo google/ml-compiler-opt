@@ -80,9 +80,9 @@ class NonTemporaryDirectory:
     pass
 
 
-def get_directory_context():
+def get_workdir_context():
   """Return a context which manages how the temperory directories are handled.
-  
+
   When the flag keep_temps is specified temporary directories are stored in
   keep_temps."""
   if _KEEP_TEMPS.value is not None:
@@ -413,7 +413,7 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    tempdir_context = get_directory_context()
+    tempdir_context = get_workdir_context()
 
     with tempdir_context as tempdir:
       final_cmd_line = loaded_module_spec.build_command_line(tempdir)

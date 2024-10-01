@@ -24,7 +24,6 @@ import abc
 import contextlib
 import io
 import os
-import tempfile
 from typing import Callable, Generator, List, Optional, Tuple, Type
 
 import numpy as np
@@ -117,8 +116,7 @@ class ClangProcess:
   """
 
   def __init__(self, proc: subprocess.Popen,
-               get_scores_fn: Callable[[], dict[str, float]],
-               module_name: str,
+               get_scores_fn: Callable[[], dict[str, float]], module_name: str,
                working_dir: str):
     self._proc = proc
     self._get_scores_fn = get_scores_fn
@@ -243,7 +241,7 @@ def clang_session(
   Yields:
     Either the constructed InteractiveClang or DefaultClang object.
   """
-  tempdir_context = compilation_runner.get_directory_context()
+  tempdir_context = compilation_runner.get_workdir_context()
   with tempdir_context as td:
     task_working_dir = os.path.join(td, '__task_working_dir__')
     os.mkdir(task_working_dir)

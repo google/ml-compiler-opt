@@ -21,6 +21,7 @@ from unittest import mock
 import subprocess
 import os
 import shutil
+import tempfile
 from absl.testing import flagsaver
 
 from typing import Dict, List, Optional
@@ -177,19 +178,16 @@ class ClangSessionTest(tf.test.TestCase):
         self.assertEqual(os.path.exists(working_dir), True)
     self.assertEqual(os.path.exists(working_dir), False)
 
-    with flagsaver.flagsaver(
-        (env.compilation_runner._KEEP_TEMPS, '/tmp')):   # pylint: disable=protected-access
-      with env.clang_session(
-          _CLANG_PATH, _MOCK_MODULE, MockTask,
-          interactive=True) as clang_session:
-        for _ in range(_NUM_STEPS):
-          obs = clang_session.get_observation()
-          working_dir = obs.working_dir
-          self.assertEqual(os.path.exists(working_dir), True)
-      self.assertEqual(os.path.exists(working_dir), True)
-      temp_dir_name = str.split(working_dir, '/')[2]
-      temp_dir_name = os.path.join('/tmp', temp_dir_name)
-      shutil.rmtree(temp_dir_name)
+    with tempfile.TemporaryDirectory() as td:
+      with flagsaver.flagsaver((env.compilation_runner._KEEP_TEMPS, td)):  # pylint: disable=protected-access
+        with env.clang_session(
+            _CLANG_PATH, _MOCK_MODULE, MockTask,
+            interactive=True) as clang_session:
+          for _ in range(_NUM_STEPS):
+            obs = clang_session.get_observation()
+            working_dir = obs.working_dir
+            self.assertEqual(os.path.exists(working_dir), True)
+        self.assertEqual(os.path.exists(working_dir), True)
 
 
 class MLGOEnvironmentTest(tf.test.TestCase):
