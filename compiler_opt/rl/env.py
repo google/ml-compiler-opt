@@ -31,6 +31,7 @@ import numpy as np
 
 from compiler_opt.rl import corpus
 from compiler_opt.rl import log_reader
+from compiler_opt.rl import compilation_runner
 
 
 class StepType(Enum):
@@ -47,6 +48,7 @@ class TimeStep:
   score_default: Optional[dict[str, float]]
   context: Optional[str]
   module_name: str
+  working_dir: str
   obs_id: Optional[int]
   step_type: StepType
 
@@ -115,10 +117,13 @@ class ClangProcess:
   """
 
   def __init__(self, proc: subprocess.Popen,
-               get_scores_fn: Callable[[], dict[str, float]], module_name):
+               get_scores_fn: Callable[[], dict[str, float]],
+               module_name: str,
+               working_dir: str):
     self._proc = proc
     self._get_scores_fn = get_scores_fn
     self._module_name = module_name
+    self._working_dir = working_dir
 
   def get_scores(self, timeout: Optional[int] = None):
     self._proc.wait(timeout=timeout)
@@ -133,10 +138,11 @@ class InteractiveClang(ClangProcess):
       proc: subprocess.Popen,
       get_scores_fn: Callable[[], dict[str, float]],
       module_name: str,
+      working_dir: str,
       reader_pipe: io.BufferedReader,
       writer_pipe: io.BufferedWriter,
   ):
-    super().__init__(proc, get_scores_fn, module_name)
+    super().__init__(proc, get_scores_fn, module_name, working_dir)
     self._reader_pipe = reader_pipe
     self._writer_pipe = writer_pipe
     self._obs_gen = log_reader.read_log_from_file(self._reader_pipe)
@@ -150,6 +156,7 @@ class InteractiveClang(ClangProcess):
         score_default=None,
         context=None,
         module_name=module_name,
+        working_dir=working_dir,
         obs_id=None,
         step_type=StepType.LAST,
     )
@@ -180,6 +187,7 @@ class InteractiveClang(ClangProcess):
           score_default=None,
           context=obs.context,
           module_name=self._module_name,
+          working_dir=self._working_dir,
           obs_id=obs.observation_id,
           step_type=_get_step_type(),
       )
@@ -235,7 +243,8 @@ def clang_session(
   Yields:
     Either the constructed InteractiveClang or DefaultClang object.
   """
-  with tempfile.TemporaryDirectory() as td:
+  tempdir_context = compilation_runner.get_directory_context()
+  with tempdir_context as td:
     task_working_dir = os.path.join(td, '__task_working_dir__')
     os.mkdir(task_working_dir)
     task = task_type()
@@ -264,6 +273,7 @@ def clang_session(
                   proc,
                   _get_scores,
                   module.name,
+                  task_working_dir,
                   reader_pipe,
                   writer_pipe,
               )
@@ -272,6 +282,7 @@ def clang_session(
               proc,
               _get_scores,
               module.name,
+              task_working_dir,
           )
 
       finally:
