@@ -20,7 +20,6 @@ import ctypes
 from unittest import mock
 import subprocess
 import os
-import shutil
 import tempfile
 from absl.testing import flagsaver
 

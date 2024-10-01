@@ -88,7 +88,7 @@ def get_workdir_context():
   if _KEEP_TEMPS.value is not None:
     tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
   else:
-    tempdir_context = tempfile.TemporaryDirectory()
+    tempdir_context = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
   return tempdir_context
 
 
