@@ -290,18 +290,23 @@ def clang_session(
 def _get_clang_generator(
     clang_path: str,
     task_type: Type[MLGOTask],
+    interactive_only: bool = False,
 ) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
                Optional[corpus.LoadedModuleSpec], None]:
-  """Returns a generator for creating InteractiveClang objects.
-
-  TODO: fix this docstring
+  """Returns a tuple of generators for creating InteractiveClang objects.
 
   Args:
     clang_path: Path to the clang binary to use within InteractiveClang.
     task_type: Type of the MLGO task to use.
+    interactive_only: If set to true the returned tuple of generators is
+      iclang, iclang instead of iclang, clang
 
   Returns:
-    The generator for InteractiveClang objects.
+    A generator of tuples. Each element of the tuple is created with
+    clang_session. First argument of the tuple is always an interactive
+    clang session. The second argumnet is a default clang session if
+    interactive_only is False and otherwise the exact same interactive
+    clang session object as the first argument.
   """
   while True:
     # The following line should be type-hinted as follows:
@@ -311,9 +316,12 @@ def _get_clang_generator(
     module = yield
     with clang_session(
         clang_path, module, task_type, interactive=True) as iclang:
-      with clang_session(
-          clang_path, module, task_type, interactive=False) as clang:
-        yield iclang, clang
+      if interactive_only:
+        yield iclang, iclang
+      else:
+        with clang_session(
+            clang_path, module, task_type, interactive=False) as clang:
+          yield iclang, clang
 
 
 class MLGOEnvironmentBase:
@@ -332,8 +340,10 @@ class MLGOEnvironmentBase:
       task_type: Type[MLGOTask],
       obs_spec,
       action_spec,
+      interactive_only: bool = False,
   ):
-    self._clang_generator = _get_clang_generator(clang_path, task_type)
+    self._clang_generator = _get_clang_generator(
+        clang_path, task_type, interactive_only=interactive_only)
     self._obs_spec = obs_spec
     self._action_spec = action_spec
 
