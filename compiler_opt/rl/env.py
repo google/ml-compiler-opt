@@ -293,17 +293,19 @@ def _get_clang_generator(
     interactive_only: bool = False,
 ) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
                Optional[corpus.LoadedModuleSpec], None]:
-  """Returns a generator for creating InteractiveClang objects.
-
-  TODO: fix this docstring
+  """Returns a tuple of generators for creating InteractiveClang objects.
 
   Args:
     clang_path: Path to the clang binary to use within InteractiveClang.
     task_type: Type of the MLGO task to use.
-    interactive_only: If set to true only iclang is yielded
+    interactive_only: If set to true the returned tuple of generators is
+      iclang, iclang instead of iclang, clang
 
   Returns:
-    The generator for InteractiveClang objects.
+    A tuple of generators created with clang_session. First argument of
+    the tuple is always an interactive clang session. The second argumnet
+    is a default clang session if interactive_only is False and otherwise
+    the exact same interactive clang session object as the first argument.
   """
   while True:
     # The following line should be type-hinted as follows:

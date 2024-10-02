@@ -214,6 +214,7 @@ class MLGOEnvironmentTest(tf.test.TestCase):
 
       step = test_env.step(np.array([1], dtype=np.int64))
       self.assertEqual(step.step_type, env.StepType.LAST)
+      self.assertNotEqual(test_env._iclang, test_env._clang)  # pylint: disable=protected-access
 
   @mock.patch('subprocess.Popen')
   def test_env_interactive_only(self, mock_popen):
@@ -239,7 +240,7 @@ class MLGOEnvironmentTest(tf.test.TestCase):
 
       step = test_env.step(np.array([1], dtype=np.int64))
       self.assertEqual(step.step_type, env.StepType.LAST)
-      self.assertEqual(step.reward, {'default': 0.})
+      self.assertEqual(test_env._iclang, test_env._clang)  # pylint: disable=protected-access
 
 
 if __name__ == '__main__':
