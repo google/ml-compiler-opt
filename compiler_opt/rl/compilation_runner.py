@@ -84,7 +84,8 @@ def get_workdir_context():
   """Return a context which manages how the temperory directories are handled.
 
   When the flag keep_temps is specified temporary directories are stored in
-  keep_temps."""
+  keep_temps.
+  """
   if _KEEP_TEMPS.value is not None:
     tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
   else:
