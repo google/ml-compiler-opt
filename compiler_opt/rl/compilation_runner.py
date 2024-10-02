@@ -80,6 +80,19 @@ class NonTemporaryDirectory:
     pass
 
 
+def get_workdir_context():
+  """Return a context which manages how the temperory directories are handled.
+
+  When the flag keep_temps is specified temporary directories are stored in
+  keep_temps.
+  """
+  if _KEEP_TEMPS.value is not None:
+    tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
+  else:
+    tempdir_context = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+  return tempdir_context
+
+
 def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
                                  reward: float) -> tf.train.SequenceExample:
   """Overwrite the reward in the trace (sequence_example) with the given one.
@@ -401,10 +414,7 @@ class CompilationRunner(Worker):
       compilation_runner.ProcessKilledException is passed through.
       ValueError if example under default policy and ml policy does not match.
     """
-    if _KEEP_TEMPS.present:
-      tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
-    else:
-      tempdir_context = tempfile.TemporaryDirectory()
+    tempdir_context = get_workdir_context()
 
     with tempdir_context as tempdir:
       final_cmd_line = loaded_module_spec.build_command_line(tempdir)
