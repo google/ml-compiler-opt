@@ -302,10 +302,11 @@ def _get_clang_generator(
       iclang, iclang instead of iclang, clang
 
   Returns:
-    A tuple of generators created with clang_session. First argument of
-    the tuple is always an interactive clang session. The second argumnet
-    is a default clang session if interactive_only is False and otherwise
-    the exact same interactive clang session object as the first argument.
+    A generator of tuples. Each element of the tuple is created with 
+    clang_session. First argument of the tuple is always an interactive 
+    clang session. The second argumnet is a default clang session if 
+    interactive_only is False and otherwise the exact same interactive
+    clang session object as the first argument.
   """
   while True:
     # The following line should be type-hinted as follows:
