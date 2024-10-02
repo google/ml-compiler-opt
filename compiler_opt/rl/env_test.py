@@ -215,6 +215,32 @@ class MLGOEnvironmentTest(tf.test.TestCase):
       step = test_env.step(np.array([1], dtype=np.int64))
       self.assertEqual(step.step_type, env.StepType.LAST)
 
+  @mock.patch('subprocess.Popen')
+  def test_env_interactive_only(self, mock_popen):
+    mock_popen.side_effect = mock_interactive_clang
+
+    test_env = env.MLGOEnvironmentBase(
+        clang_path=_CLANG_PATH,
+        task_type=MockTask,
+        obs_spec={},
+        action_spec={},
+        interactive_only=True,
+    )
+
+    for env_itr in range(3):
+      del env_itr
+      step = test_env.reset(_MOCK_MODULE)
+      self.assertEqual(step.step_type, env.StepType.FIRST)
+
+      for step_itr in range(_NUM_STEPS - 1):
+        del step_itr
+        step = test_env.step(np.array([1], dtype=np.int64))
+        self.assertEqual(step.step_type, env.StepType.MID)
+
+      step = test_env.step(np.array([1], dtype=np.int64))
+      self.assertEqual(step.step_type, env.StepType.LAST)
+      self.assertEqual(step.reward, {'default': 0.})
+
 
 if __name__ == '__main__':
   tf.test.main()
