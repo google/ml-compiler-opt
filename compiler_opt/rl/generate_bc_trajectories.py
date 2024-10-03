@@ -18,9 +18,8 @@ from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import tensorflow as tf
-import tf_agents
-import tf_agents.policies
 from tf_agents.trajectories import policy_step
+from tf_agents.trajectories import time_step
 
 
 class ExplorationWithPolicy:
@@ -50,9 +49,8 @@ class ExplorationWithPolicy:
   def __init__(
       self,
       replay_prefix: List[int],
-      policy: Callable[[tf_agents.trajectories.TimeStep], np.ndarray],
-      explore_policy: Callable[[tf_agents.trajectories.TimeStep],
-                               policy_step.PolicyStep],
+      policy: Callable[[time_step.TimeStep], np.ndarray],
+      explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
   ):
@@ -65,7 +63,7 @@ class ExplorationWithPolicy:
     self.explore_on_features = explore_on_features
     self._stop_exploration = False
 
-  def advice(self, state: tf_agents.trajectories.TimeStep) -> np.ndarray:
+  def advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
 
     Args:

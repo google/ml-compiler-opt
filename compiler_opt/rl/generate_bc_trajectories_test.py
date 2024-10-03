@@ -19,17 +19,17 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-import tf_agents
 from tf_agents.trajectories import policy_step
+from tf_agents.trajectories import time_step
 
 from compiler_opt.rl import generate_bc_trajectories
 
 _eps = 1e-5
 
 
-def _get_state_list() -> List[tf_agents.trajectories.TimeStep]:
+def _get_state_list() -> List[time_step.TimeStep]:
 
-  state_0 = tf_agents.trajectories.TimeStep(
+  state_0 = time_step.TimeStep(
       discount=tf.constant(np.array([0.]), dtype=tf.float32),
       observation={
           'feature_1': tf.constant(np.array([0]), dtype=tf.int64),
@@ -38,7 +38,7 @@ def _get_state_list() -> List[tf_agents.trajectories.TimeStep]:
       },
       reward=tf.constant(np.array([0]), dtype=tf.float32),
       step_type=tf.constant(np.array([0]), dtype=tf.int32))
-  state_1 = tf_agents.trajectories.TimeStep(
+  state_1 = time_step.TimeStep(
       discount=tf.constant(np.array([0.]), dtype=tf.float32),
       observation={
           'feature_1': tf.constant(np.array([1]), dtype=tf.int64),
@@ -47,7 +47,7 @@ def _get_state_list() -> List[tf_agents.trajectories.TimeStep]:
       },
       reward=tf.constant(np.array([0]), dtype=tf.float32),
       step_type=tf.constant(np.array([0]), dtype=tf.int32))
-  state_2 = tf_agents.trajectories.TimeStep(
+  state_2 = time_step.TimeStep(
       discount=tf.constant(np.array([0.]), dtype=tf.float32),
       observation={
           'feature_1': tf.constant(np.array([0]), dtype=tf.int64),
@@ -56,7 +56,7 @@ def _get_state_list() -> List[tf_agents.trajectories.TimeStep]:
       },
       reward=tf.constant(np.array([0]), dtype=tf.float32),
       step_type=tf.constant(np.array([0]), dtype=tf.int32))
-  state_3 = tf_agents.trajectories.TimeStep(
+  state_3 = time_step.TimeStep(
       discount=tf.constant(np.array([0.]), dtype=tf.float32),
       observation={
           'feature_1': tf.constant(np.array([0]), dtype=tf.int64),
@@ -69,15 +69,14 @@ def _get_state_list() -> List[tf_agents.trajectories.TimeStep]:
   return [state_0, state_1, state_2, state_3]
 
 
-def _policy(state: tf_agents.trajectories.TimeStep) -> np.ndarray:
+def _policy(state: time_step.TimeStep) -> np.ndarray:
   feature_sum = np.array([0])
   for feature in state.observation.values():
     feature_sum += feature.numpy()
   return np.mod(feature_sum, 5)
 
 
-def _explore_policy(
-    state: tf_agents.trajectories.TimeStep) -> policy_step.PolicyStep:
+def _explore_policy(state: time_step.TimeStep) -> policy_step.PolicyStep:
   probs = [
       0.5 * float(state.observation['feature_3'].numpy()),
       1 - 0.5 * float(state.observation['feature_3'].numpy())
