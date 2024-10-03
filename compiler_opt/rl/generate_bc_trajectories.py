@@ -14,7 +14,7 @@
 # limitations under the License.
 """Module for running compilation and collect data for behavior cloning."""
 
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -53,7 +53,7 @@ class ExplorationWithPolicy:
       policy: Callable[[tf_agents.trajectories.TimeStep], np.ndarray],
       explore_policy: Callable[[tf_agents.trajectories.TimeStep],
                                policy_step.PolicyStep],
-      explore_on_features: Dict[str, Callable[[tf.Tensor], bool]] | None = None,
+      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor], bool]]] = None,
   ):
     self.replay_prefix = replay_prefix
     self.policy = policy
