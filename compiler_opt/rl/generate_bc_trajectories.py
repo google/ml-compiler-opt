@@ -53,7 +53,8 @@ class ExplorationWithPolicy:
       policy: Callable[[tf_agents.trajectories.TimeStep], np.ndarray],
       explore_policy: Callable[[tf_agents.trajectories.TimeStep],
                                policy_step.PolicyStep],
-      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor], bool]]] = None,
+      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
+                                                       bool]]] = None,
   ):
     self.replay_prefix = replay_prefix
     self.policy = policy
