@@ -48,7 +48,7 @@ class ExplorationWithPolicy:
 
   def __init__(
       self,
-      replay_prefix: List[int],
+      replay_prefix: List[np.ndarray],
       policy: Callable[[time_step.TimeStep], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
