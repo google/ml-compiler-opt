@@ -25,7 +25,7 @@ from tf_agents.trajectories import time_step
 class ExplorationWithPolicy:
   """Policy which selects states for exploration.
 
-  Exploration is fascilitated in the following way. First the policy plays
+  Exploration is facilitated in the following way. First the policy plays
   all actions from the replay_prefix. At the following state the policy computes
   a gap which is difference between the most likely action and the second most
   likely action according to the randomized exploration policy (distr).
@@ -63,24 +63,31 @@ class ExplorationWithPolicy:
     self.explore_on_features = explore_on_features
     self._stop_exploration = False
 
-  def advice(self, state: time_step.TimeStep) -> np.ndarray:
+  def _compute_gap(self, distr: np.ndarray) -> np.float32:
+    if distr.shape[0] < 2:
+      return np.inf
+    sorted_distr = np.sort(distr)
+    return sorted_distr[-1] - sorted_distr[-2]
+
+  def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
 
     Args:
       state: current state in the trajectory
 
     Returns:
-      policy_deca: action to take at the current state.
+      policy_action: action to take at the current state.
 
     """
     if self.curr_step < len(self.replay_prefix):
       self.curr_step += 1
       return np.array(self.replay_prefix[self.curr_step - 1])
-    policy_deca = self.policy(state)
+    policy_action = self.policy(state)
     distr = tf.nn.softmax(self.explore_policy(state).action.logits).numpy()[0]
-    if not self._stop_exploration and distr.shape[0] > 1 and self.gap > np.abs(
-        distr[0] - distr[1]):
-      self.gap = np.abs(distr[0] - distr[1])
+    curr_gap = self._compute_gap(distr)
+    if (not self._stop_exploration and distr.shape[0] > 1 and
+        self.gap > curr_gap):
+      self.gap = curr_gap
       self.explore_step = self.curr_step
     if not self._stop_exploration and self.explore_on_features is not None:
       for feature_name, explore_on_feature in self.explore_on_features.items():
@@ -89,4 +96,4 @@ class ExplorationWithPolicy:
           self._stop_exploration = True
           break
     self.curr_step += 1
-    return policy_deca
+    return policy_action

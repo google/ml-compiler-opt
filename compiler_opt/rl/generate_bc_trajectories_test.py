@@ -102,7 +102,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         explore_policy=_explore_policy,
     )
     for state in _get_state_list():
-      _ = explore_with_policy.advice(state)[0]
+      _ = explore_with_policy.get_advice(state)[0]
 
     self.assertAllClose(0, explore_with_policy.gap, atol=2 * _eps)
     self.assertEqual(2, explore_with_policy.explore_step)
@@ -115,7 +115,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         explore_policy=_explore_policy,
     )
     for state in _get_state_list():
-      _ = explore_with_policy.advice(state)[0]
+      _ = explore_with_policy.get_advice(state)[0]
 
     self.assertAllClose(1, explore_with_policy.gap, atol=2 * _eps)
     self.assertEqual(3, explore_with_policy.explore_step)
@@ -139,7 +139,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         explore_policy=_explore_policy,
         explore_on_features=explore_on_features)
     for state in _get_state_list():
-      _ = explore_with_policy.advice(state)[0]
+      _ = explore_with_policy.get_advice(state)[0]
     self.assertEqual(0, explore_with_policy.explore_step)
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
@@ -150,5 +150,5 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     )
 
     for state in _get_state_list():
-      _ = explore_with_policy.advice(state)[0]
+      _ = explore_with_policy.get_advice(state)[0]
     self.assertEqual(1, explore_with_policy.explore_step)
