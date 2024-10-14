@@ -23,7 +23,7 @@ import tensorflow_probability as tfp
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 
-from google.protobuf import text_format
+from google.protobuf import text_format  # pytype: disable=pyi-error
 
 from compiler_opt.rl import generate_bc_trajectories
 from compiler_opt.rl import env
