@@ -116,6 +116,7 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
 
 @dataclasses.dataclass
 class SequenceExampleFeatureNames:
+  """Feature names for features that are always added to seq example."""
   action: str = 'action'
   reward: str = 'reward'
   module_name: str = 'module_name'
