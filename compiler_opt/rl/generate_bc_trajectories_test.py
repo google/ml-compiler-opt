@@ -81,35 +81,37 @@ def _policy(state: time_step.TimeStep) -> np.ndarray:
   return np.mod(feature_sum, 5)
 
 
-def _explore_policy(state: time_step.TimeStep) -> policy_step.PolicyStep:
-  probs = [
-      0.5 * float(state.observation['feature_3'].numpy()),
-      1 - 0.5 * float(state.observation['feature_3'].numpy())
-  ]
-  logits = [[0.0, tf.math.log(probs[1] / (1.0 - probs[1] + _eps))]]
-  return policy_step.PolicyStep(
-      action=tfp.distributions.Categorical(logits=logits))
-
-
 class ExplorationWithPolicyTest(tf.test.TestCase):
+
+  def _explore_policy(self,
+                      state: time_step.TimeStep) -> policy_step.PolicyStep:
+    probs = [
+        0.5 * float(state.observation['feature_3'].numpy()),
+        1 - 0.5 * float(state.observation['feature_3'].numpy())
+    ]
+    logits = [[0.0, tf.math.log(probs[1] / (1.0 - probs[1] + _eps))]]
+    return policy_step.PolicyStep(
+        action=tfp.distributions.Categorical(logits=logits))
 
   def test_explore_policy(self):
     prob = 1.
     state = _get_state_list()[3]
     logits = [[0.0, tf.math.log(prob / (1.0 - prob + _eps))]]
     action = tfp.distributions.Categorical(logits=logits)
-    self.assertAllClose(action.logits, _explore_policy(state).action.logits)
+    self.assertAllClose(action.logits,
+                        self._explore_policy(state).action.logits)
 
   def test_explore_with_gap(self):
+    # pylint: disable=protected-access
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
-        explore_policy=_explore_policy,
+        explore_policy=self._explore_policy,
     )
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
 
-    self.assertAllClose(0, explore_with_policy.gap, atol=2 * _eps)
+    self.assertAllClose(0, explore_with_policy._gap, atol=2 * _eps)
     self.assertEqual(2, explore_with_policy.explore_step)
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
@@ -117,12 +119,12 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
                        np.array([1]),
                        np.array([1])],
         policy=_policy,
-        explore_policy=_explore_policy,
+        explore_policy=self._explore_policy,
     )
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
 
-    self.assertAllClose(1, explore_with_policy.gap, atol=2 * _eps)
+    self.assertAllClose(1, explore_with_policy._gap, atol=2 * _eps)
     self.assertEqual(3, explore_with_policy.explore_step)
 
   def test_explore_with_feature(self):
@@ -141,7 +143,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[],
         policy=_policy,
-        explore_policy=_explore_policy,
+        explore_policy=self._explore_policy,
         explore_on_features=explore_on_features)
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
@@ -150,7 +152,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
-        explore_policy=_explore_policy,
+        explore_policy=self._explore_policy,
         explore_on_features=explore_on_features,
     )
 
@@ -345,3 +347,109 @@ class ExplorationWorkerTest(tf.test.TestCase):
 
     seq_example = exploration_worker.compile_module(_policy)
     self.assertEqual(seq_example, seq_example_comp)
+
+  def _get_seq_example_list_comp(self):
+    seq_example_list_comp = []
+
+    # no exploration
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
+                                                 'reward')
+      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                               'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    # first exploration trajectory, tests explore with gap
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    # second exploration trajectory, tests explore on feature
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      elif i == 5:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    # third exploration trajectory, tests explore with gap
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      elif i == 5:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+      elif i == 9:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    return seq_example_list_comp
+
+  @mock.patch('subprocess.Popen')
+  def test_explore_function(self, mock_popen):
+    mock_popen.side_effect = env_test.mock_interactive_clang
+
+    def _explore_on_feature_func(feature_val) -> bool:
+      return feature_val[0] in [4, 5]
+
+    exploration_worker = generate_bc_trajectories.ExplorationWorker(
+        loaded_module_spec=env_test._MOCK_MODULE,
+        clang_path=env_test._CLANG_PATH,
+        mlgo_task=env_test.MockTask,
+        reward_key='default',
+        explore_on_features={'times_called': _explore_on_feature_func})
+
+    def _explore_policy(state: time_step.TimeStep):
+      times_called = state.observation['times_called'][0]
+      # will explore every 4-th step
+      logits = [[
+          4.0 + 1e-3 * float(env_test._NUM_STEPS - times_called),
+          float(np.mod(times_called, 5))
+      ]]
+      return policy_step.PolicyStep(
+          action=tfp.distributions.Categorical(logits=logits))
+
+    (seq_example_list, working_dir_names, loss_idx,
+     base_seq_loss) = exploration_worker.explore_function(
+         _policy, _explore_policy)
+    del working_dir_names
+
+    self.assertEqual(loss_idx, 0)
+    self.assertEqual(base_seq_loss, 47.0)
+    seq_example_list_comp = self._get_seq_example_list_comp()
+    self.assertListEqual(seq_example_list, seq_example_list_comp)
