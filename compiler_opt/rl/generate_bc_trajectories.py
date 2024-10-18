@@ -173,7 +173,7 @@ class ExplorationWithPolicy:
                                                        bool]]] = None,
   ):
     self.explore_step: int = len(replay_prefix) - 1
-    self.explore_state: time_step.TimeStep | None = None
+    self.explore_state: Optional[time_step.TimeStep] = None
     self._replay_prefix = replay_prefix
     self._policy = policy
     self._explore_policy = explore_policy
