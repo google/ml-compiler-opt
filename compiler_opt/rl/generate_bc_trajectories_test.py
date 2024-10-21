@@ -101,6 +101,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     self.assertAllClose(action.logits, _explore_policy(state).action.logits)
 
   def test_explore_with_gap(self):
+    # pylint: disable=protected-access
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
@@ -109,8 +110,8 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
 
-    self.assertAllClose(0, explore_with_policy.gap, atol=2 * _eps)
-    self.assertEqual(2, explore_with_policy.explore_step)
+    self.assertAllClose(0, explore_with_policy._gap, atol=2 * _eps)
+    self.assertEqual(2, explore_with_policy._explore_step)
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1]),
@@ -122,11 +123,11 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
 
-    self.assertAllClose(1, explore_with_policy.gap, atol=2 * _eps)
-    self.assertEqual(3, explore_with_policy.explore_step)
+    self.assertAllClose(1, explore_with_policy._gap, atol=2 * _eps)
+    self.assertEqual(3, explore_with_policy._explore_step)
 
   def test_explore_with_feature(self):
-
+    # pylint: disable=protected-access
     def explore_on_feature_1_val(feature_val):
       return feature_val.numpy()[0] > 0
 
@@ -145,7 +146,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         explore_on_features=explore_on_features)
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
-    self.assertEqual(0, explore_with_policy.explore_step)
+    self.assertEqual(0, explore_with_policy._explore_step)
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
@@ -156,7 +157,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
 
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
-    self.assertEqual(1, explore_with_policy.explore_step)
+    self.assertEqual(1, explore_with_policy._explore_step)
 
 
 class AddToFeatureListsTest(tf.test.TestCase):
