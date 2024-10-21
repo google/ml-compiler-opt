@@ -170,6 +170,9 @@ class ExplorationWithPolicy:
     sorted_distr = np.sort(distr)
     return sorted_distr[-1] - sorted_distr[-2]
 
+  def get_explore_step(self) -> int:
+    return self._explore_step
+
   def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
 
