@@ -172,8 +172,8 @@ class ExplorationWithPolicy:
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
   ):
-    self.explore_step: int = len(replay_prefix) - 1
-    self.explore_state: Optional[time_step.TimeStep] = None
+    self._explore_step: int = len(replay_prefix) - 1
+    self._explore_state: Optional[time_step.TimeStep] = None
     self._replay_prefix = replay_prefix
     self._policy = policy
     self._explore_policy = explore_policy
@@ -188,6 +188,9 @@ class ExplorationWithPolicy:
       return np.inf
     sorted_distr = np.sort(distr)
     return sorted_distr[-1] - sorted_distr[-2]
+
+  def get_explore_step(self) -> int:
+    return self._explore_step
 
   def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
@@ -204,7 +207,7 @@ class ExplorationWithPolicy:
       return np.array(self._replay_prefix[self._curr_step - 1])
     policy_action = self._policy(state)
     # explore_policy(state) should play at least one action per state and so
-    # self.explore_policy(state).action.logits should have at least one entry
+    # self._explore_policy(state).action.logits should have at least one entry
     distr = tf.nn.softmax(self._explore_policy(state).action.logits).numpy()[0]
     curr_gap = self._compute_gap(distr)
     # selecting explore_step is done based on smallest encountered gap in the
@@ -213,14 +216,15 @@ class ExplorationWithPolicy:
     if (not self._stop_exploration and distr.shape[0] > 1 and
         self._gap > curr_gap):
       self._gap = curr_gap
-      self.explore_step = self._curr_step
-      self.explore_state = state
+      self._explore_step = self._curr_step
+      self._explore_state = state
     if not self._stop_exploration and self._explore_on_features is not None:
       for feature_name, explore_on_feature in self._explore_on_features.items():
         if explore_on_feature(state.observation[feature_name]):
-          self.explore_step = self._curr_step
+          self._explore_step = self._curr_step
           self._stop_exploration = True
           break
+    self._curr_step += 1
     self._curr_step += 1
     return policy_action
 
