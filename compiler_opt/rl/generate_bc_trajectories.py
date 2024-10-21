@@ -32,6 +32,14 @@ from compiler_opt.rl import corpus
 from compiler_opt.rl import env
 
 
+@dataclasses.dataclass
+class SequenceExampleFeatureNames:
+  """Feature names for features that are always added to seq example."""
+  action: str = 'action'
+  reward: str = 'reward'
+  module_name: str = 'module_name'
+
+
 def add_int_feature(
     sequence_example: tf.train.SequenceExample,
     feature_value: np.int64,
@@ -114,14 +122,6 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
     add_function(seq_example, feature, feature_name)
 
 
-@dataclasses.dataclass
-class SequenceExampleFeatureNames:
-  """Feature names for features that are always added to seq example."""
-  action: str = 'action'
-  reward: str = 'reward'
-  module_name: str = 'module_name'
-
-
 class ExplorationWithPolicy:
   """Policy which selects states for exploration.
 
@@ -154,13 +154,14 @@ class ExplorationWithPolicy:
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
   ):
-    self.replay_prefix = replay_prefix
-    self.policy = policy
-    self.explore_policy = explore_policy
-    self.curr_step = 0
-    self.explore_step = 0
-    self.gap = np.inf
-    self.explore_on_features = explore_on_features
+    self._explore_step: int = len(replay_prefix) - 1
+    self._replay_prefix = replay_prefix
+    self._policy = policy
+    self._explore_policy = explore_policy
+    self._curr_step = 0
+    self._gap = np.inf
+    self._explore_on_features: Optional[Dict[str, Callable[
+        [tf.Tensor], bool]]] = explore_on_features
     self._stop_exploration = False
 
   def _compute_gap(self, distr: np.ndarray) -> np.float32:
@@ -168,6 +169,9 @@ class ExplorationWithPolicy:
       return np.inf
     sorted_distr = np.sort(distr)
     return sorted_distr[-1] - sorted_distr[-2]
+
+  def get_explore_step(self) -> int:
+    return self._explore_step
 
   def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
@@ -179,28 +183,28 @@ class ExplorationWithPolicy:
       policy_action: action to take at the current state.
 
     """
-    if self.curr_step < len(self.replay_prefix):
-      self.curr_step += 1
-      return np.array(self.replay_prefix[self.curr_step - 1])
-    policy_action = self.policy(state)
+    if self._curr_step < len(self._replay_prefix):
+      self._curr_step += 1
+      return np.array(self._replay_prefix[self._curr_step - 1])
+    policy_action = self._policy(state)
     # explore_policy(state) should play at least one action per state and so
-    # self.explore_policy(state).action.logits should have at least one entry
-    distr = tf.nn.softmax(self.explore_policy(state).action.logits).numpy()[0]
+    # self._explore_policy(state).action.logits should have at least one entry
+    distr = tf.nn.softmax(self._explore_policy(state).action.logits).numpy()[0]
     curr_gap = self._compute_gap(distr)
     # selecting explore_step is done based on smallest encountered gap in the
     # play of self.policy. This logic can be changed to have different type
     # of exploration.
     if (not self._stop_exploration and distr.shape[0] > 1 and
-        self.gap > curr_gap):
-      self.gap = curr_gap
-      self.explore_step = self.curr_step
-    if not self._stop_exploration and self.explore_on_features is not None:
-      for feature_name, explore_on_feature in self.explore_on_features.items():
+        self._gap > curr_gap):
+      self._gap = curr_gap
+      self._explore_step = self._curr_step
+    if not self._stop_exploration and self._explore_on_features is not None:
+      for feature_name, explore_on_feature in self._explore_on_features.items():
         if explore_on_feature(state.observation[feature_name]):
-          self.explore_step = self.curr_step
+          self._explore_step = self._curr_step
           self._stop_exploration = True
           break
-    self.curr_step += 1
+    self._curr_step += 1
     return policy_action
 
 
