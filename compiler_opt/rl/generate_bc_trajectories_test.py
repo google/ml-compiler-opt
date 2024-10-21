@@ -103,7 +103,6 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
 
   def test_explore_with_gap(self):
     # pylint: disable=protected-access
-    # pylint: disable=protected-access
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
@@ -113,7 +112,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
       _ = explore_with_policy.get_advice(state)[0]
 
     self.assertAllClose(0, explore_with_policy._gap, atol=2 * _eps)
-    self.assertEqual(2, explore_with_policy._explore_step)
+    self.assertEqual(2, explore_with_policy.get_explore_step())
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1]),
@@ -126,7 +125,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
       _ = explore_with_policy.get_advice(state)[0]
 
     self.assertAllClose(1, explore_with_policy._gap, atol=2 * _eps)
-    self.assertEqual(3, explore_with_policy._explore_step)
+    self.assertEqual(3, explore_with_policy.get_explore_step())
 
   def test_explore_with_feature(self):
     # pylint: disable=protected-access
@@ -148,7 +147,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         explore_on_features=explore_on_features)
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
-    self.assertEqual(0, explore_with_policy._explore_step)
+    self.assertEqual(0, explore_with_policy.get_explore_step())
 
     explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
@@ -159,7 +158,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
 
     for state in _get_state_list():
       _ = explore_with_policy.get_advice(state)[0]
-    self.assertEqual(1, explore_with_policy._explore_step)
+    self.assertEqual(1, explore_with_policy.get_explore_step())
 
 
 class AddToFeatureListsTest(tf.test.TestCase):

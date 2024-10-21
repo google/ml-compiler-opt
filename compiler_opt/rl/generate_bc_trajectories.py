@@ -192,6 +192,9 @@ class ExplorationWithPolicy:
   def get_explore_step(self) -> int:
     return self._explore_step
 
+  def get_explore_state(self) -> Optional[time_step.TimeStep]:
+    return self._explore_state
+
   def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
     """Action function for the policy.
 
@@ -224,7 +227,6 @@ class ExplorationWithPolicy:
           self._explore_step = self._curr_step
           self._stop_exploration = True
           break
-    self._curr_step += 1
     self._curr_step += 1
     return policy_action
 
@@ -408,14 +410,14 @@ class ExplorationWorker(worker.Worker):
 
     seq_losses = [base_seq_loss]
     for num_steps in range(num_states):
-      explore_step = base_policy.explore_step
+      explore_step = base_policy.get_explore_step()
       if explore_step >= horizon:
         break
       replay_prefix = base_seq.feature_lists.feature_list[
           SequenceExampleFeatureNames.action].feature
       replay_prefix = self._build_replay_prefix_list(
           replay_prefix[:explore_step + 1])
-      explore_state = base_policy.explore_state
+      explore_state = base_policy.get_explore_state()
       for base_seq, base_policy in self.explore_at_state_generator(
           replay_prefix, explore_step, explore_state, policy, explore_policy):
         exploration_steps += 1
@@ -433,7 +435,7 @@ class ExplorationWorker(worker.Worker):
       horizon = len(base_seq.feature_lists.feature_list[
           SequenceExampleFeatureNames.action].feature)
       # check if we are at the end of the trajectory and the last was explored
-      if (explore_step == base_policy.explore_step and
+      if (explore_step == base_policy.get_explore_step() and
           explore_step == horizon - 1):
         return seq_example_list, working_dir_names, loss_idx, base_seq_loss
 
