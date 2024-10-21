@@ -156,7 +156,7 @@ class ExplorationWithPolicy:
   ):
     self.replay_prefix = replay_prefix
     self.policy = policy
-    self.explore_policy = explore_policy
+    self._explore_policy = explore_policy
     self.curr_step = 0
     self.explore_step = 0
     self.gap = np.inf
@@ -184,8 +184,8 @@ class ExplorationWithPolicy:
       return np.array(self.replay_prefix[self.curr_step - 1])
     policy_action = self.policy(state)
     # explore_policy(state) should play at least one action per state and so
-    # self.explore_policy(state).action.logits should have at least one entry
-    distr = tf.nn.softmax(self.explore_policy(state).action.logits).numpy()[0]
+    # self._explore_policy(state).action.logits should have at least one entry
+    distr = tf.nn.softmax(self._explore_policy(state).action.logits).numpy()[0]
     curr_gap = self._compute_gap(distr)
     # selecting explore_step is done based on smallest encountered gap in the
     # play of self.policy. This logic can be changed to have different type
