@@ -14,6 +14,7 @@
 # limitations under the License.
 """Module for running compilation and collect data for behavior cloning."""
 
+import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from absl import logging
@@ -23,6 +24,8 @@ import shutil
 
 import numpy as np
 import tensorflow as tf
+from tf_agents import policies
+from tf_agents.typing import types as tf_types
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 from tf_agents.specs import tensor_spec
@@ -112,6 +115,46 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
     add_function = add_string_feature
   for feature in feature_list:
     add_function(seq_example, feature, feature_name)
+
+
+def policy_action_wrapper(tf_policy) -> Callable[[Any], np.ndarray]:
+  """Return a wrapper for a loaded policy action.
+  
+    The returned function maps from an (optional) state to an np.array 
+      that represents the action.
+
+  Args:
+    tf_policy: a policy (optionally can be tf_policy)
+
+  Returns:
+    wrap_function: function mapping a state to an np.array action.
+  """
+
+  def wrap_function(*args, **kwargs):
+    return np.array(tf_policy.action(*args, **kwargs).action)
+
+  return wrap_function
+
+
+def policy_distr_wrapper(
+    tf_policy: policies.TFPolicy
+) -> Callable[[time_step.TimeStep, Optional[tf_types.NestedTensor]],
+              policy_step.PolicyStep]:
+  """Return a wrapper for a loaded tf policy distribution.
+  
+    The returned function maps from a state to a distribution over all actions.
+
+  Args:
+    tf_policy: A loaded tf policy.
+
+  Returns:
+    wrap_function: function mapping a state to a distribution over all actions.
+  """
+
+  def wrap_function(*args, **kwargs) -> policy_step.PolicyStep:
+    return tf_policy.distribution(*args, **kwargs)
+
+  return wrap_function
 
 
 @dataclasses.dataclass
@@ -209,8 +252,6 @@ class ExplorationWorker(worker.Worker):
 
   Attributes:
     loaded_module_spec: the module to be compiled and explored
-    use_greedy: indicates if the default/greedy policy is used to compile the
-      module
     env: MLGO environment.
     exploration_frac: how often to explore in a trajectory
     max_exploration_steps: maximum number of exploration steps
@@ -224,7 +265,6 @@ class ExplorationWorker(worker.Worker):
       loaded_module_spec: corpus.LoadedModuleSpec,
       clang_path: str,
       mlgo_task: Type[env.MLGOTask],
-      use_greedy: bool = False,
       exploration_frac: float = 1.0,
       max_exploration_steps: int = 10,
       exploration_policy_distr=None,
@@ -234,7 +274,6 @@ class ExplorationWorker(worker.Worker):
       **kwargs,
   ):
     self._loaded_module_spec = loaded_module_spec
-    self._use_greedy = use_greedy
     if not obs_action_specs:
       obs_spec = None
       action_spec = None
@@ -368,3 +407,82 @@ class ExplorationWorker(worker.Worker):
           curr_obs_feature, dtype=obs_dtype, name=curr_obs_feature_name)
       add_feature_list(sequence_example, curr_obs_feature,
                        curr_obs_feature_name)
+
+
+@gin.configurable
+class ModuleWorker(worker.Worker):
+  """Class which sets up an exploration worker and processes the results.
+  
+  Given a list of policies and an exploration policy, the class processes
+  modules, one a time, returning the maximum reward trajectory, where maximum
+  is taken over the list of policies together with exploration fascilitated 
+  by the exploration policy if given.
+
+  Attributes:
+    env: MLGO environment.
+    policy_paths: list of policies to load and use for forming the trajectories
+    exploration_policy_paths: list of policies to be used for exploration,
+      i-th policy in exploration_policy_paths explores when using i-th policy
+      in policy_paths for compilation
+    exploration_frac: how often to explore in a trajectory
+    mlgo_task: the type of compilation task
+    max_exploration_steps: maximum number of exploration steps
+    tf_policy_action: list of the action/advice function from loaded policies
+    exploration_policy_distr: distribution function from exploration policy.
+    base_path: root path to save best compiled binaries for linking
+    env_args: additional arguments to pass to the InliningTask, used in creating
+      the environment.
+  """
+
+  def __init__(
+      self,
+      clang_path: str = gin.REQUIRED,
+      policy_paths: List[str] = gin.REQUIRED,
+      exploration_frac: float = gin.REQUIRED,
+      mlgo_task: Type[env.MLGOTask] = gin.REQUIRED,
+      max_exploration_steps: int = 7,
+      exploration_policy_paths: Optional[str] = None,
+      obs_action_specs: Optional[Tuple[time_step.TimeStep,
+                                       tensor_spec.BoundedTensorSpec,]] = None,
+      base_path: Optional[str] = None,
+      **envargs,
+  ):
+    logging.info('Environment args: %s', envargs)
+    if not obs_action_specs:
+      obs_spec = None
+      action_spec = None
+    else:
+      obs_spec = obs_action_specs[0].observation
+      action_spec = obs_action_specs[1]
+    self._env = env.MLGOEnvironmentBase(
+        clang_path=clang_path,
+        task_type=mlgo_task,
+        obs_spec=obs_spec,
+        action_spec=action_spec,
+    )
+    self._clang_path: str = clang_path
+    self._policy_paths: List[str] = policy_paths
+    self._exploration_policy_paths: Optional[str] = exploration_policy_paths
+    self._exploration_frac: float = exploration_frac
+    self._max_exploration_steps: int = max_exploration_steps
+    self._tf_policy_action: List[Optional[Callable[[Any], np.ndarray]]] = []
+    self._exploration_policy_distrs: Optional[List[
+        Callable[[time_step.TimeStep, Optional[tf_types.NestedTensor]],
+                 policy_step.PolicyStep]]] = None
+    self._obs_action_specs: Optional[Tuple[
+        time_step.TimeStep, tensor_spec.BoundedTensorSpec,]] = obs_action_specs
+    self._base_path: Optional[str] = base_path
+    self._envargs = envargs
+
+    for policy_path in policy_paths:
+      tf_policy = tf.saved_model.load(policy_path, tags=None, options=None)
+      self._tf_policy_action.append(policy_action_wrapper(tf_policy))
+    if exploration_policy_paths:
+      if len(exploration_policy_paths) != len(policy_paths):
+        raise AssertionError(
+            f'Number of exploration policies: {0}, needs to match number of policies: {1}'
+            .format(len(exploration_policy_paths), len(policy_paths)))
+      for exploration_policy_path in exploration_policy_paths:
+        expl_policy = tf.saved_model.load(
+            exploration_policy_path, tags=None, options=None)
+        self.exploration_policy_distrs.append(policy_distr_wrapper(expl_policy))
