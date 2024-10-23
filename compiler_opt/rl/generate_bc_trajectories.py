@@ -650,7 +650,7 @@ class ModuleWorker(worker.Worker):
     if exploration_policy_paths:
       if len(exploration_policy_paths) != len(policy_paths):
         raise AssertionError(
-            f'Number of exploration policies: {0}, needs to match number of policies: {1}'
+            f'Number of exploration policies: {0}, doesn't match number of policies: {1}'
             .format(len(exploration_policy_paths), len(policy_paths)))
       for exploration_policy_path in exploration_policy_paths:
         expl_policy = tf.saved_model.load(
