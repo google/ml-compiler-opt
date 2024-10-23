@@ -182,14 +182,6 @@ def policy_distr_wrapper(
   return wrap_function
 
 
-@dataclasses.dataclass
-class SequenceExampleFeatureNames:
-  """Feature names for features that are always added to seq example."""
-  action: str = 'action'
-  reward: str = 'reward'
-  module_name: str = 'module_name'
-
-
 class ExplorationWithPolicy:
   """Policy which selects states for exploration.
 
@@ -600,6 +592,9 @@ class ModuleWorker(worker.Worker):
     max_exploration_steps: maximum number of exploration steps
     tf_policy_action: list of the action/advice function from loaded policies
     exploration_policy_distr: distribution function from exploration policy.
+    explore_on_features: dict of feature names and functions which specify
+      when to explore on the respective feature
+    obs_action_specs: optional observation and action spec annotating TimeStep
     base_path: root path to save best compiled binaries for linking
     env_args: additional arguments to pass to the InliningTask, used in creating
       the environment.
@@ -613,6 +608,8 @@ class ModuleWorker(worker.Worker):
       mlgo_task: Type[env.MLGOTask] = gin.REQUIRED,
       max_exploration_steps: int = 7,
       exploration_policy_paths: Optional[str] = None,
+      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
+                                                       bool]]] = None,
       obs_action_specs: Optional[Tuple[time_step.TimeStep,
                                        tensor_spec.BoundedTensorSpec,]] = None,
       base_path: Optional[str] = None,
@@ -640,6 +637,8 @@ class ModuleWorker(worker.Worker):
     self._exploration_policy_distrs: Optional[List[
         Callable[[time_step.TimeStep, Optional[tf_types.NestedTensor]],
                  policy_step.PolicyStep]]] = None
+    self._explore_on_features: Optional[
+      Dict[str, Callable[[tf.Tensor], bool]]] = explore_on_features,
     self._obs_action_specs: Optional[Tuple[
         time_step.TimeStep, tensor_spec.BoundedTensorSpec,]] = obs_action_specs
     self._base_path: Optional[str] = base_path
