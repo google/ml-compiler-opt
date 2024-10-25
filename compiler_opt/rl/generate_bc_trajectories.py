@@ -146,7 +146,7 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
 def policy_action_wrapper(tf_policy) -> Callable[[Any], np.ndarray]:
   """Return a wrapper for a loaded policy action.
 
-    The returned function maps from an (optional) state to an np.array
+  The returned function maps from an (optional) state to an np.array
       that represents the action.
 
   Args:
@@ -168,7 +168,7 @@ def policy_distr_wrapper(
               policy_step.PolicyStep]:
   """Return a wrapper for a loaded tf policy distribution.
 
-    The returned function maps from a state to a distribution over all actions.
+  The returned function maps from a state to a distribution over all actions.
 
   Args:
     tf_policy: A loaded tf policy.
@@ -275,7 +275,7 @@ class ExplorationWithPolicy:
     return policy_action
 
 
-class ExplorationWorker(worker.Worker):
+class ExplorationWorker:
   """Class which implements the exploration for the given module.
 
   Attributes:
@@ -595,15 +595,15 @@ class ModuleWorkerUtility:
       label_name: name of the feature which will contain the bucket index."""
     seq_loss = get_loss(seq_example)
 
-    def find_idx(h, partition):
-      l = 0
-      r = len(partition) - 1
-      while l < r:
-        if h < partition[(l + r) // 2]:
-          r = (l + r) // 2
+    def find_idx(element, partition):
+      left_lim = 0
+      right_lim = len(partition) - 1
+      while left_lim < right_lim:
+        if element < partition[(left_lim + right_lim) // 2]:
+          right_lim = (left_lim + right_lim) // 2
         else:
-          l = (l + r) // 2 + 1
-      idx = r if h < partition[r] else r + 1
+          left_lim = (left_lim + right_lim) // 2 + 1
+      idx = right_lim if element < partition[right_lim] else right_lim + 1
       return idx
 
     label = find_idx(seq_loss, partitions)
@@ -612,7 +612,7 @@ class ModuleWorkerUtility:
     add_feature_list(seq_example, label_list, label_name)
 
   def process_succeeded(
-      self, succeeded, spec_name
+      self, succeeded: List[Tuple[List, List[str], int, float]], spec_name: str
   ) -> Tuple[tf.train.SequenceExample, Dict[str, Union[str, float, int]], Dict[
       str, Union[str, float, int]]]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
@@ -754,7 +754,8 @@ class ModuleWorker(worker.Worker):
     if exploration_policy_paths:
       if len(exploration_policy_paths) != len(policy_paths):
         raise AssertionError(
-            f'Number of exploration policies: {0}, does not match number of policies: {1}'  # pylint: disable=line-too-long
+            f'Number of exploration policies: {0},' \
+            f'does not match number of policies: {1}'
             .format(len(exploration_policy_paths), len(policy_paths)))
       self._exploration_policy_distrs = []
       for exploration_policy_path in exploration_policy_paths:
@@ -796,7 +797,8 @@ class ModuleWorker(worker.Worker):
 
     end = timeit.default_timer()
     time_call_compiler += end - start
-
+    logging.info('Processed module %s in time %s', loaded_module_spec.name,
+                 time_call_compiler)
     (seq_example, module_dict_max,
      module_dict_pol) = self._mw_utility.process_succeeded(
          succeeded, loaded_module_spec.name)
@@ -812,7 +814,6 @@ class ModuleWorker(worker.Worker):
 
     return (
         num_calls,
-        time_call_compiler,
         module_dict_max,
         module_dict_pol,
     ), seq_example.SerializeToString()
