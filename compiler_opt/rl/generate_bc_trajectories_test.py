@@ -453,3 +453,152 @@ class ExplorationWorkerTest(tf.test.TestCase):
     self.assertEqual(base_seq_loss, 47.0)
     seq_example_list_comp = self._get_seq_example_list_comp()
     self.assertListEqual(seq_example_list, seq_example_list_comp)
+
+
+class ModuleWorkerUtilityTest(tf.test.TestCase):
+
+  mw = generate_bc_trajectories.ModuleWorkerUtility()
+
+  def _get_succeded(self):
+    seq_example_list_comp = []
+    succeeded = []
+    # no exploration
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
+                                                 'reward')
+      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                               'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    # first exploration trajectory, tests explore with gap
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 45.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+    seq_example_list_comp.append(seq_example_comp)
+
+    # second exploration trajectory, tests explore on feature
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(10):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 36.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      elif i == 5:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+    seq_example_list_comp.append(seq_example_comp)
+    working_dir_list_comp = ['policy0_0', 'policy0_1', 'policy0_2']
+    loss_idx = 2
+    seq_loss = 36.0
+    succeeded.append(
+        (seq_example_list_comp, working_dir_list_comp, loss_idx, seq_loss))
+
+    seq_example_list_comp2 = []
+    # no exploration
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(5):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 39.0,
+                                                 'reward')
+      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 3),
+                                               'action')
+    seq_example_list_comp2.append(seq_example_comp)
+
+    # third exploration trajectory, tests explore with gap
+    seq_example_comp = tf.train.SequenceExample()
+    for i in range(5):
+      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
+                                               'times_called')
+      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
+                                                  'module_name')
+      generate_bc_trajectories.add_float_feature(seq_example_comp, 37.0,
+                                                 'reward')
+      if i == 4:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      elif i == 5:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+      elif i == 9:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+      else:
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 4),
+                                                 'action')
+    seq_example_list_comp2.append(seq_example_comp)
+    working_dir_list_comp2 = ['policy1_0', 'policy1_1']
+    loss_idx2 = 1
+    seq_loss2 = 37.0
+    succeeded.append(
+        (seq_example_list_comp2, working_dir_list_comp2, loss_idx2, seq_loss2))
+
+    return succeeded
+
+  def test_partition_for_loss(self):
+    seq_example_base_list = []
+    for i in range(3):
+      seq_example = tf.train.SequenceExample()
+      for _ in range(3):
+        generate_bc_trajectories.add_float_feature(seq_example, 47.0 + i,
+                                                   'reward')
+        generate_bc_trajectories.add_int_feature(seq_example, np.mod(i, 5),
+                                                 'action')
+      seq_example_base_list.append(seq_example)
+
+    seq_example_comp_list = []
+    for i in range(3):
+      seq_example_comp = tf.train.SequenceExample()
+      for _ in range(3):
+        generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0 + i,
+                                                   'reward')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
+                                                 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, i + 1,
+                                                 'label')
+      seq_example_comp_list.append(seq_example_comp)
+
+    partitions = [47.0, 48.0, 49.0]
+
+    for i in range(3):
+      self.mw.partition_for_loss(seq_example_base_list[i], partitions)
+
+    self.assertListEqual(seq_example_base_list, seq_example_comp_list)
+
+  def test_process_succeeded(self):
+    succeeded = self._get_succeded()
+
+    (seq_example, module_dict_max, module_dict_pol) = self.mw.process_succeeded(
+        succeeded=succeeded, spec_name='mw_test')
+
+    self.assertEqual(module_dict_max, {
+        'module_name': 'mw_test',
+        'loss': 36.0,
+        'horizon': 10
+    })
+    self.assertEqual(module_dict_pol, {
+        'module_name': 'mw_test',
+        'loss': 39.0,
+        'horizon': 5
+    })
+    self.assertEqual(seq_example, succeeded[0][0][2])
