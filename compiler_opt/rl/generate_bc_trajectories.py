@@ -145,7 +145,7 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
 
 def policy_action_wrapper(tf_policy) -> Callable[[Any], np.ndarray]:
   """Return a wrapper for a loaded policy action.
-  
+
     The returned function maps from an (optional) state to an np.array
       that represents the action.
 
