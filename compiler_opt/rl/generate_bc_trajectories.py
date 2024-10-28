@@ -276,7 +276,7 @@ class ExplorationWithPolicy:
     return policy_action
 
 
-class ExplorationWorker:
+class ExploreModule:
   """Class which implements the exploration for the given module.
 
   Attributes:
@@ -317,7 +317,7 @@ class ExplorationWorker:
 
     if reward_key == '':
       raise TypeError(
-          'reward_key not specified in ExplorationWorker initialization.')
+          'reward_key not specified in ExploreModule initialization.')
     self._reward_key = reward_key
     kwargs.pop('reward_key', None)
     self._working_dir = None
@@ -574,8 +574,8 @@ class ExplorationWorker:
                        curr_obs_feature_name)
 
 
-class ModuleWorkerUtility:
-  """Utility class to process ExplorationWorker results for ModuleWorker."""
+class ModuleWorkerResultProcessor:
+  """Utility class to process ExploreModule results for ModuleWorker."""
 
   def __init__(self, base_path: Optional[str] = None):
     self._base_path = base_path
@@ -734,7 +734,7 @@ class ModuleWorker(worker.Worker):
         [tf.Tensor], bool]]] = explore_on_features
     self._obs_action_specs: Optional[Tuple[
         time_step.TimeStep, tensor_spec.BoundedTensorSpec]] = obs_action_specs
-    self._mw_utility = ModuleWorkerUtility(base_path)
+    self._mw_utility = ModuleWorkerResultProcessor(base_path)
     self._partitions = partitions
     self._envargs = envargs
 
@@ -764,7 +764,7 @@ class ModuleWorker(worker.Worker):
     logging.info('Processing module: %s', loaded_module_spec.name)
     start = timeit.default_timer()
     work = list(zip(self._tf_policy_action, self._exploration_policy_distrs))
-    exploration_worker = ExplorationWorker(
+    exploration_worker = ExploreModule(
         loaded_module_spec=loaded_module_spec,
         clang_path=self._clang_path,
         mlgo_task=self._mlgo_task,
