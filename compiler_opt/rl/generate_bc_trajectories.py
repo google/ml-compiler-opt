@@ -18,6 +18,7 @@ import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 
 from absl import logging
+import bisect
 import dataclasses
 import os
 import shutil
@@ -595,18 +596,7 @@ class ModuleWorkerUtility:
       label_name: name of the feature which will contain the bucket index."""
     seq_loss = get_loss(seq_example)
 
-    def find_idx(element, partition):
-      left_lim = 0
-      right_lim = len(partition) - 1
-      while left_lim < right_lim:
-        if element < partition[(left_lim + right_lim) // 2]:
-          right_lim = (left_lim + right_lim) // 2
-        else:
-          left_lim = (left_lim + right_lim) // 2 + 1
-      idx = right_lim if element < partition[right_lim] else right_lim + 1
-      return idx
-
-    label = find_idx(seq_loss, partitions)
+    label = bisect.bisect_right(partitions, seq_loss)
     horizon = len(seq_example.feature_lists.feature_list['action'].feature)
     label_list = [label for _ in range(horizon)]
     add_feature_list(seq_example, label_list, label_name)
@@ -669,7 +659,7 @@ class ModuleWorkerUtility:
     }
     return per_module_dict
 
-  def _save_binary(self, base_path, save_path, binary_path):
+  def _save_binary(self, base_path: str, save_path: str, binary_path: str):
     path_head_tail = os.path.split(save_path)
     path_head = path_head_tail[0]
     path_tail = path_head_tail[1]
