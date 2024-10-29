@@ -272,7 +272,7 @@ class AddToFeatureListsTest(tf.test.TestCase):
     self.assertEqual(sequence_example, sequence_example_comp)
 
 
-class ExploreModuleTest(tf.test.TestCase):
+class ModuleExplorerTest(tf.test.TestCase):
   # pylint: disable=protected-access
   @mock.patch('subprocess.Popen')
   def test_create_timestep(self, mock_popen):
@@ -299,7 +299,7 @@ class ExploreModuleTest(tf.test.TestCase):
         action_spec={},
     )
 
-    exploration_worker = generate_bc_trajectories.ExploreModule(
+    exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task=env_test.MockTask,
@@ -338,7 +338,7 @@ class ExploreModuleTest(tf.test.TestCase):
       generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
                                                'action')
 
-    exploration_worker = generate_bc_trajectories.ExploreModule(
+    exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task=env_test.MockTask,
@@ -427,7 +427,7 @@ class ExploreModuleTest(tf.test.TestCase):
     def _explore_on_feature_func(feature_val) -> bool:
       return feature_val[0] in [4, 5]
 
-    exploration_worker = generate_bc_trajectories.ExploreModule(
+    exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task=env_test.MockTask,
