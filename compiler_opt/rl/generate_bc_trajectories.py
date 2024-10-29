@@ -580,10 +580,8 @@ class ModuleWorkerResultProcessor:
   def __init__(self, base_path: Optional[str] = None):
     self._base_path = base_path
 
-  def partition_for_loss(self,
-                         seq_example: tf.train.SequenceExample,
-                         partitions: List[float],
-                         label_name: str = 'label'):
+  def _partition_for_loss(self, seq_example: tf.train.SequenceExample,
+                          partitions: List[float], label_name: str):
     """Adds a feature to seq_example to partition the examples into buckets.
 
     Given a tuple of partition limits (a_1, a_2, ..., a_n) we create n+1
@@ -602,7 +600,11 @@ class ModuleWorkerResultProcessor:
     add_feature_list(seq_example, label_list, label_name)
 
   def process_succeeded(
-      self, succeeded: List[Tuple[List, List[str], int, float]], spec_name: str
+      self,
+      succeeded: List[Tuple[List, List[str], int, float]],
+      spec_name: str,
+      partitions: List[float],
+      label_name: str = 'label'
   ) -> Tuple[tf.train.SequenceExample, Dict[str, Union[str, float, int]], Dict[
       str, Union[str, float, int]]]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
@@ -632,6 +634,8 @@ class ModuleWorkerResultProcessor:
       temp_working_dir_list = working_dir_list[best_policy_idx][0]
       temp_working_dir = temp_working_dir_list[temp_working_dir_idx]
       self._save_binary(self._base_path, spec_name, temp_working_dir)
+
+    self._partition_for_loss(seq_example, partitions, label_name)
 
     return seq_example, module_dict_max, module_dict_pol
 
@@ -791,9 +795,7 @@ class ModuleWorker(worker.Worker):
                  time_call_compiler)
     (seq_example, module_dict_max,
      module_dict_pol) = self._mw_utility.process_succeeded(
-         succeeded, loaded_module_spec.name)
-
-    self._mw_utility.partition_for_loss(seq_example, self._partitions)
+         succeeded, loaded_module_spec.name, self._partitions)
 
     working_dir_list = [exploration_res[1] for exploration_res in succeeded]
 

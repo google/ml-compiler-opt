@@ -456,7 +456,7 @@ class ExploreModuleTest(tf.test.TestCase):
 
 
 class ModuleWorkerResultProcessorTest(tf.test.TestCase):
-
+  # pylint: disable=protected-access
   mw = generate_bc_trajectories.ModuleWorkerResultProcessor()
 
   def _get_succeded(self):
@@ -581,15 +581,18 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     partitions = [47.0, 48.0, 49.0]
 
     for i in range(3):
-      self.mw.partition_for_loss(seq_example_base_list[i], partitions)
+      self.mw._partition_for_loss(
+          seq_example_base_list[i], partitions, label_name='label')
 
     self.assertListEqual(seq_example_base_list, seq_example_comp_list)
 
   def test_process_succeeded(self):
     succeeded = self._get_succeded()
+    succeeded_comp = self._get_succeded()
+    partitions = [47.0, 48.0, 49.0]
 
     (seq_example, module_dict_max, module_dict_pol) = self.mw.process_succeeded(
-        succeeded=succeeded, spec_name='mw_test')
+        succeeded=succeeded, spec_name='mw_test', partitions=partitions)
 
     self.assertEqual(module_dict_max, {
         'module_name': 'mw_test',
@@ -601,4 +604,6 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
         'loss': 39.0,
         'horizon': 5
     })
-    self.assertEqual(seq_example, succeeded[0][0][2])
+    self.mw._partition_for_loss(
+        succeeded_comp[0][0][2], partitions, label_name='label')
+    self.assertEqual(seq_example, succeeded_comp[0][0][2])
