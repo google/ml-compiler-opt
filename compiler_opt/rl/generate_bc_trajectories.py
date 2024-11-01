@@ -47,13 +47,10 @@ from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
 
-_GIN_FILES = flags.DEFINE_multi_string(
-    'gin_files', [], 'List of paths to gin configuration files.')
-_GIN_BINDINGS = flags.DEFINE_multi_string(
-    'gin_bindings',
-    [],
-    'Gin bindings to override the values set in the config files.',
-)
+flags.FLAGS['gin_files'].allow_override = True
+flags.FLAGS['gin_bindings'].allow_override = True
+
+FLAGS = flags.FLAGS
 
 
 @dataclasses.dataclass
@@ -979,7 +976,9 @@ def gen_trajectories(
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=True)
+      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)
+  logging.info(gin.config_str())
+
   gen_trajectories()
 
 
