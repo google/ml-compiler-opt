@@ -14,9 +14,15 @@
 # limitations under the License.
 """Module for running compilation and collect data for behavior cloning."""
 
+import concurrent.futures
+import contextlib
+import functools
 import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
+import json
 
+from absl import app
+from absl import flags
 from absl import logging
 import bisect
 import dataclasses
@@ -32,10 +38,22 @@ from tf_agents.typing import types as tf_types
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 from tf_agents.specs import tensor_spec
+from tf_agents.system import system_multiprocessing as multiprocessing
 
-from compiler_opt.distributed import worker
 from compiler_opt.rl import corpus
 from compiler_opt.rl import env
+
+from compiler_opt.distributed import worker
+from compiler_opt.distributed import buffered_scheduler
+from compiler_opt.distributed.local import local_worker_manager
+
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
+    'gin_bindings',
+    [],
+    'Gin bindings to override the values set in the config files.',
+)
 
 
 @dataclasses.dataclass
@@ -697,7 +715,7 @@ class ModuleWorker(worker.Worker):
     exploration_policy_paths: paths to load exploration policies.
     explore_on_features: dict of feature names and functions which specify
       when to explore on the respective feature
-    obs_action_specs: optional observation and action spec annotating TimeStep
+    obs_action_specs: optional observation spec annotating TimeStep
     base_path: root path to save best compiled binaries for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
     env_args: additional arguments to pass to the InliningTask, used in creating
@@ -761,7 +779,8 @@ class ModuleWorker(worker.Worker):
   def select_best_exploration(
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
-  ) -> tf.train.SequenceExample:
+  ) -> Tuple[Tuple[int, Dict[str, Union[str, float, int]], Dict[str, Union[
+      str, float, int]]], tf.train.SequenceExample]:
 
     num_calls = len(self._tf_policy_action)
     time_call_compiler = 0
@@ -809,3 +828,160 @@ class ModuleWorker(worker.Worker):
         module_dict_max,
         module_dict_pol,
     ), seq_example.SerializeToString()
+
+
+@gin.configurable
+def gen_trajectories(
+    data_path: str = gin.REQUIRED,
+    delete_flags: Tuple[str, ...] = gin.REQUIRED,
+    output_file_name: str = gin.REQUIRED,
+    output_path: str = gin.REQUIRED,
+    obs_action_spec: Optional[Tuple[time_step.TimeStep,
+                                    tensor_spec.BoundedTensorSpec]] = None,
+    num_workers: Optional[int] = None,
+    num_output_files: int = 1,
+    profiling_file_path: Optional[str] = None,
+    worker_wait: int = 10,
+    worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
+):
+  """Generates all trajectories for imitation learning training.
+
+  Args:
+    data_path: path to the corpus of modules.
+    delete_flags: flags to be deleted during compilation.
+    output_file_name: name of the files to write to.
+    output_path: path to save the files to.
+    time_step_spec: optional observation spec annotating the
+      state (TimeStep) for training a policy
+    obs_action_spec: optional observation and action spec annotating the state
+      (TimeStep) for training a policy
+    num_workers: number of distributed workers to process the corpus.
+    num_output_files: number of files to partition the outputs into, if set to n
+      then each file is names output_file_name-i-of-n.tfrecord
+    worker_wait: max number of seconds to wait for a worker to terminate
+    worker_manager_class: A pool of workers hosted on the local machines, each
+      in its own process.
+  """
+  cps = corpus.Corpus(data_path=data_path, delete_flags=delete_flags)
+  logging.info('Done loading module specs from corpus.')
+
+  corpus_elements = cps.module_specs
+  work = [
+      cps.load_module_spec(corpus_element) for corpus_element in corpus_elements
+  ]
+
+  modules_processed = 0
+  time_compiler_calls = 0
+  total_successful_examples = 0
+  total_work = len(corpus_elements)
+  total_failed_examples = 0
+  total_write_files = num_output_files
+  total_profiles_max: List[Optional[Dict[str, Union[str, float, int]]]] = []
+  total_profiles_pol: List[Optional[Dict[str, Union[str, float, int]]]] = []
+  size_per_file = total_work // total_write_files
+
+  worker_count = (
+      min(os.cpu_count(), num_workers) if num_workers else os.cpu_count())
+  with worker_manager_class(
+      ModuleWorker,
+      worker_count,
+      obs_action_specs=obs_action_spec,
+  ) as lwm:
+    _, result_futures = buffered_scheduler.schedule_on_worker_pool(
+        action=lambda w, j: w.select_best_exploration(j),
+        jobs=work,
+        worker_pool=lwm,
+    )
+    not_done = result_futures
+    succeeded_idx = 0
+    succeeded: List[Optional[Tuple[Tuple[int, Dict[str, Union[str, float, int]],
+                                         Dict[str, Union[str, float, int]]],
+                                   tf.train.SequenceExample]]] = []
+
+    for written_files in range(total_write_files):
+      written_per_file = 0
+      file_name = f'{0}-{1}-of-{2}.tfrecord'.format(output_file_name,
+                                                    written_files,
+                                                    total_write_files)
+      tf_rec_path = (
+          os.path.join(output_path, file_name)
+          if output_path else contextlib.nullcontext())
+      tfrecord_context = (
+          tf.io.TFRecordWriter(tf_rec_path)
+          if output_path else contextlib.nullcontext())
+
+      with tfrecord_context as tfrecord_writer:
+        time_compiler_start = timeit.default_timer()
+        while not_done or succeeded:
+          (done, not_done) = concurrent.futures.wait(not_done, worker_wait)
+          succeeded.extend(
+              [r for r in done if not r.cancelled() and r.exception() is None])
+          failed = [r for r in done if r.exception() is not None]
+          for f in failed:
+            logging.info('Module failed with: %s', f.exception())
+          total_successful_examples += len(succeeded)
+          total_failed_examples += len(done) - len(succeeded)
+          modules_processed += len(done)
+          while written_per_file < size_per_file:
+            logging.log_every_n_seconds(
+                logging.INFO,
+                ('%d success, %d failed out of %d, modules processed'
+                 ' %d\n timing compiler: %f'),
+                10,
+                total_successful_examples,
+                total_failed_examples,
+                total_work,
+                modules_processed,
+                time_compiler_calls,
+            )
+            if len(succeeded) == 0:
+              break
+            extra, records = succeeded.pop().result()
+            total_profiles_max.append(extra[1])
+            total_profiles_pol.append(extra[2])
+            time_compiler_calls = timeit.default_timer() - time_compiler_start
+            if tfrecord_writer:
+              tfrecord_writer.write(records)
+            written_per_file += 1
+            succeeded_idx += 1
+          if written_per_file >= size_per_file:
+            break
+
+  max_profiles_path = ''
+  pol_profiles_path = ''
+  if profiling_file_path:
+    max_profiles_path = profiling_file_path + '_max.json'
+    pol_profiles_path = profiling_file_path + '_pol.json'
+  profiling_context_max = (
+      open(max_profiles_path, 'w+', encoding='utf-8')  # pylint: disable=consider-using-with
+      if profiling_file_path else contextlib.nullcontext())
+  profiling_context_pol = (
+      open(pol_profiles_path, 'w+', encoding='utf-8')  # pylint: disable=consider-using-with
+      if profiling_file_path else contextlib.nullcontext())
+
+  with profiling_context_max as prof_writer_max:
+    with profiling_context_pol as prof_writer_pol:
+      if prof_writer_max:
+        json.dump(total_profiles_max, prof_writer_max, indent=2)
+      if prof_writer_pol:
+        json.dump(total_profiles_pol, prof_writer_pol, indent=2)
+
+  logging.info(
+      ('%d success, %d failed out of %d, modules processed %d\n timing'
+       ' compiler: %f'),
+      total_successful_examples,
+      total_failed_examples,
+      total_work,
+      modules_processed,
+      time_compiler_calls,
+  )
+
+
+def main(_):
+  gin.parse_config_files_and_bindings(
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=True)
+  gen_trajectories()
+
+
+if __name__ == '__main__':
+  multiprocessing.handle_main(functools.partial(app.run, main))
