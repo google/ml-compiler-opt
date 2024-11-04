@@ -54,6 +54,8 @@ flags.FLAGS['gin_bindings'].allow_override = True
 
 FLAGS = flags.FLAGS
 
+ProfilingDictValueType = Dict[str, Union[str, float, int]]
+
 
 @dataclasses.dataclass
 class SequenceExampleFeatureNames:
@@ -622,8 +624,8 @@ class ModuleWorkerResultProcessor:
       spec_name: str,
       partitions: List[float],
       label_name: str = 'label'
-  ) -> Tuple[tf.train.SequenceExample, Dict[str, Union[str, float, int]], Dict[
-      str, Union[str, float, int]]]:
+  ) -> Tuple[tf.train.SequenceExample, ProfilingDictValueType,
+             ProfilingDictValueType]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
     working_dir_list = [(exploration_res[1], exploration_res[2])
                         for exploration_res in succeeded]
@@ -657,8 +659,8 @@ class ModuleWorkerResultProcessor:
     return seq_example, module_dict_max, module_dict_pol
 
   def _profiling_dict(
-      self, module_name: str, feature_list: tf.train.SequenceExample
-  ) -> Dict[str, Union[str, float, int]]:
+      self, module_name: str,
+      feature_list: tf.train.SequenceExample) -> ProfilingDictValueType:
     """Return a dictionary for the module containing the name, loss and horizon.
 
     Args:
@@ -778,8 +780,8 @@ class ModuleWorker(worker.Worker):
   def select_best_exploration(
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
-  ) -> Tuple[Tuple[int, Dict[str, Union[str, float, int]], Dict[str, Union[
-      str, float, int]]], tf.train.SequenceExample]:
+  ) -> Tuple[Tuple[int, ProfilingDictValueType, ProfilingDictValueType],
+             tf.train.SequenceExample]:
 
     num_calls = len(self._tf_policy_action)
     time_call_compiler = 0
@@ -840,7 +842,7 @@ def gen_trajectories(
     num_workers: Optional[int] = None,
     num_output_files: int = 1,
     profiling_file_path: Optional[str] = None,
-    worker_wait: int = 10,
+    worker_wait_sec: int = 10,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
 ):
   """Generates all trajectories for imitation learning training.
@@ -857,7 +859,7 @@ def gen_trajectories(
     num_workers: number of distributed workers to process the corpus.
     num_output_files: number of files to partition the outputs into, if set to n
       then each file is names output_file_name-i-of-n.tfrecord
-    worker_wait: max number of seconds to wait for a worker to terminate
+    worker_wait_sec: max number of seconds to wait for a worker to terminate
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """
@@ -874,10 +876,9 @@ def gen_trajectories(
   total_successful_examples = 0
   total_work = len(corpus_elements)
   total_failed_examples = 0
-  total_write_files = num_output_files
-  total_profiles_max: List[Optional[Dict[str, Union[str, float, int]]]] = []
-  total_profiles_pol: List[Optional[Dict[str, Union[str, float, int]]]] = []
-  size_per_file = total_work // total_write_files
+  total_profiles_max: List[Optional[ProfilingDictValueType]] = []
+  total_profiles_pol: List[Optional[ProfilingDictValueType]] = []
+  size_per_file = total_work // num_output_files
 
   worker_count = (
       min(os.cpu_count(), num_workers) if num_workers else os.cpu_count())
@@ -893,15 +894,15 @@ def gen_trajectories(
     )
     not_done = result_futures
     succeeded_idx = 0
-    succeeded: List[Optional[Tuple[Tuple[int, Dict[str, Union[str, float, int]],
-                                         Dict[str, Union[str, float, int]]],
+    succeeded: List[Optional[Tuple[Tuple[int, ProfilingDictValueType,
+                                         ProfilingDictValueType],
                                    tf.train.SequenceExample]]] = []
 
-    for written_files in range(total_write_files):
+    for written_files_idx in range(num_output_files):
       written_per_file = 0
       file_name = f'{0}-{1}-of-{2}.tfrecord'.format(output_file_name,
-                                                    written_files,
-                                                    total_write_files)
+                                                    written_files_idx,
+                                                    num_output_files)
       tf_rec_path = (
           os.path.join(output_path, file_name)
           if output_path else contextlib.nullcontext())
@@ -912,7 +913,7 @@ def gen_trajectories(
       with tfrecord_context as tfrecord_writer:
         time_compiler_start = timeit.default_timer()
         while not_done or succeeded:
-          (done, not_done) = concurrent.futures.wait(not_done, worker_wait)
+          (done, not_done) = concurrent.futures.wait(not_done, worker_wait_sec)
           succeeded.extend(
               [r for r in done if not r.cancelled() and r.exception() is None])
           failed = [r for r in done if r.exception() is not None]
@@ -951,18 +952,9 @@ def gen_trajectories(
   if profiling_file_path:
     max_profiles_path = profiling_file_path + '_max.json'
     pol_profiles_path = profiling_file_path + '_pol.json'
-  profiling_context_max = (
-      open(max_profiles_path, 'w+', encoding='utf-8')  # pylint: disable=consider-using-with
-      if profiling_file_path else contextlib.nullcontext())
-  profiling_context_pol = (
-      open(pol_profiles_path, 'w+', encoding='utf-8')  # pylint: disable=consider-using-with
-      if profiling_file_path else contextlib.nullcontext())
-
-  with profiling_context_max as prof_writer_max:
-    with profiling_context_pol as prof_writer_pol:
-      if prof_writer_max:
+    with  open(max_profiles_path, 'w+', encoding='utf-8') as prof_writer_max:
+      with open(pol_profiles_path, 'w+', encoding='utf-8') as prof_writer_pol:
         json.dump(total_profiles_max, prof_writer_max, indent=2)
-      if prof_writer_pol:
         json.dump(total_profiles_pol, prof_writer_pol, indent=2)
 
   logging.info(
