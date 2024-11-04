@@ -952,7 +952,7 @@ def gen_trajectories(
   if profiling_file_path:
     max_profiles_path = profiling_file_path + '_max.json'
     pol_profiles_path = profiling_file_path + '_pol.json'
-    with  open(max_profiles_path, 'w+', encoding='utf-8') as prof_writer_max:
+    with open(max_profiles_path, 'w+', encoding='utf-8') as prof_writer_max:
       with open(pol_profiles_path, 'w+', encoding='utf-8') as prof_writer_pol:
         json.dump(total_profiles_max, prof_writer_max, indent=2)
         json.dump(total_profiles_pol, prof_writer_pol, indent=2)
