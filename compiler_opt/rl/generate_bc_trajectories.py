@@ -150,9 +150,9 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
       np.dtype(np.float32),
       str,
   ]):
-    raise AssertionError(f'''Unsupported type for feautre {0} of type {1}.
-      Supported types are np.int64, np.float32, str'''.format(
-        feature_name, type(feature_list[0])))
+    raise AssertionError((f'Unsupported type for feautre {feature_name}'
+                          f' of type {type(feature_list[0])}. '
+                          'Supported types are np.int64, np.float32, str'))
   if isinstance(feature_list[0], np.float32):
     add_function = add_float_feature
   elif isinstance(feature_list[0], (int, np.int64)):
@@ -315,7 +315,7 @@ class ModuleExplorer:
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
       clang_path: str,
-      mlgo_task: Type[env.MLGOTask],
+      mlgo_task_type: Type[env.MLGOTask],
       exploration_frac: float = 1.0,
       max_exploration_steps: int = 10,
       max_horizon_to_explore=np.inf,
@@ -343,15 +343,15 @@ class ModuleExplorer:
 
     self._env = env.MLGOEnvironmentBase(
         clang_path=clang_path,
-        task_type=mlgo_task,
+        task_type=mlgo_task_type,
         obs_spec=obs_spec,
         action_spec=action_spec,
     )
     if self._env.action_spec:
       if self._env.action_spec.dtype != tf.int64:
         raise TypeError(
-            f'Environment action_spec type {0} does not match tf.int64'.format(
-                self._env.action_spec.dtype))
+            ('Environment action_spec type '
+             f'{self._env.action_spec.dtype} does not match tf.int64'))
     self._exploration_frac = exploration_frac
     self._max_exploration_steps = max_exploration_steps
     self._max_horizon_to_explore = max_horizon_to_explore
@@ -400,13 +400,11 @@ class ModuleExplorer:
       working_dir_head = os.path.split(self._working_dir)[0]
       shutil.rmtree(working_dir_head)
     if horizon <= 0:
-      raise ValueError(
-          f'Policy did not take any inlining decision for module {0}.'.format(
-              self._loaded_module_spec.name))
+      raise ValueError(('Policy did not take any inlining decision for module '
+                        f'{self._loaded_module_spec.name}.'))
     if curr_obs_dict.step_type != env.StepType.LAST:
-      raise ValueError(
-          f'Compilation loop exited at step type {0} before last step'.format(
-              curr_obs_dict.step_type))
+      raise ValueError(('Compilation loop exited at step type'
+                        f'{curr_obs_dict.step_type} before last step'))
     reward = curr_obs_dict.score_policy[self._reward_key]
     reward_list = np.float32(reward) * np.float32(np.ones(horizon))
     add_feature_list(sequence_example, reward_list,
@@ -575,16 +573,17 @@ class ModuleExplorer:
         obs_dtype = tf.int64
       else:
         if curr_obs_feature_name not in self._env.obs_spec.keys():
-          raise AssertionError(f'Feature name {0} not in obs_spec {1}'.format(
-              curr_obs_feature_name, self._env.obs_spec.keys()))
+          raise AssertionError(
+              (f'Feature name {curr_obs_feature_name} not in obs_spec {1}'
+               f'{self._env.obs_spec.keys()}'))
         if curr_obs_feature_name in [
             SequenceExampleFeatureNames.action,
             SequenceExampleFeatureNames.reward,
             SequenceExampleFeatureNames.module_name
         ]:
           raise AssertionError(
-              f'Feature name {0} already part of SequenceExampleFeatureNames'
-              .format(curr_obs_feature_name, self._env.obs_spec.keys()))
+              (f'Feature name {curr_obs_feature_name} part of '
+               f'SequenceExampleFeatureNames {self._env.obs_spec.keys()}'))
         obs_dtype = self._env.obs_spec[curr_obs_feature_name].dtype
       curr_obs_feature = curr_obs[curr_obs_feature_name]
       curr_obs[curr_obs_feature_name] = tf.convert_to_tensor(
@@ -705,7 +704,7 @@ class ModuleWorker(worker.Worker):
 
   Attributes:
     clang_path: path to clang
-    mlgo_task: the type of compilation task
+    mlgo_task_type: the type of compilation task
     policy_paths: list of policies to load and use for forming the trajectories
     exploration_policy_paths: list of policies to be used for exploration,
       i-th policy in exploration_policy_paths explores when using i-th policy
@@ -727,10 +726,11 @@ class ModuleWorker(worker.Worker):
       #  pylint: disable=dangerous-default-value
       self,
       clang_path: str = gin.REQUIRED,
-      mlgo_task: Type[env.MLGOTask] = gin.REQUIRED,
-      policy_paths: List[str] = gin.REQUIRED,
+      mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
+      policy_paths: List[Optional[str]] = [],
       exploration_frac: float = gin.REQUIRED,
       max_exploration_steps: int = 7,
+      callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
       exploration_policy_paths: Optional[str] = None,
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
@@ -742,17 +742,22 @@ class ModuleWorker(worker.Worker):
       ],
       **envargs,
   ):
+    if not policy_paths and not callable_policies:
+      raise AssertionError("""At least one policy needs to be specified in
+                           policy paths or callable_policies""")
     logging.info('Environment args: %s', envargs)
     self._clang_path: str = clang_path
-    self._mlgo_task: Type[env.MLGOTask] = mlgo_task
-    self._policy_paths: List[str] = policy_paths
+    self._mlgo_task_type: Type[env.MLGOTask] = mlgo_task_type
+    self._policy_paths: List[Optional[str]] = policy_paths
     self._exploration_policy_paths: Optional[str] = exploration_policy_paths
     self._exploration_frac: float = exploration_frac
     self._max_exploration_steps: int = max_exploration_steps
     self._tf_policy_action: List[Optional[Callable[[Any], np.ndarray]]] = []
-    self._exploration_policy_distrs: Optional[List[
-        Callable[[time_step.TimeStep, Optional[tf_types.NestedTensor]],
-                 policy_step.PolicyStep]]] = None
+    self._exploration_policy_distrs: List[Optional[Callable[
+        [time_step.TimeStep, Optional[tf_types.NestedTensor]],
+        policy_step.PolicyStep]]] = [
+            None for _ in range(len(policy_paths) + len(callable_policies))
+        ]
     self._explore_on_features: Optional[Dict[str, Callable[
         [tf.Tensor], bool]]] = explore_on_features
     self._obs_action_specs: Optional[Tuple[
@@ -764,18 +769,32 @@ class ModuleWorker(worker.Worker):
     for policy_path in policy_paths:
       tf_policy = tf.saved_model.load(policy_path, tags=None, options=None)
       self._tf_policy_action.append(policy_action_wrapper(tf_policy))
+    for policy in callable_policies:
+      self._tf_policy_action.append(policy)
     if exploration_policy_paths:
-      if len(exploration_policy_paths) != len(policy_paths):
+      if len(exploration_policy_paths) > (len(policy_paths) +
+                                          len(callable_policies)):
         raise AssertionError(
-            f'Number of exploration policies: {0},' \
-            f'does not match number of policies: {1}'
-            .format(len(exploration_policy_paths), len(policy_paths)))
+            (f'Number of exploration policies: {len(exploration_policy_paths)},'
+             'greater than number of policies: '
+             f'{len(policy_paths) + len(callable_policies)}'))
       self._exploration_policy_distrs = []
       for exploration_policy_path in exploration_policy_paths:
         expl_policy = tf.saved_model.load(
             exploration_policy_path, tags=None, options=None)
         self._exploration_policy_distrs.append(
             policy_distr_wrapper(expl_policy))
+      if len(exploration_policy_paths) < (len(policy_paths) +
+                                          len(callable_policies)):
+        logging.warning(('Number of exploration policies: %d, '
+                         'does not match number of policies: %d '
+                         'remaining exploration policies will be set to None'),
+                        len(exploration_policy_paths),
+                        len(policy_paths) + len(callable_policies))
+        for _ in range(
+            len(policy_paths) + len(callable_policies) -
+            len(exploration_policy_paths)):
+          self._exploration_policy_distrs.append(None)
 
   def select_best_exploration(
       self,
@@ -791,7 +810,7 @@ class ModuleWorker(worker.Worker):
     exploration_worker = ModuleExplorer(
         loaded_module_spec=loaded_module_spec,
         clang_path=self._clang_path,
-        mlgo_task=self._mlgo_task,
+        mlgo_task_type=self._mlgo_task_type,
         exploration_frac=self._exploration_frac,
         max_exploration_steps=self._max_exploration_steps,
         explore_on_features=self._explore_on_features,
@@ -833,16 +852,20 @@ class ModuleWorker(worker.Worker):
 
 @gin.configurable
 def gen_trajectories(
+    #  pylint: disable=dangerous-default-value
     data_path: str = gin.REQUIRED,
     delete_flags: Tuple[str, ...] = gin.REQUIRED,
     output_file_name: str = gin.REQUIRED,
     output_path: str = gin.REQUIRED,
+    mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
+    callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
     obs_action_spec: Optional[Tuple[time_step.TimeStep,
                                     tensor_spec.BoundedTensorSpec]] = None,
     num_workers: Optional[int] = None,
     num_output_files: int = 1,
     profiling_file_path: Optional[str] = None,
-    worker_wait_sec: int = 10,
+    worker_wait_sec: int = 100,
+    worker_class_type=ModuleWorker,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
 ):
   """Generates all trajectories for imitation learning training.
@@ -852,14 +875,21 @@ def gen_trajectories(
     delete_flags: flags to be deleted during compilation.
     output_file_name: name of the files to write to.
     output_path: path to save the files to.
-    time_step_spec: optional observation spec annotating the
-      state (TimeStep) for training a policy
+    mlgo_task_type: task type for the clang environment
+    callable_policies: list of policies in the form of callable functions,
+      this supplements the loaded policies from policy_paths given
+      in ModuleWorker
     obs_action_spec: optional observation and action spec annotating the state
       (TimeStep) for training a policy
     num_workers: number of distributed workers to process the corpus.
     num_output_files: number of files to partition the outputs into, if set to n
       then each file is names output_file_name-i-of-n.tfrecord
+    profiling_file_path: path + name of file to save the policy and max of all
+      policies profiling dictionaries returned by
+      ModuleWorker.select_best-exploration
     worker_wait_sec: max number of seconds to wait for a worker to terminate
+    worker_class_type: the class that will process each module
+    worker_class_type: allows for overrriding ModuleWorker
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """
@@ -883,12 +913,15 @@ def gen_trajectories(
   worker_count = (
       min(os.cpu_count(), num_workers) if num_workers else os.cpu_count())
   with worker_manager_class(
-      ModuleWorker,
+      worker_class_type,
       worker_count,
       obs_action_specs=obs_action_spec,
+      mlgo_task_type=mlgo_task_type,
+      callable_policies=callable_policies,
   ) as lwm:
+
     _, result_futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, j: w.select_best_exploration(j),
+        action=lambda w, j: w.select_best_exploration(loaded_module_spec=j),
         jobs=work,
         worker_pool=lwm,
     )
@@ -900,9 +933,8 @@ def gen_trajectories(
 
     for written_files_idx in range(num_output_files):
       written_per_file = 0
-      file_name = f'{0}-{1}-of-{2}.tfrecord'.format(output_file_name,
-                                                    written_files_idx,
-                                                    num_output_files)
+      file_name = (f'{output_file_name}-{written_files_idx}'
+                   f'-of-{num_output_files}.tfrecord')
       tf_rec_path = (
           os.path.join(output_path, file_name)
           if output_path else contextlib.nullcontext())

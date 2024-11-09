@@ -14,20 +14,30 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.generate_bc_trajectories."""
 
+import functools
+from absl import app
+from absl import flags
+import gin
+import json
 from typing import List
 from unittest import mock
+import os
 
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
+from tf_agents.system import system_multiprocessing as multiprocessing
 
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
 from compiler_opt.rl import generate_bc_trajectories
 from compiler_opt.rl import env
 from compiler_opt.rl import env_test
+
+flags.FLAGS['gin_files'].allow_override = True
+flags.FLAGS['gin_bindings'].allow_override = True
 
 _eps = 1e-5
 
@@ -74,6 +84,7 @@ def _get_state_list() -> List[time_step.TimeStep]:
   return [state_0, state_1, state_2, state_3]
 
 
+@gin.register
 def _policy(state: time_step.TimeStep) -> np.ndarray:
   feature_sum = np.array([0])
   for feature in state.observation.values():
@@ -302,7 +313,7 @@ class ModuleExplorerTest(tf.test.TestCase):
     exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
-        mlgo_task=env_test.MockTask,
+        mlgo_task_type=env_test.MockTask,
         reward_key='default',
     )
 
@@ -341,7 +352,7 @@ class ModuleExplorerTest(tf.test.TestCase):
     exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
-        mlgo_task=env_test.MockTask,
+        mlgo_task_type=env_test.MockTask,
         reward_key='default',
     )
 
@@ -430,7 +441,7 @@ class ModuleExplorerTest(tf.test.TestCase):
     exploration_worker = generate_bc_trajectories.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
-        mlgo_task=env_test.MockTask,
+        mlgo_task_type=env_test.MockTask,
         reward_key='default',
         explore_on_features={'times_called': _explore_on_feature_func})
 
@@ -607,3 +618,91 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     self.mw._partition_for_loss(
         succeeded_comp[0][0][2], partitions, label_name='label')
     self.assertEqual(seq_example, succeeded_comp[0][0][2])
+
+
+@gin.configurable
+class MockModuleWorker(generate_bc_trajectories.ModuleWorker):
+
+  @mock.patch('subprocess.Popen')
+  def select_best_exploration(self, mock_popen, loaded_module_spec):
+    mock_popen.side_effect = env_test.mock_interactive_clang
+    return super().select_best_exploration(
+        loaded_module_spec=loaded_module_spec)
+
+
+class GenTrajectoriesTest(tf.test.TestCase):
+
+  def setUp(self):
+    with gin.unlock_config():
+      gin.parse_config_files_and_bindings(
+          config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
+          bindings=[
+              ('compiler_opt.rl.generate_bc_trajectories_test.'
+               'MockModuleWorker.clang_path="/test/clang/path"'),
+              ('compiler_opt.rl.generate_bc_trajectories_test.'
+               'MockModuleWorker.exploration_frac=1.0'),
+              ('compiler_opt.rl.generate_bc_trajectories_test'
+               '.MockModuleWorker.reward_key="default"'),
+          ])
+    return super().setUp()
+
+  def test_gen_trajectories(self):
+
+    tmp_dir = self.create_tempdir()
+
+    module_names = ['a', 'b', 'c', 'd']
+
+    with tf.io.gfile.GFile(
+        os.path.join(tmp_dir.full_path, 'corpus_description.json'), 'w') as f:
+      json.dump({'modules': module_names, 'has_thinlto': False}, f)
+
+    for module_name in module_names:
+      with tf.io.gfile.GFile(
+          os.path.join(tmp_dir.full_path, module_name + '.bc'), 'w') as f:
+        f.write(module_name)
+
+      with tf.io.gfile.GFile(
+          os.path.join(tmp_dir.full_path, module_name + '.cmd'), 'w') as f:
+        f.write('-cc1')
+
+    profiling_path = os.path.join(tmp_dir, 'test_profiles')
+
+    generate_bc_trajectories.gen_trajectories(
+        data_path=tmp_dir,
+        delete_flags=(''),
+        output_file_name='test',
+        output_path=tmp_dir,
+        profiling_file_path=profiling_path,
+        num_workers=2,
+        num_output_files=2,
+        mlgo_task_type=env_test.MockTask,
+        callable_policies=[_policy],
+        worker_class_type=MockModuleWorker,
+    )
+
+    tf_rec_name1 = os.path.join(tmp_dir, 'test-0-of-2.tfrecord')
+    tf_rec_name2 = os.path.join(tmp_dir, 'test-1-of-2.tfrecord')
+    self.assertTrue(os.path.isfile(tf_rec_name1))
+    self.assertTrue(os.path.isfile(tf_rec_name2))
+    self.assertTrue(os.path.isfile(profiling_path + '_max.json'))
+    self.assertTrue(os.path.isfile(profiling_path + '_pol.json'))
+
+    with open(profiling_path + '_max.json', encoding='utf-8') as max_profiles:
+      with open(profiling_path + '_pol.json', encoding='utf-8') as pol_profiles:
+        max_profiles_dict_list = json.load(max_profiles)
+        pol_profiles_dict_list = json.load(pol_profiles)
+        comp_dict_list = [{
+            'module_name': name,
+            'loss': 47.0,
+            'horizon': 10
+        } for name in module_names]
+        self.assertEqual(
+            set(frozenset(dict_i) for dict_i in max_profiles_dict_list),
+            set(frozenset(dict_i) for dict_i in comp_dict_list))
+        self.assertEqual(
+            set(frozenset(dict_i) for dict_i in pol_profiles_dict_list),
+            set(frozenset(dict_i) for dict_i in comp_dict_list))
+
+
+if __name__ == '__main__':
+  multiprocessing.handle_main(functools.partial(app.run, tf.test.main))
