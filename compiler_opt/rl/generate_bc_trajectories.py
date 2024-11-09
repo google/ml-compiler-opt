@@ -966,7 +966,7 @@ def gen_trajectories(
                 modules_processed,
                 time_compiler_calls,
             )
-            if len(succeeded) == 0:
+            if not succeeded:
               break
             extra, records = succeeded.pop().result()
             total_profiles_max.append(extra[1])
