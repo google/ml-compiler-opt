@@ -504,11 +504,13 @@ class ModuleExplorer:
     return seq_example_list, working_dir_names, loss_idx, base_seq_loss
 
   def explore_at_state_generator(
-      self, replay_prefix: List[np.ndarray], explore_step: int,
+      self,
+      replay_prefix: List[np.ndarray],
+      explore_step: int,
       explore_state: time_step.TimeStep,
       policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
-      num_samples: int=1,
+      num_samples: int = 1,
   ) -> Generator[Tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
                  None]:
     """Generate sequence examples and next exploration policy while exploring.
@@ -535,10 +537,10 @@ class ModuleExplorer:
     distr_logits = explore_policy(explore_state).action.logits.numpy()[0]
     for _ in range(num_samples):
       distr_logits[replay_prefix[explore_step]] = -np.Inf
-      if all(-np.Inf==logit for logit in distr_logits):
+      if all(-np.Inf == logit for logit in distr_logits):
         break
       replay_prefix[explore_step] = np.random.choice(
-        range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
+          range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
       base_policy = ExplorationWithPolicy(
           replay_prefix,
           policy,
@@ -713,7 +715,7 @@ class ModuleWorker(worker.Worker):
   by the exploration policy if given.
 
   Attributes:
-    module_explorer_type: type of the module explorer, 
+    module_explorer_type: type of the module explorer
     clang_path: path to clang
     mlgo_task_type: the type of compilation task
     policy_paths: list of policies to load and use for forming the trajectories
@@ -729,14 +731,14 @@ class ModuleWorker(worker.Worker):
     obs_action_specs: optional observation spec annotating TimeStep
     base_path: root path to save best compiled binaries for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
-    env_args: additional arguments to pass to the ModuleExplorer, used in creating
-      the environment. This has to include the reward_key
+    env_args: additional arguments to pass to the ModuleExplorer, used in
+      creating the environment. This has to include the reward_key
   """
 
   def __init__(
       #  pylint: disable=dangerous-default-value
       self,
-      module_explorer_type: ModuleExplorer=ModuleExplorer,
+      module_explorer_type: Type[ModuleExplorer] = ModuleExplorer,
       clang_path: str = gin.REQUIRED,
       mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
       policy_paths: List[Optional[str]] = [],
@@ -758,7 +760,7 @@ class ModuleWorker(worker.Worker):
       raise AssertionError("""At least one policy needs to be specified in
                            policy paths or callable_policies""")
     logging.info('Environment args: %s', envargs)
-    self._module_explorer_type: ModuleExplorer=module_explorer_type
+    self._module_explorer_type: Type[ModuleExplorer] = module_explorer_type
     self._clang_path: str = clang_path
     self._mlgo_task_type: Type[env.MLGOTask] = mlgo_task_type
     self._policy_paths: List[Optional[str]] = policy_paths
