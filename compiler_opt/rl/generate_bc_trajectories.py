@@ -32,6 +32,8 @@ import timeit
 
 import math
 import numpy as np
+import scipy
+import scipy.special
 import tensorflow as tf
 from tf_agents import policies
 from tf_agents.typing import types as tf_types
@@ -505,7 +507,8 @@ class ModuleExplorer:
       self, replay_prefix: List[np.ndarray], explore_step: int,
       explore_state: time_step.TimeStep,
       policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
-      explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep]
+      explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
+      num_samples: int=1,
   ) -> Generator[Tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
                  None]:
     """Generate sequence examples and next exploration policy while exploring.
@@ -522,21 +525,28 @@ class ModuleExplorer:
       explore_policy: randomized policy which is used to compute the gap for
         exploration and can be used for deciding which actions to explore at
         the exploration state.
+      num_samples: the number of samples to generate
 
     Yields:
       base_seq: a tf.train.SequenceExample containing a compiled trajectory
       base_policy: the policy used to determine the next exploration step
     """
-    del explore_state
-    replay_prefix[explore_step] = 1 - replay_prefix[explore_step]
-    base_policy = ExplorationWithPolicy(
-        replay_prefix,
-        policy,
-        explore_policy,
-        self._explore_on_features,
-    )
-    base_seq = self.compile_module(base_policy.get_advice)
-    yield base_seq, base_policy
+
+    distr_logits = explore_policy(explore_state).action.logits.numpy()[0]
+    for _ in range(num_samples):
+      distr_logits[replay_prefix[explore_step]] = -np.Inf
+      if all(-np.Inf==logit for logit in distr_logits):
+        break
+      replay_prefix[explore_step] = np.random.choice(
+        range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
+      base_policy = ExplorationWithPolicy(
+          replay_prefix,
+          policy,
+          explore_policy,
+          self._explore_on_features,
+      )
+      base_seq = self.compile_module(base_policy.get_advice)
+      yield base_seq, base_policy
 
   def _build_replay_prefix_list(self, seq_ex):
     ret_list = []
@@ -703,6 +713,7 @@ class ModuleWorker(worker.Worker):
   by the exploration policy if given.
 
   Attributes:
+    module_explorer_type: type of the module explorer, 
     clang_path: path to clang
     mlgo_task_type: the type of compilation task
     policy_paths: list of policies to load and use for forming the trajectories
@@ -718,13 +729,14 @@ class ModuleWorker(worker.Worker):
     obs_action_specs: optional observation spec annotating TimeStep
     base_path: root path to save best compiled binaries for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
-    env_args: additional arguments to pass to the InliningTask, used in creating
+    env_args: additional arguments to pass to the ModuleExplorer, used in creating
       the environment. This has to include the reward_key
   """
 
   def __init__(
       #  pylint: disable=dangerous-default-value
       self,
+      module_explorer_type: ModuleExplorer=ModuleExplorer,
       clang_path: str = gin.REQUIRED,
       mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
       policy_paths: List[Optional[str]] = [],
@@ -746,6 +758,7 @@ class ModuleWorker(worker.Worker):
       raise AssertionError("""At least one policy needs to be specified in
                            policy paths or callable_policies""")
     logging.info('Environment args: %s', envargs)
+    self._module_explorer_type: ModuleExplorer=module_explorer_type
     self._clang_path: str = clang_path
     self._mlgo_task_type: Type[env.MLGOTask] = mlgo_task_type
     self._policy_paths: List[Optional[str]] = policy_paths
@@ -807,7 +820,7 @@ class ModuleWorker(worker.Worker):
     logging.info('Processing module: %s', loaded_module_spec.name)
     start = timeit.default_timer()
     work = list(zip(self._tf_policy_action, self._exploration_policy_distrs))
-    exploration_worker = ModuleExplorer(
+    exploration_worker = self._module_explorer_type(
         loaded_module_spec=loaded_module_spec,
         clang_path=self._clang_path,
         mlgo_task_type=self._mlgo_task_type,

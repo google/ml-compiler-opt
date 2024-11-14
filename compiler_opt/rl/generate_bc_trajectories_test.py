@@ -385,7 +385,7 @@ class ModuleExplorerTest(tf.test.TestCase):
       generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
                                                  'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
       else:
         generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
                                                  'action')
@@ -401,9 +401,9 @@ class ModuleExplorerTest(tf.test.TestCase):
       generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
                                                  'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 4, 'action')
       else:
         generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
                                                  'action')
@@ -419,11 +419,11 @@ class ModuleExplorerTest(tf.test.TestCase):
       generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
                                                  'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 4, 'action')
       elif i == 9:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
       else:
         generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
                                                  'action')
@@ -450,7 +450,10 @@ class ModuleExplorerTest(tf.test.TestCase):
       # will explore every 4-th step
       logits = [[
           4.0 + 1e-3 * float(env_test._NUM_STEPS - times_called),
-          float(np.mod(times_called, 5))
+          -np.Inf,
+          -np.Inf,
+          -np.Inf,
+          float(np.mod(times_called, 5)),
       ]]
       return policy_step.PolicyStep(
           action=tfp.distributions.Categorical(logits=logits))
