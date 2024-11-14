@@ -34,6 +34,8 @@ import math
 import numpy as np
 import scipy
 import scipy.special
+import scipy
+import scipy.special
 import tensorflow as tf
 from tf_agents import policies
 from tf_agents.typing import types as tf_types
@@ -510,7 +512,7 @@ class ModuleExplorer:
       explore_state: time_step.TimeStep,
       policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
-      num_samples: int = 1,
+      num_samples: int=1,
   ) -> Generator[Tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
                  None]:
     """Generate sequence examples and next exploration policy while exploring.
@@ -528,6 +530,7 @@ class ModuleExplorer:
         exploration and can be used for deciding which actions to explore at
         the exploration state.
       num_samples: the number of samples to generate
+      num_samples: the number of samples to generate
 
     Yields:
       base_seq: a tf.train.SequenceExample containing a compiled trajectory
@@ -537,10 +540,10 @@ class ModuleExplorer:
     distr_logits = explore_policy(explore_state).action.logits.numpy()[0]
     for _ in range(num_samples):
       distr_logits[replay_prefix[explore_step]] = -np.Inf
-      if all(-np.Inf == logit for logit in distr_logits):
+      if all(-np.Inf==logit for logit in distr_logits):
         break
       replay_prefix[explore_step] = np.random.choice(
-          range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
+        range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
       base_policy = ExplorationWithPolicy(
           replay_prefix,
           policy,
@@ -731,8 +734,8 @@ class ModuleWorker(worker.Worker):
     obs_action_specs: optional observation spec annotating TimeStep
     base_path: root path to save best compiled binaries for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
-    env_args: additional arguments to pass to the ModuleExplorer, used in
-      creating the environment. This has to include the reward_key
+    env_args: additional arguments to pass to the ModuleExplorer, used in creating
+      the environment. This has to include the reward_key
   """
 
   def __init__(
