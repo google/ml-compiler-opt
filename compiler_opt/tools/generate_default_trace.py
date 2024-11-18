@@ -18,7 +18,7 @@ import concurrent.futures
 import contextlib
 import functools
 import re
-from typing import Dict, List, Optional, Union, Tuple  # pylint:disable=unused-import
+from typing import Dict, List, Optional, Tuple
 
 from absl import app
 from absl import flags
@@ -37,9 +37,6 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 
 from tf_agents.system import system_multiprocessing as multiprocessing
-
-# see https://bugs.python.org/issue33315 - we do need these types, but must
-# currently use them as string annotations
 
 _DATA_PATH = flags.DEFINE_string('data_path', None,
                                  'Path to folder containing IR files.')
@@ -68,11 +65,6 @@ _GIN_FILES = flags.DEFINE_multi_string(
 _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
-ResultsQueueEntry = Union[Optional[Tuple[str, List[str],
-                                         Dict[str,
-                                              compilation_runner.RewardStat]]],
-                          BaseException]
 
 
 class FilteringWorker(worker.Worker):
