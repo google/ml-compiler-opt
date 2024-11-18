@@ -3,8 +3,8 @@ import compiler_opt.rl.inlining.env
 config_registry.get_configuration.implementation=@configs.InliningConfig
 
 launcher_path=None
-llvm_size_path=None
-clang_path=None
+llvm_size_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/runfolder.rundir/llvm-size'
+clang_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/chrome_on_android/chromium2/src/third_party/llvm-build/tflite_build_cold/bin/clang'
 
 runners.InliningRunner.llvm_size_path=%llvm_size_path
 runners.InliningRunner.clang_path=%clang_path
