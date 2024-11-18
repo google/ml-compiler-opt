@@ -14,6 +14,7 @@ flags.FLAGS['gin_bindings'].allow_override = True
 
 FLAGS = flags.FLAGS
 
+
 def main(_):
   gin.parse_config_files_and_bindings(
       FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)

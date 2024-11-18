@@ -32,8 +32,6 @@ import math
 import numpy as np
 import scipy
 import scipy.special
-import scipy
-import scipy.special
 import tensorflow as tf
 from tf_agents import policies
 from tf_agents.typing import types as tf_types
