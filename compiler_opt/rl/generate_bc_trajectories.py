@@ -340,8 +340,8 @@ class ModuleExplorer:
     self._working_dir = None
 
     class MlgoTaskWrapper(mlgo_task_type):
-      # TODO(@tvmarinov): figure out why I can't just pass kwargs directly
-      # to mlgo_task_type through a gin_config.
+      # TODO(391): mlgo_task_type is not gin configurable at env.py
+      # since it is spawned in a separate process from the main thread
       def __init__(self):
         super().__init__(**kwargs)
 
@@ -872,7 +872,7 @@ class ModuleWorker(worker.Worker):
 def gen_trajectories(
     #  pylint: disable=dangerous-default-value
     data_path: str = gin.REQUIRED,
-    delete_flags: Tuple[str, ...] = (''),
+    delete_flags: Tuple[str, ...] = ('',),
     output_file_name: str = gin.REQUIRED,
     output_path: str = gin.REQUIRED,
     mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
