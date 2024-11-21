@@ -16,10 +16,12 @@
 
 import concurrent.futures
 import contextlib
+import functools
 import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
+from absl import app
 from absl import flags
 from absl import logging
 import bisect
@@ -38,6 +40,7 @@ from tf_agents.typing import types as tf_types
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 from tf_agents.specs import tensor_spec
+from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import corpus
 from compiler_opt.rl import env
@@ -45,6 +48,7 @@ from compiler_opt.rl import env
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
+
 from compiler_opt.tools import generate_test_model  # pylint:disable=unused-import
 
 flags.FLAGS['gin_files'].allow_override = True
@@ -346,7 +350,6 @@ class ModuleExplorer:
         task_type=mlgo_task_type,
         obs_spec=obs_spec,
         action_spec=action_spec,
-        interactive_only=True,
     )
     if self._env.action_spec:
       if self._env.action_spec.dtype != tf.int64:
@@ -526,7 +529,6 @@ class ModuleExplorer:
       explore_policy: randomized policy which is used to compute the gap for
         exploration and can be used for deciding which actions to explore at
         the exploration state.
-      num_samples: the number of samples to generate
       num_samples: the number of samples to generate
 
     Yields:
@@ -725,6 +727,7 @@ class ModuleWorker(worker.Worker):
     exploration_frac: how often to explore in a trajectory
     max_exploration_steps: maximum number of exploration steps
     tf_policy_action: list of the action/advice function from loaded policies
+    exploration_policy_paths: paths to load exploration policies.
     explore_on_features: dict of feature names and functions which specify
       when to explore on the respective feature
     obs_action_specs: optional observation spec annotating TimeStep
@@ -741,7 +744,7 @@ class ModuleWorker(worker.Worker):
       clang_path: str = gin.REQUIRED,
       mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
       policy_paths: List[Optional[str]] = [],
-      exploration_frac: float = 1.0,
+      exploration_frac: float = gin.REQUIRED,
       max_exploration_steps: int = 7,
       callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
       exploration_policy_paths: Optional[str] = None,
@@ -879,7 +882,7 @@ def gen_trajectories(
     num_output_files: int = 1,
     profiling_file_path: Optional[str] = None,
     worker_wait_sec: int = 100,
-    worker_class_type: Type[ModuleWorker] = ModuleWorker,
+    worker_class_type=ModuleWorker,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
 ):
   """Generates all trajectories for imitation learning training.
@@ -1013,3 +1016,15 @@ def gen_trajectories(
       modules_processed,
       time_compiler_calls,
   )
+
+
+def main(_):
+  gin.parse_config_files_and_bindings(
+      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)
+  logging.info(gin.config_str())
+
+  gen_trajectories()
+
+
+if __name__ == '__main__':
+  multiprocessing.handle_main(functools.partial(app.run, main))
