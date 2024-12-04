@@ -339,6 +339,7 @@ class ModuleExplorer:
     self._reward_key = reward_key
     kwargs.pop('reward_key', None)
     gin_config_str = kwargs.pop('gin_config_str', None)
+    gin.clear_config()
     gin.parse_config(gin_config_str)
     self._working_dir = None
 
