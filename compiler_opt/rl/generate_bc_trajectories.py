@@ -16,12 +16,10 @@
 
 import concurrent.futures
 import contextlib
-import functools
 import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
-from absl import app
 from absl import flags
 from absl import logging
 import bisect
@@ -40,7 +38,6 @@ from tf_agents.typing import types as tf_types
 from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 from tf_agents.specs import tensor_spec
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 from compiler_opt.rl import corpus
 from compiler_opt.rl import env
@@ -341,6 +338,9 @@ class ModuleExplorer:
           'reward_key not specified in ModuleExplorer initialization.')
     self._reward_key = reward_key
     kwargs.pop('reward_key', None)
+    gin_config_str = kwargs.pop('gin_config_str', None)
+    gin.clear_config()
+    gin.parse_config(gin_config_str)
     self._working_dir = None
 
     self._env = env.MLGOEnvironmentBase(
@@ -742,7 +742,7 @@ class ModuleWorker(worker.Worker):
       clang_path: str = gin.REQUIRED,
       mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
       policy_paths: List[Optional[str]] = [],
-      exploration_frac: float = gin.REQUIRED,
+      exploration_frac: float = 1.0,
       max_exploration_steps: int = 7,
       callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
       exploration_policy_paths: Optional[str] = None,
@@ -869,7 +869,7 @@ class ModuleWorker(worker.Worker):
 def gen_trajectories(
     #  pylint: disable=dangerous-default-value
     data_path: str = gin.REQUIRED,
-    delete_flags: Tuple[str, ...] = gin.REQUIRED,
+    delete_flags: Tuple[str, ...] = (),
     output_file_name: str = gin.REQUIRED,
     output_path: str = gin.REQUIRED,
     mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
@@ -933,6 +933,7 @@ def gen_trajectories(
       obs_action_specs=obs_action_spec,
       mlgo_task_type=mlgo_task_type,
       callable_policies=callable_policies,
+      gin_config_str=gin.config_str(),
   ) as lwm:
 
     _, result_futures = buffered_scheduler.schedule_on_worker_pool(
@@ -1013,15 +1014,3 @@ def gen_trajectories(
       modules_processed,
       time_compiler_calls,
   )
-
-
-def main(_):
-  gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)
-  logging.info(gin.config_str())
-
-  gen_trajectories()
-
-
-if __name__ == '__main__':
-  multiprocessing.handle_main(functools.partial(app.run, main))
