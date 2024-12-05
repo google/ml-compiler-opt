@@ -51,34 +51,42 @@ class AgentCreatorsTest(tf.test.TestCase):
     super().setUp()
 
   def test_create_behavioral_cloning_agent(self):
-    gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
-    gin.bind_parameter('BehavioralCloningAgent.optimizer',
-                       tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_config.create_agent(
-        agent_config.BCAgentConfig(
-            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
-        preprocessing_layer_creator=_observation_processing_layer)
-    self.assertIsInstance(tf_agent,
-                          behavioral_cloning_agent.BehavioralCloningAgent)
+    with gin.config_scope('test_create_behavioral_cloning_agent'):
+      gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
+      gin.bind_parameter('BehavioralCloningAgent.optimizer',
+                         tf.compat.v1.train.AdamOptimizer())
+      tf_agent = agent_config.create_agent(
+          agent_config.BCAgentConfig(
+              time_step_spec=self._time_step_spec,
+              action_spec=self._action_spec),
+          preprocessing_layer_creator=_observation_processing_layer)
+      self.assertIsInstance(tf_agent,
+                            behavioral_cloning_agent.BehavioralCloningAgent)
 
   def test_create_dqn_agent(self):
-    gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
-    gin.bind_parameter('DqnAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_config.create_agent(
-        agent_config.DQNAgentConfig(
-            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
-        preprocessing_layer_creator=_observation_processing_layer)
-    self.assertIsInstance(tf_agent, dqn_agent.DqnAgent)
+    with gin.config_scope('test_create_dqn_agent'):
+      gin.bind_parameter('create_agent.policy_network', q_network.QNetwork)
+      gin.bind_parameter('DqnAgent.optimizer',
+                         tf.compat.v1.train.AdamOptimizer())
+      tf_agent = agent_config.create_agent(
+          agent_config.DQNAgentConfig(
+              time_step_spec=self._time_step_spec,
+              action_spec=self._action_spec),
+          preprocessing_layer_creator=_observation_processing_layer)
+      self.assertIsInstance(tf_agent, dqn_agent.DqnAgent)
 
   def test_create_ppo_agent(self):
-    gin.bind_parameter('create_agent.policy_network',
-                       actor_distribution_network.ActorDistributionNetwork)
-    gin.bind_parameter('PPOAgent.optimizer', tf.compat.v1.train.AdamOptimizer())
-    tf_agent = agent_config.create_agent(
-        agent_config.PPOAgentConfig(
-            time_step_spec=self._time_step_spec, action_spec=self._action_spec),
-        preprocessing_layer_creator=_observation_processing_layer)
-    self.assertIsInstance(tf_agent, ppo_agent.PPOAgent)
+    with gin.config_scope('test_create_ppo_agent'):
+      gin.bind_parameter('create_agent.policy_network',
+                         actor_distribution_network.ActorDistributionNetwork)
+      gin.bind_parameter('PPOAgent.optimizer',
+                         tf.compat.v1.train.AdamOptimizer())
+      tf_agent = agent_config.create_agent(
+          agent_config.PPOAgentConfig(
+              time_step_spec=self._time_step_spec,
+              action_spec=self._action_spec),
+          preprocessing_layer_creator=_observation_processing_layer)
+      self.assertIsInstance(tf_agent, ppo_agent.PPOAgent)
 
 
 if __name__ == '__main__':

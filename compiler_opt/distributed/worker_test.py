@@ -30,12 +30,13 @@ class SomeType:
 class WorkerTest(absltest.TestCase):
 
   def test_gin_args(self):
-    with gin.unlock_config():
-      gin.bind_parameter('_test.SomeType.argument', 42)
-    real_args = worker.get_full_worker_args(
-        SomeType, more_args=2, even_more_args='hi')
-    self.assertDictEqual(real_args,
-                         dict(argument=42, more_args=2, even_more_args='hi'))
+    with gin.config_scope('worker_test'):
+      with gin.unlock_config():
+        gin.bind_parameter('_test.SomeType.argument', 42)
+      real_args = worker.get_full_worker_args(
+          SomeType, more_args=2, even_more_args='hi')
+      self.assertDictEqual(real_args,
+                           dict(argument=42, more_args=2, even_more_args='hi'))
 
 
 if __name__ == '__main__':
