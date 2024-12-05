@@ -40,6 +40,9 @@ from compiler_opt.es import blackbox_test_utils
 class BlackboxLearnerTests(absltest.TestCase):
   """Tests for blackbox_learner"""
 
+  def tearDown(self):
+    gin.clear_config()
+
   def setUp(self):
     super().setUp()
 
