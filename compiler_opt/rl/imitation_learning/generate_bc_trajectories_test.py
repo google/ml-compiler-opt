@@ -32,7 +32,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
-from compiler_opt.rl import generate_bc_trajectories_lib
+from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.rl import env
 from compiler_opt.rl import env_test
 
@@ -652,12 +652,12 @@ class GenTrajectoriesTest(tf.test.TestCase):
       gin.parse_config_files_and_bindings(
           config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
           bindings=[
-              ('compiler_opt.rl.generate_bc_trajectories_test.'
+              ('generate_bc_trajectories_test.'
                'MockModuleWorker.clang_path="/test/clang/path"'),
-              ('compiler_opt.rl.generate_bc_trajectories_test.'
+              ('generate_bc_trajectories_test.'
                'MockModuleWorker.exploration_frac=1.0'),
-              ('compiler_opt.rl.generate_bc_trajectories_test'
-               '.MockModuleWorker.reward_key="default"'),
+              ('generate_bc_trajectories_test.'
+               'MockModuleWorker.reward_key="default"'),
           ])
     return super().setUp()
 
