@@ -131,6 +131,27 @@ class TrainerTest(tf.test.TestCase):
     test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
     self.assertEqual(20, test_trainer._global_step.numpy())
 
+  def test_training_metrics(self):
+    test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
+        self._time_step_spec,
+        self._action_spec,
+        self._network,
+        tf.compat.v1.train.AdadeltaOptimizer(),
+        num_outer_dims=2)
+    test_trainer = trainer.Trainer(
+        root_dir=self.get_temp_dir(), agent=test_agent, summary_log_interval=1)
+    self.assertEqual(0, test_trainer._data_action_mean.result().numpy())
+    self.assertEqual(0, test_trainer._data_reward_mean.result().numpy())
+    self.assertEqual(0, test_trainer._num_trajectories.result().numpy())
+
+    dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
+    monitor_dict = {'default': {'test': 1}}
+    test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
+
+    self.assertEqual(1, test_trainer._data_action_mean.result().numpy())
+    self.assertEqual(2, test_trainer._data_reward_mean.result().numpy())
+    self.assertEqual(0, test_trainer._num_trajectories.result().numpy())
+
   def test_inference(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
         self._time_step_spec,
