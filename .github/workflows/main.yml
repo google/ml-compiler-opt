@@ -14,12 +14,12 @@ on:
 
 jobs:
   LicenseCheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - run: ./check-license.sh
   Envvars:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       version_matrix: ${{ steps.set-output.outputs.version_matrix }}
       do_cache: ${{ steps.set-output.outputs.do_cache }}
@@ -38,7 +38,7 @@ jobs:
           echo "version_matrix=$_ver" >> $GITHUB_OUTPUT
           echo "do_cache=$_cache" >> $GITHUB_OUTPUT
   Checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [Envvars]
     strategy:
       matrix:
