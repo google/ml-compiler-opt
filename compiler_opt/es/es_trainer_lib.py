@@ -115,7 +115,7 @@ def train(additional_compilation_flags=(),
   logging.info("Initial parameters: %s", initial_parameters)
 
   cps = corpus.Corpus(
-      location=_TRAIN_CORPORA.value,
+      data_path=_TRAIN_CORPORA.value,
       additional_flags=additional_compilation_flags,
       delete_flags=delete_compilation_flags,
       replace_flags=replace_compilation_flags)
