@@ -20,7 +20,7 @@ from absl import flags
 from absl import logging
 import gin
 
-from compiler_opt.rl import generate_bc_trajectories
+from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.tools import generate_test_model  # pylint:disable=unused-import
 
 from tf_agents.system import system_multiprocessing as multiprocessing
@@ -36,7 +36,7 @@ def main(_):
       FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)
   logging.info(gin.config_str())
 
-  generate_bc_trajectories.gen_trajectories()
+  generate_bc_trajectories_lib.gen_trajectories()
 
 
 if __name__ == '__main__':

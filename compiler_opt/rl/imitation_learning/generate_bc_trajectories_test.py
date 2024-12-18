@@ -32,7 +32,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from google.protobuf import text_format  # pytype: disable=pyi-error
 
-from compiler_opt.rl import generate_bc_trajectories
+from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.rl import env
 from compiler_opt.rl import env_test
 
@@ -114,7 +114,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
 
   def test_explore_with_gap(self):
     # pylint: disable=protected-access
-    explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
+    explore_with_policy = generate_bc_trajectories_lib.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
         explore_policy=self._explore_policy,
@@ -125,7 +125,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
     self.assertAllClose(0, explore_with_policy._gap, atol=2 * _eps)
     self.assertEqual(2, explore_with_policy.get_explore_step())
 
-    explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
+    explore_with_policy = generate_bc_trajectories_lib.ExplorationWithPolicy(
         replay_prefix=[np.array([1]),
                        np.array([1]),
                        np.array([1])],
@@ -151,7 +151,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
         'feature_2': explore_on_feature_2_val
     }
 
-    explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
+    explore_with_policy = generate_bc_trajectories_lib.ExplorationWithPolicy(
         replay_prefix=[],
         policy=_policy,
         explore_policy=self._explore_policy,
@@ -160,7 +160,7 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
       _ = explore_with_policy.get_advice(state)[0]
     self.assertEqual(0, explore_with_policy.get_explore_step())
 
-    explore_with_policy = generate_bc_trajectories.ExplorationWithPolicy(
+    explore_with_policy = generate_bc_trajectories_lib.ExplorationWithPolicy(
         replay_prefix=[np.array([1])],
         policy=_policy,
         explore_policy=self._explore_policy,
@@ -195,15 +195,15 @@ class AddToFeatureListsTest(tf.test.TestCase):
                                               tf.train.SequenceExample())
 
     sequence_example = tf.train.SequenceExample()
-    generate_bc_trajectories.add_int_feature(
+    generate_bc_trajectories_lib.add_int_feature(
         sequence_example=sequence_example,
         feature_value=1,
         feature_name='feature_0')
-    generate_bc_trajectories.add_int_feature(
+    generate_bc_trajectories_lib.add_int_feature(
         sequence_example=sequence_example,
         feature_value=2,
         feature_name='feature_0')
-    generate_bc_trajectories.add_int_feature(
+    generate_bc_trajectories_lib.add_int_feature(
         sequence_example=sequence_example,
         feature_value=3,
         feature_name='feature_1')
@@ -231,15 +231,15 @@ class AddToFeatureListsTest(tf.test.TestCase):
                                               tf.train.SequenceExample())
 
     sequence_example = tf.train.SequenceExample()
-    generate_bc_trajectories.add_float_feature(
+    generate_bc_trajectories_lib.add_float_feature(
         sequence_example=sequence_example,
         feature_value=.1,
         feature_name='feature_0')
-    generate_bc_trajectories.add_float_feature(
+    generate_bc_trajectories_lib.add_float_feature(
         sequence_example=sequence_example,
         feature_value=.2,
         feature_name='feature_0')
-    generate_bc_trajectories.add_float_feature(
+    generate_bc_trajectories_lib.add_float_feature(
         sequence_example=sequence_example,
         feature_value=.3,
         feature_name='feature_1')
@@ -267,15 +267,15 @@ class AddToFeatureListsTest(tf.test.TestCase):
                                               tf.train.SequenceExample())
 
     sequence_example = tf.train.SequenceExample()
-    generate_bc_trajectories.add_string_feature(
+    generate_bc_trajectories_lib.add_string_feature(
         sequence_example=sequence_example,
         feature_value='1',
         feature_name='feature_0')
-    generate_bc_trajectories.add_string_feature(
+    generate_bc_trajectories_lib.add_string_feature(
         sequence_example=sequence_example,
         feature_value='2',
         feature_name='feature_0')
-    generate_bc_trajectories.add_string_feature(
+    generate_bc_trajectories_lib.add_string_feature(
         sequence_example=sequence_example,
         feature_value='3',
         feature_name='feature_1')
@@ -310,7 +310,7 @@ class ModuleExplorerTest(tf.test.TestCase):
         action_spec={},
     )
 
-    exploration_worker = generate_bc_trajectories.ModuleExplorer(
+    exploration_worker = generate_bc_trajectories_lib.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task_type=env_test.MockTask,
@@ -340,16 +340,16 @@ class ModuleExplorerTest(tf.test.TestCase):
 
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
-      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                               'action')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                   np.mod(i, 5), 'action')
 
-    exploration_worker = generate_bc_trajectories.ModuleExplorer(
+    exploration_worker = generate_bc_trajectories_lib.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task_type=env_test.MockTask,
@@ -365,68 +365,74 @@ class ModuleExplorerTest(tf.test.TestCase):
     # no exploration
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
-      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                               'action')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                   np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     # first exploration trajectory, tests explore with gap
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 0,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     # second exploration trajectory, tests explore on feature
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 0,
+                                                     'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 4, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 4,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     # third exploration trajectory, tests explore with gap
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 0,
+                                                     'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 4, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 4,
+                                                     'action')
       elif i == 9:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 0, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 0,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     return seq_example_list_comp
@@ -438,7 +444,7 @@ class ModuleExplorerTest(tf.test.TestCase):
     def _explore_on_feature_func(feature_val) -> bool:
       return feature_val[0] in [4, 5]
 
-    exploration_worker = generate_bc_trajectories.ModuleExplorer(
+    exploration_worker = generate_bc_trajectories_lib.ModuleExplorer(
         loaded_module_spec=env_test._MOCK_MODULE,
         clang_path=env_test._CLANG_PATH,
         mlgo_task_type=env_test.MockTask,
@@ -471,7 +477,7 @@ class ModuleExplorerTest(tf.test.TestCase):
 
 class ModuleWorkerResultProcessorTest(tf.test.TestCase):
   # pylint: disable=protected-access
-  mw = generate_bc_trajectories.ModuleWorkerResultProcessor()
+  mw = generate_bc_trajectories_lib.ModuleWorkerResultProcessor()
 
   def _get_succeded(self):
     seq_example_list_comp = []
@@ -479,48 +485,51 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     # no exploration
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0,
-                                                 'reward')
-      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                               'action')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 47.0,
+                                                     'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                   np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     # first exploration trajectory, tests explore with gap
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 45.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 45.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, -3,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
 
     # second exploration trajectory, tests explore on feature
     seq_example_comp = tf.train.SequenceExample()
     for i in range(10):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 36.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 36.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, -3,
+                                                     'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 1,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
     seq_example_list_comp.append(seq_example_comp)
     working_dir_list_comp = ['policy0_0', 'policy0_1', 'policy0_2']
     loss_idx = 2
@@ -532,34 +541,37 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     # no exploration
     seq_example_comp = tf.train.SequenceExample()
     for i in range(5):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 39.0,
-                                                 'reward')
-      generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 3),
-                                               'action')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 39.0,
+                                                     'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                   np.mod(i, 3), 'action')
     seq_example_list_comp2.append(seq_example_comp)
 
     # third exploration trajectory, tests explore with gap
     seq_example_comp = tf.train.SequenceExample()
     for i in range(5):
-      generate_bc_trajectories.add_int_feature(seq_example_comp, i,
-                                               'times_called')
-      generate_bc_trajectories.add_string_feature(seq_example_comp, 'module',
-                                                  'module_name')
-      generate_bc_trajectories.add_float_feature(seq_example_comp, 37.0,
-                                                 'reward')
+      generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i,
+                                                   'times_called')
+      generate_bc_trajectories_lib.add_string_feature(seq_example_comp,
+                                                      'module', 'module_name')
+      generate_bc_trajectories_lib.add_float_feature(seq_example_comp, 37.0,
+                                                     'reward')
       if i == 4:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, -3,
+                                                     'action')
       elif i == 5:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, 1, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, 1,
+                                                     'action')
       elif i == 9:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, -3, 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, -3,
+                                                     'action')
       else:
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 4),
-                                                 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 4), 'action')
     seq_example_list_comp2.append(seq_example_comp)
     working_dir_list_comp2 = ['policy1_0', 'policy1_1']
     loss_idx2 = 1
@@ -574,22 +586,22 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     for i in range(3):
       seq_example = tf.train.SequenceExample()
       for _ in range(3):
-        generate_bc_trajectories.add_float_feature(seq_example, 47.0 + i,
-                                                   'reward')
-        generate_bc_trajectories.add_int_feature(seq_example, np.mod(i, 5),
-                                                 'action')
+        generate_bc_trajectories_lib.add_float_feature(seq_example, 47.0 + i,
+                                                       'reward')
+        generate_bc_trajectories_lib.add_int_feature(seq_example, np.mod(i, 5),
+                                                     'action')
       seq_example_base_list.append(seq_example)
 
     seq_example_comp_list = []
     for i in range(3):
       seq_example_comp = tf.train.SequenceExample()
       for _ in range(3):
-        generate_bc_trajectories.add_float_feature(seq_example_comp, 47.0 + i,
-                                                   'reward')
-        generate_bc_trajectories.add_int_feature(seq_example_comp, np.mod(i, 5),
-                                                 'action')
-        generate_bc_trajectories.add_int_feature(seq_example_comp, i + 1,
-                                                 'label')
+        generate_bc_trajectories_lib.add_float_feature(seq_example_comp,
+                                                       47.0 + i, 'reward')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp,
+                                                     np.mod(i, 5), 'action')
+        generate_bc_trajectories_lib.add_int_feature(seq_example_comp, i + 1,
+                                                     'label')
       seq_example_comp_list.append(seq_example_comp)
 
     partitions = [47.0, 48.0, 49.0]
@@ -624,7 +636,7 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
 
 
 @gin.configurable
-class MockModuleWorker(generate_bc_trajectories.ModuleWorker):
+class MockModuleWorker(generate_bc_trajectories_lib.ModuleWorker):
 
   @mock.patch('subprocess.Popen')
   def select_best_exploration(self, mock_popen, loaded_module_spec):
@@ -640,12 +652,12 @@ class GenTrajectoriesTest(tf.test.TestCase):
       gin.parse_config_files_and_bindings(
           config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
           bindings=[
-              ('compiler_opt.rl.generate_bc_trajectories_test.'
+              ('generate_bc_trajectories_test.'
                'MockModuleWorker.clang_path="/test/clang/path"'),
-              ('compiler_opt.rl.generate_bc_trajectories_test.'
+              ('generate_bc_trajectories_test.'
                'MockModuleWorker.exploration_frac=1.0'),
-              ('compiler_opt.rl.generate_bc_trajectories_test'
-               '.MockModuleWorker.reward_key="default"'),
+              ('generate_bc_trajectories_test.'
+               'MockModuleWorker.reward_key="default"'),
           ])
     return super().setUp()
 
@@ -670,7 +682,7 @@ class GenTrajectoriesTest(tf.test.TestCase):
 
     profiling_path = os.path.join(tmp_dir, 'test_profiles')
 
-    generate_bc_trajectories.gen_trajectories(
+    generate_bc_trajectories_lib.gen_trajectories(
         data_path=tmp_dir,
         delete_flags=(''),
         output_file_name='test',
