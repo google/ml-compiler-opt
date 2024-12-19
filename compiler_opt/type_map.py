@@ -17,11 +17,10 @@ import ctypes
 from typing import List, Tuple, Union
 import tensorflow as tf
 
-ScalarCType = Union['type[ctypes.c_float]', 'type[ctypes.c_double]',
-                    'type[ctypes.c_int8]', 'type[ctypes.c_int16]',
-                    'type[ctypes.c_uint16]', 'type[ctypes.c_int32]',
-                    'type[ctypes.c_uint32]', 'type[ctypes.c_int64]',
-                    'type[ctypes.c_uint64]']
+ScalarCType = Union[  # pylint: disable=invalid-name
+    'type[ctypes.c_float]', 'type[ctypes.c_double]', 'type[ctypes.c_int8]',
+    'type[ctypes.c_int16]', 'type[ctypes.c_uint16]', 'type[ctypes.c_int32]',
+    'type[ctypes.c_uint32]', 'type[ctypes.c_int64]', 'type[ctypes.c_uint64]']
 
 TYPE_ASSOCIATIONS: List[Tuple[str, ScalarCType,
                               tf.DType]] = [

@@ -12,7 +12,7 @@ tensorflow = "==2.12.0"
 dm-reverb = "==0.11.0"
 
 [dev-packages]
-pylint = "==2.14.1"
+pylint = "==3.3.2"
 pytest = "==7.1.2"
 pytype = "==2022.06.06"
 yapf = "==0.43.0"

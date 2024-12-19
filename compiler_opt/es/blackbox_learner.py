@@ -168,7 +168,7 @@ class BlackboxLearner:
     rng = np.random.default_rng(seed=self._seed)
     for _ in range(self._config.total_num_perturbations):
       perturbations.append(
-          rng.normal(size=(len(self._model_weights))) *
+          rng.normal(size=len(self._model_weights)) *
           self._config.precision_parameter)
     return perturbations
 
