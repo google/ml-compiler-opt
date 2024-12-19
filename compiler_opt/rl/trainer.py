@@ -183,7 +183,7 @@ class Trainer(object):
     # context management is implemented in decorator
     # pylint: disable=not-context-manager
     with tf.summary.record_if(lambda: tf.math.equal(
-        self._global_step % self._summary_export_interval, 0)):
+        self._global_step % self._summary_export_interval, 0)):  # pytype: disable=attribute-error
       for _ in range(num_iterations):
         # When the data is not enough to fill in a batch, next(dataset_iter)
         # will throw StopIteration exception, logging a warning message instead
