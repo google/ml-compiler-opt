@@ -35,8 +35,11 @@ class WorkerTest(absltest.TestCase):
         gin.bind_parameter('_test.SomeType.argument', 42)
       real_args = worker.get_full_worker_args(
           SomeType, more_args=2, even_more_args='hi')
-      self.assertDictEqual(real_args,
-                           dict(argument=42, more_args=2, even_more_args='hi'))
+      self.assertDictEqual(real_args, {
+          'argument': 42,
+          'more_args': 2,
+          'even_more_args': 'hi'
+      })
 
 
 if __name__ == '__main__':

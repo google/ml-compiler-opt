@@ -983,16 +983,14 @@ class TrustRegionOptimizer(StatefulOptimizer):
                      str(tr_imp_ratio))
       if should_reject:
         self.radius *= self.params['reject_factor']
-        if self.radius < self.params['minimum_radius']:
-          self.radius = self.params['minimum_radius']
+        self.radius = max(self.radius, self.params['minimum_radius'])
         self.is_returned_step = True
         print('Step rejected. Shrink: ' + str(self.radius) + log_message)
         return False
       else:  # accept step
         if should_shrink:
           self.radius *= self.params['shrink_factor']
-          if self.radius < self.params['minimum_radius']:
-            self.radius = self.params['minimum_radius']
+          self.radius = max(self.radius, self.params['minimum_radius'])
           print('Shrink: ' + str(self.radius) + log_message)
         elif should_grow:
           self.radius *= self.params['grow_factor']
