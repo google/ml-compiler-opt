@@ -320,8 +320,10 @@ class ModuleExplorer:
       max_horizon_to_explore=np.inf,
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
-      obs_action_specs: Optional[Tuple[time_step.TimeStep,
-                                       tensor_spec.BoundedTensorSpec,]] = None,
+      obs_action_specs: Optional[Tuple[
+          time_step.TimeStep,
+          tensor_spec.BoundedTensorSpec,
+      ]] = None,
       reward_key: str = '',
       **kwargs,
   ):
@@ -748,8 +750,10 @@ class ModuleWorker(worker.Worker):
       exploration_policy_paths: Optional[str] = None,
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
-      obs_action_specs: Optional[Tuple[time_step.TimeStep,
-                                       tensor_spec.BoundedTensorSpec,]] = None,
+      obs_action_specs: Optional[Tuple[
+          time_step.TimeStep,
+          tensor_spec.BoundedTensorSpec,
+      ]] = None,
       base_path: Optional[str] = None,
       partitions: List[float] = [
           0.,
