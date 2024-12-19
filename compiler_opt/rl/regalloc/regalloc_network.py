@@ -14,7 +14,7 @@
 # limitations under the License.
 """Actor network for Register Allocation."""
 
-from typing import Optional, Sequence, Callable, Text, Any
+from typing import Optional, Sequence, Callable, Any
 
 import gin
 import tensorflow as tf
@@ -78,7 +78,7 @@ class RegAllocNetwork(network.DistributionNetwork):
       kernel_initializer: Optional[tf.keras.initializers.Initializer] = None,
       batch_squash: bool = True,
       dtype: tf.DType = tf.float32,
-      name: Text = 'RegAllocNetwork'):
+      name: str = 'RegAllocNetwork'):
     """Creates an instance of `RegAllocNetwork`.
 
     Args:
