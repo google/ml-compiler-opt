@@ -21,6 +21,10 @@ from absl import flags
 from absl import logging
 import gin
 
+# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
+# here as these errors are false positives.
+# pytype: disable=pyi-error
+
 # <Internal> Using XM - flags.  # pylint: disable=unused-import
 from compiler_opt.rl import agent_config
 from compiler_opt.rl import data_reader

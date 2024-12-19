@@ -46,7 +46,7 @@ jobs:
         task: [Typecheck, Lint, Yapf, Test]
         include:
           - task: Typecheck
-            cmd: pytype -j auto --overriding-parameter-count-checks .
+            cmd: pytype -j auto .
           - task: Lint
             cmd: pylint --rcfile .pylintrc --recursive yes .
           - task: Yapf

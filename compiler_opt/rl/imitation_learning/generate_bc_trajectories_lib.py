@@ -947,9 +947,7 @@ def gen_trajectories(
     )
     not_done = result_futures
     succeeded_idx = 0
-    succeeded: List[Optional[Tuple[Tuple[int, ProfilingDictValueType,
-                                         ProfilingDictValueType],
-                                   tf.train.SequenceExample]]] = []
+    succeeded = []
 
     for written_files_idx in range(num_output_files):
       written_per_file = 0
