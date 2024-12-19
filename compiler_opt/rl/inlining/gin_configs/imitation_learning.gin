@@ -3,25 +3,25 @@ import compiler_opt.rl.inlining.imitation_learning_config
 import compiler_opt.rl.imitation_learning.generate_bc_trajectories_lib
 
 
-env.InliningForSizeTask.llvm_size_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/runfolder.rundir/llvm-size'
+env.InliningForSizeTask.llvm_size_path=''
 
-generate_bc_trajectories_lib.ModuleWorker.clang_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/chrome_on_android/chromium2/src/third_party/llvm-build/tflite_build_cold/bin/clang'
+generate_bc_trajectories_lib.ModuleWorker.clang_path=''
 generate_bc_trajectories_lib.ModuleWorker.mlgo_task_type=@env.InliningForSizeTask
-generate_bc_trajectories_lib.ModuleWorker.policy_paths=['/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/chrome_on_android/models/chromium_model_06-09-23_ave']
+generate_bc_trajectories_lib.ModuleWorker.policy_paths=[]
 generate_bc_trajectories_lib.ModuleWorker.exploration_policy_paths=[]
 generate_bc_trajectories_lib.ModuleWorker.explore_on_features=None
-generate_bc_trajectories_lib.ModuleWorker.base_path='/tmp/test_obj'
+generate_bc_trajectories_lib.ModuleWorker.base_path=''
 generate_bc_trajectories_lib.ModuleWorker.partitions=[0.,]
 generate_bc_trajectories_lib.ModuleWorker.reward_key='default'
 # generate_bc_trajectories_lib.ModuleWorker.gin_config_str=None
 
-generate_bc_trajectories_lib.gen_trajectories.data_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/blaze_profiles/chromium_corpus64bitppo_tlto30_rsp_24_04_2024'
+generate_bc_trajectories_lib.gen_trajectories.data_path=''
 generate_bc_trajectories_lib.gen_trajectories.delete_flags=('-split-dwarf-file', '-split-dwarf-output')
-generate_bc_trajectories_lib.gen_trajectories.output_file_name='ppo_cold_callsites_thinlto30_6_test'
-generate_bc_trajectories_lib.gen_trajectories.output_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/training_data/chrome_on_android'
+generate_bc_trajectories_lib.gen_trajectories.output_file_name=''
+generate_bc_trajectories_lib.gen_trajectories.output_path=''
 generate_bc_trajectories_lib.gen_trajectories.mlgo_task_type=@imitation_learning_config.get_task_type()
 generate_bc_trajectories_lib.gen_trajectories.obs_action_spec=@imitation_learning_config.get_inlining_signature_spec()
 generate_bc_trajectories_lib.gen_trajectories.num_workers=1
 generate_bc_trajectories_lib.gen_trajectories.num_output_files=1
-generate_bc_trajectories_lib.gen_trajectories.profiling_file_path='/usr/local/google/home/tvmarinov/Documents/mlgo_compiler_opt/inlining/profiling_folder/chrome_on_android/ppo_cold_callsites_thinlto30_6_test'
+generate_bc_trajectories_lib.gen_trajectories.profiling_file_path=''
 generate_bc_trajectories_lib.gen_trajectories.worker_wait_sec=100
