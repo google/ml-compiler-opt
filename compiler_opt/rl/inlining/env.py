@@ -44,8 +44,8 @@ class InliningForSizeTask(env.MLGOTask):
           '-enable-ml-inliner=release',
           '-mllvm',
           f'-inliner-interactive-channel-base={interactive_base_path}',
-          #'-mllvm',
-          #'-inliner-interactive-include-default',
+          '-mllvm',
+          '-inliner-interactive-include-default',
       ]
     else:
       interactive_args = []
