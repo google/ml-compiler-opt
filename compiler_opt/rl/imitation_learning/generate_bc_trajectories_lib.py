@@ -947,9 +947,7 @@ def gen_trajectories(
     )
     not_done = result_futures
     succeeded_idx = 0
-    succeeded: List[Optional[Tuple[Tuple[int, ProfilingDictValueType,
-                                         ProfilingDictValueType],
-                                   tf.train.SequenceExample]]] = []
+    succeeded = []
 
     for written_files_idx in range(num_output_files):
       written_per_file = 0
@@ -966,11 +964,8 @@ def gen_trajectories(
         time_compiler_start = timeit.default_timer()
         while not_done or succeeded:
           (done, not_done) = concurrent.futures.wait(not_done, worker_wait_sec)
-          succeeded.extend([
-              r.result()
-              for r in done
-              if not r.cancelled() and r.exception() is None
-          ])
+          succeeded.extend(
+              [r for r in done if not r.cancelled() and r.exception() is None])
           failed = [r for r in done if r.exception() is not None]
           for f in failed:
             logging.info('Module failed with: %s', f.exception())
