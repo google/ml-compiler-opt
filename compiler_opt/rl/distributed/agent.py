@@ -14,7 +14,7 @@
 # limitations under the License.
 """PPO agent definition and utility functions."""
 
-from typing import Optional, Text, Tuple
+from typing import Optional, Tuple
 
 from absl import logging
 
@@ -67,7 +67,7 @@ class MLGOPPOAgent(ppo_agent.PPOAgent):
                train_step_counter: Optional[tf.Variable] = None,
                aggregate_losses_across_replicas=False,
                loss_scaling_factor=1.,
-               name: Optional[Text] = 'PPOClipAgent'):
+               name: Optional[str] = 'PPOClipAgent'):
     """Creates a PPO Agent implementing the clipped probability ratios.
 
     Args:

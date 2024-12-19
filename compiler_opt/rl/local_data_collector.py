@@ -105,13 +105,12 @@ class LocalDataCollector(data_collector.DataCollector):
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
-    jobs = [
-        dict(
-            loaded_module_spec=loaded_module_spec,
-            policy=policy,
-            reward_stat=self._reward_stat_map[loaded_module_spec.name],
-            model_id=model_id) for loaded_module_spec in sampled_modules
-    ]
+    jobs = [{
+        'loaded_module_spec': loaded_module_spec,
+        'policy': policy,
+        'reward_stat': self._reward_stat_map[loaded_module_spec.name],
+        'model_id': model_id
+    } for loaded_module_spec in sampled_modules]
 
     (self._workers,
      self._current_futures) = buffered_scheduler.schedule_on_worker_pool(

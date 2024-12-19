@@ -32,6 +32,10 @@ from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
 from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
+# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
+# here as these errors are false positives.
+# pytype: disable=pyi-error
+
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
 
@@ -168,7 +172,7 @@ class BlackboxLearner:
     rng = np.random.default_rng(seed=self._seed)
     for _ in range(self._config.total_num_perturbations):
       perturbations.append(
-          rng.normal(size=(len(self._model_weights))) *
+          rng.normal(size=len(self._model_weights)) *
           self._config.precision_parameter)
     return perturbations
 
