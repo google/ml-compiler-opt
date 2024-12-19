@@ -104,12 +104,14 @@ disable=abstract-method,
         no-self-use,
 	no-value-for-parameter, # gin causes false positives
         nonzero-method,
+        not-callable, # lots of false positives
         oct-method,
         old-division,
         old-ne-operator,
         old-octal-literal,
         old-raise-syntax,
         parameter-unpacking,
+        possibly-used-before-assignment, # false positives with control flow
         print-statement,
         raising-string,
         range-builtin-not-iterating,
@@ -132,6 +134,7 @@ disable=abstract-method,
         too-many-instance-attributes,
         too-many-locals,
         too-many-nested-blocks,
+        too-many-positional-arguments,
         too-many-public-methods,
         too-many-return-statements,
         too-many-statements,
@@ -140,6 +143,7 @@ disable=abstract-method,
         unicode-builtin,
         unnecessary-pass,
         unpacking-in-except,
+        used-before-assignment,
         useless-else-on-loop,
         useless-object-inheritance,
         useless-suppression,
@@ -425,7 +429,7 @@ valid-metaclass-classmethod-first-arg=mcs
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception"
-overgeneral-exceptions=StandardError,
-                       Exception,
-                       BaseException
+overgeneral-exceptions=builtins.StandardError,
+                       builtins.Exception,
+                       builtins.BaseException
 

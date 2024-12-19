@@ -320,8 +320,10 @@ class ModuleExplorer:
       max_horizon_to_explore=np.inf,
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
-      obs_action_specs: Optional[Tuple[time_step.TimeStep,
-                                       tensor_spec.BoundedTensorSpec,]] = None,
+      obs_action_specs: Optional[Tuple[
+          time_step.TimeStep,
+          tensor_spec.BoundedTensorSpec,
+      ]] = None,
       reward_key: str = '',
       **kwargs,
   ):
@@ -748,8 +750,10 @@ class ModuleWorker(worker.Worker):
       exploration_policy_paths: Optional[str] = None,
       explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
                                                        bool]]] = None,
-      obs_action_specs: Optional[Tuple[time_step.TimeStep,
-                                       tensor_spec.BoundedTensorSpec,]] = None,
+      obs_action_specs: Optional[Tuple[
+          time_step.TimeStep,
+          tensor_spec.BoundedTensorSpec,
+      ]] = None,
       base_path: Optional[str] = None,
       partitions: List[float] = [
           0.,
@@ -943,9 +947,7 @@ def gen_trajectories(
     )
     not_done = result_futures
     succeeded_idx = 0
-    succeeded: List[Optional[Tuple[Tuple[int, ProfilingDictValueType,
-                                         ProfilingDictValueType],
-                                   tf.train.SequenceExample]]] = []
+    succeeded = []
 
     for written_files_idx in range(num_output_files):
       written_per_file = 0
