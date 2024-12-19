@@ -28,8 +28,10 @@ from compiler_opt.rl import trainer
 
 
 def _create_test_data(batch_size, sequence_length):
+  # Use the value zero, which signals the beginning of a sequence, which
+  # allows us to test the num_trajectories metric.
   test_trajectory = trajectory.Trajectory(
-      step_type=tf.fill([batch_size, sequence_length], 1),
+      step_type=tf.fill([batch_size, sequence_length], 0),
       observation={
           'callee_users':
               tf.fill([batch_size, sequence_length],
@@ -150,7 +152,7 @@ class TrainerTest(tf.test.TestCase):
 
     self.assertEqual(1, test_trainer._data_action_mean.result().numpy())
     self.assertEqual(2, test_trainer._data_reward_mean.result().numpy())
-    self.assertEqual(0, test_trainer._num_trajectories.result().numpy())
+    self.assertEqual(90, test_trainer._num_trajectories.result().numpy())
 
   def test_inference(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
