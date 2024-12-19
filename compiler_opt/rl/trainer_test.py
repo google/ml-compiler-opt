@@ -18,7 +18,7 @@
 
 import tensorflow as tf
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
-from tf_agents.networks import q_rnn_network
+from tf_agents.networks import q_network
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 from tf_agents.trajectories import trajectory
@@ -66,10 +66,9 @@ class TrainerTest(tf.test.TestCase):
         minimum=0,
         maximum=1,
         name='inlining_decision')
-    self._network = q_rnn_network.QRnnNetwork(
+    self._network = q_network.QNetwork(
         input_tensor_spec=self._time_step_spec.observation,
         action_spec=self._action_spec,
-        lstm_size=(40,),
         preprocessing_layers={
             'callee_users': tf.keras.layers.Lambda(lambda x: x)
         })
@@ -153,6 +152,25 @@ class TrainerTest(tf.test.TestCase):
     self.assertEqual(1, test_trainer._data_action_mean.result().numpy())
     self.assertEqual(2, test_trainer._data_reward_mean.result().numpy())
     self.assertEqual(90, test_trainer._num_trajectories.result().numpy())
+
+  def test_training_metrics_bc(self):
+    test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
+        self._time_step_spec,
+        self._action_spec,
+        self._network,
+        tf.compat.v1.train.AdamOptimizer(),
+        num_outer_dims=2)
+    test_trainer = trainer.Trainer(
+        root_dir=self.get_temp_dir(),
+        agent=test_agent,
+        summary_log_interval=1,
+        bc_percentage_correct=True)
+
+    dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
+    monitor_dict = {'default': {'test': 1}}
+    test_trainer.train(dataset_iter, monitor_dict, num_iterations=10)
+
+    self.assertLess(0.1, test_trainer._percentage_correct.result().numpy())
 
   def test_inference(self):
     test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
