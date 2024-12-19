@@ -70,6 +70,7 @@ _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
 @gin.configurable
 def train(additional_compilation_flags=(),
           delete_compilation_flags=(),
+          replace_compilation_flags=(),
           worker_class=None):
   """Train with ES."""
 
@@ -113,11 +114,11 @@ def train(additional_compilation_flags=(),
   logging.info("Parameter dimension: %s", initial_parameters.shape)
   logging.info("Initial parameters: %s", initial_parameters)
 
-  cps = corpus.create_corpus_for_testing(
-      location=_TRAIN_CORPORA.value,
-      elements=[corpus.ModuleSpec(name="smth", size=1)],
+  cps = corpus.Corpus(
+      data_path=_TRAIN_CORPORA.value,
       additional_flags=additional_compilation_flags,
-      delete_flags=delete_compilation_flags)
+      delete_flags=delete_compilation_flags,
+      replace_flags=replace_compilation_flags)
 
   # Construct policy saver
   saved_policy = policy_utils.create_actor_policy(greedy=True)
