@@ -159,8 +159,8 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
 
     # Repeat for num_policy_iterations iterations.
     t1 = time.time()
-    while (llvm_trainer.global_step_numpy() <
-           num_policy_iterations * num_iterations):
+    while (llvm_trainer.global_step_numpy()
+           < num_policy_iterations * num_iterations):
       t2 = time.time()
       logging.info('Last iteration took: %f', t2 - t1)
       t1 = t2
