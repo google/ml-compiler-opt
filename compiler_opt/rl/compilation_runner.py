@@ -122,7 +122,7 @@ class ProcessKilledError(Exception):
     Exception.__init__(self)
 
 
-def kill_process_ignore_exceptions(p: 'subprocess.Popen[bytes]'):
+def kill_process_ignore_exceptions(p: 'subprocess.Popen[bytes]'):  # pylint: disable=useless-return
   # kill the process and ignore exceptions. Exceptions would be thrown if the
   # process has already been killed/finished (which is inherently in a race
   # condition with us killing it)
@@ -130,7 +130,7 @@ def kill_process_ignore_exceptions(p: 'subprocess.Popen[bytes]'):
     p.kill()
     p.wait()
   finally:
-    return  # pylint: disable=lost-exception
+    return  # pylint: disable=lost-exception,return-in-finally
 
 
 class WorkerCancellationManager:

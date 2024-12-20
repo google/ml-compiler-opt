@@ -14,7 +14,7 @@
 # limitations under the License.
 """Utility to create MLGO policy learner."""
 
-from typing import Callable, List, Optional, Text, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from absl import logging
 
@@ -47,7 +47,7 @@ class MLGOPPOLearner(object):
   """
 
   def __init__(self,
-               root_dir: Text,
+               root_dir: str,
                train_step: tf.Variable,
                model_id: tf.Variable,
                agent: ppo_agent.PPOAgent,

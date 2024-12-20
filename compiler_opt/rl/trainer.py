@@ -23,6 +23,7 @@ import tensorflow as tf
 from compiler_opt.rl import random_net_distillation
 from tf_agents.agents import tf_agent
 from tf_agents.policies import policy_loader
+from tf_agents import trajectories
 
 from tf_agents.utils import common as common_utils
 from typing import Optional
@@ -54,7 +55,8 @@ class Trainer(object):
       log_interval=100,
       summary_log_interval=100,
       summary_export_interval=1000,
-      summaries_flush_secs=10):
+      summaries_flush_secs=10,
+      bc_percentage_correct=False):
     """Initialize the Trainer object.
 
     Args:
@@ -70,6 +72,9 @@ class Trainer(object):
       summary_export_interval: int, the training step interval for exporting
         to tensorboard.
       summaries_flush_secs: int, the seconds for flushing to tensorboard.
+      bc_percentage_correct: bool, whether or not to log the accuracy of the
+        current batch. This is intended for use during BC training where labels
+        for the "correct" decision are available.
     """
     self._root_dir = root_dir
     self._agent = agent
@@ -84,6 +89,7 @@ class Trainer(object):
     self._summary_writer.set_as_default()
 
     self._global_step = tf.compat.v1.train.get_or_create_global_step()
+    self._bc_percentage_correct = bc_percentage_correct
 
     # Initialize agent and trajectory replay.
     # Wrap training and trajectory replay in a tf.function to make it much
@@ -118,6 +124,7 @@ class Trainer(object):
     self._data_action_mean = tf.keras.metrics.Mean()
     self._data_reward_mean = tf.keras.metrics.Mean()
     self._num_trajectories = tf.keras.metrics.Sum()
+    self._percentage_correct = tf.keras.metrics.Accuracy()
 
   def _update_metrics(self, experience, monitor_dict):
     """Updates metrics and exports to Tensorboard."""
@@ -129,6 +136,16 @@ class Trainer(object):
       self._data_reward_mean.update_state(
           experience.reward, sample_weight=is_action)
       self._num_trajectories.update_state(experience.is_first())
+
+      # Compute the accuracy if we are BC training.
+      if self._bc_percentage_correct:
+        experience_time_step = trajectories.TimeStep(experience.step_type,
+                                                     experience.reward,
+                                                     experience.discount,
+                                                     experience.observation)
+        policy_actions = self._agent.policy.action(experience_time_step)
+        self._percentage_correct.update_state(experience.action,
+                                              policy_actions.action)
 
     # Check earlier rather than later if we should record summaries.
     # TF also checks it, but much later. Needed to avoid looping through
@@ -147,6 +164,11 @@ class Trainer(object):
             name='num_trajectories',
             data=self._num_trajectories.result(),
             step=self._global_step)
+        if self._bc_percentage_correct:
+          tf.summary.scalar(
+              name='percentage_correct',
+              data=self._percentage_correct.result(),
+              step=self._global_step)
 
       for name_scope, d in monitor_dict.items():
         with tf.name_scope(name_scope + '/'):
@@ -159,6 +181,7 @@ class Trainer(object):
   def _reset_metrics(self):
     """Reset num_trajectories."""
     self._num_trajectories.reset_states()
+    self._percentage_correct.reset_state()
 
   def _log_experiment(self, loss):
     """Log training info."""
@@ -181,9 +204,11 @@ class Trainer(object):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
     # context management is implemented in decorator
+    # pytype: disable=attribute-error
     # pylint: disable=not-context-manager
     with tf.summary.record_if(lambda: tf.math.equal(
         self._global_step % self._summary_export_interval, 0)):
+      # pytype: enable=attribute-error
       for _ in range(num_iterations):
         # When the data is not enough to fill in a batch, next(dataset_iter)
         # will throw StopIteration exception, logging a warning message instead
@@ -201,6 +226,8 @@ class Trainer(object):
           experience = self._random_network_distillation.train(experience)
 
         loss = self._agent.train(experience)
+
+        self._percentage_correct.reset_state()
 
         self._update_metrics(experience, monitor_dict)
         self._log_experiment(loss.loss)
