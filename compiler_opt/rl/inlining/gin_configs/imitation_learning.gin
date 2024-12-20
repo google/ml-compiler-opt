@@ -7,11 +7,14 @@ env.InliningForSizeTask.llvm_size_path=''
 
 generate_bc_trajectories_lib.ModuleWorker.clang_path=''
 generate_bc_trajectories_lib.ModuleWorker.mlgo_task_type=@env.InliningForSizeTask
-generate_bc_trajectories_lib.ModuleWorker.policy_paths=[]
+generate_bc_trajectories_lib.ModuleWorker.policy_paths=['']
 generate_bc_trajectories_lib.ModuleWorker.exploration_policy_paths=[]
 generate_bc_trajectories_lib.ModuleWorker.explore_on_features=None
 generate_bc_trajectories_lib.ModuleWorker.base_path=''
-generate_bc_trajectories_lib.ModuleWorker.partitions=[0.,]
+generate_bc_trajectories_lib.ModuleWorker.partitions=[
+    285.0, 376.0, 452.0, 512.0, 571.0, 627.5, 720.0, 809.5, 1304.0, 1832.0,
+    2467.0, 3344.0, 4545.0, 6459.0, 9845.0, 17953.0, 29430.5, 85533.5,
+    124361.0]
 generate_bc_trajectories_lib.ModuleWorker.reward_key='default'
 # generate_bc_trajectories_lib.ModuleWorker.gin_config_str=None
 

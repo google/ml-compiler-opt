@@ -21,19 +21,19 @@ from absl import logging
 import gin
 
 from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
-from compiler_opt.tools import generate_test_model  # pylint:disable=unused-import
 
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
-
-FLAGS = flags.FLAGS
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
+    'gin_bindings', [],
+    'Gin bindings to override the values set in the config files.')
 
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=True)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=True)
   logging.info(gin.config_str())
 
   generate_bc_trajectories_lib.gen_trajectories()

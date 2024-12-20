@@ -20,7 +20,7 @@ import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
-from absl import flags
+# from absl import flags
 from absl import logging
 import bisect
 import dataclasses
@@ -45,13 +45,6 @@ from compiler_opt.rl import env
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
-
-from compiler_opt.tools import generate_test_model  # pylint:disable=unused-import
-
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
-
-FLAGS = flags.FLAGS
 
 ProfilingDictValueType = Dict[str, Union[str, float, int]]
 
