@@ -20,7 +20,7 @@ import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
-from absl import flags
+# from absl import flags
 from absl import logging
 import bisect
 import dataclasses
@@ -45,13 +45,6 @@ from compiler_opt.rl import env
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
-
-from compiler_opt.tools import generate_test_model  # pylint:disable=unused-import
-
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
-
-FLAGS = flags.FLAGS
 
 ProfilingDictValueType = Dict[str, Union[str, float, int]]
 
@@ -350,6 +343,7 @@ class ModuleExplorer:
         task_type=mlgo_task_type,
         obs_spec=obs_spec,
         action_spec=action_spec,
+        interactive_only=True,
     )
     if self._env.action_spec:
       if self._env.action_spec.dtype != tf.int64:
@@ -703,7 +697,7 @@ class ModuleWorkerResultProcessor:
     if not os.path.exists(save_dir):
       os.makedirs(save_dir, exist_ok=True)
     shutil.copy(
-        os.path.join(binary_path, 'comp_binary'),
+        os.path.join(binary_path, 'compiled_module'),
         os.path.join(save_dir, path_tail))
 
 
@@ -782,6 +776,7 @@ class ModuleWorker(worker.Worker):
     self._obs_action_specs: Optional[Tuple[
         time_step.TimeStep, tensor_spec.BoundedTensorSpec]] = obs_action_specs
     self._mw_utility = ModuleWorkerResultProcessor(base_path)
+    self._base_path = base_path
     self._partitions = partitions
     self._envargs = envargs
 
@@ -860,7 +855,14 @@ class ModuleWorker(worker.Worker):
     for temp_dirs in working_dir_list:
       for temp_dir in temp_dirs:
         temp_dir_head = os.path.split(temp_dir)[0]
-        shutil.rmtree(temp_dir_head)
+        try:
+          shutil.rmtree(temp_dir_head)
+        except FileNotFoundError as e:
+          if not self._base_path:
+            continue
+          else:
+            raise FileNotFoundError(
+                f'Compilation directory {temp_dir_head} does not exist.') from e
 
     return (
         num_calls,
@@ -878,6 +880,8 @@ def gen_trajectories(
     output_path: str = gin.REQUIRED,
     mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
     callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
+    explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
+                                                     bool]]] = None,
     obs_action_spec: Optional[Tuple[time_step.TimeStep,
                                     tensor_spec.BoundedTensorSpec]] = None,
     num_workers: Optional[int] = None,
@@ -898,6 +902,8 @@ def gen_trajectories(
     callable_policies: list of policies in the form of callable functions,
       this supplements the loaded policies from policy_paths given
       in ModuleWorker
+    explore_on_features: dict of feature names and functions which specify
+      when to explore on the respective feature
     obs_action_spec: optional observation and action spec annotating the state
       (TimeStep) for training a policy
     num_workers: number of distributed workers to process the corpus.
@@ -937,6 +943,7 @@ def gen_trajectories(
       obs_action_specs=obs_action_spec,
       mlgo_task_type=mlgo_task_type,
       callable_policies=callable_policies,
+      explore_on_features=explore_on_features,
       gin_config_str=gin.config_str(),
   ) as lwm:
 

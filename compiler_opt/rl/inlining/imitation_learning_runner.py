@@ -21,6 +21,7 @@ from absl import logging
 import gin
 
 from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
+from compiler_opt.rl.inlining import imitation_learning_config
 
 from tf_agents.system import system_multiprocessing as multiprocessing
 
@@ -36,7 +37,12 @@ def main(_):
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=True)
   logging.info(gin.config_str())
 
-  generate_bc_trajectories_lib.gen_trajectories()
+  generate_bc_trajectories_lib.gen_trajectories(
+      callable_policies=[imitation_learning_config.greedy_policy],
+      explore_on_features={
+          'is_callee_avail_external':
+              imitation_learning_config.explore_on_avail_external
+      })
 
 
 if __name__ == '__main__':

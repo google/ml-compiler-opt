@@ -16,7 +16,6 @@
 
 import functools
 from absl import app
-from absl import flags
 import gin
 import json
 from typing import List
@@ -36,8 +35,8 @@ from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.rl import env
 from compiler_opt.rl import env_test
 
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
+# flags.FLAGS['gin_files'].allow_override = True
+# flags.FLAGS['gin_bindings'].allow_override = True
 
 _eps = 1e-5
 
@@ -648,17 +647,17 @@ class MockModuleWorker(generate_bc_trajectories_lib.ModuleWorker):
 class GenTrajectoriesTest(tf.test.TestCase):
 
   def setUp(self):
-    with gin.unlock_config():
-      gin.parse_config_files_and_bindings(
-          config_files=['compiler_opt/rl/inlining/gin_configs/common.gin'],
-          bindings=[
-              ('generate_bc_trajectories_test.'
-               'MockModuleWorker.clang_path="/test/clang/path"'),
-              ('generate_bc_trajectories_test.'
-               'MockModuleWorker.exploration_frac=1.0'),
-              ('generate_bc_trajectories_test.'
-               'MockModuleWorker.reward_key="default"'),
-          ])
+    with gin.config_scope('gen_trajectories_test'):
+      with gin.unlock_config():
+        gin.bind_parameter(
+            'generate_bc_trajectories_test.MockModuleWorker.clang_path',
+            '/test/clang/path')
+        gin.bind_parameter(
+            'generate_bc_trajectories_test.MockModuleWorker.exploration_frac',
+            1.0)
+        gin.bind_parameter(
+            'generate_bc_trajectories_test.MockModuleWorker.reward_key',
+            'default')
     return super().setUp()
 
   def test_gen_trajectories(self):
