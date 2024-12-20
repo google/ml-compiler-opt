@@ -163,8 +163,8 @@ class PolicySaver(object):
     self._policy_saver_dict: Dict[str, Tuple[
         policy_saver.PolicySaver, tf_policy.TFPolicy]] = {
             policy_name: (policy_saver.PolicySaver(
-                policy, batch_size=1, use_nest_path_signatures=False), policy
-                         ) for policy_name, policy in policy_dict.items()
+                policy, batch_size=1, use_nest_path_signatures=False), policy)
+            for policy_name, policy in policy_dict.items()
         }
 
   def _write_output_signature(

@@ -225,6 +225,7 @@ def clang_session(
     module: corpus.LoadedModuleSpec,
     task_type: Type[MLGOTask],
     *,
+    keep_temps: Optional[str] = None,
     interactive: bool,
 ):
   """Context manager for clang session.
@@ -236,12 +237,15 @@ def clang_session(
     clang_path: The clang binary to use for the InteractiveClang session.
     module: The module to compile with clang.
     task_type: Type of the MLGOTask to use.
+    keep_temps: Put temporary files into given directory and keep them
+      past exit when compilining
     interactive: Whether to use an interactive or default clang instance
 
   Yields:
     Either the constructed InteractiveClang or DefaultClang object.
   """
-  tempdir_context = compilation_runner.get_workdir_context()
+  tempdir_context = compilation_runner.get_workdir_context(
+      keep_temps=keep_temps)
   with tempdir_context as td:
     task_working_dir = os.path.join(td, '__task_working_dir__')
     os.mkdir(task_working_dir)
@@ -290,6 +294,7 @@ def clang_session(
 def _get_clang_generator(
     clang_path: str,
     task_type: Type[MLGOTask],
+    keep_temps: Optional[str] = None,
     interactive_only: bool = False,
 ) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
                Optional[corpus.LoadedModuleSpec], None]:
@@ -298,6 +303,8 @@ def _get_clang_generator(
   Args:
     clang_path: Path to the clang binary to use within InteractiveClang.
     task_type: Type of the MLGO task to use.
+    keep_temps: Put temporary files into given directory and keep them
+      past exit when compilining
     interactive_only: If set to true the returned tuple of generators is
       iclang, iclang instead of iclang, clang
 
@@ -315,12 +322,17 @@ def _get_clang_generator(
     #   https://github.com/google/yapf/issues/1092
     module = yield
     with clang_session(
-        clang_path, module, task_type, interactive=True) as iclang:
+        clang_path, module, task_type, keep_temps=keep_temps,
+        interactive=True) as iclang:
       if interactive_only:
         yield iclang, iclang
       else:
         with clang_session(
-            clang_path, module, task_type, interactive=False) as clang:
+            clang_path,
+            module,
+            task_type,
+            keep_temps=keep_temps,
+            interactive=False) as clang:
           yield iclang, clang
 
 
@@ -340,10 +352,14 @@ class MLGOEnvironmentBase:
       task_type: Type[MLGOTask],
       obs_spec,
       action_spec,
+      keep_temps: Optional[str] = None,
       interactive_only: bool = False,
   ):
     self._clang_generator = _get_clang_generator(
-        clang_path, task_type, interactive_only=interactive_only)
+        clang_path,
+        task_type,
+        keep_temps=keep_temps,
+        interactive_only=interactive_only)
     self._obs_spec = obs_spec
     self._action_spec = action_spec
 
