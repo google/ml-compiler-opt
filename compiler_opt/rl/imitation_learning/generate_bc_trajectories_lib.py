@@ -20,7 +20,7 @@ import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
-# from absl import flags
+from absl import flags
 from absl import logging
 import bisect
 import dataclasses
@@ -45,6 +45,13 @@ from compiler_opt.rl import env
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
+
+_BASE_PATH = flags.DEFINE_string(
+    'base_path', None, ('If specified, the temp compiled binaries throughout'
+                        'the trajectory generation will be saved in base_path'
+                        'for linking the final binary.'))
+
+FLAGS = flags.FLAGS
 
 ProfilingDictValueType = Dict[str, Union[str, float, int]]
 
@@ -318,6 +325,7 @@ class ModuleExplorer:
           tensor_spec.BoundedTensorSpec,
       ]] = None,
       reward_key: str = '',
+      keep_temps: Optional[str] = None,
       **kwargs,
   ):
     self._loaded_module_spec = loaded_module_spec
@@ -343,6 +351,7 @@ class ModuleExplorer:
         task_type=mlgo_task_type,
         obs_spec=obs_spec,
         action_spec=action_spec,
+        keep_temps=keep_temps,
         interactive_only=True,
     )
     if self._env.action_spec:
@@ -918,6 +927,10 @@ def gen_trajectories(
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """
+  if (None in (_BASE_PATH.value, FLAGS.keep_temps) and
+      not all(el is None for el in (_BASE_PATH.value, FLAGS.keep_temps))):
+    raise ValueError(('Both flags keep_temps={FLAGS.keep_temps} and'
+                      'base_path={_BASE_PATH.value} should be set or be None'))
   cps = corpus.Corpus(data_path=data_path, delete_flags=delete_flags)
   logging.info('Done loading module specs from corpus.')
 
@@ -944,6 +957,8 @@ def gen_trajectories(
       mlgo_task_type=mlgo_task_type,
       callable_policies=callable_policies,
       explore_on_features=explore_on_features,
+      base_path=_BASE_PATH.value,
+      keep_temps=FLAGS.keep_temps,
       gin_config_str=gin.config_str(),
   ) as lwm:
 

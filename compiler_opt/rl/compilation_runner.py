@@ -80,14 +80,23 @@ class NonTemporaryDirectory:
     pass
 
 
-def get_workdir_context():
+def get_workdir_context(keep_temps: Optional[str] = None):
   """Return a context which manages how the temperory directories are handled.
 
   When the flag keep_temps is specified temporary directories are stored in
   keep_temps.
+
+  Args:
+    keep_temps: Put temporary files into given directory and keep them
+      past exit when compilining
   """
+  if keep_temps and _KEEP_TEMPS.value:
+    raise ValueError('Only one of flag keep_temps={_KEEP_TEMPS.value}'
+                     'and arg keep_temps={keep_temps} should be specified.')
   if _KEEP_TEMPS.value is not None:
     tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
+  elif keep_temps:
+    tempdir_context = NonTemporaryDirectory(dir=keep_temps)
   else:
     tempdir_context = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
   return tempdir_context
