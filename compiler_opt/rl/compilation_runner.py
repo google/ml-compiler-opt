@@ -39,8 +39,8 @@ COMPILATION_TIMEOUT = flags.DEFINE_integer(
     'Max duration (in seconds) after which we cancel any compilation job.')
 _QUIET = flags.DEFINE_bool(
     'quiet', True, 'Whether or not to compile quietly (hiding info logging)')
-_KEEP_TEMPS = flags.DEFINE_string(
-    'keep_temps', None,
+_EXPLICIT_TEMPS_DIR = flags.DEFINE_string(
+    'explicit_temps_dir', None,
     'Put temporary files into given directory and keep them past exit.')
 
 
@@ -80,14 +80,25 @@ class NonTemporaryDirectory:
     pass
 
 
-def get_workdir_context():
+def get_workdir_context(explicit_temps_dir: Optional[str] = None):
   """Return a context which manages how the temperory directories are handled.
 
-  When the flag keep_temps is specified temporary directories are stored in
-  keep_temps.
+  When the flag explicit_temps_dir is specified temporary directories are
+   stored in explicit_temps_dir.
+
+  Args:
+    explicit_temps_dir: Put temporary files into given directory and keep them
+      past exit when compilining
   """
-  if _KEEP_TEMPS.value is not None:
-    tempdir_context = NonTemporaryDirectory(dir=_KEEP_TEMPS.value)
+  if explicit_temps_dir and _EXPLICIT_TEMPS_DIR.value:
+    raise ValueError('Only one of flag'
+                     'explicit_temps_dir={_EXPLICIT_TEMPS_DIR.value}'
+                     'and arg explicit_temps_dir={explicit_temps_dir}'
+                     'should be specified.')
+  if _EXPLICIT_TEMPS_DIR.value is not None:
+    tempdir_context = NonTemporaryDirectory(dir=_EXPLICIT_TEMPS_DIR.value)
+  elif explicit_temps_dir:
+    tempdir_context = NonTemporaryDirectory(dir=explicit_temps_dir)
   else:
     tempdir_context = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
   return tempdir_context

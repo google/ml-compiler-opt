@@ -178,7 +178,8 @@ class ClangSessionTest(tf.test.TestCase):
     self.assertEqual(os.path.exists(working_dir), False)
 
     with tempfile.TemporaryDirectory() as td:
-      with flagsaver.flagsaver((env.compilation_runner._KEEP_TEMPS, td)):  # pylint: disable=protected-access
+      with flagsaver.flagsaver(
+          (env.compilation_runner._EXPLICIT_TEMPS_DIR, td)):  # pylint: disable=protected-access
         with env.clang_session(
             _CLANG_PATH, _MOCK_MODULE, MockTask,
             interactive=True) as clang_session:

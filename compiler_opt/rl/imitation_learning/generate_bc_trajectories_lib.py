@@ -20,7 +20,7 @@ import gin
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
 import json
 
-# from absl import flags
+from absl import flags
 from absl import logging
 import bisect
 import dataclasses
@@ -45,6 +45,14 @@ from compiler_opt.rl import env
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
+
+_PERSISTENT_OBJECTS_PATH = flags.DEFINE_string(
+    'persistent_objects_path', None,
+    ('If specified, the temp compiled binaries throughout'
+     'the trajectory generation will be saved in persistent_objects_path'
+     'for linking the final binary.'))
+
+FLAGS = flags.FLAGS
 
 ProfilingDictValueType = Dict[str, Union[str, float, int]]
 
@@ -318,6 +326,7 @@ class ModuleExplorer:
           tensor_spec.BoundedTensorSpec,
       ]] = None,
       reward_key: str = '',
+      explicit_temps_dir: Optional[str] = None,
       **kwargs,
   ):
     self._loaded_module_spec = loaded_module_spec
@@ -343,6 +352,7 @@ class ModuleExplorer:
         task_type=mlgo_task_type,
         obs_spec=obs_spec,
         action_spec=action_spec,
+        explicit_temps_dir=explicit_temps_dir,
         interactive_only=True,
     )
     if self._env.action_spec:
@@ -603,8 +613,8 @@ class ModuleExplorer:
 class ModuleWorkerResultProcessor:
   """Utility class to process ModuleExplorer results for ModuleWorker."""
 
-  def __init__(self, base_path: Optional[str] = None):
-    self._base_path = base_path
+  def __init__(self, persistent_objects_path: Optional[str] = None):
+    self._persistent_objects_path = persistent_objects_path
 
   def _partition_for_loss(self, seq_example: tf.train.SequenceExample,
                           partitions: List[float], label_name: str):
@@ -654,12 +664,13 @@ class ModuleWorkerResultProcessor:
     logging.info('best policy idx: %s, best exploration idxs %s',
                  best_policy_idx, best_exploration_idxs)
 
-    if self._base_path:
+    if self._persistent_objects_path:
       # as long as we have one process handles one module this can stay here
       temp_working_dir_idx = working_dir_list[best_policy_idx][1]
       temp_working_dir_list = working_dir_list[best_policy_idx][0]
       temp_working_dir = temp_working_dir_list[temp_working_dir_idx]
-      self._save_binary(self._base_path, spec_name, temp_working_dir)
+      self._save_binary(self._persistent_objects_path, spec_name,
+                        temp_working_dir)
 
     self._partition_for_loss(seq_example, partitions, label_name)
 
@@ -689,11 +700,12 @@ class ModuleWorkerResultProcessor:
     }
     return per_module_dict
 
-  def _save_binary(self, base_path: str, save_path: str, binary_path: str):
+  def _save_binary(self, persistent_objects_path: str, save_path: str,
+                   binary_path: str):
     path_head_tail = os.path.split(save_path)
     path_head = path_head_tail[0]
     path_tail = path_head_tail[1]
-    save_dir = os.path.join(base_path, path_head)
+    save_dir = os.path.join(persistent_objects_path, path_head)
     if not os.path.exists(save_dir):
       os.makedirs(save_dir, exist_ok=True)
     shutil.copy(
@@ -725,7 +737,8 @@ class ModuleWorker(worker.Worker):
     explore_on_features: dict of feature names and functions which specify
       when to explore on the respective feature
     obs_action_specs: optional observation spec annotating TimeStep
-    base_path: root path to save best compiled binaries for linking
+    persistent_objects_path: root path to save best compiled binaries
+      for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
     env_args: additional arguments to pass to the ModuleExplorer, used in
       creating the environment. This has to include the reward_key
@@ -748,7 +761,7 @@ class ModuleWorker(worker.Worker):
           time_step.TimeStep,
           tensor_spec.BoundedTensorSpec,
       ]] = None,
-      base_path: Optional[str] = None,
+      persistent_objects_path: Optional[str] = None,
       partitions: List[float] = [
           0.,
       ],
@@ -775,8 +788,8 @@ class ModuleWorker(worker.Worker):
         [tf.Tensor], bool]]] = explore_on_features
     self._obs_action_specs: Optional[Tuple[
         time_step.TimeStep, tensor_spec.BoundedTensorSpec]] = obs_action_specs
-    self._mw_utility = ModuleWorkerResultProcessor(base_path)
-    self._base_path = base_path
+    self._mw_utility = ModuleWorkerResultProcessor(persistent_objects_path)
+    self._persistent_objects_path = persistent_objects_path
     self._partitions = partitions
     self._envargs = envargs
 
@@ -858,7 +871,7 @@ class ModuleWorker(worker.Worker):
         try:
           shutil.rmtree(temp_dir_head)
         except FileNotFoundError as e:
-          if not self._base_path:
+          if not self._persistent_objects_path:
             continue
           else:
             raise FileNotFoundError(
@@ -918,6 +931,13 @@ def gen_trajectories(
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """
+  explicit_temps_dir = FLAGS.explicit_temps_dir
+  persistent_objects_path = _PERSISTENT_OBJECTS_PATH.value
+  if not explicit_temps_dir and persistent_objects_path:
+    logging.warning('Setting explicit_temps_dir to persistent_objects_path=%s',
+                    persistent_objects_path)
+    explicit_temps_dir = os.path.join(persistent_objects_path, 'temp_dirs')
+
   cps = corpus.Corpus(data_path=data_path, delete_flags=delete_flags)
   logging.info('Done loading module specs from corpus.')
 
@@ -944,6 +964,8 @@ def gen_trajectories(
       mlgo_task_type=mlgo_task_type,
       callable_policies=callable_policies,
       explore_on_features=explore_on_features,
+      persistent_objects_path=persistent_objects_path,
+      explicit_temps_dir=explicit_temps_dir,
       gin_config_str=gin.config_str(),
   ) as lwm:
 
