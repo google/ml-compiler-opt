@@ -322,7 +322,10 @@ def _get_clang_generator(
     #   https://github.com/google/yapf/issues/1092
     module = yield
     with clang_session(
-        clang_path, module, task_type, explicit_temps_dir=explicit_temps_dir,
+        clang_path,
+        module,
+        task_type,
+        explicit_temps_dir=explicit_temps_dir,
         interactive=True) as iclang:
       if interactive_only:
         yield iclang, iclang

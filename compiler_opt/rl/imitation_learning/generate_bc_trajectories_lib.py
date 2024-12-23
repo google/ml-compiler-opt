@@ -935,7 +935,7 @@ def gen_trajectories(
   persistent_objects_path = _PERSISTENT_OBJECTS_PATH.value
   if not explicit_temps_dir and persistent_objects_path:
     logging.warning('Setting explicit_temps_dir to persistent_objects_path=%s',
-                 persistent_objects_path)
+                    persistent_objects_path)
     explicit_temps_dir = persistent_objects_path
 
   cps = corpus.Corpus(data_path=data_path, delete_flags=delete_flags)
