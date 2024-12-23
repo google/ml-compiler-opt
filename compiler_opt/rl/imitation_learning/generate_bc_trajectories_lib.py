@@ -936,7 +936,7 @@ def gen_trajectories(
   if not explicit_temps_dir and persistent_objects_path:
     logging.warning('Setting explicit_temps_dir to persistent_objects_path=%s',
                     persistent_objects_path)
-    explicit_temps_dir = persistent_objects_path
+    explicit_temps_dir = os.path.join(persistent_objects_path, 'temp_dirs')
 
   cps = corpus.Corpus(data_path=data_path, delete_flags=delete_flags)
   logging.info('Done loading module specs from corpus.')
