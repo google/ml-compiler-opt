@@ -123,6 +123,5 @@ class RegallocTraceWorkerTest(absltest.TestCase):
     worker = regalloc_trace_worker.RegallocTraceWorker(
         fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path, 1,
         corpus_dir.full_path)
-    worker.compile_corpus_and_evaluate(corpus_modules,
-                                                    "function_index_path.pb",
-                                                    "bb_trace_path.pb", None)
+    worker.compile_corpus_and_evaluate(corpus_modules, "function_index_path.pb",
+                                       "bb_trace_path.pb", None)
