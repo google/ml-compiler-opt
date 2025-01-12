@@ -24,6 +24,8 @@ from absl.testing import absltest
 
 from compiler_opt.es.regalloc_trace import regalloc_trace_worker
 from compiler_opt.rl import corpus
+from compiler_opt.testing import model_test_utils
+from compiler_opt.rl import policy_saver
 
 
 def _setup_corpus(corpus_dir: str) -> List[corpus.ModuleSpec]:
@@ -120,8 +122,27 @@ class RegallocTraceWorkerTest(absltest.TestCase):
     _create_test_binary(fake_bb_trace_model_binary.full_path,
                         fake_bb_trace_model_invocations.full_path)
 
+    saved_model_dir = self.create_tempdir("saved_model")
+    tflite_dir = self.create_tempdir("converted_model")
+    model_test_utils.gen_test_model(saved_model_dir.full_path)
+    policy_saver.convert_mlgo_model(saved_model_dir.full_path,
+                                    tflite_dir.full_path)
+    serialized_policy = policy_saver.Policy.from_filesystem(
+        tflite_dir.full_path)
+
     worker = regalloc_trace_worker.RegallocTraceWorker(
         fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path, 1,
         corpus_dir.full_path)
     worker.compile_corpus_and_evaluate(corpus_modules, "function_index_path.pb",
-                                       "bb_trace_path.pb", None)
+                                       "bb_trace_path.pb", serialized_policy)
+
+    # Assert that we pass the TFLite model to the clang invocations.
+    clang_command_lines = fake_clang_invocations.read_text().split("\n")
+    clang_command_lines.remove("")
+    self.assertLen(clang_command_lines, 2)
+    self.assertTrue(
+        "-regalloc-enable-advisor=development" in clang_command_lines[0])
+    self.assertTrue("-regalloc-model=" in clang_command_lines[0])
+    self.assertTrue(
+        "-regalloc-enable-advisor=development" in clang_command_lines[1])
+    self.assertTrue("-regalloc-model=" in clang_command_lines[1])

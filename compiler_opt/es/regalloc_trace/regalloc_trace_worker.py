@@ -141,7 +141,8 @@ class RegallocTraceWorker(worker.Worker):
 
   def compile_corpus_and_evaluate(
       self, modules: Collection[corpus.ModuleSpec], function_index_path: str,
-      bb_trace_path: str, tflite_policy: Optional[policy_saver.Policy]) -> int:
+      bb_trace_path: str,
+      tflite_policy: Optional[policy_saver.Policy]) -> float:
     with tempfile.TemporaryDirectory() as compilation_dir:
       self._build_corpus(modules, compilation_dir, tflite_policy)
 
