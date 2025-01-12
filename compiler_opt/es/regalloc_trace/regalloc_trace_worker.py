@@ -104,7 +104,9 @@ class RegallocTraceWorker(worker.Worker):
           "modules": [module_spec.name for module_spec in modules]
       }
 
-      with open(corpus_description_path, "w") as corpus_description_file:
+      with open(
+          corpus_description_path, "w",
+          encoding="utf-8") as corpus_description_file:
         json.dump(corpus_description, corpus_description_file)
 
   def _evaluate_corpus(self, module_directory: str, function_index_path: str,

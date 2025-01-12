@@ -39,8 +39,10 @@ def _setup_corpus(corpus_dir: str) -> List[corpus.ModuleSpec]:
       "modules": [os.path.join(corpus_dir, module.name) for module in modules]
   }
 
-  with open(os.path.join(corpus_dir, "corpus_description.json"),
-            "w") as corpus_description_handle:
+  with open(
+      os.path.join(corpus_dir, "corpus_description.json"),
+      "w",
+      encoding="utf-8") as corpus_description_handle:
     json.dump(corpus_description, corpus_description_handle)
 
   return modules
@@ -54,7 +56,7 @@ def _create_test_binary(binary_path: str, output_path: str):
   echo 1
   """)
 
-  with open(binary_path, "w") as binary_handle:
+  with open(binary_path, "w", encoding="utf-8") as binary_handle:
     binary_handle.write(test_binary)
   binary_stat = os.stat(binary_path)
   os.chmod(binary_path, binary_stat.st_mode | stat.S_IEXEC)
