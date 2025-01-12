@@ -18,6 +18,7 @@ import os
 
 import tensorflow as tf
 
+
 # copied from the llvm regalloc generator
 def gen_test_model(outdir: str):
   policy_decision_label = 'index_to_evict'
