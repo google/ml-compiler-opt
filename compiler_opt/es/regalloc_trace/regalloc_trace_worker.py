@@ -12,7 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Worker for regalloc using trace-based cost modeling."""
+"""Worker for regalloc using trace-based cost modeling.
+
+This worker is designed specifically for a trace based cost modelling
+methodology. It compiles an entire corpus in parallel with a thread pool, and
+then passes all those modules to basic_block_trace_model along with traces and
+other relevant data to produce an overall cost for the model being evaluated.
+"""
 
 from typing import Optional, Collection
 import os
@@ -31,10 +37,26 @@ from compiler_opt.rl import policy_saver
 
 @gin.configurable
 class RegallocTraceWorker(worker.Worker):
-  """A worker that produces rewards for a given regalloc policy."""
+  """A worker that produces rewards for a given regalloc policy.
+
+  RegallocTraceWorker exposes a compile_corpus_and_evaluate function, which
+  compiles a set of modules in parallel, evaluates them with
+  basic_block_trace_model, and then returns the total cost of the evaluated
+  segments.
+  """
 
   def __init__(self, clang_path: str, basic_block_trace_model_path: str,
                thread_count: int, corpus_path: str):
+    """Initializes the RegallocTraceWorker class.
+
+    Args:
+      clang_path: The path to the clang binary to use for compiling the corpus.
+      basic_block_trace_model_path: The path to the basic_block_trace_model
+        binary to use for trace-based modelling.
+      thread_count: The number of threads to use for concurrent compilation
+        and modelling.
+      corpus_path: The path to the corpus that modules will be compiled from.
+    """
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
@@ -97,7 +119,9 @@ class RegallocTraceWorker(worker.Worker):
         if future.exception() is not None:
           raise future.exception()
 
-      # Write out a corpus description for basic_block_trace_model.
+      # Write out a corpus description. basic_block_trace_model uses a corpus
+      # description JSON to know which object files to load, so we need to emit
+      # one before performing evaluation.
       corpus_description_path = os.path.join(output_directory,
                                              "corpus_description.json")
       corpus_description = {
