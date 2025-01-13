@@ -40,7 +40,7 @@ class RegallocTraceWorker(worker.Worker):
   """A worker that produces rewards for a given regalloc policy.
 
   RegallocTraceWorker exposes a compile_corpus_and_evaluate function, which
-  compiles a set of modules in parallel, evaluates them with
+  compiles a set of modules in parallel locally, evaluates them with
   basic_block_trace_model, and then returns the total cost of the evaluated
   segments.
   """
@@ -52,7 +52,10 @@ class RegallocTraceWorker(worker.Worker):
     Args:
       clang_path: The path to the clang binary to use for compiling the corpus.
       basic_block_trace_model_path: The path to the basic_block_trace_model
-        binary to use for trace-based modelling.
+        binary to use for trace-based modelling. basic_block_trace_model takes
+        in a set of modules, a trace, and auxiliary information for
+        interpreting the trace, simulates the trace against the code in the
+        passed-in modules, returning estimated cycle counts.
       thread_count: The number of threads to use for concurrent compilation
         and modelling.
       corpus_path: The path to the corpus that modules will be compiled from.
