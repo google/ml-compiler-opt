@@ -74,9 +74,11 @@ FLAGS = flags.FLAGS
 class TrainingWeights:
   """Class for computing weights for training."""
 
-  def __init__(self,
-               partitions: list[float] = [0.],
-               weights: Optional[np.ndarray] = None):
+  def __init__(
+      #  pylint: disable=dangerous-default-value
+      self,
+      partitions: list[float] = [0.],
+      weights: Optional[np.ndarray] = None):
     self._weights = weights
     if not weights:
       self._weights = np.ones(len(partitions) + 1)
@@ -212,19 +214,21 @@ class ImitationLearningTrainer:
   
   BC-Max can be found at https://arxiv.org/pdf/2403.19462."""
 
-  def __init__(self,
-               width: int = 100,
-               layers: int = 4,
-               batch_size: int = 128,
-               epochs: int = 1,
-               log_interval: int = 1000,
-               optimizer: Optional[keras.optimizers.Optimizer] = None,
-               save_model_dir: Optional[str] = None,
-               shuffle_size: int = 131072,
-               training_weights: Optional[TrainingWeights] = None,
-               features_to_remove: Optional[List[str]] = [
-                   'policy_label', 'inlining_default'
-               ]):
+  def __init__(
+      #  pylint: disable=dangerous-default-value
+      self,
+      width: int = 100,
+      layers: int = 4,
+      batch_size: int = 128,
+      epochs: int = 1,
+      log_interval: int = 1000,
+      optimizer: Optional[keras.optimizers.Optimizer] = None,
+      save_model_dir: Optional[str] = None,
+      shuffle_size: int = 131072,
+      training_weights: Optional[TrainingWeights] = None,
+      features_to_remove: Optional[List[str]] = [
+      'policy_label', 'inlining_default'
+      ]):
     self._width = width
     self._layers = layers
     self._batch_size = batch_size
@@ -259,10 +263,10 @@ class ImitationLearningTrainer:
     self._normalize_func_dict = {
         name:
             feature_ops.get_normalize_fn(
-                quantile_map[name],
+                qm,
                 with_sqrt=True,
                 with_z_score_normalization=False)
-        for name, _ in quantile_map.items()
+        for name, qm in quantile_map.items()
     }
 
     self._num_threads = os.cpu_count()
@@ -406,6 +410,7 @@ class ImitationLearningTrainer:
         # context management is implemented in decorator
         # pytype: disable=attribute-error
         # pylint: disable=not-context-manager
+        # pylint: disable=cell-var-from-loop
         with tf.summary.record_if(
             lambda: tf.math.equal(step % self._log_interval, 0)):
           # pytype: enable=attribute-error
@@ -431,11 +436,13 @@ class ImitationLearningTrainer:
 class WrapKerasModel(tf_agents.policies.TFPolicy):
   """Create a TFPolicy from a trained keras model."""
 
-  def __init__(self,
-               *args,
-               keras_policy: tf.keras.Model,
-               features_to_remove: Optional[List[str]] = ['inlining_default'],
-               **kwargs):
+  def __init__(
+      #  pylint: disable=dangerous-default-value
+      self,
+      *args,
+      keras_policy: tf.keras.Model,
+      features_to_remove: Optional[List[str]] = ['inlining_default'],
+      **kwargs):
     super().__init__(*args, **kwargs)
     self._keras_policy = keras_policy
     self._expected_signature = self.time_step_spec
