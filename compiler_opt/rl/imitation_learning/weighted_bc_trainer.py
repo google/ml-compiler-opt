@@ -227,7 +227,7 @@ class ImitationLearningTrainer:
       shuffle_size: int = 131072,
       training_weights: Optional[TrainingWeights] = None,
       features_to_remove: Optional[List[str]] = [
-      'policy_label', 'inlining_default'
+          'policy_label', 'inlining_default'
       ]):
     self._width = width
     self._layers = layers
@@ -263,9 +263,7 @@ class ImitationLearningTrainer:
     self._normalize_func_dict = {
         name:
             feature_ops.get_normalize_fn(
-                qm,
-                with_sqrt=True,
-                with_z_score_normalization=False)
+                qm, with_sqrt=True, with_z_score_normalization=False)
         for name, qm in quantile_map.items()
     }
 
