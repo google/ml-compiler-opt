@@ -57,11 +57,13 @@ _PROFILING_DATA = flags.DEFINE_multi_string(
      'files should always be even.'))
 _SAVE_MODEL_DIR = flags.DEFINE_string(
     'save_model_dir', None, 'Location to save the keras and TFAgents policies.')
-_GIN_FILES = flags.DEFINE_multi_string(
-    'gin_files', [], 'List of paths to gin configuration files.')
-_GIN_BINDINGS = flags.DEFINE_multi_string(
-    'gin_bindings', [],
-    'Gin bindings to override the values set in the config files.')
+# _GIN_FILES = flags.DEFINE_multi_string(
+#     'gin_files', [], 'List of paths to gin configuration files.')
+# _GIN_BINDINGS = flags.DEFINE_multi_string(
+#     'gin_bindings', [],
+#     'Gin bindings to override the values set in the config files.')
+
+FLAGS = flags.FLAGS
 
 # Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
 # here as these errors are false positives.
@@ -516,7 +518,9 @@ def train():
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
+      FLAGS.get_flag_value('gin_files'),
+      FLAGS.get_flag_value('gin_bindings'),
+      skip_unknown=False)
   logging.info(gin.config_str())
 
   train()
