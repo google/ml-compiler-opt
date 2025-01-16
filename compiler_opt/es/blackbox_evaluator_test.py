@@ -73,4 +73,5 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
       evaluator.set_baseline(pool)
+      # pylint: disable=protected-access
       self.assertAlmostEqual(evaluator._baseline, 10)
