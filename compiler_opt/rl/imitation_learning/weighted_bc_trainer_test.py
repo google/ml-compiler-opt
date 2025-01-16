@@ -20,7 +20,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 import tensorflow as tf
 
 from compiler_opt.rl.imitation_learning.generate_bc_trajectories_lib import SequenceExampleFeatureNames
-from compiler_opt.rl.imitation_learning.weighted_bc_trainer import TrainingWeights
+from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import TrainingWeights
 
 
 class TestTrainingWeights(tf.test.TestCase):
