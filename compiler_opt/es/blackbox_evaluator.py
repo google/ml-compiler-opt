@@ -42,7 +42,7 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def set_baseline(self) -> None:
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
     raise NotImplementedError()
 
   def get_rewards(
@@ -101,7 +101,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
 
     return futures
 
-  def set_baseline(self) -> None:
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
+    del pool  # Unused.
     pass
 
 
