@@ -62,7 +62,11 @@ class SequenceExampleFeatureNames:
   """Feature names for features that are always added to seq example."""
   action: str = 'action'
   reward: str = 'reward'
+  loss: str = 'loss'
+  regret: str = 'regret'
   module_name: str = 'module_name'
+  horizon: str = 'horizon'
+  label_name: str = 'label'
 
 
 def get_loss(seq_example: tf.train.SequenceExample,
@@ -631,7 +635,8 @@ class ModuleWorkerResultProcessor:
     seq_loss = get_loss(seq_example)
 
     label = bisect.bisect_right(partitions, seq_loss)
-    horizon = len(seq_example.feature_lists.feature_list['action'].feature)
+    horizon = len(seq_example.feature_lists.feature_list[
+        SequenceExampleFeatureNames.action].feature)
     label_list = [label for _ in range(horizon)]
     add_feature_list(seq_example, label_list, label_name)
 
@@ -640,7 +645,7 @@ class ModuleWorkerResultProcessor:
       succeeded: List[Tuple[List, List[str], int, float]],
       spec_name: str,
       partitions: List[float],
-      label_name: str = 'label'
+      label_name: str = SequenceExampleFeatureNames.label_name
   ) -> Tuple[tf.train.SequenceExample, ProfilingDictValueType,
              ProfilingDictValueType]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
@@ -691,12 +696,13 @@ class ModuleWorkerResultProcessor:
     """
 
     per_module_dict = {
-        'module_name':
+        SequenceExampleFeatureNames.module_name:
             module_name,
-        'loss':
+        SequenceExampleFeatureNames.loss:
             float(get_loss(feature_list)),
-        'horizon':
-            len(feature_list.feature_lists.feature_list['action'].feature),
+        SequenceExampleFeatureNames.horizon:
+            len(feature_list.feature_lists.feature_list[
+                SequenceExampleFeatureNames.action].feature),
     }
     return per_module_dict
 
