@@ -41,7 +41,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
 
-  def test_sampling_get_rewards(self):
+  def test_get_rewards(self):
     f1 = concurrent.futures.Future()
     f1.set_exception(None)
     f2 = concurrent.futures.Future()

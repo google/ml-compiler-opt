@@ -45,10 +45,18 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
   def set_baseline(self) -> None:
     raise NotImplementedError()
 
-  @abc.abstractmethod
   def get_rewards(
       self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    raise NotImplementedError()
+    rewards = [None] * len(results)
+
+    for i in range(len(results)):
+      if not results[i].exception():
+        rewards[i] = results[i].result()
+      else:
+        logging.info('Error retrieving result from future: %s',
+                     str(results[i].exception()))
+
+    return rewards
 
 
 @gin.configurable
@@ -95,16 +103,3 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
 
   def set_baseline(self) -> None:
     pass
-
-  def get_rewards(
-      self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    rewards = [None] * len(results)
-
-    for i in range(len(results)):
-      if not results[i].exception():
-        rewards[i] = results[i].result()
-      else:
-        logging.info('Error retrieving result from future: %s',
-                     str(results[i].exception()))
-
-    return rewards
