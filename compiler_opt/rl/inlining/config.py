@@ -64,7 +64,8 @@ def get_inlining_signature_spec():
           'is_multiple_blocks',
           'nested_inlines',
           'nested_inline_cost_estimate',
-          'threshold')}
+          'threshold')
+  }
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(

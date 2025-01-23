@@ -181,7 +181,8 @@ class PolicySaver(object):
 
     # Map spec name to index in flattened outputs.
     sm_action_indices = {
-        k.name.lower(): i for i, k in enumerate(sm_action_signature)}
+        k.name.lower(): i for i, k in enumerate(sm_action_signature)
+    }
 
     # List mapping flattened structured outputs to tensors.
     sm_action_tensors = saved_model.signatures['action'].outputs

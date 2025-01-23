@@ -235,9 +235,11 @@ class ImitationLearningTrainer:
 
     observation_spec, action_spec = config.get_inlining_signature_spec()
     sequence_features = {
-        tensor_spec.name: tf.io.FixedLenSequenceFeature(
-             shape=tensor_spec.shape, dtype=tensor_spec.dtype)
-        for tensor_spec in observation_spec[-1].values()}
+        tensor_spec.name:
+            tf.io.FixedLenSequenceFeature(
+                shape=tensor_spec.shape, dtype=tensor_spec.dtype)
+        for tensor_spec in observation_spec[-1].values()
+    }
     sequence_features.update({
         action_spec.name:
             tf.io.FixedLenSequenceFeature(

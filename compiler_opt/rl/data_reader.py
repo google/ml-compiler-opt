@@ -45,9 +45,11 @@ def create_parser_fn(
     context_features = {}
     # pylint: disable=g-complex-comprehension
     sequence_features = {
-        tensor_spec.name: tf.io.FixedLenSequenceFeature(
-             shape=tensor_spec.shape, dtype=tensor_spec.dtype)
-        for tensor_spec in agent_cfg.time_step_spec.observation.values()}
+        tensor_spec.name:
+            tf.io.FixedLenSequenceFeature(
+                shape=tensor_spec.shape, dtype=tensor_spec.dtype)
+        for tensor_spec in agent_cfg.time_step_spec.observation.values()
+    }
     sequence_features[
         agent_cfg.action_spec.name] = tf.io.FixedLenSequenceFeature(
             shape=agent_cfg.action_spec.shape,
