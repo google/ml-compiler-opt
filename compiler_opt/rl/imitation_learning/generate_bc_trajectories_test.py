@@ -711,11 +711,11 @@ class GenTrajectoriesTest(tf.test.TestCase):
             'horizon': 10
         } for name in module_names]
         self.assertEqual(
-            set(frozenset(dict_i) for dict_i in max_profiles_dict_list),
-            set(frozenset(dict_i) for dict_i in comp_dict_list))
+            {frozenset(dict_i) for dict_i in max_profiles_dict_list},
+            {frozenset(dict_i) for dict_i in comp_dict_list})
         self.assertEqual(
-            set(frozenset(dict_i) for dict_i in pol_profiles_dict_list),
-            set(frozenset(dict_i) for dict_i in comp_dict_list))
+            {frozenset(dict_i) for dict_i in pol_profiles_dict_list},
+            {frozenset(dict_i) for dict_i in comp_dict_list})
 
 
 if __name__ == '__main__':

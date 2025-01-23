@@ -54,7 +54,7 @@ _QUANTILE_MAP_PATH = flags.DEFINE_string(
 @gin.configurable
 class TrainingWeights:
   """Class for computing weights for training.
-  
+
   To use, create an instance by specifying the paritions used in
   collecting the data with generate_bc_trajectories. Next, run multiple steps
   of update_weights with collected profiles from generate_bc_trajectories,
@@ -79,7 +79,7 @@ class TrainingWeights:
       self, data: List[ProfilingDictValueType],
       feature_name: str) -> List[List[ProfilingDictValueType]]:
     """Partitions the profiles according to the feature name.
-    
+
     Partitions the profiles according to the feature name and the
     buckets defined by self._partitions.
 
@@ -100,11 +100,11 @@ class TrainingWeights:
 
   def _get_exp_gradient_step(self, loss, step_size) -> np.ndarray:
     """Exponentiated gradient step.
-    
+
     Args:
       loss: observed losses to update the weights
       step_size: step size for the update
-    
+
     Returns:
       probability distribution from the updated weights
     """
@@ -117,7 +117,7 @@ class TrainingWeights:
                          data_eval: List[ProfilingDictValueType],
                          eps: float = 1e-5) -> List[ProfilingDictValueType]:
     """Create a new profile which contains the regret and relative reward.
-    
+
     The regret is measured as the difference between the loss of the data_eval
     profiles and of the data_comparator profiles. The reward is the negative
     regret normalized by the loss of hte data_comparator profiles.
@@ -162,11 +162,11 @@ class TrainingWeights:
       self, comparator_profile: List[ProfilingDictValueType],
       policy_profile: List[ProfilingDictValueType]) -> np.ndarray:
     """Constructs a new profile and uses the loss to update self._probs with EG.
-    
+
     Args:
       comparator_profile: baseline profiles to measure improvement against
       policy_profile: profiles to evaluate for improvement
-    
+
     Returns:
       Updated probabilities to use as weights in training.
     """
@@ -199,7 +199,7 @@ class TrainingWeights:
 @gin.configurable
 class ImitationLearningTrainer:
   """Implements one iteration of the BC-Max algorithm.
-  
+
   BC-Max can be found at https://arxiv.org/pdf/2403.19462."""
 
   def __init__(
@@ -234,11 +234,10 @@ class ImitationLearningTrainer:
     self._global_step = 0
 
     observation_spec, action_spec = config.get_inlining_signature_spec()
-    sequence_features = dict(
-        (tensor_spec.name,
-         tf.io.FixedLenSequenceFeature(
-             shape=tensor_spec.shape, dtype=tensor_spec.dtype))
-        for tensor_spec in observation_spec[-1].values())
+    sequence_features = {
+        tensor_spec.name: tf.io.FixedLenSequenceFeature(
+             shape=tensor_spec.shape, dtype=tensor_spec.dtype)
+        for tensor_spec in observation_spec[-1].values()}
     sequence_features.update({
         action_spec.name:
             tf.io.FixedLenSequenceFeature(
@@ -277,7 +276,7 @@ class ImitationLearningTrainer:
 
   def _make_feature_label(self, parsed_example, num_processors):
     """Function to pre-process the parsed examples from dataset.
-    
+
     Removes certein features not used for training and reshapes
     features appropriately."""
     concat_arr = []
@@ -307,10 +306,10 @@ class ImitationLearningTrainer:
 
   def load_dataset(self, filepaths: List[str]) -> tf.data.TFRecordDataset:
     """Load datasets from specified filepaths for training.
-    
+
     Args:
       filepaths: paths to dataset files
-      
+
     Returns:
       dataset: loaded tf dataset"""
     ignore_order = tf.data.Options()

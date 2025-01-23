@@ -561,10 +561,7 @@ class ModuleExplorer:
       yield base_seq, base_policy
 
   def _build_replay_prefix_list(self, seq_ex):
-    ret_list = []
-    for int_list in seq_ex:
-      ret_list.append(int_list.int64_list.value[0])
-    return ret_list
+    return [int_list.int64_list.value[0] for int_list in seq_ex]
 
   def _create_timestep(self, curr_obs_dict: env.TimeStep):
     curr_obs = curr_obs_dict.obs

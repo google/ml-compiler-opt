@@ -168,13 +168,11 @@ class BlackboxLearner:
 
   def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
-    perturbations = []
     rng = np.random.default_rng(seed=self._seed)
-    for _ in range(self._config.total_num_perturbations):
-      perturbations.append(
-          rng.normal(size=len(self._model_weights)) *
-          self._config.precision_parameter)
-    return perturbations
+    return [
+      rng.normal(size=len(self._model_weights)) * self._config.precision_parameter
+      for _ in range(self._config.total_num_perturbations)
+    ]
 
   def _update_model(self, perturbations: List[npt.NDArray[np.float32]],
                     rewards: List[float]) -> None:
@@ -276,10 +274,8 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    perturbations_as_policies = []
-    for perturbation in initial_perturbations:
-      perturbations_as_policies.append(
-          self._get_policy_from_perturbation(perturbation))
+    perturbations_as_policies = [self._get_policy_from_perturbation(perturbation)
+                                 for perturbation in initial_perturbations]
 
     results = self._evaluator.get_results(pool, perturbations_as_policies)
     rewards = self._evaluator.get_rewards(results)

@@ -42,9 +42,9 @@ def gen_test_model(outdir: str):
 
   def get_input_signature():
     """Returns (time_step_spec, action_spec) for LLVM register allocation."""
-    inputs = dict(
-        (key, tf.TensorSpec(dtype=tf.int64, shape=(num_registers), name=key))
-        for key in per_register_feature_list)
+    inputs = {
+        key: tf.TensorSpec(dtype=tf.int64, shape=(num_registers), name=key)
+        for key in per_register_feature_list}
     return inputs
 
   module = tf.Module()

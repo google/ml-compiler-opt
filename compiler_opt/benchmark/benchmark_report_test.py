@@ -81,9 +81,9 @@ class BenchmarkReportConverterTest(absltest.TestCase):
                 'PerfCounter_1': [50],
             }
         })
-    self.assertSetEqual(report.names(), set(['BM_A', 'BM_B']))
+    self.assertSetEqual(report.names(), {'BM_A', 'BM_B'})
     self.assertSetEqual(report.counters(),
-                        set(['PerfCounter_0', 'PerfCounter_1']))
+                        {'PerfCounter_0', 'PerfCounter_1'})
     self.assertEqual(
         report.counter_means('BM_A', 'PerfCounter_0'),
         (10.488088481701517, 0.7071067811865476))

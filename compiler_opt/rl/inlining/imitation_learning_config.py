@@ -34,13 +34,13 @@ def get_inlining_signature_spec():
   time_step_spec, _ = config.get_inlining_signature_spec()
   observation_spec = time_step_spec.observation
   observation_spec.update(
-      dict((key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
+      {key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
           'is_callee_avail_external',
           'is_caller_avail_external',
           # following features are not used in training.
           'inlining_default',
           SequenceExampleFeatureNames.label_name,
-          'policy_label')))  # testing only
+          'policy_label')})  # testing only
 
   observation_spec[SequenceExampleFeatureNames.module_name] = tf.TensorSpec(
       dtype=tf.string, shape=(), name=SequenceExampleFeatureNames.module_name)
@@ -64,10 +64,10 @@ def get_input_signature():
   time_step_spec, action_spec = config.get_inlining_signature_spec()
   observation_spec = time_step_spec.observation
   observation_spec.update(
-      dict((key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
+      {key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
           'is_callee_avail_external',
           'is_caller_avail_external',
-      )))
+      )})
 
   time_step_spec = time_step.time_step_spec(observation_spec,
                                             time_step_spec.reward)
