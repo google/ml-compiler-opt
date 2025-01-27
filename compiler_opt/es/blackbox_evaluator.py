@@ -119,20 +119,22 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     self._function_index_path = function_index_path
 
     self._has_baseline = False
-    self._baseline = 1
+    self._baseline: Optional[float] = None
 
   def get_results(
       self, pool: FixedWorkerPool, perturbations: List[policy_saver.Policy]
   ) -> List[concurrent.futures.Future]:
     job_args = []
     for perturbation in perturbations:
-      job_args.append(
-          (self._train_corpus.module_specs, self._function_index_path,
-           self._bb_trace_path, perturbation))
+      job_args.append({
+          'modules': self._train_corpus.module_specs,
+          'function_index_path': self._function_index_path,
+          'bb_trace_path': self._bb_trace_path,
+          'tflite_policy': perturbation
+      })
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile_corpus_and_evaluate(
-            v[0], v[1], v[2], v[3]),
+        action=lambda w, args: w.compile_corpus_and_evaluate(**args),
         jobs=job_args,
         worker_pool=pool)
     concurrent.futures.wait(
@@ -140,19 +142,18 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     return futures
 
   def set_baseline(self, pool: FixedWorkerPool) -> None:
-    if self._has_baseline:
-      return
+    if self._baseline is not None:
+      raise RuntimeError('The baseline has already been set.')
 
-    job_args = [(
-        self._train_corpus.module_specs,
-        self._function_index_path,
-        self._bb_trace_path,
-        None,
-    )]
+    job_args = [{
+        'modules': self._train_corpus.module_specs,
+        'function_index_path': self._function_index_path,
+        'bb_trace_path': self._bb_trace_path,
+        'tflite_policy': None,
+    }]
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile_corpus_and_evaluate(
-            v[0], v[1], v[2], v[3]),
+        action=lambda w, args: w.compile_corpus_and_evaluate(**args),
         jobs=job_args,
         worker_pool=pool)
 
