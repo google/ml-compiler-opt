@@ -118,7 +118,6 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     self._bb_trace_path = bb_trace_path
     self._function_index_path = function_index_path
 
-    self._has_baseline = False
     self._baseline: Optional[float] = None
 
   def get_results(
@@ -160,4 +159,3 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     concurrent.futures.wait(
         futures, return_when=concurrent.futures.ALL_COMPLETED)
     self._baseline = futures[0].result()
-    self._has_baseline = True
