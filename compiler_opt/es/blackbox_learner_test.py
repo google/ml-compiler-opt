@@ -53,7 +53,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     self._learner_config = blackbox_learner.BlackboxLearnerConfig(
         total_steps=1,
         blackbox_optimizer=blackbox_optimizers.Algorithm.MONTE_CARLO,
-        est_type=blackbox_optimizers.EstimatorType.ANTITHETIC,
+        estimator_type=blackbox_optimizers.EstimatorType.ANTITHETIC,
         fvalues_normalization=True,
         hyperparameters_update_method=blackbox_optimizers.UpdateMethod
         .NO_METHOD,
@@ -117,7 +117,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     self._learner = blackbox_learner.BlackboxLearner(
         blackbox_opt=blackbox_optimizers.MonteCarloBlackboxOptimizer(
             precision_parameter=1.0,
-            est_type=blackbox_optimizers.EstimatorType.ANTITHETIC,
+            estimator_type=blackbox_optimizers.EstimatorType.ANTITHETIC,
             normalize_fvalues=True,
             hyperparameters_update_method=blackbox_optimizers.UpdateMethod
             .NO_METHOD,

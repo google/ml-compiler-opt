@@ -72,10 +72,10 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
        blackbox_optimizers.EstimatorType.FORWARD_FD, 5,
        np.array([[4, 2], [8, -6], [-1, 5], [0, -3], [2, -1]
                 ]), np.array([10, 8, 4, 2, 1])))
-  def test_filtering(self, perturbations, function_values, est_type,
+  def test_filtering(self, perturbations, function_values, estimator_type,
                      num_top_directions, expected_ps, expected_fs):
     top_ps, top_fs = blackbox_optimizers.filter_top_directions(
-        perturbations, function_values, est_type, num_top_directions)
+        perturbations, function_values, estimator_type, num_top_directions)
     np.testing.assert_array_equal(expected_ps, top_ps)
     np.testing.assert_array_equal(expected_fs, top_fs)
 
@@ -88,13 +88,14 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
        blackbox_optimizers.EstimatorType.ANTITHETIC, 0, np.array([102, -34])),
       (perturbation_array, function_value_array,
        blackbox_optimizers.EstimatorType.FORWARD_FD, 0, np.array([74, -34])))
-  def test_monte_carlo_gradient(self, perturbations, function_values, est_type,
-                                num_top_directions, expected_gradient):
+  def test_monte_carlo_gradient(self, perturbations, function_values,
+                                estimator_type, num_top_directions,
+                                expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
     current_value = 2
     blackbox_object = blackbox_optimizers.MonteCarloBlackboxOptimizer(
-        precision_parameter, est_type, False,
+        precision_parameter, estimator_type, False,
         blackbox_optimizers.UpdateMethod.NO_METHOD, None, step_size,
         num_top_directions)
     current_input = np.zeros(2)
@@ -118,7 +119,7 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
       (perturbation_array, function_value_array,
        blackbox_optimizers.EstimatorType.FORWARD_FD, 0, np.array([74, -34])))
   def test_monte_carlo_gradient_with_gradient_ascent_optimizer(
-      self, perturbations, function_values, est_type, num_top_directions,
+      self, perturbations, function_values, estimator_type, num_top_directions,
       expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
@@ -128,7 +129,7 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
             step_size, 0.0))
     blackbox_object = (
         blackbox_optimizers.MonteCarloBlackboxOptimizer(
-            precision_parameter, est_type, False,
+            precision_parameter, estimator_type, False,
             blackbox_optimizers.UpdateMethod.NO_METHOD, None, None,
             num_top_directions, gradient_ascent_optimizer))
     current_input = np.zeros(2)
@@ -154,8 +155,9 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
                             (perturbation_array, function_value_array,
                              blackbox_optimizers.EstimatorType.FORWARD_FD, 0,
                              np.array([0.030203, 0.001796])))
-  def test_sklearn_gradient(self, perturbations, function_values, est_type,
-                            num_top_directions, expected_gradient):
+  def test_sklearn_gradient(self, perturbations, function_values,
+                            estimator_type, num_top_directions,
+                            expected_gradient):
     precision_parameter = 0.1
     step_size = 0.01
     current_value = 2
@@ -164,8 +166,8 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
         gradient_ascent_optimization_algorithms.MomentumOptimizer(
             step_size, 0.0))
     blackbox_object = blackbox_optimizers.SklearnRegressionBlackboxOptimizer(
-        blackbox_optimizers.RegressionType.RIDGE, regularizer, est_type, True,
-        blackbox_optimizers.UpdateMethod.NO_METHOD, [], None,
+        blackbox_optimizers.RegressionType.RIDGE, regularizer, estimator_type,
+        True, blackbox_optimizers.UpdateMethod.NO_METHOD, [], None,
         gradient_ascent_optimizer)
     current_input = np.zeros(2)
     step = blackbox_object.run_step(perturbations, function_values,

@@ -50,3 +50,28 @@ class BlackboxEvaluatorTests(absltest.TestCase):
     evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(None, 5, 5, None)
     rewards = evaluator.get_rewards(results)
     self.assertEqual(rewards, [None, 2])
+
+  def test_trace_get_results(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESTraceWorker, count=3, arg='', kwarg='') as pool:
+      perturbations = [b'00', b'01', b'10']
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
+          test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
+      results = evaluator.get_results(pool, perturbations)
+      self.assertSequenceAlmostEqual([result.result() for result in results],
+                                     [1.0, 1.0, 1.0])
+
+  def test_trace_set_baseline(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESTraceWorker, count=1, arg='', kwarg='') as pool:
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir(),
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
+          test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
+      evaluator.set_baseline(pool)
+      # pylint: disable=protected-access
+      self.assertAlmostEqual(evaluator._baseline, 10)
