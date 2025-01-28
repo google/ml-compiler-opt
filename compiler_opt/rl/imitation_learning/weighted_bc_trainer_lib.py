@@ -55,7 +55,7 @@ _QUANTILE_MAP_PATH = flags.DEFINE_string(
 class TrainingWeights:
   """Class for computing weights for training.
 
-  To use, create an instance by specifying the paritions used in
+  To use, create an instance by specifying the partitions used in
   collecting the data with generate_bc_trajectories. Next, run multiple steps
   of update_weights with collected profiles from generate_bc_trajectories,
   where each step corresponds to one pair of a pollicy profile and a
@@ -120,7 +120,7 @@ class TrainingWeights:
 
     The regret is measured as the difference between the loss of the data_eval
     profiles and of the data_comparator profiles. The reward is the negative
-    regret normalized by the loss of hte data_comparator profiles.
+    regret normalized by the loss of the data_comparator profiles.
 
     Args:
       data_comparator: baseline profiles to measure improvement against

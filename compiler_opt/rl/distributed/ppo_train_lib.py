@@ -69,7 +69,7 @@ def train(
     agent.initialize()
 
   # Create the policy saver which saves the initial model now, then it
-  # periodically checkpoints the policy weigths.
+  # periodically checkpoints the policy weights.
   saved_model_dir = os.path.join(root_dir, actor_learner.POLICY_SAVED_MODEL_DIR)
   save_model_trigger = triggers.PolicySavedModelTrigger(
       saved_model_dir, agent, train_step, interval=1000)

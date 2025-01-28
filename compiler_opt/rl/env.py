@@ -311,7 +311,7 @@ def _get_clang_generator(
   Returns:
     A generator of tuples. Each element of the tuple is created with
     clang_session. First argument of the tuple is always an interactive
-    clang session. The second argumnet is a default clang session if
+    clang session. The second argument is a default clang session if
     interactive_only is False and otherwise the exact same interactive
     clang session object as the first argument.
   """
@@ -343,7 +343,7 @@ class MLGOEnvironmentBase:
   """Base implementation for all MLGO environments.
 
   Depending on the RL framework, one may want different implementations of an
-  enviroment (tf_agents: PyEnvironment, jax: dm-env, etc). This class
+  environment (tf_agents: PyEnvironment, jax: dm-env, etc). This class
   implements the core methods that are needed to then implement any of these
   other environments as well.
   """

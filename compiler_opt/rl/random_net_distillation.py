@@ -31,7 +31,7 @@ class RandomNetworkDistillation():
                fc_layer_params=(32,),
                initial_intrinsic_reward_scale=1.0,
                half_decay_steps=10000):
-    """Initilization for RandomNetworkDistillation class.
+    """Initialization for RandomNetworkDistillation class.
 
     Args:
       time_step_spec: the time step spec for raw observation
@@ -81,7 +81,7 @@ class RandomNetworkDistillation():
     self._external_reward_mean = tf.keras.metrics.Mean()
 
   def _get_intrinsic_reward(self, observation):
-    """Compute the intrisic reward.
+    """Compute the intrinsic reward.
 
     Args:
       observation: raw observation in observation_spec format
@@ -91,7 +91,7 @@ class RandomNetworkDistillation():
     """
     with tf.GradientTape() as tape:
       # make the predict network parameters trainable
-      # Compute the feature embedding loss (for next obseravtion trajectory)
+      # Compute the feature embedding loss (for next observation trajectory)
       feature_target, _ = self._target_net(observation)
       feature_predict, _ = self._predict_net(observation)
       feature_target = tf.stop_gradient(feature_target)
