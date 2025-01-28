@@ -57,7 +57,7 @@ class BlackboxLearnerConfig:
   # What kind of ES training?
   #   - antithetic: for each perturbtation, try an antiperturbation
   #   - forward_fd: try total_num_perturbations independent perturbations
-  est_type: blackbox_optimizers.EstimatorType
+  estimator_type: blackbox_optimizers.EstimatorType
 
   # Should the rewards for blackbox optimization in a single step be normalized?
   fvalues_normalization: bool
@@ -164,7 +164,7 @@ class BlackboxLearner:
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
     self._evaluator = self._config.evaluator(self._train_corpus,
-                                             self._config.est_type)
+                                             self._config.estimator_type)
 
   def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
@@ -270,7 +270,8 @@ class BlackboxLearner:
 
     initial_perturbations = self._get_perturbations()
     # positive-negative pairs
-    if self._config.est_type == blackbox_optimizers.EstimatorType.ANTITHETIC:
+    if (self._config.estimator_type ==
+        blackbox_optimizers.EstimatorType.ANTITHETIC):
       initial_perturbations = [
           p for p in initial_perturbations for p in (p, -p)
       ]

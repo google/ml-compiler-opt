@@ -64,13 +64,13 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
   """A blackbox evaluator that samples from a corpus to collect reward."""
 
   def __init__(self, train_corpus: corpus.Corpus,
-               est_type: blackbox_optimizers.EstimatorType,
+               estimator_type: blackbox_optimizers.EstimatorType,
                total_num_perturbations: int, num_ir_repeats_within_worker: int):
     self._samples = []
     self._train_corpus = train_corpus
     self._total_num_perturbations = total_num_perturbations
     self._num_ir_repeats_within_worker = num_ir_repeats_within_worker
-    self._est_type = est_type
+    self._estimator_type = estimator_type
 
     super().__init__(train_corpus)
 
@@ -82,7 +82,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
         sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)
         self._samples.append(sample)
         # add copy of sample for antithetic perturbation pair
-        if self._est_type == (blackbox_optimizers.EstimatorType.ANTITHETIC):
+        if self._estimator_type == (
+            blackbox_optimizers.EstimatorType.ANTITHETIC):
           self._samples.append(sample)
 
     compile_args = zip(perturbations, self._samples)
@@ -111,10 +112,10 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
   """A blackbox evaluator that utilizes trace based cost modelling."""
 
   def __init__(self, train_corpus: corpus.Corpus,
-               est_type: blackbox_optimizers.EstimatorType, bb_trace_path: str,
-               function_index_path: str):
+               estimator_type: blackbox_optimizers.EstimatorType,
+               bb_trace_path: str, function_index_path: str):
     self._train_corpus = train_corpus
-    self._est_type = est_type
+    self._estimator_type = estimator_type
     self._bb_trace_path = bb_trace_path
     self._function_index_path = function_index_path
 

@@ -161,7 +161,7 @@ def train(additional_compilation_flags=(),
     logging.info("Running ES/ARS. Filtering: %s directions",
                  str(learner_config.num_top_directions))
     blackbox_optimizer = blackbox_optimizers.MonteCarloBlackboxOptimizer(
-        learner_config.precision_parameter, learner_config.est_type,
+        learner_config.precision_parameter, learner_config.estimator_type,
         learner_config.fvalues_normalization,
         learner_config.hyperparameters_update_method, metaparams, None,
         learner_config.num_top_directions, gradient_ascent_optimizer)
@@ -187,15 +187,15 @@ def train(additional_compilation_flags=(),
     for param, value in tr_params.items():
       logging.info("%s: %s", param, value)
       blackbox_optimizer = blackbox_optimizers.TrustRegionOptimizer(
-          learner_config.precision_parameter, learner_config.est_type,
+          learner_config.precision_parameter, learner_config.estimator_type,
           learner_config.fvalues_normalization,
           learner_config.hyperparameters_update_method, metaparams, tr_params)
   elif learner_config.blackbox_optimizer == (
       blackbox_optimizers.Algorithm.SKLEARN_REGRESSION):
     logging.info("Running Regression Based Optimizer")
     blackbox_optimizer = blackbox_optimizers.SklearnRegressionBlackboxOptimizer(
-        _GRAD_REG_TYPE.value, _GRAD_REG_ALPHA.value, learner_config.est_type,
-        learner_config.fvalues_normalization,
+        _GRAD_REG_TYPE.value, _GRAD_REG_ALPHA.value,
+        learner_config.estimator_type, learner_config.fvalues_normalization,
         learner_config.hyperparameters_update_method, metaparams, None,
         gradient_ascent_optimizer)
   else:
