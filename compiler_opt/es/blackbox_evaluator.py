@@ -158,4 +158,8 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
 
     concurrent.futures.wait(
         futures, return_when=concurrent.futures.ALL_COMPLETED)
+    if len(futures) != 1:
+      raise ValueError('Expected to have one result for setting the baseline,'
+                       f' got {len(futures)}')
+
     self._baseline = futures[0].result()
