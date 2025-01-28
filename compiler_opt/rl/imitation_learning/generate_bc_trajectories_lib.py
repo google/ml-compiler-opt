@@ -154,7 +154,7 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
       np.dtype(np.float32),
       str,
   ]):
-    raise AssertionError((f'Unsupported type for feautre {feature_name}'
+    raise AssertionError((f'Unsupported type for feature {feature_name}'
                           f' of type {type(feature_list[0])}. '
                           'Supported types are np.int64, np.float32, str'))
   if isinstance(feature_list[0], np.float32):
@@ -382,7 +382,7 @@ class ModuleExplorer:
     Returns:
       sequence_example: a tf.train.SequenceExample containing the trajectory
         from compilation. In addition to the features returned from the env
-        tbe sequence_example adds the following extra features: action,
+        the sequence_example adds the following extra features: action,
         reward and module_name. action is the action taken at any given step,
         reward is the reward specified by reward_key, not necessarily the
         reward returned by the environment and module_name is the name of
@@ -933,7 +933,7 @@ def gen_trajectories(
       ModuleWorker.select_best-exploration
     worker_wait_sec: max number of seconds to wait for a worker to terminate
     worker_class_type: the class that will process each module
-    worker_class_type: allows for overrriding ModuleWorker
+    worker_class_type: allows for overriding ModuleWorker
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """

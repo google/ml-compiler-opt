@@ -229,7 +229,7 @@ class MLGOPPOAgent(ppo_agent.PPOAgent):
     advantages = self.compute_advantages(rewards, returns, discounts,
                                          value_preds)
 
-    # TODO(b/171573175): remove the condition once historgrams are
+    # TODO(b/171573175): remove the condition once histograms are
     # supported on TPUs.
     if self._debug_summaries and not self._use_tpu:
       tf.compat.v2.summary.histogram(

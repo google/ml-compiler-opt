@@ -48,7 +48,7 @@ def _split_tensor_name(name: str) -> Tuple[str, int]:
 def _get_non_identity_op(tensor):
   """Get the true output op aliased by Identity `tensor`.
 
-  Output signature tensors are in a Function that refrences the true call
+  Output signature tensors are in a Function that references the true call
   in the base SavedModel metagraph.  Traverse the function upwards until
   we find this true output op and tensor and return that.
 
