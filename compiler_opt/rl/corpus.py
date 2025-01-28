@@ -342,7 +342,7 @@ class Corpus:
                         '{context.module_full_path}') + additional_flags
 
     # don't use add/remove for replace
-    add_keys = set(k.split('=', maxsplit=1)[0] for k in additional_flags)
+    add_keys = {k.split('=', maxsplit=1)[0] for k in additional_flags}
     if add_keys.intersection(
         set(replace_flags)) or set(delete_flags).intersection(
             set(replace_flags)) or add_keys.intersection(set(delete_flags)):

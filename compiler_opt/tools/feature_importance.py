@@ -102,7 +102,7 @@ def main(_):
       observation, total_size)
   flattened_input = numpy.expand_dims(flattened_input, axis=0)
   dataset = numpy.empty((_NUM_EXAMPLES.value, total_size))
-  for i in range(0, _NUM_EXAMPLES.value):
+  for i in range(_NUM_EXAMPLES.value):
     raw_trajectory = next(dataset_iter)
     observation = feature_importance_utils.process_raw_trajectory(
         raw_trajectory)

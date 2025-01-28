@@ -1080,7 +1080,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
         """
         hessv = np.matmul(self.saved_hessian, x)
         # Reminder:
-        # If not using sensing-subspace Hessian, also subract diagonal gs(x)*I
+        # If not using sensing-subspace Hessian, also subtract diagonal gs(x)*I
         hessv /= np.power(self.precision_parameter, 2)
         hessv *= -1
         return hessv
@@ -1107,7 +1107,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
                     np.power(self.precision_parameter, 2))
         hessv /= float(len(self.saved_perturbations))
         # Reminder:
-        # If not using sensing-subspace Hessian, also subract diagonal gs(x)*I
+        # If not using sensing-subspace Hessian, also subtract diagonal gs(x)*I
         hessv /= np.power(self.precision_parameter, 2)
         hessv *= -1
         return hessv
