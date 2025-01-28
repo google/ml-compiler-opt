@@ -124,14 +124,12 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
   def get_results(
       self, pool: FixedWorkerPool, perturbations: List[policy_saver.Policy]
   ) -> List[concurrent.futures.Future]:
-    job_args = []
-    for perturbation in perturbations:
-      job_args.append({
-          'modules': self._train_corpus.module_specs,
-          'function_index_path': self._function_index_path,
-          'bb_trace_path': self._bb_trace_path,
-          'tflite_policy': perturbation
-      })
+    job_args = [{
+        'modules': self._train_corpus.module_specs,
+        'function_index_path': self._function_index_path,
+        'bb_trace_path': self._bb_trace_path,
+        'tflite_policy': perturbation
+      } for perturbation in perturbations]
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile_corpus_and_evaluate(**args),
