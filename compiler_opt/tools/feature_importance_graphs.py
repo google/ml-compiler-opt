@@ -46,7 +46,7 @@ def load_shap_values(file_name: str) -> DataType:
 
 
 def init_shap_for_notebook():
-  """Initalizes some JS code for interactive feature importance plots."""
+  """Initializes some JS code for interactive feature importance plots."""
   shap.initjs()
 
 

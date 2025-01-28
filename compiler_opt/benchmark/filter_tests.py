@@ -19,7 +19,7 @@ of tests that are excellent for benchmarking, but running these test suites
 in their entirety can sometimes be problematic as some subsets of the tests
 available in the executable might require certain hardware configurations
 such as an X configuration with working graphics drivers, and we would prefer
-to avoid those tests. This exectuable goes through an entire test suite
+to avoid those tests. This executable goes through an entire test suite
 description and returns another test suite description containing only tests
 that pass.
 

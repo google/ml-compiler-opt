@@ -89,7 +89,7 @@ def flatten_input(to_flatten: types.NestedTensorSpec,
   """Flattens problem instance data into a flat array for shap
 
   Args:
-    to_flatten: A nested tensor spec of data that needs to be flattend into
+    to_flatten: A nested tensor spec of data that needs to be flattened into
       an array
     array_size: An integer representing the size of the output array. Used for
       allocating the flat array to place all the data in.
@@ -167,7 +167,7 @@ def get_max_part_size(input_signature: SignatureType) -> int:
 
 def create_run_model_function(action_fn: Callable,
                               input_sig: SignatureType) -> Callable:
-  """Returns a function that takes in a flattend input array and returns the
+  """Returns a function that takes in a flattened input array and returns the
   model output as a scalar.
 
   Args:
