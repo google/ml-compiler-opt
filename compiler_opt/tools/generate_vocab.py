@@ -171,7 +171,7 @@ def main(_) -> None:
   data_list = data_list.swapaxes(0, 1)
 
   with mp.Pool(FLAGS.parallelism) as pool:
-    feature_names = list(sorted(sequence_features))
+    feature_names = sorted(sequence_features)
     for i, feature_values_arrays in enumerate(data_list):
       pool.apply_async(_generate_vocab, (
           feature_values_arrays,

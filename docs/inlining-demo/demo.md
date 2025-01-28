@@ -186,7 +186,7 @@ yours). The `--args=clang_embed_bitcode=true` option above adds the compilation
 flag `-Xclang=-fembed-bitcode=all`. This can be seen in the compilation database.
 The effect of this is that the object files have the llvm bytecode produced by
 clang, before the optimization passes, and the clang command line, captured in
-the .llvmbc and .llvmcmd sections, respectivelly. This is the mechanism by which
+the .llvmbc and .llvmcmd sections, respectively. This is the mechanism by which
 we extract our corpus.
 
 Naturally, the effect of this is that the object files, and the linked binaries,
@@ -346,7 +346,7 @@ compiler_opt/tools/generate_default_trace.py \
 ## Deploying and using the new policy
 
 We need to build the 'release' mode of the compiler. Currently, that means
-overwritting the model in `llvm/lib/Analysis/models/inliner`.
+overwriting the model in `llvm/lib/Analysis/models/inliner`.
 
 ```shell
 cd $LLVM_SRCDIR

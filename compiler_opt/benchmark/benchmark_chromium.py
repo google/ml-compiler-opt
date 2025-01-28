@@ -206,9 +206,9 @@ def main(_):
     with open(test_description, encoding='UTF-8') as test_description_file:
       print(test_description)
       test_descriptions.append(json.load(test_description_file))
-  test_executables = []
-  for test_description in test_descriptions:
-    test_executables.append(test_description['executable'])
+  test_executables = [
+      test_description['executable'] for test_description in test_descriptions
+  ]
 
   if FLAGS.compile_llvm:
     benchmarking_utils.build_llvm(FLAGS.model_path, FLAGS.llvm_use_incremental,

@@ -334,7 +334,7 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
 class CompilationResultObserver(metaclass=abc.ABCMeta):
   """Abstract base class used to observe compilation results.
 
-  This is indended for users who need to observe compilations while they are in
+  This is intended for users who need to observe compilations while they are in
   the distributed worker pool, rather than after they have been coalesced in
   the collection script.
   """

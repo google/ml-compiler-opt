@@ -23,9 +23,10 @@ from compiler_opt.rl import feature_ops
 
 @gin.configurable()
 def get_regalloc_signature_spec():
-  observation_spec = dict(
-      (key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key))
-      for key in ('li_size', 'stage'))
+  observation_spec = {
+      key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key)
+      for key in ('li_size', 'stage')
+  }
   observation_spec['weight'] = tf.TensorSpec(
       dtype=tf.float32, shape=(), name='weight')
 
