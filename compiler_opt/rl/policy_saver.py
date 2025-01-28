@@ -180,8 +180,9 @@ class PolicySaver(object):
         tf.nest.flatten(saved_model.signatures['action'].structured_outputs))
 
     # Map spec name to index in flattened outputs.
-    sm_action_indices = dict(
-        (k.name.lower(), i) for i, k in enumerate(sm_action_signature))
+    sm_action_indices = {
+        k.name.lower(): i for i, k in enumerate(sm_action_signature)
+    }
 
     # List mapping flattened structured outputs to tensors.
     sm_action_tensors = saved_model.signatures['action'].outputs

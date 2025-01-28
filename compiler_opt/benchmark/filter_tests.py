@@ -66,9 +66,7 @@ def main(_):
     test_suite_description = json.load(test_description_file)
     test_outputs = gtest_executable_utils.run_test_suite(
         test_suite_description, FLAGS.executable_path, [], FLAGS.num_threads)
-    test_list = []
-    for test_output in test_outputs:
-      test_list.append(test_output['name'])
+    test_list = [test_output['name'] for test_output in test_outputs]
     # copy the old test suite and just replace the tests array
     new_test_suite_description = test_suite_description
     new_test_suite_description['tests'] = test_list

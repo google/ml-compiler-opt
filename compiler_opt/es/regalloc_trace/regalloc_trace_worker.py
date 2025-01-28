@@ -110,13 +110,12 @@ class RegallocTraceWorker(worker.Worker):
       else:
         tflite_policy_dir = None
 
-    compile_futures = []
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=self._thread_count) as thread_pool:
-      for module in modules:
-        compile_futures.append(
-            thread_pool.submit(self._compile_module, module, output_directory,
-                               tflite_policy_dir))
+      compile_futures = [
+          thread_pool.submit(self._compile_module, module, output_directory,
+                             tflite_policy_dir) for module in modules
+      ]
 
       for future in compile_futures:
         if future.exception() is not None:

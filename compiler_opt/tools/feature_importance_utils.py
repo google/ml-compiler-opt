@@ -139,7 +139,7 @@ def collapse_values(input_signature: SignatureType,
     shap_values: A numpy array of shap values that need to be processed.
   """
   output_shap_values = numpy.empty((num_examples, len(input_signature)))
-  for i in range(0, num_examples):
+  for i in range(num_examples):
     current_index = 0
     current_feature = 0
     for input_key in input_signature:

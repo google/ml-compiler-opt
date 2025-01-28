@@ -184,7 +184,7 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
       # clear out pending futures and mark ourselves as "stopped" by null-ing
       # the map
       with self._lock:
-        for _, v in self._map.items():
+        for v in self._map.values():
           v.set_exception(concurrent.futures.CancelledError())
         self._map = None
 
