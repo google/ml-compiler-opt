@@ -30,7 +30,7 @@ class DataCollectorTest(absltest.TestCase):
     monitor_dict = data_collector.build_distribution_monitor(data)
     reference_dict = {'mean': 2, 'p_0.1': 1}
     # Issue #38
-    if sys.version_info.minor >= 9:
+    if sys.version_info >= (3, 9):
       self.assertEqual(monitor_dict, monitor_dict | reference_dict)
     else:
       self.assertEqual(monitor_dict, {**monitor_dict, **reference_dict})

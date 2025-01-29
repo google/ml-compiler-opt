@@ -338,8 +338,8 @@ class ImitationLearningTrainer:
 
   def _get_loss_fn(self, y_true, y_pred, labels, weights_arr):
     weights = tf.ones_like(y_true, dtype=tf.float64)
-    for l, wa in zip(labels, weights_arr):
-      w = self._create_weights(l, wa)
+    for label, wa in zip(labels, weights_arr):
+      w = self._create_weights(label, wa)
       w = tf.reshape(w, [-1, 1])
       weights = tf.math.multiply(w, weights)
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
