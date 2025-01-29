@@ -50,7 +50,7 @@ jobs:
           - task: Lint
             cmd: pylint --rcfile .pylintrc --recursive yes .
           - task: Ruff
-            cmd: pipx run ruff==0.9.3 check
+            cmd: ruff check
           - task: Yapf
             cmd: yapf . -drp
           - task: Test
