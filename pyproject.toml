@@ -1,7 +1,12 @@
-# DO always create a tracking issue when allow-listing warnings
-# DO NOT disable warnings-as-error: warnings of today are tomorrow's evolvability blocker.
+[tool.ruff]
+line-length = 103
+lint.select = [ "C40", "C9", "E", "F", "PERF", "W" ]
+lint.ignore = [ "E722", "E731", "E741", "F401", "PERF203" ]
+lint.mccabe.max-complexity = 18
 
 [tool.pytest.ini_options]
+# DO always create a tracking issue when allow-listing warnings
+# DO NOT disable warnings-as-error: warnings of today are tomorrow's evolvability blocker.
 filterwarnings = [
   # Treat warnings as errors
   "error",
