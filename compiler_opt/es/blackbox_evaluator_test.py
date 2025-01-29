@@ -56,7 +56,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         blackbox_test_utils.ESTraceWorker, count=3, arg='', kwarg='') as pool:
       perturbations = [b'00', b'01', b'10']
       test_corpus = corpus.create_corpus_for_testing(
-          location=self.create_tempdir(),
+          location=self.create_tempdir().full_path,
           elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
@@ -68,7 +68,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
     with local_worker_manager.LocalWorkerPoolManager(
         blackbox_test_utils.ESTraceWorker, count=1, arg='', kwarg='') as pool:
       test_corpus = corpus.create_corpus_for_testing(
-          location=self.create_tempdir(),
+          location=self.create_tempdir().full_path,
           elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
