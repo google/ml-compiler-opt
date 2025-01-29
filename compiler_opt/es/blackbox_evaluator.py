@@ -129,7 +129,7 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
         'function_index_path': self._function_index_path,
         'bb_trace_path': self._bb_trace_path,
         'tflite_policy': perturbation
-      } for perturbation in perturbations]
+    } for perturbation in perturbations]
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile_corpus_and_evaluate(**args),
