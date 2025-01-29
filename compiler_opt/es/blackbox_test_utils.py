@@ -45,7 +45,7 @@ class ESWorker(worker.Worker):
 
 class ESTraceWorker(worker.Worker):
   """Temporary placeholder worker.
-  
+
   This is a test worker for TraceBlackboxEvaluator that expects a slightly
   different interface than other workers.
   """
