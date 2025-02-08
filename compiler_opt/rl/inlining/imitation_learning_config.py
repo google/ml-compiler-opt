@@ -80,6 +80,7 @@ def get_input_signature():
 @gin.register
 def get_task_type() -> Type[env.InliningForSizeTask]:
   """Returns the task type for the trajectory collection."""
+  #TODO(@tvmarino): make the reward_key match that in ModuleWorker
   return env.InliningForSizeTask
 
 

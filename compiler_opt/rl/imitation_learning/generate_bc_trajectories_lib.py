@@ -53,6 +53,9 @@ _PERSISTENT_OBJECTS_PATH = flags.DEFINE_string(
      'for linking the final binary.'))
 
 FLAGS = flags.FLAGS
+# flag explicit_temps_dir defined in compiler_opt/rl/compilation_runner.py
+# and used by env.py when creating the interactive context.
+# Put temporary files into given directory and keep them past exit.
 
 ProfilingDictValueType = Dict[str, Union[str, float, int]]
 
@@ -331,6 +334,7 @@ class ModuleExplorer:
       ]] = None,
       reward_key: str = '',
       explicit_temps_dir: Optional[str] = None,
+      timeout: float = 100.0,
       **kwargs,
   ):
     self._loaded_module_spec = loaded_module_spec
@@ -358,6 +362,7 @@ class ModuleExplorer:
         action_spec=action_spec,
         explicit_temps_dir=explicit_temps_dir,
         interactive_only=True,
+        timeout=timeout,
     )
     if self._env.action_spec:
       if self._env.action_spec.dtype != tf.int64:
@@ -390,6 +395,7 @@ class ModuleExplorer:
     """
     sequence_example = tf.train.SequenceExample()
     curr_obs_dict = self._env.reset(self._loaded_module_spec)
+    self._working_dir = curr_obs_dict.working_dir
     try:
       curr_obs = curr_obs_dict.obs
       self._process_obs(curr_obs, sequence_example)
@@ -407,11 +413,9 @@ class ModuleExplorer:
       logging.error('AssertionError: %s', e)
     horizon = len(sequence_example.feature_lists.feature_list[
         SequenceExampleFeatureNames.action].feature)
-    self._working_dir = curr_obs_dict.working_dir
     if horizon <= 0:
       working_dir_head = os.path.split(self._working_dir)[0]
       shutil.rmtree(working_dir_head)
-    if horizon <= 0:
       raise ValueError(('Policy did not take any inlining decision for module '
                         f'{self._loaded_module_spec.name}.'))
     if curr_obs_dict.step_type != env.StepType.LAST:
@@ -744,7 +748,9 @@ class ModuleWorker(worker.Worker):
       for linking
     partitions: a tuple of limits defining the buckets, see partition_for_loss
     env_args: additional arguments to pass to the ModuleExplorer, used in
-      creating the environment. This has to include the reward_key
+      creating the environment. This has to include the reward_key. Optionally,
+      can contain timeout -- number of seconds after which the clang process
+      responsible for compiling a module will be canceled
   """
 
   def __init__(
@@ -831,7 +837,7 @@ class ModuleWorker(worker.Worker):
       loaded_module_spec: corpus.LoadedModuleSpec,
   ) -> Tuple[Tuple[int, ProfilingDictValueType, ProfilingDictValueType],
              tf.train.SequenceExample]:
-
+    logging.set_verbosity('info')
     num_calls = len(self._tf_policy_action)
     time_call_compiler = 0
     logging.info('Processing module: %s', loaded_module_spec.name)
@@ -903,7 +909,7 @@ def gen_trajectories(
     num_workers: Optional[int] = None,
     num_output_files: int = 1,
     profiling_file_path: Optional[str] = None,
-    worker_wait_sec: int = 100,
+    worker_wait_sec: Optional[float] = None,
     worker_class_type=ModuleWorker,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
 ):
@@ -927,8 +933,8 @@ def gen_trajectories(
       then each file is names output_file_name-i-of-n.tfrecord
     profiling_file_path: path + name of file to save the policy and max of all
       policies profiling dictionaries returned by
-      ModuleWorker.select_best-exploration
-    worker_wait_sec: max number of seconds to wait for a worker to terminate
+      ModuleWorker.select_best_exploration
+    worker_wait_sec: max number of seconds to wait for a worker
     worker_class_type: the class that will process each module
     worker_class_type: allows for overriding ModuleWorker
     worker_manager_class: A pool of workers hosted on the local machines, each
@@ -956,7 +962,7 @@ def gen_trajectories(
   total_failed_examples = 0
   total_profiles_max: List[Optional[ProfilingDictValueType]] = []
   total_profiles_pol: List[Optional[ProfilingDictValueType]] = []
-  size_per_file = total_work // num_output_files
+  size_per_file = np.ceil(total_work / num_output_files)
 
   worker_count = (
       min(os.cpu_count(), num_workers) if num_workers else os.cpu_count())
@@ -1001,24 +1007,15 @@ def gen_trajectories(
           failed = [r for r in done if r.exception() is not None]
           for f in failed:
             logging.info('Module failed with: %s', f.exception())
-          total_successful_examples += len(succeeded)
-          total_failed_examples += len(done) - len(succeeded)
+          total_failed_examples += len(failed)
+          failed = []
           modules_processed += len(done)
+          done = []
           while written_per_file < size_per_file:
-            logging.log_every_n_seconds(
-                logging.INFO,
-                ('%d success, %d failed out of %d, modules processed'
-                 ' %d\n timing compiler: %f'),
-                10,
-                total_successful_examples,
-                total_failed_examples,
-                total_work,
-                modules_processed,
-                time_compiler_calls,
-            )
             if not succeeded:
               break
             extra, records = succeeded.pop().result()
+            total_successful_examples += 1
             total_profiles_max.append(extra[1])
             total_profiles_pol.append(extra[2])
             time_compiler_calls = timeit.default_timer() - time_compiler_start
@@ -1026,6 +1023,21 @@ def gen_trajectories(
               tfrecord_writer.write(records)
             written_per_file += 1
             succeeded_idx += 1
+            logging.log_every_n_seconds(
+                logging.INFO,
+                ('%d success, %d failed out of %d, modules processed'
+                 ' %d\n timing compiler: %f'
+                 '\n len succeeded %s'
+                 '\n len not_done %s'),
+                3,
+                total_successful_examples,
+                total_failed_examples,
+                total_work,
+                modules_processed,
+                time_compiler_calls,
+                len(succeeded),
+                len(not_done),
+            )
           if written_per_file >= size_per_file:
             break
 

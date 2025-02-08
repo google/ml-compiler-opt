@@ -180,8 +180,8 @@ class TrainingWeights:
         bucket_loss += np.maximum(prof[SequenceExampleFeatureNames.regret], 0)
       losses_per_bucket.append(bucket_loss)
     logging.info('Losses per bucket: %s', losses_per_bucket)
-    losses_per_bucket_normalized = losses_per_bucket / np.max(
-        np.abs(losses_per_bucket))
+    losses_per_bucket_normalized = losses_per_bucket / (
+        np.max(np.abs(losses_per_bucket)) + 1e-6)
     probs_t = self._get_exp_gradient_step(losses_per_bucket_normalized, 1.0)
     self._round += 1
     self._probs = (self._probs * (self._round - 1) + probs_t) / self._round
@@ -385,7 +385,7 @@ class ImitationLearningTrainer:
     """Train the model for number of the specified number of epochs."""
     dataset = self.load_dataset(filepaths)
     logging.info('Datasets loaded from %s', str(filepaths))
-    input_shape = dataset.element_spec[0].shape[-1]
+    input_shape = int(dataset.element_spec[0].shape[-1])
     self._initialize_model(input_shape=input_shape)
     self._initialize_metrics()
     for _ in range(self._epochs):

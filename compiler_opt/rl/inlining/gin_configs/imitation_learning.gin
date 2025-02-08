@@ -7,7 +7,7 @@ env.InliningForSizeTask.llvm_size_path=''
 
 generate_bc_trajectories_lib.ModuleWorker.clang_path=''
 generate_bc_trajectories_lib.ModuleWorker.mlgo_task_type=@env.InliningForSizeTask
-generate_bc_trajectories_lib.ModuleWorker.policy_paths=['']
+generate_bc_trajectories_lib.ModuleWorker.policy_paths=[]
 generate_bc_trajectories_lib.ModuleWorker.exploration_policy_paths=[]
 generate_bc_trajectories_lib.ModuleWorker.explore_on_features=None
 generate_bc_trajectories_lib.ModuleWorker.partitions=[
@@ -15,14 +15,15 @@ generate_bc_trajectories_lib.ModuleWorker.partitions=[
     2467.0, 3344.0, 4545.0, 6459.0, 9845.0, 17953.0, 29430.5, 85533.5,
     124361.0]
 generate_bc_trajectories_lib.ModuleWorker.reward_key='default'
+# time in sec after which the clang processes time out
+generate_bc_trajectories_lib.ModuleWorker.timeout=300.0
 
 generate_bc_trajectories_lib.gen_trajectories.data_path=''
-generate_bc_trajectories_lib.gen_trajectories.delete_flags=('-split-dwarf-file', '-split-dwarf-output')
+generate_bc_trajectories_lib.gen_trajectories.delete_flags=('-split-dwarf-file', '-split-dwarf-output','--crel','-fskip-odr-check-in-gmf','--warning-suppression-mappings')
 generate_bc_trajectories_lib.gen_trajectories.output_file_name=''
 generate_bc_trajectories_lib.gen_trajectories.output_path=''
 generate_bc_trajectories_lib.gen_trajectories.mlgo_task_type=@imitation_learning_config.get_task_type()
 generate_bc_trajectories_lib.gen_trajectories.obs_action_spec=@imitation_learning_config.get_inlining_signature_spec()
 generate_bc_trajectories_lib.gen_trajectories.num_workers=1
-generate_bc_trajectories_lib.gen_trajectories.num_output_files=1
+generate_bc_trajectories_lib.gen_trajectories.num_output_files=2
 generate_bc_trajectories_lib.gen_trajectories.profiling_file_path=''
-generate_bc_trajectories_lib.gen_trajectories.worker_wait_sec=100

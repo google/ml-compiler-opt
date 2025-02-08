@@ -25,6 +25,9 @@ import contextlib
 import io
 import os
 from typing import Callable, Generator, List, Optional, Tuple, Type
+import threading
+import logging
+import shutil
 
 import numpy as np
 
@@ -227,6 +230,7 @@ def clang_session(
     *,
     explicit_temps_dir: Optional[str] = None,
     interactive: bool,
+    timeout: float = 100.0,
 ):
   """Context manager for clang session.
 
@@ -240,6 +244,7 @@ def clang_session(
     explicit_temps_dir: Put temporary files into given directory and keep them
       past exit when compilining
     interactive: Whether to use an interactive or default clang instance
+    timeout: time in sec after which the clang processes time out
 
   Yields:
     Either the constructed InteractiveClang or DefaultClang object.
@@ -260,14 +265,32 @@ def clang_session(
     def _get_scores() -> dict[str, float]:
       return task.get_module_scores(task_working_dir)
 
+    def delete_working_dir(proc, writer_name, reader_name):
+      try:
+        proc.kill()
+        proc.wait()
+      finally:
+        pass
+      with open(writer_name, 'rb'):
+        pass
+      with open(reader_name, 'wb') as f:
+        f.write('TimeOutError\n'.encode('utf-8'))
+      working_dir_head = os.path.split(task_working_dir)[0]
+      logging.error('Removing %s after timeout', working_dir_head)
+      shutil.rmtree(working_dir_head)
+
     writer_name = os.path.join(td, _INTERACTIVE_PIPE_FILE_BASE + '.in')
     reader_name = os.path.join(td, _INTERACTIVE_PIPE_FILE_BASE + '.out')
     if interactive:
       os.mkfifo(reader_name, 0o666)
       os.mkfifo(writer_name, 0o666)
+    timeout_timer = None
     with subprocess.Popen(
         cmdline, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
       try:
+        timeout_timer = threading.Timer(timeout, delete_working_dir,
+                                        [proc, writer_name, reader_name])
+        timeout_timer.start()
         if interactive:
           with io.BufferedWriter(io.FileIO(writer_name, 'wb')) as writer_pipe:
             with io.BufferedReader(io.FileIO(reader_name, 'rb')) as reader_pipe:
@@ -286,8 +309,9 @@ def clang_session(
               module.name,
               task_working_dir,
           )
-
       finally:
+        if timeout_timer:
+          timeout_timer.cancel()
         proc.kill()
 
 
@@ -296,6 +320,7 @@ def _get_clang_generator(
     task_type: Type[MLGOTask],
     explicit_temps_dir: Optional[str] = None,
     interactive_only: bool = False,
+    timeout: float = 100.0,
 ) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
                Optional[corpus.LoadedModuleSpec], None]:
   """Returns a tuple of generators for creating InteractiveClang objects.
@@ -307,6 +332,7 @@ def _get_clang_generator(
       past exit when compilining
     interactive_only: If set to true the returned tuple of generators is
       iclang, iclang instead of iclang, clang
+    timeout: time in sec after which the clang processes time out
 
   Returns:
     A generator of tuples. Each element of the tuple is created with
@@ -326,7 +352,8 @@ def _get_clang_generator(
         module,
         task_type,
         explicit_temps_dir=explicit_temps_dir,
-        interactive=True) as iclang:
+        interactive=True,
+        timeout=timeout) as iclang:
       if interactive_only:
         yield iclang, iclang
       else:
@@ -335,7 +362,8 @@ def _get_clang_generator(
             module,
             task_type,
             explicit_temps_dir=explicit_temps_dir,
-            interactive=False) as clang:
+            interactive=False,
+            timeout=timeout) as clang:
           yield iclang, clang
 
 
@@ -348,21 +376,21 @@ class MLGOEnvironmentBase:
   other environments as well.
   """
 
-  def __init__(
-      self,
-      *,
-      clang_path: str,
-      task_type: Type[MLGOTask],
-      obs_spec,
-      action_spec,
-      explicit_temps_dir: Optional[str] = None,
-      interactive_only: bool = False,
-  ):
+  def __init__(self,
+               *,
+               clang_path: str,
+               task_type: Type[MLGOTask],
+               obs_spec,
+               action_spec,
+               explicit_temps_dir: Optional[str] = None,
+               interactive_only: bool = False,
+               timeout: float = 100.0):
     self._clang_generator = _get_clang_generator(
         clang_path,
         task_type,
         explicit_temps_dir=explicit_temps_dir,
-        interactive_only=interactive_only)
+        interactive_only=interactive_only,
+        timeout=timeout)
     self._obs_spec = obs_spec
     self._action_spec = action_spec
 

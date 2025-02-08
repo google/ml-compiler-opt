@@ -182,13 +182,19 @@ def _enumerate_log_from_stream(
       continue
     observation_id = int(event['observation'])
     features = [_read_tensor(f, ts) for ts in tensor_specs]
-    f.readline()
+    new_line_read = f.readline()
+    if not '\n'.encode('utf-8') == new_line_read:
+      raise AssertionError(('Expected newline in readline,'
+                            f'Received {new_line_read.decode("utf-8")}'))
     score = None
     if score_spec is not None:
       score_header = json.loads(f.readline())
       assert int(score_header['outcome']) == observation_id
       score = _read_tensor(f, score_spec)
-      f.readline()
+      new_line_read = f.readline()
+    if not '\n'.encode('utf-8') == new_line_read:
+      raise AssertionError(('Expected newline in readline,'
+                            f'Received {new_line_read.decode("utf-8")}'))
     yield ObservationRecord(
         context=context,
         observation_id=observation_id,
