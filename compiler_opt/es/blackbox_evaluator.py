@@ -42,13 +42,21 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def set_baseline(self) -> None:
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
     raise NotImplementedError()
 
-  @abc.abstractmethod
   def get_rewards(
       self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    raise NotImplementedError()
+    rewards = [None] * len(results)
+
+    for i in range(len(results)):
+      if not results[i].exception():
+        rewards[i] = results[i].result()
+      else:
+        logging.info('Error retrieving result from future: %s',
+                     str(results[i].exception()))
+
+    return rewards
 
 
 @gin.configurable
@@ -56,13 +64,13 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
   """A blackbox evaluator that samples from a corpus to collect reward."""
 
   def __init__(self, train_corpus: corpus.Corpus,
-               est_type: blackbox_optimizers.EstimatorType,
+               estimator_type: blackbox_optimizers.EstimatorType,
                total_num_perturbations: int, num_ir_repeats_within_worker: int):
     self._samples = []
     self._train_corpus = train_corpus
     self._total_num_perturbations = total_num_perturbations
     self._num_ir_repeats_within_worker = num_ir_repeats_within_worker
-    self._est_type = est_type
+    self._estimator_type = estimator_type
 
     super().__init__(train_corpus)
 
@@ -74,7 +82,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
         sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)
         self._samples.append(sample)
         # add copy of sample for antithetic perturbation pair
-        if self._est_type == (blackbox_optimizers.EstimatorType.ANTITHETIC):
+        if self._estimator_type == (
+            blackbox_optimizers.EstimatorType.ANTITHETIC):
           self._samples.append(sample)
 
     compile_args = zip(perturbations, self._samples)
@@ -93,18 +102,63 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
 
     return futures
 
-  def set_baseline(self) -> None:
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
+    del pool  # Unused.
     pass
 
-  def get_rewards(
-      self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
-    rewards = [None] * len(results)
 
-    for i in range(len(results)):
-      if not results[i].exception():
-        rewards[i] = results[i].result()
-      else:
-        logging.info('Error retrieving result from future: %s',
-                     str(results[i].exception()))
+@gin.configurable
+class TraceBlackboxEvaluator(BlackboxEvaluator):
+  """A blackbox evaluator that utilizes trace based cost modelling."""
 
-    return rewards
+  def __init__(self, train_corpus: corpus.Corpus,
+               estimator_type: blackbox_optimizers.EstimatorType,
+               bb_trace_path: str, function_index_path: str):
+    self._train_corpus = train_corpus
+    self._estimator_type = estimator_type
+    self._bb_trace_path = bb_trace_path
+    self._function_index_path = function_index_path
+
+    self._baseline: Optional[float] = None
+
+  def get_results(
+      self, pool: FixedWorkerPool, perturbations: List[policy_saver.Policy]
+  ) -> List[concurrent.futures.Future]:
+    job_args = [{
+        'modules': self._train_corpus.module_specs,
+        'function_index_path': self._function_index_path,
+        'bb_trace_path': self._bb_trace_path,
+        'tflite_policy': perturbation
+    } for perturbation in perturbations]
+
+    _, futures = buffered_scheduler.schedule_on_worker_pool(
+        action=lambda w, args: w.compile_corpus_and_evaluate(**args),
+        jobs=job_args,
+        worker_pool=pool)
+    concurrent.futures.wait(
+        futures, return_when=concurrent.futures.ALL_COMPLETED)
+    return futures
+
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
+    if self._baseline is not None:
+      raise RuntimeError('The baseline has already been set.')
+
+    job_args = [{
+        'modules': self._train_corpus.module_specs,
+        'function_index_path': self._function_index_path,
+        'bb_trace_path': self._bb_trace_path,
+        'tflite_policy': None,
+    }]
+
+    _, futures = buffered_scheduler.schedule_on_worker_pool(
+        action=lambda w, args: w.compile_corpus_and_evaluate(**args),
+        jobs=job_args,
+        worker_pool=pool)
+
+    concurrent.futures.wait(
+        futures, return_when=concurrent.futures.ALL_COMPLETED)
+    if len(futures) != 1:
+      raise ValueError('Expected to have one result for setting the baseline,'
+                       f' got {len(futures)}')
+
+    self._baseline = futures[0].result()

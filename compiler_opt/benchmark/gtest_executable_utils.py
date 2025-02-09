@@ -125,9 +125,8 @@ def run_test_suite(test_suite_description: Dict[str, List[str]],
   if num_threads is None:
     num_threads = 1
 
-  test_descriptions = []
-  for test in test_suite_description['tests']:
-    test_descriptions.append((test_executable, test, perf_counters))
+  test_descriptions = [(test_executable, test, perf_counters)
+                       for test in test_suite_description['tests']]
 
   test_data_output = Parallel(n_jobs=num_threads)(
       delayed(run_and_parse)(test_description)

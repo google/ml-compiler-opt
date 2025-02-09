@@ -19,23 +19,57 @@ from typing import Type
 
 import numpy as np
 import tensorflow as tf
+from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step
 
 from compiler_opt.rl.inlining import config
 from compiler_opt.rl.inlining import env
 
+from compiler_opt.rl.imitation_learning.generate_bc_trajectories_lib import SequenceExampleFeatureNames
+
 
 @gin.register
 def get_inlining_signature_spec():
   """Returns (time_step_spec, action_spec) for collecting IL trajectories."""
-  time_step_spec, action_spec = config.get_inlining_signature_spec()
+  time_step_spec, _ = config.get_inlining_signature_spec()
   observation_spec = time_step_spec.observation
-  observation_spec.update(
-      dict((key, tf.TensorSpec(dtype=tf.int64, shape=(), name=key)) for key in (
+  observation_spec.update({
+      key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
           'is_callee_avail_external',
           'is_caller_avail_external',
-          # inlining_default is not used as feature in training.
-          'inlining_default')))
+          # following features are not used in training.
+          'inlining_default',
+          SequenceExampleFeatureNames.label_name,
+          'policy_label')
+  })  # testing only
+
+  observation_spec[SequenceExampleFeatureNames.module_name] = tf.TensorSpec(
+      dtype=tf.string, shape=(), name=SequenceExampleFeatureNames.module_name)
+
+  action_spec = tensor_spec.BoundedTensorSpec(
+      dtype=tf.int64,
+      shape=(),
+      name=SequenceExampleFeatureNames.action,
+      minimum=0,
+      maximum=1)
+
+  time_step_spec = time_step.time_step_spec(observation_spec,
+                                            time_step_spec.reward)
+
+  return time_step_spec, action_spec
+
+
+@gin.register
+def get_input_signature():
+  """Returns (time_step_spec, action_spec) wrapping a trained policy."""
+  time_step_spec, action_spec = config.get_inlining_signature_spec()
+  observation_spec = time_step_spec.observation
+  observation_spec.update({
+      key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
+          'is_callee_avail_external',
+          'is_caller_avail_external',
+      )
+  })
 
   time_step_spec = time_step.time_step_spec(observation_spec,
                                             time_step_spec.reward)

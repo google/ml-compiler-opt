@@ -48,7 +48,7 @@ def _split_tensor_name(name: str) -> Tuple[str, int]:
 def _get_non_identity_op(tensor):
   """Get the true output op aliased by Identity `tensor`.
 
-  Output signature tensors are in a Function that refrences the true call
+  Output signature tensors are in a Function that references the true call
   in the base SavedModel metagraph.  Traverse the function upwards until
   we find this true output op and tensor and return that.
 
@@ -180,8 +180,9 @@ class PolicySaver(object):
         tf.nest.flatten(saved_model.signatures['action'].structured_outputs))
 
     # Map spec name to index in flattened outputs.
-    sm_action_indices = dict(
-        (k.name.lower(), i) for i, k in enumerate(sm_action_signature))
+    sm_action_indices = {
+        k.name.lower(): i for i, k in enumerate(sm_action_signature)
+    }
 
     # List mapping flattened structured outputs to tensors.
     sm_action_tensors = saved_model.signatures['action'].outputs

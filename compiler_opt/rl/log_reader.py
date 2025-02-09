@@ -181,9 +181,7 @@ def _enumerate_log_from_stream(
       context = event['context']
       continue
     observation_id = int(event['observation'])
-    features = []
-    for ts in tensor_specs:
-      features.append(_read_tensor(f, ts))
+    features = [_read_tensor(f, ts) for ts in tensor_specs]
     f.readline()
     score = None
     if score_spec is not None:
