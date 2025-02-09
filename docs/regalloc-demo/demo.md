@@ -89,7 +89,7 @@ gclient runhooks
 ## Install Dependencies
 
 If you're working in a Debian based docker container, it will most likely
-not come by default with `sudo`. It isn't stricly necessary to install,
+not come by default with `sudo`. It isn't strictly necessary to install,
 but it makes it easier to copypaste the installation commands below and it
 also enables the use of the Chromium dependency auto-installation script:
 
@@ -110,7 +110,7 @@ $WORKING_DIR/chromium/src/build/install-build-deps.sh
 ```
 
 **Note:** These installation commands are all designed to be run on Debian
-based distros. However, adapating to other distros with alternative package
+based distros. However, adapting to other distros with alternative package
 management systems should not be too difficult. The packages for the first
 command should be very similarly named and the
 [official Chromium documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md)
@@ -176,7 +176,7 @@ symbol_level=0
 enable_nacl=false
 ```
 
-Immedaitely after closing the editor, `gn` will generate all of the files
+Immediately after closing the editor, `gn` will generate all of the files
 necessary so that `ninja` can execute all the necessary compilation steps.
 However, to extract a corpus for ML training, we also need a database of
 compilation commands. This can be obtained by running the following command:

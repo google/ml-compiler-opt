@@ -124,7 +124,7 @@ DEFAULT_ARMIJO = 1e-4
 
 def filter_top_directions(
     perturbations: FloatArray2D, function_values: FloatArray,
-    est_type: EstimatorType,
+    estimator_type: EstimatorType,
     num_top_directions: int) -> Tuple[FloatArray, FloatArray]:
   """Select the subset of top-performing perturbations.
 
@@ -134,7 +134,7 @@ def filter_top_directions(
                    p, -p in the even/odd entries, so the directions p_1,...,p_n
                    will be ordered (p_1, -p_1, p_2, -p_2,...)
     function_values: np array of reward values (maximization)
-    est_type: (forward_fd | antithetic)
+    estimator_type: (forward_fd | antithetic)
     num_top_directions: the number of top directions to include
                         For antithetic, the total number of perturbations will
                         be 2* this number, because we count p, -p as a single
@@ -148,16 +148,16 @@ def filter_top_directions(
   """
   if not num_top_directions > 0:
     return (perturbations, function_values)
-  if est_type == EstimatorType.FORWARD_FD:
+  if estimator_type == EstimatorType.FORWARD_FD:
     top_index = np.argsort(-function_values)
-  elif est_type == EstimatorType.ANTITHETIC:
+  elif estimator_type == EstimatorType.ANTITHETIC:
     top_index = np.argsort(-np.abs(function_values[0::2] -
                                    function_values[1::2]))
   top_index = top_index[:num_top_directions]
-  if est_type == EstimatorType.FORWARD_FD:
+  if estimator_type == EstimatorType.FORWARD_FD:
     perturbations = perturbations[top_index]
     function_values = function_values[top_index]
-  elif est_type == EstimatorType.ANTITHETIC:
+  elif estimator_type == EstimatorType.ANTITHETIC:
     perturbations = np.concatenate(
         (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
         axis=0)
@@ -245,11 +245,11 @@ class StatefulOptimizer(BlackboxOptimizer):
   Class contains common methods for handling the state.
   """
 
-  def __init__(self, est_type: EstimatorType, normalize_fvalues: bool,
+  def __init__(self, estimator_type: EstimatorType, normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
                extra_params: Optional[Sequence[int]]):
 
-    self.est_type = est_type
+    self.estimator_type = estimator_type
     self.normalize_fvalues = normalize_fvalues
     self.hyperparameters_update_method = hyperparameters_update_method
     if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
@@ -321,7 +321,7 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
 
   def __init__(self,
                precision_parameter: float,
-               est_type: EstimatorType,
+               estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
                extra_params: Optional[Sequence[int]],
@@ -342,8 +342,8 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     self.precision_parameter = precision_parameter
     self.num_top_directions = num_top_directions
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
-    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
-                     extra_params)
+    super().__init__(estimator_type, normalize_fvalues,
+                     hyperparameters_update_method, extra_params)
 
   # TODO: Issue #285
   def run_step(self, perturbations: FloatArray2D, function_values: FloatArray,
@@ -358,14 +358,14 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
       function_values = np.array(normalized_values[:-1])
       current_value = normalized_values[-1]
     top_ps, top_fs = filter_top_directions(perturbations, function_values,
-                                           self.est_type,
+                                           self.estimator_type,
                                            self.num_top_directions)
     gradient = np.zeros(dim)
     for i, perturbation in enumerate(top_ps):
       function_value = top_fs[i]
-      if self.est_type == EstimatorType.FORWARD_FD:
+      if self.estimator_type == EstimatorType.FORWARD_FD:
         gradient_sample = (function_value - current_value) * perturbation
-      elif self.est_type == EstimatorType.ANTITHETIC:
+      elif self.estimator_type == EstimatorType.ANTITHETIC:
         gradient_sample = function_value * perturbation
       gradient_sample /= self.precision_parameter**2
       gradient += gradient_sample
@@ -374,7 +374,7 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     # in that code, the denominator for antithetic was num_top_directions.
     # we maintain compatibility for now so that the same hyperparameters
     # currently used in Toaster will have the same effect
-    if self.est_type == EstimatorType.ANTITHETIC and \
+    if self.estimator_type == EstimatorType.ANTITHETIC and \
     len(top_ps) < len(perturbations):
       gradient *= 2
     # Use the gradient ascent optimizer to compute the next parameters with the
@@ -396,7 +396,7 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
   def __init__(self,
                regression_method: RegressionType,
                regularizer: float,
-               est_type: EstimatorType,
+               estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
                extra_params: Optional[Sequence[int]],
@@ -422,8 +422,8 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
     else:
       raise ValueError('Optimization procedure option not available')
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
-    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
-                     extra_params)
+    super().__init__(estimator_type, normalize_fvalues,
+                     hyperparameters_update_method, extra_params)
 
   def run_step(self, perturbations: FloatArray2D, function_values: FloatArray,
                current_input: FloatArray, current_value: float) -> FloatArray:
@@ -439,11 +439,11 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
 
     matrix = None
     b_vector = None
-    if self.est_type == EstimatorType.FORWARD_FD:
+    if self.estimator_type == EstimatorType.FORWARD_FD:
       matrix = np.array(perturbations)
       b_vector = (
           function_values - np.array([current_value] * len(function_values)))
-    elif self.est_type == EstimatorType.ANTITHETIC:
+    elif self.estimator_type == EstimatorType.ANTITHETIC:
       matrix = np.array(perturbations[::2])
       function_even_values = np.array(function_values.tolist()[::2])
       function_odd_values = np.array(function_values.tolist()[1::2])
@@ -495,7 +495,7 @@ def normalize_function_values(
 
 
 def monte_carlo_gradient(precision_parameter: float,
-                         est_type: EstimatorType,
+                         estimator_type: EstimatorType,
                          perturbations: FloatArray2D,
                          function_values: FloatArray,
                          current_value: float,
@@ -503,12 +503,12 @@ def monte_carlo_gradient(precision_parameter: float,
   """Calculates Monte Carlo gradient.
 
   There are several ways of estimating the gradient. This is specified by the
-  attribute self.est_type. Currently, forward finite difference (FFD) and
+  attribute self.estimator_type. Currently, forward finite difference (FFD) and
   antithetic are supported.
 
   Args:
     precision_parameter: sd of Gaussian perturbations
-    est_type: 'forward_fd' (FFD) or 'antithetic'
+    estimator_type: 'forward_fd' (FFD) or 'antithetic'
     perturbations: the simulated perturbations
     function_values: reward from perturbations (possibly normalized)
     current_value: estimated reward at current point (possibly normalized)
@@ -522,11 +522,11 @@ def monte_carlo_gradient(precision_parameter: float,
   """
   dim = len(perturbations[0])
   b_vector = None
-  if est_type == EstimatorType.FORWARD_FD:
+  if estimator_type == EstimatorType.FORWARD_FD:
     b_vector = (function_values -
                 np.array([current_value] * len(function_values))) / (
                     precision_parameter * precision_parameter)
-  elif est_type == EstimatorType.ANTITHETIC:
+  elif estimator_type == EstimatorType.ANTITHETIC:
     b_vector = function_values / (2.0 * precision_parameter *
                                   precision_parameter)
   else:
@@ -543,7 +543,7 @@ def monte_carlo_gradient(precision_parameter: float,
   return gradient
 
 
-def sklearn_regression_gradient(clf: LinearModel, est_type: EstimatorType,
+def sklearn_regression_gradient(clf: LinearModel, estimator_type: EstimatorType,
                                 perturbations: FloatArray2D,
                                 function_values: FloatArray,
                                 current_value: float) -> FloatArray:
@@ -551,7 +551,7 @@ def sklearn_regression_gradient(clf: LinearModel, est_type: EstimatorType,
 
   Args:
     clf: an object (SkLearn linear model) which fits Ax = b
-    est_type: 'forward_fd' (FFD) or 'antithetic'
+    estimator_type: 'forward_fd' (FFD) or 'antithetic'
     perturbations: the simulated perturbations
     function_values: reward from perturbations (possibly normalized)
     current_value: estimated reward at current point (possibly normalized)
@@ -565,11 +565,11 @@ def sklearn_regression_gradient(clf: LinearModel, est_type: EstimatorType,
   matrix = None
   b_vector = None
   dim = perturbations[0].size
-  if est_type == EstimatorType.FORWARD_FD:
+  if estimator_type == EstimatorType.FORWARD_FD:
     matrix = np.array(perturbations)
     b_vector = (
         function_values - np.array([current_value] * len(function_values)))
-  elif est_type == EstimatorType.ANTITHETIC:
+  elif estimator_type == EstimatorType.ANTITHETIC:
     matrix = np.array(perturbations[::2])
     function_even_values = np.array(function_values.tolist()[::2])
     function_odd_values = np.array(function_values.tolist()[1::2])
@@ -903,14 +903,14 @@ class TrustRegionOptimizer(StatefulOptimizer):
        schedule that would have to be tuned.
   """
 
-  def __init__(self, precision_parameter: float, est_type: EstimatorType,
+  def __init__(self, precision_parameter: float, estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
                extra_params: Optional[Sequence[int]], tr_params: Mapping[str,
                                                                          Any]):
     self.precision_parameter = precision_parameter
-    super().__init__(est_type, normalize_fvalues, hyperparameters_update_method,
-                     extra_params)
+    super().__init__(estimator_type, normalize_fvalues,
+                     hyperparameters_update_method, extra_params)
 
     self.accepted_quadratic_model = None
     self.accepted_function_value = None
@@ -1080,7 +1080,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
         """
         hessv = np.matmul(self.saved_hessian, x)
         # Reminder:
-        # If not using sensing-subspace Hessian, also subract diagonal gs(x)*I
+        # If not using sensing-subspace Hessian, also subtract diagonal gs(x)*I
         hessv /= np.power(self.precision_parameter, 2)
         hessv *= -1
         return hessv
@@ -1107,7 +1107,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
                     np.power(self.precision_parameter, 2))
         hessv /= float(len(self.saved_perturbations))
         # Reminder:
-        # If not using sensing-subspace Hessian, also subract diagonal gs(x)*I
+        # If not using sensing-subspace Hessian, also subtract diagonal gs(x)*I
         hessv /= np.power(self.precision_parameter, 2)
         hessv *= -1
         return hessv
@@ -1147,12 +1147,12 @@ class TrustRegionOptimizer(StatefulOptimizer):
       current_value = normalized_values[1]
       self.normalized_current_value = current_value
     if self.params['grad_type'] == GradientType.REGRESSION:
-      new_gradient = sklearn_regression_gradient(self.clf, self.est_type,
+      new_gradient = sklearn_regression_gradient(self.clf, self.estimator_type,
                                                  perturbations, function_values,
                                                  current_value)
     else:
       new_gradient = monte_carlo_gradient(self.precision_parameter,
-                                          self.est_type, perturbations,
+                                          self.estimator_type, perturbations,
                                           function_values, current_value)
     new_gradient *= -1  # TR subproblem solver performs minimization
     if not is_update:

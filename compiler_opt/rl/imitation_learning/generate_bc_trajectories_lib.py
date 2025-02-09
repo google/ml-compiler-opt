@@ -62,7 +62,11 @@ class SequenceExampleFeatureNames:
   """Feature names for features that are always added to seq example."""
   action: str = 'action'
   reward: str = 'reward'
+  loss: str = 'loss'
+  regret: str = 'regret'
   module_name: str = 'module_name'
+  horizon: str = 'horizon'
+  label_name: str = 'label'
 
 
 def get_loss(seq_example: tf.train.SequenceExample,
@@ -150,7 +154,7 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
       np.dtype(np.float32),
       str,
   ]):
-    raise AssertionError((f'Unsupported type for feautre {feature_name}'
+    raise AssertionError((f'Unsupported type for feature {feature_name}'
                           f' of type {type(feature_list[0])}. '
                           'Supported types are np.int64, np.float32, str'))
   if isinstance(feature_list[0], np.float32):
@@ -378,7 +382,7 @@ class ModuleExplorer:
     Returns:
       sequence_example: a tf.train.SequenceExample containing the trajectory
         from compilation. In addition to the features returned from the env
-        tbe sequence_example adds the following extra features: action,
+        the sequence_example adds the following extra features: action,
         reward and module_name. action is the action taken at any given step,
         reward is the reward specified by reward_key, not necessarily the
         reward returned by the environment and module_name is the name of
@@ -557,10 +561,7 @@ class ModuleExplorer:
       yield base_seq, base_policy
 
   def _build_replay_prefix_list(self, seq_ex):
-    ret_list = []
-    for int_list in seq_ex:
-      ret_list.append(int_list.int64_list.value[0])
-    return ret_list
+    return [int_list.int64_list.value[0] for int_list in seq_ex]
 
   def _create_timestep(self, curr_obs_dict: env.TimeStep):
     curr_obs = curr_obs_dict.obs
@@ -631,7 +632,8 @@ class ModuleWorkerResultProcessor:
     seq_loss = get_loss(seq_example)
 
     label = bisect.bisect_right(partitions, seq_loss)
-    horizon = len(seq_example.feature_lists.feature_list['action'].feature)
+    horizon = len(seq_example.feature_lists.feature_list[
+        SequenceExampleFeatureNames.action].feature)
     label_list = [label for _ in range(horizon)]
     add_feature_list(seq_example, label_list, label_name)
 
@@ -640,7 +642,7 @@ class ModuleWorkerResultProcessor:
       succeeded: List[Tuple[List, List[str], int, float]],
       spec_name: str,
       partitions: List[float],
-      label_name: str = 'label'
+      label_name: str = SequenceExampleFeatureNames.label_name
   ) -> Tuple[tf.train.SequenceExample, ProfilingDictValueType,
              ProfilingDictValueType]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
@@ -691,12 +693,13 @@ class ModuleWorkerResultProcessor:
     """
 
     per_module_dict = {
-        'module_name':
+        SequenceExampleFeatureNames.module_name:
             module_name,
-        'loss':
+        SequenceExampleFeatureNames.loss:
             float(get_loss(feature_list)),
-        'horizon':
-            len(feature_list.feature_lists.feature_list['action'].feature),
+        SequenceExampleFeatureNames.horizon:
+            len(feature_list.feature_lists.feature_list[
+                SequenceExampleFeatureNames.action].feature),
     }
     return per_module_dict
 
@@ -927,7 +930,7 @@ def gen_trajectories(
       ModuleWorker.select_best-exploration
     worker_wait_sec: max number of seconds to wait for a worker to terminate
     worker_class_type: the class that will process each module
-    worker_class_type: allows for overrriding ModuleWorker
+    worker_class_type: allows for overriding ModuleWorker
     worker_manager_class: A pool of workers hosted on the local machines, each
       in its own process.
   """

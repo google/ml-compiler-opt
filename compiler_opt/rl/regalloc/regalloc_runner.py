@@ -48,7 +48,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
 
     Args:
       command_line: the fully qualified command line.
-      tf_policy_path: path to TF policy direcoty on local disk.
+      tf_policy_path: path to TF policy directory on local disk.
       reward_only: whether only return reward.
 
     Returns:

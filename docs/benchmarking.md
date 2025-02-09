@@ -78,7 +78,7 @@ subdirectory within that repository.
 * `--llvm_test_suite_build_path` - The path to place the build for the
 llvm-test-suite. Similar behavior to the LLVM build path.
 * `llvm_use_incremental` - Whether or not to do an incremental build of LLVM.
-If you alread have all the correct compilation flags setup for running MLGO
+If you already have all the correct compilation flags setup for running MLGO
 with LLVM, you can set this flag and you should get an extremely fast LLVM
 build as the only thing changing is the release mode regalloc model.
 * `model_path` - The path to the regalloc model. If this is set to "download",

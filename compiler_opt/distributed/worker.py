@@ -105,7 +105,7 @@ def get_full_worker_args(worker_class: 'type[Worker]', **current_kwargs):
     # it's not a requirement that it were. Tests, for instance, don't use gin.
     pass
   # Issue #38
-  if sys.version_info.minor >= 9:
+  if sys.version_info >= (3, 9):
     return current_kwargs | gin_config
   else:
     return {**current_kwargs, **gin_config}

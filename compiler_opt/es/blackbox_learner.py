@@ -57,7 +57,7 @@ class BlackboxLearnerConfig:
   # What kind of ES training?
   #   - antithetic: for each perturbtation, try an antiperturbation
   #   - forward_fd: try total_num_perturbations independent perturbations
-  est_type: blackbox_optimizers.EstimatorType
+  estimator_type: blackbox_optimizers.EstimatorType
 
   # Should the rewards for blackbox optimization in a single step be normalized?
   fvalues_normalization: bool
@@ -164,17 +164,16 @@ class BlackboxLearner:
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
     self._evaluator = self._config.evaluator(self._train_corpus,
-                                             self._config.est_type)
+                                             self._config.estimator_type)
 
   def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
-    perturbations = []
     rng = np.random.default_rng(seed=self._seed)
-    for _ in range(self._config.total_num_perturbations):
-      perturbations.append(
-          rng.normal(size=len(self._model_weights)) *
-          self._config.precision_parameter)
-    return perturbations
+    return [
+        rng.normal(size=len(self._model_weights)) *
+        self._config.precision_parameter
+        for _ in range(self._config.total_num_perturbations)
+    ]
 
   def _update_model(self, perturbations: List[npt.NDArray[np.float32]],
                     rewards: List[float]) -> None:
@@ -271,15 +270,16 @@ class BlackboxLearner:
 
     initial_perturbations = self._get_perturbations()
     # positive-negative pairs
-    if self._config.est_type == blackbox_optimizers.EstimatorType.ANTITHETIC:
+    if (self._config.estimator_type ==
+        blackbox_optimizers.EstimatorType.ANTITHETIC):
       initial_perturbations = [
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    perturbations_as_policies = []
-    for perturbation in initial_perturbations:
-      perturbations_as_policies.append(
-          self._get_policy_from_perturbation(perturbation))
+    perturbations_as_policies = [
+        self._get_policy_from_perturbation(perturbation)
+        for perturbation in initial_perturbations
+    ]
 
     results = self._evaluator.get_results(pool, perturbations_as_policies)
     rewards = self._evaluator.get_rewards(results)
