@@ -46,12 +46,6 @@ _GRADIENT_ASCENT_OPTIMIZER_TYPE = flags.DEFINE_string(
     "gradient_ascent_optimizer_type", None,
     "Gradient ascent optimization algorithm: 'momentum' or 'adam'")
 flags.mark_flag_as_required("gradient_ascent_optimizer_type")
-_GREEDY = flags.DEFINE_bool(
-    "greedy",
-    None,
-    "Whether to construct a greedy policy (argmax). \
-      If False, a sampling-based policy will be used.",
-    required=True)
 _MOMENTUM = flags.DEFINE_float(
     "momentum", 0.0, "Momentum for momentum gradient ascent optimizer.")
 _OUTPUT_PATH = flags.DEFINE_string("output_path", "",
@@ -82,7 +76,7 @@ def train(additional_compilation_flags=(),
     tf.io.gfile.makedirs(_OUTPUT_PATH.value)
 
   # Construct the policy and upload it
-  policy = policy_utils.create_actor_policy(greedy=_GREEDY.value)
+  policy = policy_utils.create_actor_policy()
   saver = policy_saver.PolicySaver({POLICY_NAME: policy})
 
   # Save the policy
@@ -121,7 +115,7 @@ def train(additional_compilation_flags=(),
       replace_flags=replace_compilation_flags)
 
   # Construct policy saver
-  saved_policy = policy_utils.create_actor_policy(greedy=True)
+  saved_policy = policy_utils.create_actor_policy()
   policy_saver_function = functools.partial(
       policy_utils.save_policy,
       policy=saved_policy,
@@ -222,8 +216,7 @@ def train(additional_compilation_flags=(),
                learner_config.total_steps)
 
   with local_worker_manager.LocalWorkerPoolManager(
-      worker_class, learner_config.total_num_perturbations, arg="",
-      kwarg="") as pool:
+      worker_class, learner_config.total_num_perturbations) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
