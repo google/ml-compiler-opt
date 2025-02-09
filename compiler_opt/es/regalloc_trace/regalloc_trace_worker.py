@@ -114,7 +114,7 @@ class RegallocTraceWorker(worker.Worker):
           max_workers=self._thread_count) as thread_pool:
         compile_futures = [
             thread_pool.submit(self._compile_module, module, output_directory,
-                              tflite_policy_dir) for module in modules
+                               tflite_policy_dir) for module in modules
         ]
 
     for future in compile_futures:
@@ -125,7 +125,7 @@ class RegallocTraceWorker(worker.Worker):
     # description JSON to know which object files to load, so we need to emit
     # one before performing evaluation.
     corpus_description_path = os.path.join(output_directory,
-                                            "corpus_description.json")
+                                           "corpus_description.json")
     corpus_description = {
         "modules": [module_spec.name for module_spec in modules]
     }
