@@ -52,7 +52,7 @@ _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
                                      "List of paths to training corpora")
 
 
-@gin.constants_from_enum(module='es_trainer_lib')
+@gin.constants_from_enum(module="es_trainer_lib")
 class GradientAscentOptimizerType(enum.Enum):
   MOMENTUM = 1
   ADAM = 2
@@ -133,14 +133,14 @@ def train(additional_compilation_flags=(),
   # TODO(linzinan): delete all unused parameters.
 
   # ------------------ GRADIENT ASCENT OPTIMIZERS ------------------------------
-  if (gradient_ascent_optimizer_type == GradientAscentOptimizerType.MOMENTUM):
+  if gradient_ascent_optimizer_type == GradientAscentOptimizerType.MOMENTUM:
     logging.info("Running momentum gradient ascent optimizer")
     # You can obtain a vanilla gradient ascent optimizer by setting momentum=0.0
     # and setting step_size to the desired learning rate.
     gradient_ascent_optimizer = (
         gradient_ascent_optimization_algorithms.MomentumOptimizer(
             learner_config.step_size, momentum))
-  elif (gradient_ascent_optimizer_type == GradientAscentOptimizerType.ADAM):
+  elif gradient_ascent_optimizer_type == GradientAscentOptimizerType.ADAM:
     logging.info("Running Adam gradient ascent optimizer")
     gradient_ascent_optimizer = (
         gradient_ascent_optimization_algorithms.AdamOptimizer(
