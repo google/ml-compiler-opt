@@ -37,8 +37,6 @@ from tf_agents.agents import tf_agent
 from tf_agents.policies import tf_policy
 from tensorboard.plugins.hparams import api as hp
 
-from typing import Dict
-
 _ROOT_DIR = flags.DEFINE_string(
     'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
     'Root directory for writing logs/summaries/checkpoints.')
@@ -72,7 +70,7 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
   agent: tf_policy.TFAgent = agent_config.create_agent(
       agent_cfg, preprocessing_layer_creator=preprocessing_layer_creator)
   llvm_trainer = trainer.Trainer(root_dir=root_dir, agent=agent)
-  policy_dict: Dict[str, tf_policy.TFPolicy] = {
+  policy_dict: dict[str, tf_policy.TFPolicy] = {
       'saved_policy': agent.policy,
       'saved_collect_policy': agent.collect_policy,
   }

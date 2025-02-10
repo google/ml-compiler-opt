@@ -93,7 +93,7 @@ class BestTrajectoryTest(parameterized.TestCase):
     path = self.create_tempfile().full_path
     repo = _get_test_repo_1()
     repo.sink_to_csv_file(path)
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
       text = f.read()
 
     self.assertEqual(text,

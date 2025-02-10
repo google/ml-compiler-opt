@@ -15,7 +15,7 @@
 
 import abc
 import time
-from typing import Dict, Iterator, Tuple, Sequence
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 from compiler_opt.rl import policy_saver
@@ -36,7 +36,7 @@ REWARD_QUANTILE_MONITOR = (0.1, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, 50,
                            60, 70, 80, 90, 95, 99, 99.5, 99.9)
 
 
-def build_distribution_monitor(data: Sequence[float]) -> Dict[str, float]:
+def build_distribution_monitor(data: Sequence[float]) -> dict[str, float]:
   if not data:
     return {}
   quantiles = np.percentile(data, REWARD_QUANTILE_MONITOR, method='lower')
@@ -53,7 +53,7 @@ class DataCollector(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def collect_data(
       self, policy: policy_saver.Policy, model_id: int
-  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
+  ) -> tuple[Iterator[trajectory.Trajectory], dict[str, dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
@@ -85,7 +85,7 @@ class EarlyExitChecker:
       self,  # pylint: disable=dangerous-default-value
       num_modules: int,
       deadline: float = DEADLINE_IN_SECONDS,
-      thresholds: Tuple[Tuple[float, float], ...] = WAIT_TERMINATION):
+      thresholds: tuple[tuple[float, float], ...] = WAIT_TERMINATION):
     """Initializes the early exit checker.
 
     Args:

@@ -32,7 +32,7 @@ were asked to collect the counters named INSTRUCTIONS and CYCLES.
 import csv
 import json
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from absl import app
 from absl import flags

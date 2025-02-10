@@ -15,7 +15,6 @@
 
 import collections
 import os
-from typing import List, Optional
 import tempfile
 import functools
 
@@ -102,7 +101,7 @@ class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
 
 
 def collect(corpus_path: str, replay_buffer_server_address: str,
-            variable_container_server_address: str, num_workers: Optional[int],
+            variable_container_server_address: str, num_workers: int | None,
             worker_manager_class, sequence_length: int) -> None:
   """Collects experience using a policy updated after every episode.
 
@@ -154,7 +153,7 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
   dataset_fn = data_reader.create_flat_sequence_example_dataset_fn(
       agent_cfg=agent_cfg)
 
-  def sequence_example_iterator_fn(seq_ex: List[str]):
+  def sequence_example_iterator_fn(seq_ex: list[str]):
     return iter(dataset_fn(seq_ex).prefetch(tf.data.AUTOTUNE))
 
   cps = corpus.Corpus(
@@ -195,9 +194,8 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
 @gin.configurable
 def run_collect(root_dir: str, corpus_path: str,
                 replay_buffer_server_address: str,
-                variable_container_server_address: str,
-                num_workers: Optional[int], worker_manager_class,
-                sequence_length: int):
+                variable_container_server_address: str, num_workers: int | None,
+                worker_manager_class, sequence_length: int):
   """Collects experience using a policy updated after every episode.
 
   Waits for a policy to be saved in root_dir before beginning collection.

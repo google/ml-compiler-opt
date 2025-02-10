@@ -61,7 +61,8 @@ import numpy.typing as npt
 import scipy.optimize as sp_opt
 import scipy.version
 from sklearn import linear_model
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any
+from collections.abc import Callable, Mapping, Sequence
 
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 
@@ -75,10 +76,10 @@ FloatArray = npt.NDArray[np.float32]
 # but numpy.typing does not allow for that indication
 FloatArray2D = Sequence[FloatArray]
 
-SequenceOfFloats = Union[Sequence[float], FloatArray]
+SequenceOfFloats = Sequence[float] | FloatArray
 
-LinearModel = Union[linear_model.Ridge, linear_model.Lasso,
-                    linear_model.LinearRegression]
+LinearModel = (
+    linear_model.Ridge | linear_model.Lasso | linear_model.LinearRegression)
 
 
 class CurrentPointEstimate(enum.Enum):
@@ -124,7 +125,7 @@ DEFAULT_ARMIJO = 1e-4
 def filter_top_directions(
     perturbations: FloatArray2D, function_values: FloatArray,
     estimator_type: EstimatorType,
-    num_top_directions: int) -> Tuple[FloatArray, FloatArray]:
+    num_top_directions: int) -> tuple[FloatArray, FloatArray]:
   """Select the subset of top-performing perturbations.
 
   Args:
@@ -193,7 +194,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def get_hyperparameters(self) -> List[float]:
+  def get_hyperparameters(self) -> list[float]:
     """Returns the list of hyperparameters for blackbox function runs.
 
     Returns the list of hyperparameters for blackbox function runs that can be
@@ -205,7 +206,7 @@ class BlackboxOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError('Abstract method')
 
   @abc.abstractmethod
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -246,7 +247,7 @@ class StatefulOptimizer(BlackboxOptimizer):
 
   def __init__(self, estimator_type: EstimatorType, normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Optional[Sequence[int]]):
+               extra_params: Sequence[int] | None):
 
     self.estimator_type = estimator_type
     self.normalize_fvalues = normalize_fvalues
@@ -260,13 +261,13 @@ class StatefulOptimizer(BlackboxOptimizer):
       self.std_state_vector = [1.0] * self.state_dim
     super().__init__()
 
-  def get_hyperparameters(self) -> List[float]:
+  def get_hyperparameters(self) -> list[float]:
     if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       return self.mean_state_vector + self.std_state_vector
     else:
       return []
 
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     if self.hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       current_state = [self.nb_steps]
       current_state += self.sum_state_vector
@@ -318,17 +319,17 @@ class StatefulOptimizer(BlackboxOptimizer):
 class MonteCarloBlackboxOptimizer(StatefulOptimizer):
   """Class implementing GD optimizer with MC estimation of the gradient."""
 
-  def __init__(self,
-               precision_parameter: float,
-               estimator_type: EstimatorType,
-               normalize_fvalues: bool,
-               hyperparameters_update_method: UpdateMethod,
-               extra_params: Optional[Sequence[int]],
-               step_size: Optional[float] = None,
-               num_top_directions: int = 0,
-               gradient_ascent_optimizer: Optional[
-                   gradient_ascent_optimization_algorithms
-                   .GradientAscentOptimizer] = None):
+  def __init__(
+      self,
+      precision_parameter: float,
+      estimator_type: EstimatorType,
+      normalize_fvalues: bool,
+      hyperparameters_update_method: UpdateMethod,
+      extra_params: Sequence[int] | None,
+      step_size: float | None = None,
+      num_top_directions: int = 0,
+      gradient_ascent_optimizer: gradient_ascent_optimization_algorithms
+      .GradientAscentOptimizer | None = None):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and \
@@ -380,7 +381,7 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
     return super().get_state() + gradient_ascent_state
 
@@ -392,17 +393,17 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
 class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
   """Class implementing GD optimizer with regression for grad. estimation."""
 
-  def __init__(self,
-               regression_method: RegressionType,
-               regularizer: float,
-               estimator_type: EstimatorType,
-               normalize_fvalues: bool,
-               hyperparameters_update_method: UpdateMethod,
-               extra_params: Optional[Sequence[int]],
-               step_size: Optional[float] = None,
-               gradient_ascent_optimizer: Optional[
-                   gradient_ascent_optimization_algorithms
-                   .GradientAscentOptimizer] = None):
+  def __init__(
+      self,
+      regression_method: RegressionType,
+      regularizer: float,
+      estimator_type: EstimatorType,
+      normalize_fvalues: bool,
+      hyperparameters_update_method: UpdateMethod,
+      extra_params: Sequence[int] | None,
+      step_size: float | None = None,
+      gradient_ascent_optimizer: gradient_ascent_optimization_algorithms
+      .GradientAscentOptimizer | None = None):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and gradient_ascent_optimizer \
@@ -456,7 +457,7 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
     # gradients
     return self.gradient_ascent_optimizer.run_step(current_input, gradient)
 
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     gradient_ascent_state = self.gradient_ascent_optimizer.get_state()
     return super().get_state + gradient_ascent_state
 
@@ -484,7 +485,7 @@ Implemented: monte_carlo_gradient
 
 def normalize_function_values(
     function_values: FloatArray,
-    current_value: float) -> Tuple[FloatArray, List[float]]:
+    current_value: float) -> tuple[FloatArray, list[float]]:
   values = function_values.tolist()
   values.append(current_value)
   mean = sum(values) / float(len(values))
@@ -498,7 +499,7 @@ def monte_carlo_gradient(precision_parameter: float,
                          perturbations: FloatArray2D,
                          function_values: FloatArray,
                          current_value: float,
-                         energy: Optional[float] = 0) -> FloatArray:
+                         energy: float | None = 0) -> FloatArray:
   """Calculates Monte Carlo gradient.
 
   There are several ways of estimating the gradient. This is specified by the
@@ -608,7 +609,7 @@ r"""Auxiliary objects and solvers.
 """
 
 
-class QuadraticModel(object):
+class QuadraticModel:
   """A class for quadratic functions.
 
   Presents an interface for evaluating functions of the form
@@ -620,7 +621,7 @@ class QuadraticModel(object):
   def __init__(self,
                Av: Callable[[FloatArray], FloatArray],
                b: FloatArray,
-               c: Optional[float] = 0):
+               c: float | None = 0):
     """Initialize quadratic function.
 
     Args:
@@ -657,7 +658,7 @@ class QuadraticModel(object):
     return self.quad_v(x) + self.b
 
 
-class ProjectedGradientOptimizer(object):
+class ProjectedGradientOptimizer:
   r"""A class implementing the projected gradient algorithm.
 
    The update is given by
@@ -747,7 +748,7 @@ def make_projector(radius: float) -> Callable[[FloatArray], FloatArray]:
   return projector
 
 
-class TrustRegionSubproblemOptimizer(object):
+class TrustRegionSubproblemOptimizer:
   r"""Solves the trust region subproblem over the L2 ball.
 
    min_x f(x) s.t. \|x - p\| \leq R
@@ -765,8 +766,8 @@ class TrustRegionSubproblemOptimizer(object):
 
   def __init__(self,
                model_function: QuadraticModel,
-               trust_region_params: Dict[str, Any],
-               x_init: Optional[FloatArray] = None):
+               trust_region_params: dict[str, Any],
+               x_init: FloatArray | None = None):
     self.mf = model_function
     self.params = trust_region_params
     self.center = x_init
@@ -905,8 +906,8 @@ class TrustRegionOptimizer(StatefulOptimizer):
   def __init__(self, precision_parameter: float, estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Optional[Sequence[int]], tr_params: Mapping[str,
-                                                                         Any]):
+               extra_params: Sequence[int] | None, tr_params: Mapping[str,
+                                                                      Any]):
     self.precision_parameter = precision_parameter
     super().__init__(estimator_type, normalize_fvalues,
                      hyperparameters_update_method, extra_params)
@@ -976,8 +977,7 @@ class TrustRegionOptimizer(StatefulOptimizer):
                        abs_ratio > self.params['reject_threshold'])
       should_shrink = (not is_ascent and
                        abs_ratio > self.params['shrink_neg_threshold'])
-      should_grow = ((is_ascent and
-                      tr_imp_ratio > self.params['grow_threshold']))
+      should_grow = (is_ascent and tr_imp_ratio > self.params['grow_threshold'])
       log_message = (' fval pct change: ' + str(abs_ratio) + ' tr_ratio: ' +
                      str(tr_imp_ratio))
       if should_reject:

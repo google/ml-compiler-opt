@@ -13,7 +13,6 @@
 # limitations under the License.
 """Test for RegallocTraceWorker."""
 
-from typing import List
 import os
 import json
 import stat
@@ -27,7 +26,7 @@ from compiler_opt.testing import model_test_utils
 from compiler_opt.rl import policy_saver
 
 
-def _setup_corpus(corpus_dir: str) -> List[corpus.ModuleSpec]:
+def _setup_corpus(corpus_dir: str) -> list[corpus.ModuleSpec]:
   modules = [
       corpus.ModuleSpec("module_a", 1, ("-fmodule-a",), True),
       corpus.ModuleSpec("module_b", 1, ("-fmodule-b",), True)

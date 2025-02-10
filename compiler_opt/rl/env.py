@@ -23,7 +23,7 @@ import abc
 import contextlib
 import io
 import os
-from typing import Callable, Generator, List, Optional, Tuple, Type
+from collections.abc import Callable, Generator
 
 import numpy as np
 
@@ -40,14 +40,14 @@ class StepType(Enum):
 
 @dataclasses.dataclass
 class TimeStep:
-  obs: Optional[dict[str, np.NDArray]]
-  reward: Optional[dict[str, float]]
-  score_policy: Optional[dict[str, float]]
-  score_default: Optional[dict[str, float]]
-  context: Optional[str]
+  obs: dict[str, np.NDArray] | None
+  reward: dict[str, float] | None
+  score_policy: dict[str, float] | None
+  score_default: dict[str, float] | None
+  context: str | None
   module_name: str
   working_dir: str
-  obs_id: Optional[int]
+  obs_id: int | None
   step_type: StepType
 
 
@@ -67,9 +67,9 @@ class MLGOTask(metaclass=abc.ABCMeta):
   """
 
   @abc.abstractmethod
-  def get_cmdline(self, clang_path: str, base_args: List[str],
-                  interactive_base_path: Optional[str],
-                  working_dir: str) -> List[str]:
+  def get_cmdline(self, clang_path: str, base_args: list[str],
+                  interactive_base_path: str | None,
+                  working_dir: str) -> list[str]:
     """Get the cmdline for building with this task.
 
     The resulting list[str] should be able to be passed to subprocess.run to
@@ -122,7 +122,7 @@ class ClangProcess:
     self._module_name = module_name
     self._working_dir = working_dir
 
-  def get_scores(self, timeout: Optional[int] = None):
+  def get_scores(self, timeout: int | None = None):
     self._proc.wait(timeout=timeout)
     return self._get_scores_fn()
 
@@ -222,9 +222,9 @@ def compute_relative_rewards(score_a: dict[str, float],
 def clang_session(
     clang_path: str,
     module: corpus.LoadedModuleSpec,
-    task_type: Type[MLGOTask],
+    task_type: type[MLGOTask],
     *,
-    explicit_temps_dir: Optional[str] = None,
+    explicit_temps_dir: str | None = None,
     interactive: bool,
 ):
   """Context manager for clang session.
@@ -292,11 +292,11 @@ def clang_session(
 
 def _get_clang_generator(
     clang_path: str,
-    task_type: Type[MLGOTask],
-    explicit_temps_dir: Optional[str] = None,
+    task_type: type[MLGOTask],
+    explicit_temps_dir: str | None = None,
     interactive_only: bool = False,
-) -> Generator[Optional[Tuple[ClangProcess, InteractiveClang]],
-               Optional[corpus.LoadedModuleSpec], None]:
+) -> Generator[tuple[ClangProcess, InteractiveClang] | None,
+               corpus.LoadedModuleSpec | None, None]:
   """Returns a tuple of generators for creating InteractiveClang objects.
 
   Args:
@@ -351,10 +351,10 @@ class MLGOEnvironmentBase:
       self,
       *,
       clang_path: str,
-      task_type: Type[MLGOTask],
+      task_type: type[MLGOTask],
       obs_spec,
       action_spec,
-      explicit_temps_dir: Optional[str] = None,
+      explicit_temps_dir: str | None = None,
       interactive_only: bool = False,
   ):
     self._clang_generator = _get_clang_generator(
@@ -365,8 +365,8 @@ class MLGOEnvironmentBase:
     self._obs_spec = obs_spec
     self._action_spec = action_spec
 
-    self._iclang: Optional[InteractiveClang] = None
-    self._clang: Optional[ClangProcess] = None
+    self._iclang: InteractiveClang | None = None
+    self._clang: ClangProcess | None = None
 
   @property
   def obs_spec(self):

@@ -13,7 +13,7 @@
 # limitations under the License.
 """Utility to create MLGO policy learner."""
 
-from typing import Callable, List, Optional, Tuple
+from collections.abc import Callable
 
 from absl import logging
 
@@ -25,11 +25,11 @@ from tf_agents.typing import types
 
 # A function which processes a tuple of a nested tensor representing a TF-Agent
 # Trajectory and Reverb SampleInfo.
-_SequenceParamsType = Tuple[types.NestedTensor, types.ReverbSampleInfo]
+_SequenceParamsType = tuple[types.NestedTensor, types.ReverbSampleInfo]
 _SequenceFnType = Callable[[_SequenceParamsType], _SequenceParamsType]
 
 
-class MLGOPPOLearner(object):
+class MLGOPPOLearner:
   """Manages all the learning details needed.
 
   These include:
@@ -56,12 +56,11 @@ class MLGOPPOLearner(object):
                minibatch_size: int,
                shuffle_buffer_size: int,
                num_epochs: int = 1,
-               triggers: Optional[List[
-                   interval_trigger.IntervalTrigger]] = None,
+               triggers: list[interval_trigger.IntervalTrigger] | None = None,
                checkpoint_interval: int = 100000,
                summary_interval: int = 1000,
-               strategy: Optional[tf.distribute.Strategy] = None,
-               per_sequence_fn: Optional[_SequenceFnType] = None,
+               strategy: tf.distribute.Strategy | None = None,
+               per_sequence_fn: _SequenceFnType | None = None,
                allow_variable_length_episodes: bool = False) -> None:
     """Initializes a MLGOPPOLearner instance.
 

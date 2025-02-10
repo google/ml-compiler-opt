@@ -17,7 +17,6 @@ import tempfile
 import collections
 import os
 import time
-from typing import List, Optional
 
 from absl import logging
 
@@ -39,7 +38,7 @@ from compiler_opt.rl import data_collector
 
 
 def evaluate(root_dir: str, corpus_path: str,
-             variable_container_server_address: str, num_workers: Optional[int],
+             variable_container_server_address: str, num_workers: int | None,
              worker_manager_class):
   """Evaluate a given policy on the given corpus.
 
@@ -86,7 +85,7 @@ def evaluate(root_dir: str, corpus_path: str,
   dataset_fn = data_reader.create_flat_sequence_example_dataset_fn(
       agent_cfg=agent_cfg)
 
-  def sequence_example_iterator_fn(seq_ex: List[str]):
+  def sequence_example_iterator_fn(seq_ex: list[str]):
     return iter(dataset_fn(seq_ex).prefetch(tf.data.AUTOTUNE))
 
   cps = corpus.Corpus(
@@ -176,7 +175,7 @@ def evaluate(root_dir: str, corpus_path: str,
 
 def run_evaluate(root_dir: str, corpus_path: str,
                  variable_container_server_address: str,
-                 num_workers: Optional[int], worker_manager_class):
+                 num_workers: int | None, worker_manager_class):
   """Wait for the collect policy to be ready and run collect job."""
   # Wait for the collect policy to become available, then load it.
   policy_dir = os.path.join(root_dir, learner.POLICY_SAVED_MODEL_DIR,

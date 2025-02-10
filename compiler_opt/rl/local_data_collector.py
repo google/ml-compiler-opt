@@ -16,7 +16,7 @@
 import concurrent.futures
 import itertools
 import time
-from typing import Callable, Dict, Iterator, List, Optional, Tuple
+from collections.abc import Callable, Iterator
 
 from absl import logging
 from tf_agents.trajectories import trajectory
@@ -38,10 +38,10 @@ class LocalDataCollector(data_collector.DataCollector):
       cps: corpus.Corpus,
       num_modules: int,
       worker_pool: worker.WorkerPool,
-      parser: Callable[[List[str]], Iterator[trajectory.Trajectory]],
-      reward_stat_map: Dict[str, Optional[Dict[str,
-                                               compilation_runner.RewardStat]]],
-      best_trajectory_repo: Optional[best_trajectory.BestTrajectoryRepo],
+      parser: Callable[[list[str]], Iterator[trajectory.Trajectory]],
+      reward_stat_map: dict[str,
+                            dict[str, compilation_runner.RewardStat] | None],
+      best_trajectory_repo: best_trajectory.BestTrajectoryRepo | None,
       exit_checker_ctor=data_collector.EarlyExitChecker):
     # TODO(mtrofin): type exit_checker_ctor when we get typing.Protocol support
     super().__init__()
@@ -50,7 +50,7 @@ class LocalDataCollector(data_collector.DataCollector):
     self._num_modules = num_modules
     self._parser = parser
     self._worker_pool = worker_pool
-    self._workers: List[
+    self._workers: list[
         compilation_runner
         .CompilationRunnerStub] = self._worker_pool.get_currently_active()
     self._reward_stat_map = reward_stat_map
@@ -61,11 +61,11 @@ class LocalDataCollector(data_collector.DataCollector):
     # We remove this activity from the critical path by running it concurrently
     # with the training phase - i.e. whatever happens between successive data
     # collection calls. Subsequent runs will wait for these to finish.
-    self._reset_workers: Optional[concurrent.futures.Future] = None
-    self._current_futures: List[worker.WorkerFuture] = []
+    self._reset_workers: concurrent.futures.Future | None = None
+    self._current_futures: list[worker.WorkerFuture] = []
     self._pool = concurrent.futures.ThreadPoolExecutor()
     self._prefetch_pool = concurrent.futures.ThreadPoolExecutor()
-    self._next_sample: List[
+    self._next_sample: list[
         concurrent.futures.Future] = self._prefetch_next_sample()
 
   def _prefetch_next_sample(self):
@@ -100,7 +100,7 @@ class LocalDataCollector(data_collector.DataCollector):
                  time.time() - t1)
 
   def _schedule_jobs(self, policy: policy_saver.Policy, model_id: int,
-                     sampled_modules: List[corpus.LoadedModuleSpec]) -> None:
+                     sampled_modules: list[corpus.LoadedModuleSpec]) -> None:
     # by now, all the pending work, which was signaled to cancel, must've
     # finished
     self._join_pending_jobs()
@@ -119,7 +119,7 @@ class LocalDataCollector(data_collector.DataCollector):
 
   def collect_data(
       self, policy: policy_saver.Policy, model_id: int
-  ) -> Tuple[Iterator[trajectory.Trajectory], Dict[str, Dict[str, float]]]:
+  ) -> tuple[Iterator[trajectory.Trajectory], dict[str, dict[str, float]]]:
     """Collect data for a given policy.
 
     Args:
@@ -133,7 +133,7 @@ class LocalDataCollector(data_collector.DataCollector):
       information is viewable in TensorBoard.
     """
     time1 = time.time()
-    sampled_modules: List[corpus.LoadedModuleSpec] = [
+    sampled_modules: list[corpus.LoadedModuleSpec] = [
         s.result() for s in self._next_sample
     ]
     logging.info('resolving prefetched sample took: %d seconds',

@@ -54,7 +54,6 @@ import abc
 
 import numpy as np
 import numpy.typing as npt
-from typing import List, Optional
 
 
 class GradientAscentOptimizer(metaclass=abc.ABCMeta):
@@ -82,7 +81,7 @@ class GradientAscentOptimizer(metaclass=abc.ABCMeta):
     raise NotImplementedError("Abstract method")
 
   @abc.abstractmethod
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     """Returns the state of the optimizer.
 
     Returns the state of the optimizer.
@@ -139,7 +138,7 @@ class MomentumOptimizer(GradientAscentOptimizer):
 
     return current_input + step
 
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     return self.moving_average.tolist()
 
   def set_state(self, state: npt.NDArray[np.float32]) -> None:
@@ -156,9 +155,9 @@ class AdamOptimizer(GradientAscentOptimizer):
 
   def __init__(self,
                step_size: float,
-               beta1: Optional[float] = 0.9,
-               beta2: Optional[float] = 0.999,
-               epsilon: Optional[float] = 1e-07):
+               beta1: float | None = 0.9,
+               beta2: float | None = 0.999,
+               epsilon: float | None = 1e-07):
     self.step_size = step_size
     self.beta1 = beta1
     self.beta2 = beta2
@@ -198,7 +197,7 @@ class AdamOptimizer(GradientAscentOptimizer):
 
     return current_input + step
 
-  def get_state(self) -> List[float]:
+  def get_state(self) -> list[float]:
     return (self.first_moment_moving_average.tolist() +
             self.second_moment_moving_average.tolist() + [self.t])
 

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Combines two tf-agent policies with the given state and action spec."""
-from typing import Dict, Optional, Tuple
 
 import tensorflow as tf
 import hashlib
@@ -27,7 +26,7 @@ import tensorflow_probability as tfp
 class CombinedTFPolicy(tf_agents.policies.TFPolicy):
   """Policy which combines two target policies."""
 
-  def __init__(self, *args, tf_policies: Dict[str, tf_agents.policies.TFPolicy],
+  def __init__(self, *args, tf_policies: dict[str, tf_agents.policies.TFPolicy],
                **kwargs):
     super().__init__(*args, **kwargs)
 
@@ -61,7 +60,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
 
   def _process_observation(
       self, observation: types.NestedSpecTensorOrArray
-  ) -> Tuple[types.NestedSpecTensorOrArray, types.TensorOrArray]:
+  ) -> tuple[types.NestedSpecTensorOrArray, types.TensorOrArray]:
     assert "model_selector" in self.sorted_keys
     high_low_tensor = self.high_low_tensor
     for name in self.sorted_keys:
@@ -83,7 +82,7 @@ class CombinedTFPolicy(tf_agents.policies.TFPolicy):
   def _action(self,
               time_step: ts.TimeStep,
               policy_state: types.NestedTensorSpec,
-              seed: Optional[types.Seed] = None) -> policy_step.PolicyStep:
+              seed: types.Seed | None = None) -> policy_step.PolicyStep:
     new_observation = time_step.observation
     new_observation, switch_tensor = self._process_observation(new_observation)
     updated_step = ts.TimeStep(

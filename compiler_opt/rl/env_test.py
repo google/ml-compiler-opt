@@ -22,8 +22,6 @@ import os
 import tempfile
 from absl.testing import flagsaver
 
-from typing import Dict, List, Optional
-
 import tensorflow as tf
 import numpy as np
 
@@ -45,9 +43,9 @@ _NUM_STEPS = 10
 class MockTask(env.MLGOTask):
   """Implementation of mock task for testing."""
 
-  def get_cmdline(self, clang_path: str, base_args: List[str],
-                  interactive_base_path: Optional[str],
-                  working_dir: str) -> List[str]:
+  def get_cmdline(self, clang_path: str, base_args: list[str],
+                  interactive_base_path: str | None,
+                  working_dir: str) -> list[str]:
     if interactive_base_path:
       interactive_args = [
           f'--interactive={interactive_base_path}',
@@ -56,7 +54,7 @@ class MockTask(env.MLGOTask):
       interactive_args = []
     return [clang_path] + base_args + interactive_args
 
-  def get_module_scores(self, working_dir: str) -> Dict[str, float]:
+  def get_module_scores(self, working_dir: str) -> dict[str, float]:
     return {'default': 47}
 
 

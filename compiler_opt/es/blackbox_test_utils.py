@@ -13,7 +13,7 @@
 # limitations under the License.
 """Test facilities for Blackbox classes."""
 
-from typing import List, Collection, Optional
+from collections.abc import Collection
 
 import gin
 
@@ -34,7 +34,7 @@ class ESWorker(worker.Worker):
     self.function_value = 0.0
 
   def compile(self, policy: policy_saver.Policy,
-              samples: List[corpus.ModuleSpec]) -> float:
+              samples: list[corpus.ModuleSpec]) -> float:
     if policy and samples:
       self.function_value += 1.0
       return self.function_value
@@ -56,8 +56,7 @@ class ESTraceWorker(worker.Worker):
 
   def compile_corpus_and_evaluate(
       self, modules: Collection[corpus.ModuleSpec], function_index_path: str,
-      bb_trace_path: str,
-      tflite_policy: Optional[policy_saver.Policy]) -> float:
+      bb_trace_path: str, tflite_policy: policy_saver.Policy | None) -> float:
     if modules and function_index_path and bb_trace_path and tflite_policy:
       self._function_value += 1
       return self._function_value

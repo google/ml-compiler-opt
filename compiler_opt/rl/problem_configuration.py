@@ -68,7 +68,7 @@ Conventions
 
 import abc
 import gin
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from collections.abc import Callable, Iterable
 
 import tensorflow as tf
 import tf_agents as tfa
@@ -90,7 +90,7 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_signature_spec(
-      self) -> Tuple[types.NestedTensorSpec, types.NestedTensorSpec]:
+      self) -> tuple[types.NestedTensorSpec, types.NestedTensorSpec]:
     raise NotImplementedError
 
   @abc.abstractmethod
@@ -110,13 +110,13 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
 
   # List of flags to add to clang compilation command.
   @gin.configurable(module='problem_config')
-  def flags_to_add(self, add_flags=()) -> Tuple[str, ...]:
+  def flags_to_add(self, add_flags=()) -> tuple[str, ...]:
     return add_flags
 
   # List of flags to remove from clang compilation command. The flag names
   # should match the actual flags provided to clang.'
   @gin.configurable(module='problem_config')
-  def flags_to_delete(self, delete_flags=()) -> Tuple[str, ...]:
+  def flags_to_delete(self, delete_flags=()) -> tuple[str, ...]:
     return delete_flags
 
   # List of flags to replace in the clang compilation command. The flag names
@@ -128,5 +128,5 @@ class ProblemConfiguration(metaclass=abc.ABCMeta):
   # }
   # return replace_flags
   @gin.configurable(module='problem_config')
-  def flags_to_replace(self, replace_flags=None) -> Optional[Dict[str, str]]:
+  def flags_to_replace(self, replace_flags=None) -> dict[str, str] | None:
     return replace_flags

@@ -16,7 +16,8 @@
 import concurrent.futures
 import contextlib
 import gin
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Generator, Union
+from typing import Any
+from collections.abc import Callable, Generator
 import json
 
 from absl import flags
@@ -53,7 +54,7 @@ _PERSISTENT_OBJECTS_PATH = flags.DEFINE_string(
 
 FLAGS = flags.FLAGS
 
-ProfilingDictValueType = Dict[str, Union[str, float, int]]
+ProfilingDictValueType = dict[str, str | float | int]
 
 
 @dataclasses.dataclass
@@ -140,7 +141,7 @@ def add_string_feature(
 
 
 def add_feature_list(seq_example: tf.train.SequenceExample,
-                     feature_list: List[Any], feature_name: str):
+                     feature_list: list[Any], feature_name: str):
   """Add the feature_list to the sequence example under feature name.
 
   Args:
@@ -153,12 +154,12 @@ def add_feature_list(seq_example: tf.train.SequenceExample,
       np.dtype(np.float32),
       str,
   ]):
-    raise AssertionError((f'Unsupported type for feature {feature_name}'
-                          f' of type {type(feature_list[0])}. '
-                          'Supported types are np.int64, np.float32, str'))
+    raise AssertionError(f'Unsupported type for feature {feature_name}'
+                         f' of type {type(feature_list[0])}. '
+                         'Supported types are np.int64, np.float32, str')
   if isinstance(feature_list[0], np.float32):
     add_function = add_float_feature
-  elif isinstance(feature_list[0], (int, np.int64)):
+  elif isinstance(feature_list[0], int | np.int64):
     add_function = add_int_feature
   else:
     add_function = add_string_feature
@@ -187,7 +188,7 @@ def policy_action_wrapper(tf_policy) -> Callable[[Any], np.ndarray]:
 
 def policy_distr_wrapper(
     tf_policy: policies.TFPolicy
-) -> Callable[[time_step.TimeStep, Optional[tf_types.NestedTensor]],
+) -> Callable[[time_step.TimeStep, tf_types.NestedTensor | None],
               policy_step.PolicyStep]:
   """Return a wrapper for a loaded tf policy distribution.
 
@@ -233,21 +234,21 @@ class ExplorationWithPolicy:
 
   def __init__(
       self,
-      replay_prefix: List[np.ndarray],
+      replay_prefix: list[np.ndarray],
       policy: Callable[[time_step.TimeStep], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
-      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
-                                                       bool]]] = None,
+      explore_on_features: dict[str, Callable[[tf.Tensor], bool]] | None = None,
   ):
     self._explore_step: int = len(replay_prefix) - 1
-    self._explore_state: Optional[time_step.TimeStep] = None
+    self._explore_state: time_step.TimeStep | None = None
     self._replay_prefix = replay_prefix
     self._policy = policy
     self._explore_policy = explore_policy
     self._curr_step = 0
     self._gap = np.inf
-    self._explore_on_features: Optional[Dict[str, Callable[
-        [tf.Tensor], bool]]] = explore_on_features
+    self._explore_on_features: dict[str,
+                                    Callable[[tf.Tensor],
+                                             bool]] | None = explore_on_features
     self._stop_exploration = False
 
   def _compute_gap(self, distr: np.ndarray) -> np.float32:
@@ -259,7 +260,7 @@ class ExplorationWithPolicy:
   def get_explore_step(self) -> int:
     return self._explore_step
 
-  def get_explore_state(self) -> Optional[time_step.TimeStep]:
+  def get_explore_state(self) -> time_step.TimeStep | None:
     return self._explore_state
 
   def get_advice(self, state: time_step.TimeStep) -> np.ndarray:
@@ -318,18 +319,15 @@ class ModuleExplorer:
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
       clang_path: str,
-      mlgo_task_type: Type[env.MLGOTask],
+      mlgo_task_type: type[env.MLGOTask],
       exploration_frac: float = 1.0,
       max_exploration_steps: int = 10,
       max_horizon_to_explore=np.inf,
-      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
-                                                       bool]]] = None,
-      obs_action_specs: Optional[Tuple[
-          time_step.TimeStep,
-          tensor_spec.BoundedTensorSpec,
-      ]] = None,
+      explore_on_features: dict[str, Callable[[tf.Tensor], bool]] | None = None,
+      obs_action_specs: tuple[time_step.TimeStep, tensor_spec.BoundedTensorSpec]
+      | None = None,
       reward_key: str = '',
-      explicit_temps_dir: Optional[str] = None,
+      explicit_temps_dir: str | None = None,
       **kwargs,
   ):
     self._loaded_module_spec = loaded_module_spec
@@ -361,8 +359,8 @@ class ModuleExplorer:
     if self._env.action_spec:
       if self._env.action_spec.dtype != tf.int64:
         raise TypeError(
-            ('Environment action_spec type '
-             f'{self._env.action_spec.dtype} does not match tf.int64'))
+            'Environment action_spec type '
+            f'{self._env.action_spec.dtype} does not match tf.int64')
     self._exploration_frac = exploration_frac
     self._max_exploration_steps = max_exploration_steps
     self._max_horizon_to_explore = max_horizon_to_explore
@@ -371,7 +369,7 @@ class ModuleExplorer:
 
   def compile_module(
       self,
-      policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
+      policy: Callable[[time_step.TimeStep | None], np.ndarray],
   ) -> tf.train.SequenceExample:
     """Compiles the module with the given policy and outputs a seq. example.
 
@@ -411,11 +409,11 @@ class ModuleExplorer:
       working_dir_head = os.path.split(self._working_dir)[0]
       shutil.rmtree(working_dir_head)
     if horizon <= 0:
-      raise ValueError(('Policy did not take any inlining decision for module '
-                        f'{self._loaded_module_spec.name}.'))
+      raise ValueError('Policy did not take any inlining decision for module '
+                       f'{self._loaded_module_spec.name}.')
     if curr_obs_dict.step_type != env.StepType.LAST:
-      raise ValueError(('Compilation loop exited at step type'
-                        f'{curr_obs_dict.step_type} before last step'))
+      raise ValueError('Compilation loop exited at step type'
+                       f'{curr_obs_dict.step_type} before last step')
     reward = curr_obs_dict.score_policy[self._reward_key]
     reward_list = np.float32(reward) * np.float32(np.ones(horizon))
     add_feature_list(sequence_example, reward_list,
@@ -427,10 +425,10 @@ class ModuleExplorer:
 
   def explore_function(
       self,
-      policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
-      explore_policy: Optional[Callable[[time_step.TimeStep],
-                                        policy_step.PolicyStep]] = None,
-  ) -> Tuple[List[tf.train.SequenceExample], List[str], int, float]:
+      policy: Callable[[time_step.TimeStep | None], np.ndarray],
+      explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep]
+      | None = None,
+  ) -> tuple[list[tf.train.SequenceExample], list[str], int, float]:
     """Explores the module using the given policy and the exploration distr.
 
     Args:
@@ -514,13 +512,13 @@ class ModuleExplorer:
 
   def explore_at_state_generator(
       self,
-      replay_prefix: List[np.ndarray],
+      replay_prefix: list[np.ndarray],
       explore_step: int,
       explore_state: time_step.TimeStep,
-      policy: Callable[[Optional[time_step.TimeStep]], np.ndarray],
+      policy: Callable[[time_step.TimeStep | None], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
       num_samples: int = 1,
-  ) -> Generator[Tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
+  ) -> Generator[tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
                  None]:
     """Generate sequence examples and next exploration policy while exploring.
 
@@ -592,16 +590,16 @@ class ModuleExplorer:
       else:
         if curr_obs_feature_name not in self._env.obs_spec.keys():
           raise AssertionError(
-              (f'Feature name {curr_obs_feature_name} not in obs_spec {1}'
-               f'{self._env.obs_spec.keys()}'))
+              f'Feature name {curr_obs_feature_name} not in obs_spec {1}'
+              f'{self._env.obs_spec.keys()}')
         if curr_obs_feature_name in [
             SequenceExampleFeatureNames.action,
             SequenceExampleFeatureNames.reward,
             SequenceExampleFeatureNames.module_name
         ]:
           raise AssertionError(
-              (f'Feature name {curr_obs_feature_name} part of '
-               f'SequenceExampleFeatureNames {self._env.obs_spec.keys()}'))
+              f'Feature name {curr_obs_feature_name} part of '
+              f'SequenceExampleFeatureNames {self._env.obs_spec.keys()}')
         obs_dtype = self._env.obs_spec[curr_obs_feature_name].dtype
       curr_obs_feature = curr_obs[curr_obs_feature_name]
       curr_obs[curr_obs_feature_name] = tf.convert_to_tensor(
@@ -613,11 +611,11 @@ class ModuleExplorer:
 class ModuleWorkerResultProcessor:
   """Utility class to process ModuleExplorer results for ModuleWorker."""
 
-  def __init__(self, persistent_objects_path: Optional[str] = None):
+  def __init__(self, persistent_objects_path: str | None = None):
     self._persistent_objects_path = persistent_objects_path
 
   def _partition_for_loss(self, seq_example: tf.train.SequenceExample,
-                          partitions: List[float], label_name: str):
+                          partitions: list[float], label_name: str):
     """Adds a feature to seq_example to partition the examples into buckets.
 
     Given a tuple of partition limits (a_1, a_2, ..., a_n) we create n+1
@@ -638,11 +636,11 @@ class ModuleWorkerResultProcessor:
 
   def process_succeeded(
       self,
-      succeeded: List[Tuple[List, List[str], int, float]],
+      succeeded: list[tuple[list, list[str], int, float]],
       spec_name: str,
-      partitions: List[float],
+      partitions: list[float],
       label_name: str = SequenceExampleFeatureNames.label_name
-  ) -> Tuple[tf.train.SequenceExample, ProfilingDictValueType,
+  ) -> tuple[tf.train.SequenceExample, ProfilingDictValueType,
              ProfilingDictValueType]:
     seq_example_list = [exploration_res[0] for exploration_res in succeeded]
     working_dir_list = [(exploration_res[1], exploration_res[2])
@@ -749,22 +747,19 @@ class ModuleWorker(worker.Worker):
   def __init__(
       #  pylint: disable=dangerous-default-value
       self,
-      module_explorer_type: Type[ModuleExplorer] = ModuleExplorer,
+      module_explorer_type: type[ModuleExplorer] = ModuleExplorer,
       clang_path: str = gin.REQUIRED,
-      mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
-      policy_paths: List[Optional[str]] = [],
+      mlgo_task_type: type[env.MLGOTask] = gin.REQUIRED,
+      policy_paths: list[str | None] = [],
       exploration_frac: float = 1.0,
       max_exploration_steps: int = 7,
-      callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
-      exploration_policy_paths: Optional[str] = None,
-      explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
-                                                       bool]]] = None,
-      obs_action_specs: Optional[Tuple[
-          time_step.TimeStep,
-          tensor_spec.BoundedTensorSpec,
-      ]] = None,
-      persistent_objects_path: Optional[str] = None,
-      partitions: List[float] = [
+      callable_policies: list[Callable[[Any], np.ndarray] | None] = [],
+      exploration_policy_paths: str | None = None,
+      explore_on_features: dict[str, Callable[[tf.Tensor], bool]] | None = None,
+      obs_action_specs: tuple[time_step.TimeStep, tensor_spec.BoundedTensorSpec]
+      | None = None,
+      persistent_objects_path: str | None = None,
+      partitions: list[float] = [
           0.,
       ],
       **envargs,
@@ -773,23 +768,24 @@ class ModuleWorker(worker.Worker):
       raise AssertionError("""At least one policy needs to be specified in
                            policy paths or callable_policies""")
     logging.info('Environment args: %s', envargs)
-    self._module_explorer_type: Type[ModuleExplorer] = module_explorer_type
+    self._module_explorer_type: type[ModuleExplorer] = module_explorer_type
     self._clang_path: str = clang_path
-    self._mlgo_task_type: Type[env.MLGOTask] = mlgo_task_type
-    self._policy_paths: List[Optional[str]] = policy_paths
-    self._exploration_policy_paths: Optional[str] = exploration_policy_paths
+    self._mlgo_task_type: type[env.MLGOTask] = mlgo_task_type
+    self._policy_paths: list[str | None] = policy_paths
+    self._exploration_policy_paths: str | None = exploration_policy_paths
     self._exploration_frac: float = exploration_frac
     self._max_exploration_steps: int = max_exploration_steps
-    self._tf_policy_action: List[Optional[Callable[[Any], np.ndarray]]] = []
-    self._exploration_policy_distrs: List[Optional[Callable[
-        [time_step.TimeStep, Optional[tf_types.NestedTensor]],
-        policy_step.PolicyStep]]] = [
+    self._tf_policy_action: list[Callable[[Any], np.ndarray] | None] = []
+    self._exploration_policy_distrs: list[Callable[
+        [time_step.TimeStep, tf_types.NestedTensor | None],
+        policy_step.PolicyStep] | None] = [
             None for _ in range(len(policy_paths) + len(callable_policies))
         ]
-    self._explore_on_features: Optional[Dict[str, Callable[
-        [tf.Tensor], bool]]] = explore_on_features
-    self._obs_action_specs: Optional[Tuple[
-        time_step.TimeStep, tensor_spec.BoundedTensorSpec]] = obs_action_specs
+    self._explore_on_features: dict[str,
+                                    Callable[[tf.Tensor],
+                                             bool]] | None = explore_on_features
+    self._obs_action_specs: tuple[time_step.TimeStep, tensor_spec
+                                  .BoundedTensorSpec] | None = obs_action_specs
     self._mw_utility = ModuleWorkerResultProcessor(persistent_objects_path)
     self._persistent_objects_path = persistent_objects_path
     self._partitions = partitions
@@ -804,9 +800,9 @@ class ModuleWorker(worker.Worker):
       if len(exploration_policy_paths) > (len(policy_paths) +
                                           len(callable_policies)):
         raise AssertionError(
-            (f'Number of exploration policies: {len(exploration_policy_paths)},'
-             'greater than number of policies: '
-             f'{len(policy_paths) + len(callable_policies)}'))
+            f'Number of exploration policies: {len(exploration_policy_paths)},'
+            'greater than number of policies: '
+            f'{len(policy_paths) + len(callable_policies)}')
       self._exploration_policy_distrs = []
       for exploration_policy_path in exploration_policy_paths:
         expl_policy = tf.saved_model.load(
@@ -828,7 +824,7 @@ class ModuleWorker(worker.Worker):
   def select_best_exploration(
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
-  ) -> Tuple[Tuple[int, ProfilingDictValueType, ProfilingDictValueType],
+  ) -> tuple[tuple[int, ProfilingDictValueType, ProfilingDictValueType],
              tf.train.SequenceExample]:
 
     num_calls = len(self._tf_policy_action)
@@ -890,18 +886,17 @@ class ModuleWorker(worker.Worker):
 def gen_trajectories(
     #  pylint: disable=dangerous-default-value
     data_path: str = gin.REQUIRED,
-    delete_flags: Tuple[str, ...] = (),
+    delete_flags: tuple[str, ...] = (),
     output_file_name: str = gin.REQUIRED,
     output_path: str = gin.REQUIRED,
-    mlgo_task_type: Type[env.MLGOTask] = gin.REQUIRED,
-    callable_policies: List[Optional[Callable[[Any], np.ndarray]]] = [],
-    explore_on_features: Optional[Dict[str, Callable[[tf.Tensor],
-                                                     bool]]] = None,
-    obs_action_spec: Optional[Tuple[time_step.TimeStep,
-                                    tensor_spec.BoundedTensorSpec]] = None,
-    num_workers: Optional[int] = None,
+    mlgo_task_type: type[env.MLGOTask] = gin.REQUIRED,
+    callable_policies: list[Callable[[Any], np.ndarray] | None] = [],
+    explore_on_features: dict[str, Callable[[tf.Tensor], bool]] | None = None,
+    obs_action_spec: tuple[time_step.TimeStep, tensor_spec.BoundedTensorSpec]
+    | None = None,
+    num_workers: int | None = None,
     num_output_files: int = 1,
-    profiling_file_path: Optional[str] = None,
+    profiling_file_path: str | None = None,
     worker_wait_sec: int = 100,
     worker_class_type=ModuleWorker,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
@@ -953,8 +948,8 @@ def gen_trajectories(
   total_successful_examples = 0
   total_work = len(corpus_elements)
   total_failed_examples = 0
-  total_profiles_max: List[Optional[ProfilingDictValueType]] = []
-  total_profiles_pol: List[Optional[ProfilingDictValueType]] = []
+  total_profiles_max: list[ProfilingDictValueType | None] = []
+  total_profiles_pol: list[ProfilingDictValueType | None] = []
   size_per_file = total_work // num_output_files
 
   worker_count = (

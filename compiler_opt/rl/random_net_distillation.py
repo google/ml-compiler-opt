@@ -18,7 +18,7 @@ from tf_agents.utils import tensor_normalizer
 
 
 @gin.configurable
-class RandomNetworkDistillation():
+class RandomNetworkDistillation:
   """The Random Network Distillation class."""
 
   def __init__(self,
