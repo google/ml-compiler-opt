@@ -144,6 +144,10 @@ class _Header:
 def _read_tensor(fs: BinaryIO, ts: tf.TensorSpec) -> LogReaderTensorValue:
   size = math.prod(ts.shape) * ctypes.sizeof(_dtype_to_ctype[ts.dtype])
   data = fs.read(size)
+  if len(data) != size:
+    raise IOError(
+        f'Expected to read a total of {size} bytes for tensors, got {len(data)}'
+    )
   return LogReaderTensorValue(ts, data)
 
 
@@ -175,6 +179,12 @@ def _enumerate_log_from_stream(
   tensor_specs = header.features
   score_spec = header.score
   context = None
+
+  def expect_newline():
+    expected = f.readline().decode('utf-8')
+    if '\n' != expected:
+      raise IOError(f'Expected newline in log stream, got {expected}')
+
   while event_str := f.readline():
     event = json.loads(event_str)
     if 'context' in event:
@@ -182,13 +192,16 @@ def _enumerate_log_from_stream(
       continue
     observation_id = int(event['observation'])
     features = [_read_tensor(f, ts) for ts in tensor_specs]
-    f.readline()
+    expect_newline()
     score = None
     if score_spec is not None:
       score_header = json.loads(f.readline())
-      assert int(score_header['outcome']) == observation_id
+      if int(score_header['outcome']) != observation_id:
+        raise IOError(
+            f'Expected observation ID {observation_id}, got {score_header["outcome"]}'
+        )
       score = _read_tensor(f, score_spec)
-      f.readline()
+      expect_newline()
     yield ObservationRecord(
         context=context,
         observation_id=observation_id,
