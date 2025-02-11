@@ -28,11 +28,11 @@ jobs:
         run: |
           if [ -z $ACT ]
           then
-            _ver="['3.10','3.11','3.12']"
+            _ver="['3.10','3.11']"
             _cache="1"
           else
             # 3.10 instead of '3.10' to make github act work.
-            _ver="[3.10,3.11,3.12]"
+            _ver="[3.10,3.11]"
             _cache="0"
           fi
           echo "version_matrix=$_ver" >> $GITHUB_OUTPUT
