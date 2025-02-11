@@ -21,10 +21,7 @@ filterwarnings = [
   "ignore:Using or importing the ABCs from 'collections':DeprecationWarning",
   # Issue #119
   "ignore:Encoding a StructuredValue with type tfp.distributions.Deterministic_ACTTypeSpec:UserWarning",
-  # This warning stems from tensorflow and tf-agents and will presumably
-  # be fixed by them before v3.12
-  "ignore:The distutils package is deprecated and slated for removal in Python 3.12. Use setuptools or check PEP 632 for potential alternatives:DeprecationWarning",
-  # Also an issue internal to tensorflow
+  # An issue internal to tensorflow
   "ignore:Call to deprecated create function .*Descriptor.*:DeprecationWarning",
   # Also internal to tensorflow
   "ignore:non-integer arguments to randrange.*:DeprecationWarning",

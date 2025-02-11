@@ -20,6 +20,7 @@ import os
 import shlex
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 from typing import Callable, Dict, List, Optional, Tuple
@@ -78,6 +79,12 @@ class NonTemporaryDirectory:
 
   def __exit__(self, exc, value, tb):
     pass
+
+
+if sys.version_info >= (3, 12):
+  from functools import partial
+
+  NonTemporaryDirectory = partial(tempfile.TemporaryDirectory, delete=False)
 
 
 def get_workdir_context(explicit_temps_dir: Optional[str] = None):

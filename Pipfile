@@ -5,18 +5,19 @@ name = "pypi"
 
 [packages]
 absl-py = "==2.1.0"
+dm-reverb = "==0.14.0"
 gin-config = "==0.5.0"
 psutil = "==6.1.0"
-tf-agents = "==0.19.0"
+setuptools = {version = "75.8.0", markers="python_version >= '3.12'"}
 tensorflow = "==2.15.0"
-dm-reverb = "==0.14.0"
+tf-agents = "==0.19.0"
 
 [dev-packages]
 pylint = "==3.3.2"
 pytest = "==8.3.4"
 pytype = "==2024.10.11"
+ruff = "==0.9.6"
 yapf = "==0.43.0"
-ruff = "==0.9.3"
 
 [ci]
 joblib = "==1.4.2"
