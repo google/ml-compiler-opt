@@ -225,7 +225,7 @@ def compute_relative_rewards(score_a: dict[str, float],
 @contextlib.contextmanager
 def open_write_pipe(filename: str, *, timeout: float):
   """Open the write pipe or timeout.
-  
+
   Assuming a fifo, the `open` will block until the other party (the process we
   communicate to) also opens the pipe. If that doesn't happen, we time out.
   Afterwards, `write` ops shouldn't block.
@@ -264,7 +264,7 @@ def open_write_pipe(filename: str, *, timeout: float):
 @contextlib.contextmanager
 def open_read_pipe(filename: str, *, timeout: float):
   """Open the read pipe, with a timeout governing the open and each read.
-  
+
   Just like in the writer case, assuming we're opening a fifo pipe, the open
   operation will block until the other party opens the pipe. Then, because this
   is a reader, each read operation (and variations - readline, etc) can block,
@@ -339,7 +339,7 @@ def open_read_pipe(filename: str, *, timeout: float):
 @contextlib.contextmanager
 def interactive_session(*, reader_name: str, writer_name: str, timeout: float):
   """Start an interactive session with the started process proc.
-  
+
   Blocking pipe operations - open and read - happen under a timeout.
   """
 
