@@ -105,7 +105,7 @@ def mock_interactive_clang(cmdline, stderr, stdout):
               'type': 'float',
           },
       })
-      writer.write_nl()
+      writer.write_newline()
 
       class MockInteractiveProcess(MockProcess):
         """Mock clang interactive process that writes the log."""
@@ -125,10 +125,10 @@ def mock_interactive_clang(cmdline, stderr, stdout):
           example_writer.write_context_marker(f'context_{self._counter}')
           example_writer.write_observation_marker(0)
           example_writer.write_buff([self._counter], ctypes.c_int64)
-          example_writer.write_nl()
+          example_writer.write_newline()
           example_writer.write_outcome_marker(0)
           example_writer.write_buff([3.14], ctypes.c_float)
-          example_writer.write_nl()
+          example_writer.write_newline()
           self._counter += 1
           return None
 

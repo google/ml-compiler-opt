@@ -34,8 +34,8 @@ def json_to_bytes(d) -> bytes:
 class LogTestExampleBuilder:
   """Construct a log."""
 
-  nl = '\n'.encode('utf-8')
-  error_nl = 'hi there'.encode('utf-8')
+  newline = b'\n'
+  error_newline = b'hi there'
 
   class ErrorMarkers(enum.IntEnum):
     NONE = 0
@@ -58,28 +58,28 @@ class LogTestExampleBuilder:
 
   def write_buff(self, buffer: list, ct):
     # we should get the ctypes array to bytes for pytype to be happy.
-    if self._introduce_error_pos == \
-      LogTestExampleBuilder.ErrorMarkers.TENSOR_BUF_POS:
+    if self._introduce_error_pos == LogTestExampleBuilder.ErrorMarkers.TENSOR_BUF_POS:  # pylint: disable=line-too-long
       buffer = buffer[len(buffer) // 2:]
     # pytype:disable=wrong-arg-types
     self._opened_file.write((ct * len(buffer))(*buffer))
     # pytype:enable=wrong-arg-types
 
-  def write_nl(self, position=None):
-    self._opened_file.write(LogTestExampleBuilder.error_nl if position == self
-                            ._introduce_error_pos else LogTestExampleBuilder.nl)
+  def write_newline(self, position=None):
+    self._opened_file.write(
+        LogTestExampleBuilder.error_newline if position ==
+        self._introduce_error_pos else LogTestExampleBuilder.newline)
 
   def write_context_marker(self, name: str):
     self._opened_file.write(json_to_bytes({'context': name}))
-    self.write_nl(LogTestExampleBuilder.ErrorMarkers.CTX_MARKER_POS)
+    self.write_newline(LogTestExampleBuilder.ErrorMarkers.CTX_MARKER_POS)
 
   def write_observation_marker(self, obs_idx: int):
     self._opened_file.write(json_to_bytes({'observation': obs_idx}))
-    self.write_nl(LogTestExampleBuilder.ErrorMarkers.OBS_MARKER_POS)
+    self.write_newline(LogTestExampleBuilder.ErrorMarkers.OBS_MARKER_POS)
 
   def write_outcome_marker(self, obs_idx: int):
     self._opened_file.write(json_to_bytes({'outcome': obs_idx}))
-    self.write_nl(LogTestExampleBuilder.ErrorMarkers.OUTCOME_MARKER_POS)
+    self.write_newline(LogTestExampleBuilder.ErrorMarkers.OUTCOME_MARKER_POS)
 
   def write_header(self, json_header: dict):
     self._opened_file.write(json_to_bytes(json_header))
@@ -116,7 +116,8 @@ def create_example(fname: str,
             'type': 'float'
         }
     })
-    example_writer.write_nl(LogTestExampleBuilder.ErrorMarkers.AFTER_HEADER)
+    example_writer.write_newline(
+        LogTestExampleBuilder.ErrorMarkers.AFTER_HEADER)
     for ctx_id in range(nr_contexts):
       t0_val = [v + ctx_id * 10 for v in t0_val]
       t1_val = [v + ctx_id * 10 for v in t1_val]
@@ -126,10 +127,12 @@ def create_example(fname: str,
         example_writer.write_observation_marker(obs)
         example_writer.write_buff(t0_val, ctypes.c_float)
         example_writer.write_buff(t1_val, ctypes.c_int64)
-        example_writer.write_nl(LogTestExampleBuilder.ErrorMarkers.TENSORS_POS)
+        example_writer.write_newline(
+            LogTestExampleBuilder.ErrorMarkers.TENSORS_POS)
         example_writer.write_outcome_marker(obs)
         example_writer.write_buff(s, ctypes.c_float)
-        example_writer.write_nl(LogTestExampleBuilder.ErrorMarkers.OUTCOME_POS)
+        example_writer.write_newline(
+            LogTestExampleBuilder.ErrorMarkers.OUTCOME_POS)
 
       write_example_obs(0)
       t0_val = [v + 1 for v in t0_val]
@@ -277,9 +280,10 @@ feature_lists {
 
   def test_errors(self):
     logfile = self.create_tempfile()
-    for i in range(1, len(LogTestExampleBuilder.ErrorMarkers)):
-      create_example(
-          logfile, introduce_errors_pos=LogTestExampleBuilder.ErrorMarkers(i))
+    for error_marker in LogTestExampleBuilder.ErrorMarkers:
+      if not error_marker:
+        continue
+      create_example(logfile, introduce_errors_pos=error_marker)
       with self.assertRaises(Exception):
         log_reader.read_log_as_sequence_examples(logfile)
 
@@ -301,7 +305,7 @@ feature_lists {
               'type': 'float'
           }
       })
-      writer.write_nl()
+      writer.write_newline()
       writer.write_context_marker('whatever')
       writer.write_observation_marker(0)
       writer.write_buff([1], ctypes.c_int16)
