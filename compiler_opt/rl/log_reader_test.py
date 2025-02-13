@@ -58,28 +58,27 @@ class LogTestExampleBuilder:
 
   def write_buff(self, buffer: list, ct):
     # we should get the ctypes array to bytes for pytype to be happy.
-    if self._introduce_error_pos == LogTestExampleBuilder.ErrorMarkers.TENSOR_BUF_POS:  # pylint: disable=line-too-long
+    if self._introduce_error_pos == self.ErrorMarkers.TENSOR_BUF_POS:
       buffer = buffer[len(buffer) // 2:]
     # pytype:disable=wrong-arg-types
     self._opened_file.write((ct * len(buffer))(*buffer))
     # pytype:enable=wrong-arg-types
 
   def write_newline(self, position=None):
-    self._opened_file.write(
-        LogTestExampleBuilder.error_newline if position ==
-        self._introduce_error_pos else LogTestExampleBuilder.newline)
+    self._opened_file.write(self.error_newline if position ==
+                            self._introduce_error_pos else self.newline)
 
   def write_context_marker(self, name: str):
     self._opened_file.write(json_to_bytes({'context': name}))
-    self.write_newline(LogTestExampleBuilder.ErrorMarkers.CTX_MARKER_POS)
+    self.write_newline(self.ErrorMarkers.CTX_MARKER_POS)
 
   def write_observation_marker(self, obs_idx: int):
     self._opened_file.write(json_to_bytes({'observation': obs_idx}))
-    self.write_newline(LogTestExampleBuilder.ErrorMarkers.OBS_MARKER_POS)
+    self.write_newline(self.ErrorMarkers.OBS_MARKER_POS)
 
   def write_outcome_marker(self, obs_idx: int):
     self._opened_file.write(json_to_bytes({'outcome': obs_idx}))
-    self.write_newline(LogTestExampleBuilder.ErrorMarkers.OUTCOME_MARKER_POS)
+    self.write_newline(self.ErrorMarkers.OUTCOME_MARKER_POS)
 
   def write_header(self, json_header: dict):
     self._opened_file.write(json_to_bytes(json_header))
