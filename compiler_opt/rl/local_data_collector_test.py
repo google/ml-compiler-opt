@@ -17,7 +17,6 @@
 # pylint: disable=protected-access
 import collections
 import string
-import sys
 from typing import List, Tuple
 
 import tensorflow as tf
@@ -180,15 +179,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
               'total_trajectory_length': 18,
           }
       }
-      # Issue #38
-      if sys.version_info >= (3, 9):
-        self.assertEqual(monitor_dict,
-                         monitor_dict | expected_monitor_dict_subset)
-      else:
-        self.assertEqual(monitor_dict, {
-            **monitor_dict,
-            **expected_monitor_dict_subset
-        })
+      self.assertEqual(monitor_dict,
+                       monitor_dict | expected_monitor_dict_subset)
       data_iterator, monitor_dict = collector.collect_data(
           policy=_mock_policy, model_id=0)
       data = list(data_iterator)
@@ -200,15 +192,8 @@ class LocalDataCollectorTest(tf.test.TestCase):
               'total_trajectory_length': 18,
           }
       }
-      # Issue #38
-      if sys.version_info >= (3, 9):
-        self.assertEqual(monitor_dict,
-                         monitor_dict | expected_monitor_dict_subset)
-      else:
-        self.assertEqual(monitor_dict, {
-            **monitor_dict,
-            **expected_monitor_dict_subset
-        })
+      self.assertEqual(monitor_dict,
+                       monitor_dict | expected_monitor_dict_subset)
 
       collector.close_pool()
 
