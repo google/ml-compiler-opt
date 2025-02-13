@@ -89,23 +89,23 @@ def mock_interactive_clang(cmdline, stderr, stdout):
   with io.FileIO(fname + '.out', 'wb+') as f_out:
     with io.FileIO(fname + '.in', 'rb+') as f_in:
       del f_in
+      writer = log_reader_test.LogTestExampleBuilder(opened_file=f_out)
       # Write the header describing the features/rewards
-      f_out.write(
-          log_reader_test.json_to_bytes({
-              'features': [{
-                  'name': 'times_called',
-                  'port': 0,
-                  'shape': [1],
-                  'type': 'int64_t',
-              },],
-              'score': {
-                  'name': 'reward',
-                  'port': 0,
-                  'shape': [1],
-                  'type': 'float',
-              },
-          }))
-      log_reader_test.write_nl(f_out)
+      writer.write_header({
+          'features': [{
+              'name': 'times_called',
+              'port': 0,
+              'shape': [1],
+              'type': 'int64_t',
+          },],
+          'score': {
+              'name': 'reward',
+              'port': 0,
+              'shape': [1],
+              'type': 'float',
+          },
+      })
+      writer.write_newline()
 
       class MockInteractiveProcess(MockProcess):
         """Mock clang interactive process that writes the log."""
@@ -120,14 +120,15 @@ def mock_interactive_clang(cmdline, stderr, stdout):
           if self._counter >= _NUM_STEPS:
             f_out.close()
             return None
-          log_reader_test.write_context_marker(f_out,
-                                               f'context_{self._counter}')
-          log_reader_test.write_observation_marker(f_out, 0)
-          log_reader_test.write_buff(f_out, [self._counter], ctypes.c_int64)
-          log_reader_test.write_nl(f_out)
-          log_reader_test.write_outcome_marker(f_out, 0)
-          log_reader_test.write_buff(f_out, [3.14], ctypes.c_float)
-          log_reader_test.write_nl(f_out)
+          example_writer = log_reader_test.LogTestExampleBuilder(
+              opened_file=f_out)
+          example_writer.write_context_marker(f'context_{self._counter}')
+          example_writer.write_observation_marker(0)
+          example_writer.write_buff([self._counter], ctypes.c_int64)
+          example_writer.write_newline()
+          example_writer.write_outcome_marker(0)
+          example_writer.write_buff([3.14], ctypes.c_float)
+          example_writer.write_newline()
           self._counter += 1
           return None
 
