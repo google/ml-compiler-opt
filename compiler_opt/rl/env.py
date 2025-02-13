@@ -290,17 +290,11 @@ def open_read_pipe(filename: str, *, timeout: float):
 
       return _replacement
 
-    # pylint: disable=protected-access
-    obj._orig_read = obj.read
-    obj._orig_readline = obj.readline
-    obj._orig_readinto = obj.readinto
-    obj._orig_readall = obj.readall
+    obj.read = _get_polling_wrapper(obj.read)
+    obj.readline = _get_polling_wrapper(obj.readline)
+    obj.readinto = _get_polling_wrapper(obj.readinto)
+    obj.readall = _get_polling_wrapper(obj.readall)
 
-    obj.read = _get_polling_wrapper(obj._orig_read)
-    obj.readline = _get_polling_wrapper(obj._orig_readline)
-    obj.readinto = _get_polling_wrapper(obj._orig_readinto)
-    obj.readall = _get_polling_wrapper(obj._orig_readall)
-    # pylint: enable=protected-access
     return obj
 
   opened = threading.Event()

@@ -349,7 +349,7 @@ class PipelineCommsTest(parameterized.TestCase):
                     'type': 'float',
                 }
             })
-            w.write_nl()
+            w.write_newline()
             w.write_context_marker('hello')
             w.write_observation_marker(0)
             w.write_buff([1], ctypes.c_int16)
@@ -402,14 +402,14 @@ class PipelineCommsTest(parameterized.TestCase):
                     'type': 'float',
                 }
             })
-            w.write_nl()
+            w.write_newline()
             w.write_context_marker('hello')
             w.write_observation_marker(0)
             w.write_buff([1], ctypes.c_int64)
-            w.write_nl()
+            w.write_newline()
             w.write_outcome_marker(0)
             w.write_buff([3.14], ctypes.c_float)
-            w.write_nl()
+            w.write_newline()
             out.flush()
             wrote_event.set()
             time.sleep(3600)
