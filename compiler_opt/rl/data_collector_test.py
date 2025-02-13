@@ -15,7 +15,6 @@
 """Tests for data_collector."""
 
 # pylint: disable=protected-access
-import sys
 from unittest import mock
 
 from absl.testing import absltest
@@ -29,11 +28,7 @@ class DataCollectorTest(absltest.TestCase):
     data = [3, 2, 1]
     monitor_dict = data_collector.build_distribution_monitor(data)
     reference_dict = {'mean': 2, 'p_0.1': 1}
-    # Issue #38
-    if sys.version_info >= (3, 9):
-      self.assertEqual(monitor_dict, monitor_dict | reference_dict)
-    else:
-      self.assertEqual(monitor_dict, {**monitor_dict, **reference_dict})
+    self.assertEqual(monitor_dict, monitor_dict | reference_dict)
 
   @mock.patch('time.time')
   def test_early_exit(self, mock_time):
