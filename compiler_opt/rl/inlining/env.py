@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +21,6 @@ import os
 from compiler_opt.rl import env
 from compiler_opt.rl.inlining import config
 
-from typing import Dict, List, Optional
-
 _COMPILED_MODULE_NAME = 'compiled_module'
 
 
@@ -35,9 +32,9 @@ class InliningForSizeTask(env.MLGOTask):
     super().__init__()
     self._llvm_size_path = llvm_size_path
 
-  def get_cmdline(self, clang_path: str, base_args: List[str],
-                  interactive_base_path: Optional[str],
-                  working_dir: str) -> List[str]:
+  def get_cmdline(self, clang_path: str, base_args: list[str],
+                  interactive_base_path: str | None,
+                  working_dir: str) -> list[str]:
     if interactive_base_path:
       interactive_args = [
           '-mllvm',
@@ -53,7 +50,7 @@ class InliningForSizeTask(env.MLGOTask):
     return [clang_path
            ] + base_args + interactive_args + ['-o', compiled_module_path]
 
-  def get_module_scores(self, working_dir: str) -> Dict[str, float]:
+  def get_module_scores(self, working_dir: str) -> dict[str, float]:
     compiled_module_path = os.path.join(working_dir, _COMPILED_MODULE_NAME)
     cmdline = [self._llvm_size_path, compiled_module_path]
     completed_proc = subprocess.run(cmdline, capture_output=True, check=True)

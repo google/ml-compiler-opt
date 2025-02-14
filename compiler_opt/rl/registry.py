@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +21,6 @@ necessary elements - compilation runner implementation & ML configuration:
 See also problem_configuration.py
 """
 
-from typing import Type
-
 import gin
 import tf_agents as tfa
 
@@ -39,6 +36,6 @@ types = tfa.typing.types
 
 @gin.configurable(module='config_registry')
 def get_configuration(
-    implementation: Type[problem_configuration.ProblemConfiguration]
+    implementation: type[problem_configuration.ProblemConfiguration]
 ) -> problem_configuration.ProblemConfiguration:
   return implementation()

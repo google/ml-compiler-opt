@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +18,7 @@ from tf_agents.utils import tensor_normalizer
 
 
 @gin.configurable
-class RandomNetworkDistillation():
+class RandomNetworkDistillation:
   """The Random Network Distillation class."""
 
   def __init__(self,
