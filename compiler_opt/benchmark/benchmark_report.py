@@ -18,31 +18,28 @@ import math
 import statistics
 
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Tuple
+from collections.abc import Iterable
 
 from absl import logging
 
 # For each benchmark, and for each counter, capture the recorded values.
-PerBenchmarkResults = Dict[str, Dict[str, List[float]]]
+PerBenchmarkResults = dict[str, dict[str, list[float]]]
 
 # Benchmark data, as captured by the benchmark json output: a dictionary from
 # benchmark names to a list of run results. Each run result is a dictionary of
 # key-value pairs, e.g. counter name - value.
-BenchmarkRunResults = Dict[str, List[Dict[str, Any]]]
+BenchmarkRunResults = dict[str, list[dict[str, Any]]]
 
 # A comparison per benchmark, per counter, capturing the geomean and the stdev
 # of the base and experiment values.
-ABComparison = Dict[str, Dict[str, Tuple[float, float, float]]]
+ABComparison = dict[str, dict[str, tuple[float, float, float]]]
 
 
-def _geomean(data: List[float]):
+def _geomean(data: list[float]):
   return math.exp(sum(math.log(x) for x in data) / len(data))
 
 
-def _stdev(data: List[float]):
+def _stdev(data: list[float]):
   assert data
   return 0.0 if len(data) == 1 else statistics.stdev(data)
 
@@ -70,7 +67,7 @@ class BenchmarkReport:
   def raw_measurements(self):
     return self._raw_measurements
 
-  def counter_means(self, benchmark: str, counter: str) -> Tuple[float, float]:
+  def counter_means(self, benchmark: str, counter: str) -> tuple[float, float]:
     if counter not in self.counters():
       raise ValueError('unknown counter')
     if benchmark not in self.names():

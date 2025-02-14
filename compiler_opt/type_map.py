@@ -13,7 +13,7 @@
 # limitations under the License.
 """Map between tf, ctypes, and string names for scalar types."""
 import ctypes
-from typing import List, Tuple, Union
+from typing import Union
 import tensorflow as tf
 
 ScalarCType = Union[  # pylint: disable=invalid-name
@@ -21,7 +21,7 @@ ScalarCType = Union[  # pylint: disable=invalid-name
     'type[ctypes.c_int16]', 'type[ctypes.c_uint16]', 'type[ctypes.c_int32]',
     'type[ctypes.c_uint32]', 'type[ctypes.c_int64]', 'type[ctypes.c_uint64]']
 
-TYPE_ASSOCIATIONS: List[Tuple[str, ScalarCType,
+TYPE_ASSOCIATIONS: list[tuple[str, ScalarCType,
                               tf.DType]] = [
                                   ('float', ctypes.c_float, tf.float32),
                                   ('double', ctypes.c_double, tf.float64),

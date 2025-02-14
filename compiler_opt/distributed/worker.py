@@ -14,7 +14,8 @@
 """Common abstraction for a worker contract."""
 
 import abc
-from typing import Any, List, Iterable, Optional, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
+from collections.abc import Iterable
 
 import gin
 
@@ -35,7 +36,7 @@ class WorkerPool(metaclass=abc.ABCMeta):
 
   # Issue #155 would strongly-type the return type.
   @abc.abstractmethod
-  def get_currently_active(self) -> List[Any]:
+  def get_currently_active(self) -> list[Any]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -47,7 +48,7 @@ class FixedWorkerPool(WorkerPool):
   """A WorkerPool built from a fixed list of workers."""
 
   # Issue #155 would strongly-type `workers`
-  def __init__(self, workers: List[Any], worker_concurrency: int = 2):
+  def __init__(self, workers: list[Any], worker_concurrency: int = 2):
     self._workers = workers
     self._worker_concurrency = worker_concurrency
 
@@ -80,7 +81,7 @@ def wait_for(futures: Iterable[WorkerFuture]):
       pass
 
 
-def get_exception(worker_future: WorkerFuture) -> Optional[Exception]:
+def get_exception(worker_future: WorkerFuture) -> Exception | None:
   assert worker_future.done()
   try:
     _ = worker_future.result()

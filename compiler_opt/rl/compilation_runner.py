@@ -21,7 +21,7 @@ import signal
 import subprocess
 import tempfile
 import threading
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 from absl import flags
 from absl import logging
@@ -62,9 +62,9 @@ class NonTemporaryDirectory:
 
   def __init__(
       self,
-      suffix: Optional[str] = None,
-      prefix: Optional[str] = None,
-      dir: Optional[str] = None,  # pylint: disable=redefined-builtin
+      suffix: str | None = None,
+      prefix: str | None = None,
+      dir: str | None = None,  # pylint: disable=redefined-builtin
       ignore_cleanup_errors: bool = False):
     _ = ignore_cleanup_errors  # unused
     self.name = tempfile.mkdtemp(suffix, prefix, dir)
@@ -79,7 +79,7 @@ class NonTemporaryDirectory:
     pass
 
 
-def get_workdir_context(explicit_temps_dir: Optional[str] = None):
+def get_workdir_context(explicit_temps_dir: str | None = None):
   """Return a context which manages how the temperory directories are handled.
 
   When the flag explicit_temps_dir is specified temporary directories are
@@ -208,11 +208,11 @@ class WorkerCancellationManager:
       raise RuntimeError('Cancellation manager deleted while containing items.')
 
 
-def start_cancellable_process(
-    cmdline: List[str],
-    timeout: float,
-    cancellation_manager: Optional[WorkerCancellationManager],
-    want_output: bool = False) -> Optional[bytes]:
+def start_cancellable_process(cmdline: list[str],
+                              timeout: float,
+                              cancellation_manager: WorkerCancellationManager
+                              | None,
+                              want_output: bool = False) -> bytes | None:
   """Start a cancellable process.
 
   Args:
@@ -283,18 +283,18 @@ class CompilationResult:
 
   2) The keys in reward stats are those in the keys field.
   """
-  sequence_examples: dataclasses.InitVar[List[tf.train.SequenceExample]]
-  serialized_sequence_examples: List[str] = dataclasses.field(init=False)
+  sequence_examples: dataclasses.InitVar[list[tf.train.SequenceExample]]
+  serialized_sequence_examples: list[str] = dataclasses.field(init=False)
   length: int = dataclasses.field(init=False)
-  reward_stats: Dict[str, RewardStat]
-  rewards: List[float]
-  policy_rewards: List[float]
-  keys: List[str]
+  reward_stats: dict[str, RewardStat]
+  rewards: list[float]
+  policy_rewards: list[float]
+  keys: list[str]
 
   # The id of the model used to generate this compilation result
-  model_id: Optional[int]
+  model_id: int | None
 
-  def __post_init__(self, sequence_examples: List[tf.train.SequenceExample]):
+  def __post_init__(self, sequence_examples: list[tf.train.SequenceExample]):
     object.__setattr__(self, 'serialized_sequence_examples',
                        [x.SerializeToString() for x in sequence_examples])
     lengths = [
@@ -316,9 +316,9 @@ class CompilationRunnerStub(metaclass=abc.ABCMeta):
   def collect_data(
       self,
       loaded_module_spec: corpus.LoadedModuleSpec,
-      policy: Optional[policy_saver.Policy] = None,
-      reward_stat: Optional[Dict[str, RewardStat]] = None,
-      model_id: Optional[int] = None) -> WorkerFuture[CompilationResult]:
+      policy: policy_saver.Policy | None = None,
+      reward_stat: dict[str, RewardStat] | None = None,
+      model_id: int | None = None) -> WorkerFuture[CompilationResult]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -360,12 +360,13 @@ class CompilationRunner(Worker):
         'cancel_all_work', 'enable', 'pause_all_work', 'resume_all_work'
     }
 
-  def __init__(self,
-               clang_path: Optional[str] = None,
-               launcher_path: Optional[str] = None,
-               moving_average_decay_rate: float = 1,
-               create_observer_fns: Optional[List[Callable[
-                   [], CompilationResultObserver]]] = None):
+  def __init__(
+      self,
+      clang_path: str | None = None,
+      launcher_path: str | None = None,
+      moving_average_decay_rate: float = 1,
+      create_observer_fns: list[Callable[[], CompilationResultObserver]]
+      | None = None):
     """Initialization of CompilationRunner class.
 
     Args:
@@ -403,9 +404,9 @@ class CompilationRunner(Worker):
 
   def collect_data(self,
                    loaded_module_spec: corpus.LoadedModuleSpec,
-                   policy: Optional[policy_saver.Policy] = None,
-                   reward_stat: Optional[Dict[str, RewardStat]] = None,
-                   model_id: Optional[int] = None) -> CompilationResult:
+                   policy: policy_saver.Policy | None = None,
+                   reward_stat: dict[str, RewardStat] | None = None,
+                   model_id: int | None = None) -> CompilationResult:
     """Collect data for the given IR file and policy.
 
     Args:
@@ -458,9 +459,8 @@ class CompilationRunner(Worker):
       sequence_example = v[0]
       policy_reward = v[1]
       if k not in reward_stat:
-        raise ValueError(
-            (f'Example {k} does not exist under default policy for '
-             f'cmd line: {final_cmd_line}'))
+        raise ValueError(f'Example {k} does not exist under default policy for '
+                         f'cmd line: {final_cmd_line}')
       default_reward = reward_stat[k].default_reward
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
@@ -492,7 +492,7 @@ class CompilationRunner(Worker):
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool,
-      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      workdir: str) -> dict[str, tuple[tf.train.SequenceExample, float]]:
     """Compiles for the given IR file under the given policy.
 
     Args:

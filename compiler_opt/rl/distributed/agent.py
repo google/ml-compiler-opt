@@ -13,8 +13,6 @@
 # limitations under the License.
 """PPO agent definition and utility functions."""
 
-from typing import Optional, Tuple
-
 from absl import logging
 
 import tensorflow as tf
@@ -51,22 +49,22 @@ class MLGOPPOAgent(ppo_agent.PPOAgent):
   def __init__(self,
                time_step_spec: ts.TimeStep,
                action_spec: types.NestedTensorSpec,
-               optimizer: Optional[types.Optimizer] = None,
-               actor_net: Optional[network.Network] = None,
-               value_net: Optional[network.Network] = None,
+               optimizer: types.Optimizer | None = None,
+               actor_net: network.Network | None = None,
+               value_net: network.Network | None = None,
                importance_ratio_clipping: types.Float = 0.2,
                discount_factor: types.Float = 1.0,
                entropy_regularization: types.Float = 0.01,
                value_pred_loss_coef: types.Float = 0.5,
-               gradient_clipping: Optional[types.Float] = 1.0,
-               value_clipping: Optional[types.Float] = None,
+               gradient_clipping: types.Float | None = 1.0,
+               value_clipping: types.Float | None = None,
                check_numerics: bool = False,
                debug_summaries: bool = False,
                summarize_grads_and_vars: bool = False,
-               train_step_counter: Optional[tf.Variable] = None,
+               train_step_counter: tf.Variable | None = None,
                aggregate_losses_across_replicas=False,
                loss_scaling_factor=1.,
-               name: Optional[str] = 'PPOClipAgent'):
+               name: str | None = 'PPOClipAgent'):
     """Creates a PPO Agent implementing the clipped probability ratios.
 
     Args:
@@ -153,7 +151,7 @@ class MLGOPPOAgent(ppo_agent.PPOAgent):
 
   def compute_return_and_advantage(
       self, next_time_steps: ts.TimeStep,
-      value_preds: types.Tensor) -> Tuple[types.Tensor, types.Tensor]:
+      value_preds: types.Tensor) -> tuple[types.Tensor, types.Tensor]:
     """Compute the Monte Carlo return and advantage.
 
     Args:

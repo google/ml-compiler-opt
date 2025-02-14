@@ -20,11 +20,9 @@ import shutil
 import tensorflow
 import json
 
-from typing import Optional, List
-
 
 def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
-               llvm_source_path: Optional[str]):
+               llvm_source_path: str | None):
   """Builds LLVM/clang with the specified model and the correct settings
 
   This function invokes CMake with all the correct build flags specified
@@ -72,7 +70,7 @@ def build_llvm(model_path: str, use_existing_build: bool, llvm_build_path: str,
     cmake_compile_process.wait()
 
 
-def run_microbenchmark(executable: str, perf_counters: List[str]):
+def run_microbenchmark(executable: str, perf_counters: list[str]):
   """Runs all the tests in a specific google benchmark binary
 
   This function takes in an executable and performance counters according to the

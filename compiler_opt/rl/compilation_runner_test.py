@@ -91,10 +91,9 @@ def _mock_compile_fn(file_paths, tf_policy_path, reward_only, workdir):  # pylin
     return {'default': (sequence_example, native_size)}
 
 
-_mock_policy = policy_saver.Policy(bytes(), bytes())
+_mock_policy = policy_saver.Policy(b'', b'')
 
-_mock_loaded_module_spec = corpus.LoadedModuleSpec(
-    name='dummy', loaded_ir=bytes())
+_mock_loaded_module_spec = corpus.LoadedModuleSpec(name='dummy', loaded_ir=b'')
 
 
 class CompilationRunnerTest(tf.test.TestCase):

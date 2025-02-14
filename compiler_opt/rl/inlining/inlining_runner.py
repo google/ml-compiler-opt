@@ -15,7 +15,6 @@
 
 import os
 import tempfile
-from typing import Dict, Tuple
 
 import gin
 import tensorflow as tf
@@ -47,7 +46,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool,
-      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      workdir: str) -> dict[str, tuple[tf.train.SequenceExample, float]]:
     """Run inlining for the given IR file under the given policy.
 
     Args:

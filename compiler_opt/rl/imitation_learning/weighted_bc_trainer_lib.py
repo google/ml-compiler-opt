@@ -15,8 +15,6 @@
 
 from absl import flags
 
-from typing import List, Optional
-
 import bisect
 import copy
 import gin
@@ -65,18 +63,18 @@ class TrainingWeights:
       #  pylint: disable=dangerous-default-value
       self,
       partitions: list[float] = [0.],
-      weights: Optional[np.ndarray] = None):
+      weights: np.ndarray | None = None):
     self._weights = weights
     if not weights:
       self._weights = np.ones(len(partitions) + 1)
     self._probs: np.ndarray = np.exp(self._weights) / np.sum(
         np.exp(self._weights))
-    self._partitions: List[float] = partitions
+    self._partitions: list[float] = partitions
     self._round: int = 1
 
   def _bucket_by_feature(
-      self, data: List[ProfilingDictValueType],
-      feature_name: str) -> List[List[ProfilingDictValueType]]:
+      self, data: list[ProfilingDictValueType],
+      feature_name: str) -> list[list[ProfilingDictValueType]]:
     """Partitions the profiles according to the feature name.
 
     Partitions the profiles according to the feature name and the
@@ -112,9 +110,9 @@ class TrainingWeights:
     return np.exp(self._weights) / np.sum(np.exp(self._weights))
 
   def create_new_profile(self,
-                         data_comparator: List[ProfilingDictValueType],
-                         data_eval: List[ProfilingDictValueType],
-                         eps: float = 1e-5) -> List[ProfilingDictValueType]:
+                         data_comparator: list[ProfilingDictValueType],
+                         data_eval: list[ProfilingDictValueType],
+                         eps: float = 1e-5) -> list[ProfilingDictValueType]:
     """Create a new profile which contains the regret and relative reward.
 
     The regret is measured as the difference between the loss of the data_eval
@@ -142,12 +140,12 @@ class TrainingWeights:
         logging.error('KeyError: %s', k)
         continue
       if isinstance(prof[SequenceExampleFeatureNames.loss], str):
-        raise ValueError(('prof[SequenceExampleFeatureNames.loss] is a string'
-                          'but it should be numeric.'))
+        raise ValueError('prof[SequenceExampleFeatureNames.loss] is a string'
+                         'but it should be numeric.')
       if isinstance(new_prof[SequenceExampleFeatureNames.loss], str):
         raise ValueError(
-            ('new_prof[SequenceExampleFeatureNames.loss] is a string'
-             'but it should be numeric.'))
+            'new_prof[SequenceExampleFeatureNames.loss] is a string'
+            'but it should be numeric.')
       new_prof[SequenceExampleFeatureNames
                .regret] = new_prof[SequenceExampleFeatureNames.loss] - prof[
                    SequenceExampleFeatureNames.loss]
@@ -158,8 +156,8 @@ class TrainingWeights:
     return list(func_key_dict.values())
 
   def update_weights(
-      self, comparator_profile: List[ProfilingDictValueType],
-      policy_profile: List[ProfilingDictValueType]) -> np.ndarray:
+      self, comparator_profile: list[ProfilingDictValueType],
+      policy_profile: list[ProfilingDictValueType]) -> np.ndarray:
     """Constructs a new profile and uses the loss to update self._probs with EG.
 
     Args:
@@ -209,13 +207,12 @@ class ImitationLearningTrainer:
       batch_size: int = 128,
       epochs: int = 1,
       log_interval: int = 1000,
-      optimizer: Optional[keras.optimizers.Optimizer] = None,
-      save_model_dir: Optional[str] = None,
+      optimizer: keras.optimizers.Optimizer | None = None,
+      save_model_dir: str | None = None,
       shuffle_size: int = 131072,
-      training_weights: Optional[TrainingWeights] = None,
-      features_to_remove: Optional[List[str]] = [
-          'policy_label', 'inlining_default'
-      ]):
+      training_weights: TrainingWeights | None = None,
+      features_to_remove: list[str]
+      | None = ['policy_label', 'inlining_default']):
     self._width = width
     self._layers = layers
     self._batch_size = batch_size
@@ -305,7 +302,7 @@ class ImitationLearningTrainer:
         logging.warning('Feature %s is nan', name)
     return tf.concat(concat_arr, -1), tf.concat([label, weight_label], -1)
 
-  def load_dataset(self, filepaths: List[str]) -> tf.data.TFRecordDataset:
+  def load_dataset(self, filepaths: list[str]) -> tf.data.TFRecordDataset:
     """Load datasets from specified filepaths for training.
 
     Args:
@@ -380,7 +377,7 @@ class ImitationLearningTrainer:
     self._update_metrics(y_true, y_pred, loss_value, weights)
     return loss_value
 
-  def train(self, filepaths: List[str]):
+  def train(self, filepaths: list[str]):
     """Train the model for number of the specified number of epochs."""
     dataset = self.load_dataset(filepaths)
     logging.info('Datasets loaded from %s', str(filepaths))
@@ -427,7 +424,7 @@ class WrapKerasModel(tf_agents.policies.TFPolicy):
       self,
       *args,
       keras_policy: tf.keras.Model,
-      features_to_remove: Optional[List[str]] = ['inlining_default'],
+      features_to_remove: list[str] | None = ['inlining_default'],
       **kwargs):
     super().__init__(*args, **kwargs)
     self._keras_policy = keras_policy
@@ -463,7 +460,7 @@ class WrapKerasModel(tf_agents.policies.TFPolicy):
   def _action(self,
               time_step: ts.TimeStep,
               policy_state: types.NestedTensor,
-              seed: Optional[types.Seed] = None) -> policy_step.PolicyStep:
+              seed: types.Seed | None = None) -> policy_step.PolicyStep:
     new_observation = time_step.observation
     keras_model_input = self._process_observation(new_observation)
     inlining_predict = self._keras_policy(keras_model_input)[0]

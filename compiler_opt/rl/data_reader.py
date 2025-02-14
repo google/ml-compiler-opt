@@ -13,7 +13,7 @@
 # limitations under the License.
 """util function to create training datasets."""
 
-from typing import Callable, List
+from collections.abc import Callable
 
 import tensorflow as tf
 from tf_agents.trajectories import trajectory
@@ -87,7 +87,7 @@ def create_parser_fn(
 
 def create_flat_sequence_example_dataset_fn(
     agent_cfg: agent_config.AgentConfig
-) -> Callable[[List[str]], tf.data.Dataset]:
+) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   The dataset is "flat" insofar as it does not batch for sequence length nor
@@ -124,7 +124,7 @@ def create_flat_sequence_example_dataset_fn(
 
 def create_sequence_example_dataset_fn(
     agent_cfg: agent_config.AgentConfig, batch_size: int,
-    train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
+    train_sequence_length: int) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates a dataset from serialized sequence examples.
 
   Args:
@@ -163,7 +163,7 @@ def create_file_dataset_fn(
     agent_cfg: agent_config.AgentConfig,
     batch_size: int,
     train_sequence_length: int,
-    input_dataset) -> Callable[[List[str]], tf.data.Dataset]:
+    input_dataset) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from files.
 
   Args:
@@ -214,7 +214,7 @@ def create_file_dataset_fn(
 
 def create_tfrecord_dataset_fn(
     agent_cfg: agent_config.AgentConfig, batch_size: int,
-    train_sequence_length: int) -> Callable[[List[str]], tf.data.Dataset]:
+    train_sequence_length: int) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
   Args:

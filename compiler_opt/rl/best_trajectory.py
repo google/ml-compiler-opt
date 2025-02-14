@@ -15,7 +15,6 @@
 
 import dataclasses
 import json
-from typing import Dict, List
 
 import tensorflow as tf
 
@@ -25,7 +24,7 @@ from compiler_opt.rl import constant
 @dataclasses.dataclass(frozen=True)
 class BestTrajectory:
   reward: float
-  action_list: List[int]
+  action_list: list[int]
 
 
 class BestTrajectoryRepo:
@@ -39,11 +38,11 @@ class BestTrajectoryRepo:
         list from tensorflow.SequenceExample.
     """
     # {module_name: {identifier: best trajectory}}
-    self._best_trajectories: Dict[str, Dict[str, BestTrajectory]] = {}
+    self._best_trajectories: dict[str, dict[str, BestTrajectory]] = {}
     self._action_name: str = action_name
 
   @property
-  def best_trajectories(self) -> Dict[str, Dict[str, BestTrajectory]]:
+  def best_trajectories(self) -> dict[str, dict[str, BestTrajectory]]:
     return self._best_trajectories.copy()
 
   def sink_to_json_file(self, path: str):
