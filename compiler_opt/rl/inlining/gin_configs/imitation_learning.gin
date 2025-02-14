@@ -14,10 +14,7 @@ generate_bc_trajectories_lib.ModuleWorker.partitions=[
     285.0, 376.0, 452.0, 512.0, 571.0, 627.5, 720.0, 809.5, 1304.0, 1832.0,
     2467.0, 3344.0, 4545.0, 6459.0, 9845.0, 17953.0, 29430.5, 85533.5,
     124361.0]
-
-reward_key='default'
-generate_bc_trajectories_lib.ModuleWorker.reward_key=%reward_key
-env.InliningForSizeTask.reward_key=%reward_key
+generate_bc_trajectories_lib.ModuleWorker.reward_key='default'
 
 generate_bc_trajectories_lib.gen_trajectories.data_path=''
 generate_bc_trajectories_lib.gen_trajectories.delete_flags=('-split-dwarf-file', '-split-dwarf-output')
