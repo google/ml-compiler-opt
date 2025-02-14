@@ -65,11 +65,9 @@ def get_input_signature():
   time_step_spec, action_spec = config.get_inlining_signature_spec()
   observation_spec = time_step_spec.observation
   observation_spec.update({
-      key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
-          'is_callee_avail_external',
-          'is_caller_avail_external',
-          'inlining_default'
-      )
+      key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key)
+      for key in ('is_callee_avail_external', 'is_caller_avail_external',
+                  'inlining_default')
   })
 
   time_step_spec = time_step.time_step_spec(observation_spec,
