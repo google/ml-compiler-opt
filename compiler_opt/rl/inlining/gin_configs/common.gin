@@ -15,7 +15,7 @@ env.InliningForSizeTask.llvm_size_path=%llvm_size_path
 env.get_inlining_env.clang_path=%clang_path
 
 problem_config.flags_to_add.add_flags=()
-problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output',)
+problem_config.flags_to_delete.delete_flags=('-split-dwarf-file','-split-dwarf-output','--crel','-fskip-odr-check-in-gmf','--warning-suppression-mappings')
 # For AFDO profile reinjection set:
 # problem_config.flags_to_replace.replace_flags={'-fprofile-sample-use':'/path/to/gwp.afdo','-fprofile-remapping-file':'/path/to/prof_remap.txt'}
 problem_config.flags_to_replace.replace_flags={}
