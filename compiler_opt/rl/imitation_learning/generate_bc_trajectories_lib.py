@@ -897,7 +897,7 @@ def gen_trajectories(
     num_workers: int | None = None,
     num_output_files: int = 1,
     profiling_file_path: str | None = None,
-    worker_wait_sec: int = 100,
+    worker_wait_sec: float | None = None,
     worker_class_type=ModuleWorker,
     worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
 ):

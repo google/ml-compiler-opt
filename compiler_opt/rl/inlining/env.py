@@ -28,9 +28,10 @@ _COMPILED_MODULE_NAME = 'compiled_module'
 class InliningForSizeTask(env.MLGOTask):
   """Implementation of the inlining-for-size MLGOTask."""
 
-  def __init__(self, llvm_size_path: str):
+  def __init__(self, llvm_size_path: str, default_reward_key: str = 'default'):
     super().__init__()
     self._llvm_size_path = llvm_size_path
+    self._default_reward_key = default_reward_key
 
   def get_cmdline(self, clang_path: str, base_args: list[str],
                   interactive_base_path: str | None,
@@ -62,7 +63,7 @@ class InliningForSizeTask(env.MLGOTask):
       raise RuntimeError(f'Wrong llvm-size output {output}')
     tmp = tmp[1].split('\t')
     native_size = int(tmp[0])
-    return {'default': native_size}
+    return {self._default_reward_key: native_size}
 
 
 @gin.configurable
