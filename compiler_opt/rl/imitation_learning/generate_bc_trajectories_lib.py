@@ -17,7 +17,7 @@ import concurrent.futures
 import contextlib
 import gin
 from typing import Any
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Iterator
 import json
 
 from absl import flags
@@ -518,8 +518,7 @@ class ModuleExplorer:
       policy: Callable[[time_step.TimeStep | None], np.ndarray],
       explore_policy: Callable[[time_step.TimeStep], policy_step.PolicyStep],
       num_samples: int = 1,
-  ) -> Generator[tuple[tf.train.SequenceExample, ExplorationWithPolicy], None,
-                 None]:
+  ) -> Iterator[tuple[tf.train.SequenceExample, ExplorationWithPolicy]]:
     """Generate sequence examples and next exploration policy while exploring.
 
     Generator that defines how to explore at the given explore_step. This
