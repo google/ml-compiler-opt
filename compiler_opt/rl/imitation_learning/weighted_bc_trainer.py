@@ -13,20 +13,19 @@
 # limitations under the License.
 """Module for training an inlining policy with imitation learning."""
 
-from absl import app
-from absl import flags
-from absl import logging
+import json
 
 import gin
-import json
-from compiler_opt.rl import policy_saver
 import tensorflow as tf
+from absl import app, flags, logging
 
+from compiler_opt.rl import policy_saver
+from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import (
+  ImitationLearningTrainer,
+  TrainingWeights,
+  WrapKerasModel,
+)
 from compiler_opt.rl.inlining import imitation_learning_config as config
-
-from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import TrainingWeights
-from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import ImitationLearningTrainer
-from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import WrapKerasModel
 
 _TRAINING_DATA = flags.DEFINE_multi_string(
     'training_data', None, 'Training data for one step of BC-Max')
