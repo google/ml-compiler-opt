@@ -78,7 +78,7 @@ def main(_):
       _GIN_FILES.value, _GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
-  tf.compat.v1.enable_eager_execution()
+  tf.compat.v1.enable_eager_execution()  # pytype: disable=module-attr
 
   train()
 

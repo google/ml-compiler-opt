@@ -327,8 +327,8 @@ class ImitationLearningTrainer:
     return dataset
 
   def _create_weights(self, labels, weights_arr):
-    p_norm = tf.reduce_min(weights_arr)  # check that this should be min
-    weights_arr = tf.map_fn(lambda x: p_norm / x, weights_arr)
+    p_norm = tf.reduce_min(weights_arr)
+    weights_arr = tf.math.divide(p_norm, weights_arr)
     int_labels = tf.cast(labels, tf.int32)
     return tf.gather(weights_arr, int_labels)
 
