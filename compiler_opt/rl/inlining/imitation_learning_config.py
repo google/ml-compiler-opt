@@ -14,7 +14,6 @@
 """Module for collect data of inlining-for-size."""
 
 import gin
-from typing import Type
 
 import numpy as np
 import tensorflow as tf
@@ -76,7 +75,7 @@ def get_input_signature():
 
 
 @gin.register
-def get_task_type() -> Type[env.InliningForSizeTask]:
+def get_task_type() -> type[env.InliningForSizeTask]:
   """Returns the task type for the trajectory collection."""
   return env.InliningForSizeTask
 
