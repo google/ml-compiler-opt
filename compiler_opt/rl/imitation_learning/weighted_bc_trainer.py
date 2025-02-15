@@ -20,6 +20,7 @@ from absl import logging
 import gin
 import json
 from compiler_opt.rl import policy_saver
+import tensorflow as tf
 
 from compiler_opt.rl.inlining import imitation_learning_config as config
 
@@ -77,6 +78,8 @@ def main(_):
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, _GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
+
+  tf.compat.v1.enable_eager_execution()
 
   train()
 

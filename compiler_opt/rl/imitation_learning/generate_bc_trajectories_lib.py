@@ -826,7 +826,7 @@ class ModuleWorker(worker.Worker):
       loaded_module_spec: corpus.LoadedModuleSpec,
   ) -> tuple[tuple[int, ProfilingDictValueType, ProfilingDictValueType],
              tf.train.SequenceExample]:
-
+    logging.set_verbosity('info')
     num_calls = len(self._tf_policy_action)
     time_call_compiler = 0
     logging.info('Processing module: %s', loaded_module_spec.name)
