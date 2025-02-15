@@ -21,9 +21,9 @@ from absl import app, flags, logging
 
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl.imitation_learning.weighted_bc_trainer_lib import (
-  ImitationLearningTrainer,
-  TrainingWeights,
-  WrapKerasModel,
+    ImitationLearningTrainer,
+    TrainingWeights,
+    WrapKerasModel,
 )
 from compiler_opt.rl.inlining import imitation_learning_config as config
 
