@@ -177,8 +177,8 @@ class TrainingWeights:
         bucket_loss += np.maximum(prof[SequenceExampleFeatureNames.regret], 0)
       losses_per_bucket.append(bucket_loss)
     logging.info('Losses per bucket: %s', losses_per_bucket)
-    losses_per_bucket_normalized = losses_per_bucket / np.max(
-        np.abs(losses_per_bucket))
+    losses_per_bucket_normalized = losses_per_bucket / (
+        np.max(np.abs(losses_per_bucket)) + 1e-6)
     probs_t = self._get_exp_gradient_step(losses_per_bucket_normalized, 1.0)
     self._round += 1
     self._probs = (self._probs * (self._round - 1) + probs_t) / self._round
@@ -228,6 +228,7 @@ class ImitationLearningTrainer:
       self._trainig_weights = TrainingWeights()
     self._features_to_remove = features_to_remove
     self._global_step = 0
+    self._is_model_init = False
 
     observation_spec, action_spec = config.get_inlining_signature_spec()
     sequence_features = {
@@ -322,13 +323,12 @@ class ImitationLearningTrainer:
                 self._make_feature_label, num_processors=self._num_processors))
     dataset = dataset.unbatch().shuffle(self._shuffle_size).batch(
         self._batch_size, drop_remainder=True)  # 4194304
-    dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
     return dataset
 
   def _create_weights(self, labels, weights_arr):
-    p_norm = min(weights_arr)  # check that this should be min
-    weights_arr = tf.map_fn(lambda x: p_norm / x, tf.constant(weights_arr))
+    p_norm = tf.reduce_min(weights_arr)
+    weights_arr = tf.math.divide(p_norm, weights_arr)
     int_labels = tf.cast(labels, tf.int32)
     return tf.gather(weights_arr, int_labels)
 
@@ -365,6 +365,7 @@ class ImitationLearningTrainer:
           tf.summary.scalar(
               name=metric.name, data=metric.result(), step=self._global_step)
 
+  @tf.function
   def _train_step(self, example, label, weight_labels, weights_arr):
     y_true = label[:, 0]
     y_true = tf.reshape(y_true, [self._batch_size, 1])
@@ -381,10 +382,15 @@ class ImitationLearningTrainer:
     """Train the model for number of the specified number of epochs."""
     dataset = self.load_dataset(filepaths)
     logging.info('Datasets loaded from %s', str(filepaths))
-    input_shape = dataset.element_spec[0].shape[-1]
-    self._initialize_model(input_shape=input_shape)
-    self._initialize_metrics()
-    for _ in range(self._epochs):
+    input_shape = int(dataset.element_spec[0].shape[-1])
+    if not self._is_model_init:
+      self._initialize_model(input_shape=input_shape)
+      self._initialize_metrics()
+      self._is_model_init = True
+      self._global_step = 0
+    logging.info('Training started')
+    for epoch in range(self._epochs):
+      logging.info('Epoch %s', epoch)
       for metric in self._metrics:
         metric.reset_states()
       for step, (x_batch_train, y_batch_train) in enumerate(dataset):
