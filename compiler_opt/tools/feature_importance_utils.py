@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +23,9 @@ import numpy
 import numpy.typing
 
 from tf_agents.typing import types
-from typing import Callable, Dict, Tuple
+from collections.abc import Callable
 
-SignatureType = Dict[str, Tuple[numpy.typing.ArrayLike, tf.dtypes.DType]]
+SignatureType = dict[str, tuple[numpy.typing.ArrayLike, tf.dtypes.DType]]
 
 
 def get_input_signature(example_input: types.NestedTensorSpec) -> SignatureType:
