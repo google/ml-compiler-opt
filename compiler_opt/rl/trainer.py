@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,11 +25,10 @@ from tf_agents.policies import policy_loader
 from tf_agents import trajectories
 
 from tf_agents.utils import common as common_utils
-from typing import Optional
 
 
 @gin.configurable
-class Trainer(object):
+class Trainer:
   """Object that trains LLVM policy.
 
   After initialization, the function 'train' can be called multiple times to
@@ -47,9 +45,9 @@ class Trainer(object):
       self,
       root_dir: str,
       agent: tf_agent.TFAgent,
-      random_network_distillation: Optional[
-          random_net_distillation.RandomNetworkDistillation] = None,
-      warmstart_policy_dir: Optional[str] = None,
+      random_network_distillation: random_net_distillation
+      .RandomNetworkDistillation | None = None,
+      warmstart_policy_dir: str | None = None,
       # Params for summaries and logging
       checkpoint_interval=10000,
       log_interval=100,
@@ -217,8 +215,8 @@ class Trainer(object):
           experience = next(dataset_iter)
         except StopIteration:
           logging.warning(
-              ('Warning: skip training because do not have enough data to fill '
-               'in a batch, consider increase data or reduce batch size.'))
+              'Warning: skip training because do not have enough data to fill '
+              'in a batch, consider increase data or reduce batch size.')
           break
 
         # random network distillation for intrinsic reward generation
