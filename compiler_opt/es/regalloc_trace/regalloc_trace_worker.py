@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +19,7 @@ then passes all those modules to basic_block_trace_model along with traces and
 other relevant data to produce an overall cost for the model being evaluated.
 """
 
-from typing import Optional, Collection
+from collections.abc import Collection
 import os
 import pathlib
 import subprocess
@@ -83,7 +82,7 @@ class RegallocTraceWorker(worker.Worker):
     shutil.rmtree(self._tf_base_temp_dir)
 
   def _compile_module(self, module_to_compile: corpus.ModuleSpec,
-                      output_directory: str, tflite_policy_path: Optional[str]):
+                      output_directory: str, tflite_policy_path: str | None):
     command_vector = [self._clang_path]
     context = corpus.Corpus.ReplaceContext(
         os.path.join(self._corpus_path, module_to_compile.name) + ".bc",
@@ -112,14 +111,10 @@ class RegallocTraceWorker(worker.Worker):
         parents=True, exist_ok=True)
     command_vector.extend(["-o", module_output_path])
 
-    subprocess.run(
-        command_vector,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+    subprocess.run(command_vector, check=True, capture_output=True)
 
   def _build_corpus(self, modules: Collection[corpus.ModuleSpec],
-                    output_directory: str, tflite_policy_path: Optional[str]):
+                    output_directory: str, tflite_policy_path: str | None):
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=self._thread_count) as thread_pool:
       compile_futures = [
@@ -158,11 +153,7 @@ class RegallocTraceWorker(worker.Worker):
         f"--bb_trace_path={bb_trace_path}", "--model_type=mca"
     ]
 
-    output = subprocess.run(
-        command_vector,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True)
+    output = subprocess.run(command_vector, capture_output=True, check=True)
 
     segment_costs = []
     for line in output.stdout.decode("utf-8").split("\n"):
@@ -179,7 +170,7 @@ class RegallocTraceWorker(worker.Worker):
 
   def compile_corpus_and_evaluate(self, modules: Collection[corpus.ModuleSpec],
                                   function_index_path: str, bb_trace_path: str,
-                                  policy_as_bytes: Optional[bytes]) -> float:
+                                  policy_as_bytes: bytes | None) -> float:
     with tempfile.TemporaryDirectory() as compilation_dir:
       tflite_policy_path = None
       if policy_as_bytes is not None:

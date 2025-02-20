@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +15,6 @@
 
 import abc
 import concurrent.futures
-from typing import List, Optional
 
 from absl import logging
 import gin
@@ -37,8 +35,8 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool, perturbations: list[bytes]
+  ) -> list[concurrent.futures.Future]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -46,7 +44,7 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
   def get_rewards(
-      self, results: List[concurrent.futures.Future]) -> List[Optional[float]]:
+      self, results: list[concurrent.futures.Future]) -> list[float | None]:
     rewards = [None] * len(results)
 
     for i in range(len(results)):
@@ -75,8 +73,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     super().__init__(train_corpus)
 
   def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool, perturbations: list[bytes]
+  ) -> list[concurrent.futures.Future]:
     if not self._samples:
       for _ in range(self._total_num_perturbations):
         sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)
@@ -119,11 +117,11 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     self._bb_trace_path = bb_trace_path
     self._function_index_path = function_index_path
 
-    self._baseline: Optional[float] = None
+    self._baseline: float | None = None
 
   def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: List[bytes]) -> List[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool, perturbations: list[bytes]
+  ) -> list[concurrent.futures.Future]:
     job_args = [{
         'modules': self._train_corpus.module_specs,
         'function_index_path': self._function_index_path,

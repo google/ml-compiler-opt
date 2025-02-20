@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +22,7 @@ import numpy as np
 import numpy.typing as npt
 import tempfile
 import tensorflow as tf
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers
@@ -82,8 +81,8 @@ class BlackboxLearnerConfig:
   step_size: float
 
 
-def _prune_skipped_perturbations(perturbations: List[npt.NDArray[np.float32]],
-                                 rewards: List[Optional[float]]):
+def _prune_skipped_perturbations(perturbations: list[npt.NDArray[np.float32]],
+                                 rewards: list[float | None]):
   """Remove perturbations that were skipped during the training step.
 
   Perturbations may be skipped due to an early exit condition or a server error
@@ -135,7 +134,7 @@ class BlackboxLearner:
                config: BlackboxLearnerConfig,
                initial_step: int = 0,
                deadline: float = 30.0,
-               seed: Optional[int] = None):
+               seed: int | None = None):
     """Construct a BlackboxLeaner.
 
     Args:
@@ -163,7 +162,7 @@ class BlackboxLearner:
     self._evaluator = self._config.evaluator(self._train_corpus,
                                              self._config.estimator_type)
 
-  def _get_perturbations(self) -> List[npt.NDArray[np.float32]]:
+  def _get_perturbations(self) -> list[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
     rng = np.random.default_rng(seed=self._seed)
     return [
@@ -172,8 +171,8 @@ class BlackboxLearner:
         for _ in range(self._config.total_num_perturbations)
     ]
 
-  def _update_model(self, perturbations: List[npt.NDArray[np.float32]],
-                    rewards: List[float]) -> None:
+  def _update_model(self, perturbations: list[npt.NDArray[np.float32]],
+                    rewards: list[float]) -> None:
     """Update the model given a list of perturbations and rewards."""
     self._model_weights = self._blackbox_opt.run_step(
         perturbations=np.array(perturbations),
@@ -181,11 +180,11 @@ class BlackboxLearner:
         current_input=self._model_weights,
         current_value=np.mean(rewards))
 
-  def _log_rewards(self, rewards: List[float]) -> None:
+  def _log_rewards(self, rewards: list[float]) -> None:
     """Log reward to console."""
     logging.info('Train reward: [%f]', np.mean(rewards))
 
-  def _log_tf_summary(self, rewards: List[float]) -> None:
+  def _log_tf_summary(self, rewards: list[float]) -> None:
     """Log tensorboard data."""
     with self._summary_writer.as_default():
       tf.summary.scalar(
