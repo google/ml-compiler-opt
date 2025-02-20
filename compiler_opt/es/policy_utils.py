@@ -128,7 +128,7 @@ def save_policy(policy: 'tf_policy.TFPolicy | HasModelVariables',
 def convert_to_tflite(policy_as_bytes: bytes, scratch_dir: str,
                       base_policy_path: str) -> str:
   """Converts a policy serialized to bytes to TFLite.
-  
+
   Args:
     policy_as_bytes: An array of model parameters serialized to a byte stream.
     scratch_dir: A temporary directory being used for scratch that the model
