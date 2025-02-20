@@ -20,6 +20,10 @@ import gin
 import tensorflow as tf
 import os
 
+# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
+# here as these errors are false positives.
+# pytype: disable=pyi-error
+
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import gradient_ascent_optimization_algorithms
