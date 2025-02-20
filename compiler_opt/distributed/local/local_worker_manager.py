@@ -27,6 +27,7 @@ The worker process dequeues tasks promptly and either re-enqueues them to a
 local thread pool, or, if the task is 'urgent', it executes it promptly.
 """
 import concurrent.futures
+import sys
 import cloudpickle
 import dataclasses
 import functools
@@ -34,7 +35,7 @@ import multiprocessing
 import psutil
 import threading
 
-from absl import logging
+from absl import flags, logging
 # pylint: disable=unused-import
 from compiler_opt.distributed import worker
 
@@ -67,8 +68,8 @@ def _get_context():
 SerializedClass = bytes
 
 
-def _run_impl(pipe: connection.Connection, worker_class: SerializedClass, *args,
-              **kwargs):
+def _run_impl(pipe: connection.Connection, worker_class: SerializedClass,
+              parse_argv: bool, *args, **kwargs):
   """Worker process entrypoint."""
 
   # A setting of 1 does not inhibit the while loop below from running since
@@ -77,7 +78,12 @@ def _run_impl(pipe: connection.Connection, worker_class: SerializedClass, *args,
   # spawned at a time which execute given tasks. In the typical clang-spawning
   # jobs, this effectively limits the number of clang instances spawned.
   pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-  obj = cloudpickle.loads(worker_class)(*args, **kwargs)
+  # unpickle the type, which triggers all the necessary imports. This registers
+  # abseil flags, which can then be parsed.
+  cls = cloudpickle.loads(worker_class)
+  if parse_argv:
+    flags.FLAGS(sys.argv, known_only=True)
+  obj = cls(*args, **kwargs)
 
   # Pipes are not thread safe
   pipe_lock = threading.Lock()
@@ -111,16 +117,16 @@ def _run_impl(pipe: connection.Connection, worker_class: SerializedClass, *args,
       pool.submit(application).add_done_callback(make_ondone(task.msgid))
 
 
-def _run(pipe: connection.Connection, worker_class: SerializedClass, *args,
-         **kwargs):
+def _run(pipe: connection.Connection, worker_class: SerializedClass,
+         parse_argv: bool, *args, **kwargs):
   try:
-    _run_impl(pipe, worker_class, *args, **kwargs)
+    _run_impl(pipe, worker_class, parse_argv, *args, **kwargs)
   except BaseException as e:
     logging.error(e)
     raise e
 
 
-def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
+def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, *args, **kwargs):
 
   class _Stub:
     """Client stub to a worker hosted by a process."""
@@ -135,8 +141,8 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
       # to handle high priority requests. The expectation is that the user
       # achieves concurrency through multiprocessing, not multithreading.
       self._process = _get_context().Process(
-          target=functools.partial(_run, child_pipe, cloudpickle.dumps(cls), *
-                                   args, **kwargs))
+          target=functools.partial(_run, child_pipe, cloudpickle.dumps(cls),
+                                   parse_argv, *args, **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
       # when we stop.
       self._lock = threading.Lock()
@@ -248,13 +254,16 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
 
 def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
-                             count: int | None, *args,
+                             count: int | None, parse_argv: bool, *args,
                              **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
     count = _get_context().cpu_count()
   final_kwargs = worker.get_full_worker_args(worker_cls, **kwargs)
-  stubs = [_make_stub(worker_cls, *args, **final_kwargs) for _ in range(count)]
+  stubs = [
+      _make_stub(worker_cls, parse_argv, *args, **final_kwargs)
+      for _ in range(count)
+  ]
   return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
 
 
@@ -274,7 +283,8 @@ class LocalWorkerPoolManager(AbstractContextManager):
 
   def __init__(self, worker_class: 'type[worker.Worker]', count: int | None,
                *args, **kwargs):
-    self._pool = create_local_worker_pool(worker_class, count, *args, **kwargs)
+    self._pool = create_local_worker_pool(worker_class, count, True, *args,
+                                          **kwargs)
 
   def __enter__(self) -> worker.FixedWorkerPool:
     return self._pool
