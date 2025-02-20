@@ -105,30 +105,30 @@ class RegallocTraceWorker(worker.Worker):
       else:
         tflite_policy_dir = None
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=self._thread_count) as thread_pool:
-      compile_futures = [
-          thread_pool.submit(self._compile_module, module, output_directory,
-                             tflite_policy_dir) for module in modules
-      ]
+      with concurrent.futures.ThreadPoolExecutor(
+          max_workers=self._thread_count) as thread_pool:
+        compile_futures = [
+            thread_pool.submit(self._compile_module, module, output_directory,
+                               tflite_policy_dir) for module in modules
+        ]
 
-      for future in compile_futures:
-        if future.exception() is not None:
-          raise future.exception()
+    for future in compile_futures:
+      if future.exception() is not None:
+        raise future.exception()
 
-      # Write out a corpus description. basic_block_trace_model uses a corpus
-      # description JSON to know which object files to load, so we need to emit
-      # one before performing evaluation.
-      corpus_description_path = os.path.join(output_directory,
-                                             "corpus_description.json")
-      corpus_description = {
-          "modules": [module_spec.name for module_spec in modules]
-      }
+    # Write out a corpus description. basic_block_trace_model uses a corpus
+    # description JSON to know which object files to load, so we need to emit
+    # one before performing evaluation.
+    corpus_description_path = os.path.join(output_directory,
+                                           "corpus_description.json")
+    corpus_description = {
+        "modules": [module_spec.name for module_spec in modules]
+    }
 
-      with open(
-          corpus_description_path, "w",
-          encoding="utf-8") as corpus_description_file:
-        json.dump(corpus_description, corpus_description_file)
+    with open(
+        corpus_description_path, "w",
+        encoding="utf-8") as corpus_description_file:
+      json.dump(corpus_description, corpus_description_file)
 
   def _evaluate_corpus(self, module_directory: str, function_index_path: str,
                        bb_trace_path: str):
