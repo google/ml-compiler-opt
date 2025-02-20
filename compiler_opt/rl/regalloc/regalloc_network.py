@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,8 @@
 # limitations under the License.
 """Actor network for Register Allocation."""
 
-from typing import Optional, Sequence, Callable, Any
+from typing import Any
+from collections.abc import Sequence, Callable
 
 import gin
 import tensorflow as tf
@@ -68,14 +68,14 @@ class RegAllocNetwork(network.DistributionNetwork):
       self,
       input_tensor_spec: types.NestedTensorSpec,
       output_tensor_spec: types.NestedTensorSpec,
-      preprocessing_layers: Optional[types.NestedLayer] = None,
-      preprocessing_combiner: Optional[tf.keras.layers.Layer] = None,
-      conv_layer_params: Optional[Sequence[Any]] = None,
-      fc_layer_params: Optional[Sequence[int]] = (200, 100),
-      dropout_layer_params: Optional[Sequence[float]] = None,
+      preprocessing_layers: types.NestedLayer | None = None,
+      preprocessing_combiner: tf.keras.layers.Layer | None = None,
+      conv_layer_params: Sequence[Any] | None = None,
+      fc_layer_params: Sequence[int] | None = (200, 100),
+      dropout_layer_params: Sequence[float] | None = None,
       activation_fn: Callable[[types.Tensor],
                               types.Tensor] = tf.keras.activations.relu,
-      kernel_initializer: Optional[tf.keras.initializers.Initializer] = None,
+      kernel_initializer: tf.keras.initializers.Initializer | None = None,
       batch_squash: bool = True,
       dtype: tf.DType = tf.float32,
       name: str = 'RegAllocNetwork'):
