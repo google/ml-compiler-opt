@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +18,8 @@
 import concurrent.futures
 import threading
 
-from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Callable, Iterable
 
 from compiler_opt.distributed import worker
 
@@ -27,9 +27,9 @@ T = TypeVar('T')
 W = TypeVar('W')
 
 
-def schedule(work: List[Callable[[T], worker.WorkerFuture]],
-             workers: List[T],
-             buffer=2) -> List[concurrent.futures.Future]:
+def schedule(work: list[Callable[[T], worker.WorkerFuture]],
+             workers: list[T],
+             buffer=2) -> list[concurrent.futures.Future]:
   """
   Assigns work to workers once previous work of the worker are
   completed.
@@ -87,8 +87,8 @@ def schedule_on_worker_pool(
     action: Callable[[W, T], Any],
     jobs: Iterable[T],
     worker_pool: worker.WorkerPool,
-    buffer_size: Optional[int] = None
-) -> Tuple[List[W], List[concurrent.futures.Future]]:
+    buffer_size: int | None = None
+) -> tuple[list[W], list[concurrent.futures.Future]]:
   """
   Schedule the given action on workers from the given worker pool.
   Args:
@@ -112,7 +112,7 @@ def schedule_on_worker_pool(
     return work
 
   work = [work_factory(job) for job in jobs]
-  workers: List[W] = worker_pool.get_currently_active()
+  workers: list[W] = worker_pool.get_currently_active()
   return workers, schedule(work, workers,
                            (worker_pool.get_worker_concurrency()
                             if buffer_size is None else buffer_size))
