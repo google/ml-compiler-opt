@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +14,6 @@
 """Module for training an inlining policy with imitation learning."""
 
 from absl import flags
-
-from typing import List, Optional
 
 import bisect
 import copy
@@ -66,18 +63,18 @@ class TrainingWeights:
       #  pylint: disable=dangerous-default-value
       self,
       partitions: list[float] = [0.],
-      weights: Optional[np.ndarray] = None):
+      weights: np.ndarray | None = None):
     self._weights = weights
     if not weights:
       self._weights = np.ones(len(partitions) + 1)
     self._probs: np.ndarray = np.exp(self._weights) / np.sum(
         np.exp(self._weights))
-    self._partitions: List[float] = partitions
+    self._partitions: list[float] = partitions
     self._round: int = 1
 
   def _bucket_by_feature(
-      self, data: List[ProfilingDictValueType],
-      feature_name: str) -> List[List[ProfilingDictValueType]]:
+      self, data: list[ProfilingDictValueType],
+      feature_name: str) -> list[list[ProfilingDictValueType]]:
     """Partitions the profiles according to the feature name.
 
     Partitions the profiles according to the feature name and the
@@ -113,9 +110,9 @@ class TrainingWeights:
     return np.exp(self._weights) / np.sum(np.exp(self._weights))
 
   def create_new_profile(self,
-                         data_comparator: List[ProfilingDictValueType],
-                         data_eval: List[ProfilingDictValueType],
-                         eps: float = 1e-5) -> List[ProfilingDictValueType]:
+                         data_comparator: list[ProfilingDictValueType],
+                         data_eval: list[ProfilingDictValueType],
+                         eps: float = 1e-5) -> list[ProfilingDictValueType]:
     """Create a new profile which contains the regret and relative reward.
 
     The regret is measured as the difference between the loss of the data_eval
@@ -143,12 +140,12 @@ class TrainingWeights:
         logging.error('KeyError: %s', k)
         continue
       if isinstance(prof[SequenceExampleFeatureNames.loss], str):
-        raise ValueError(('prof[SequenceExampleFeatureNames.loss] is a string'
-                          'but it should be numeric.'))
+        raise ValueError('prof[SequenceExampleFeatureNames.loss] is a string'
+                         'but it should be numeric.')
       if isinstance(new_prof[SequenceExampleFeatureNames.loss], str):
         raise ValueError(
-            ('new_prof[SequenceExampleFeatureNames.loss] is a string'
-             'but it should be numeric.'))
+            'new_prof[SequenceExampleFeatureNames.loss] is a string'
+            'but it should be numeric.')
       new_prof[SequenceExampleFeatureNames
                .regret] = new_prof[SequenceExampleFeatureNames.loss] - prof[
                    SequenceExampleFeatureNames.loss]
@@ -159,8 +156,8 @@ class TrainingWeights:
     return list(func_key_dict.values())
 
   def update_weights(
-      self, comparator_profile: List[ProfilingDictValueType],
-      policy_profile: List[ProfilingDictValueType]) -> np.ndarray:
+      self, comparator_profile: list[ProfilingDictValueType],
+      policy_profile: list[ProfilingDictValueType]) -> np.ndarray:
     """Constructs a new profile and uses the loss to update self._probs with EG.
 
     Args:
@@ -180,8 +177,8 @@ class TrainingWeights:
         bucket_loss += np.maximum(prof[SequenceExampleFeatureNames.regret], 0)
       losses_per_bucket.append(bucket_loss)
     logging.info('Losses per bucket: %s', losses_per_bucket)
-    losses_per_bucket_normalized = losses_per_bucket / np.max(
-        np.abs(losses_per_bucket))
+    losses_per_bucket_normalized = losses_per_bucket / (
+        np.max(np.abs(losses_per_bucket)) + 1e-6)
     probs_t = self._get_exp_gradient_step(losses_per_bucket_normalized, 1.0)
     self._round += 1
     self._probs = (self._probs * (self._round - 1) + probs_t) / self._round
@@ -210,13 +207,12 @@ class ImitationLearningTrainer:
       batch_size: int = 128,
       epochs: int = 1,
       log_interval: int = 1000,
-      optimizer: Optional[keras.optimizers.Optimizer] = None,
-      save_model_dir: Optional[str] = None,
+      optimizer: keras.optimizers.Optimizer | None = None,
+      save_model_dir: str | None = None,
       shuffle_size: int = 131072,
-      training_weights: Optional[TrainingWeights] = None,
-      features_to_remove: Optional[List[str]] = [
-          'policy_label', 'inlining_default'
-      ]):
+      training_weights: TrainingWeights | None = None,
+      features_to_remove: list[str]
+      | None = ['policy_label', 'inlining_default']):
     self._width = width
     self._layers = layers
     self._batch_size = batch_size
@@ -232,6 +228,7 @@ class ImitationLearningTrainer:
       self._trainig_weights = TrainingWeights()
     self._features_to_remove = features_to_remove
     self._global_step = 0
+    self._is_model_init = False
 
     observation_spec, action_spec = config.get_inlining_signature_spec()
     sequence_features = {
@@ -306,7 +303,7 @@ class ImitationLearningTrainer:
         logging.warning('Feature %s is nan', name)
     return tf.concat(concat_arr, -1), tf.concat([label, weight_label], -1)
 
-  def load_dataset(self, filepaths: List[str]) -> tf.data.TFRecordDataset:
+  def load_dataset(self, filepaths: list[str]) -> tf.data.TFRecordDataset:
     """Load datasets from specified filepaths for training.
 
     Args:
@@ -326,13 +323,12 @@ class ImitationLearningTrainer:
                 self._make_feature_label, num_processors=self._num_processors))
     dataset = dataset.unbatch().shuffle(self._shuffle_size).batch(
         self._batch_size, drop_remainder=True)  # 4194304
-    dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
     return dataset
 
   def _create_weights(self, labels, weights_arr):
-    p_norm = min(weights_arr)  # check that this should be min
-    weights_arr = tf.map_fn(lambda x: p_norm / x, tf.constant(weights_arr))
+    p_norm = tf.reduce_min(weights_arr)
+    weights_arr = tf.math.divide(p_norm, weights_arr)
     int_labels = tf.cast(labels, tf.int32)
     return tf.gather(weights_arr, int_labels)
 
@@ -369,6 +365,7 @@ class ImitationLearningTrainer:
           tf.summary.scalar(
               name=metric.name, data=metric.result(), step=self._global_step)
 
+  @tf.function
   def _train_step(self, example, label, weight_labels, weights_arr):
     y_true = label[:, 0]
     y_true = tf.reshape(y_true, [self._batch_size, 1])
@@ -381,14 +378,19 @@ class ImitationLearningTrainer:
     self._update_metrics(y_true, y_pred, loss_value, weights)
     return loss_value
 
-  def train(self, filepaths: List[str]):
+  def train(self, filepaths: list[str]):
     """Train the model for number of the specified number of epochs."""
     dataset = self.load_dataset(filepaths)
     logging.info('Datasets loaded from %s', str(filepaths))
-    input_shape = dataset.element_spec[0].shape[-1]
-    self._initialize_model(input_shape=input_shape)
-    self._initialize_metrics()
-    for _ in range(self._epochs):
+    input_shape = int(dataset.element_spec[0].shape[-1])
+    if not self._is_model_init:
+      self._initialize_model(input_shape=input_shape)
+      self._initialize_metrics()
+      self._is_model_init = True
+      self._global_step = 0
+    logging.info('Training started')
+    for epoch in range(self._epochs):
+      logging.info('Epoch %s', epoch)
       for metric in self._metrics:
         metric.reset_states()
       for step, (x_batch_train, y_batch_train) in enumerate(dataset):
@@ -428,7 +430,7 @@ class WrapKerasModel(tf_agents.policies.TFPolicy):
       self,
       *args,
       keras_policy: tf.keras.Model,
-      features_to_remove: Optional[List[str]] = ['inlining_default'],
+      features_to_remove: list[str] | None = ['inlining_default'],
       **kwargs):
     super().__init__(*args, **kwargs)
     self._keras_policy = keras_policy
@@ -464,7 +466,7 @@ class WrapKerasModel(tf_agents.policies.TFPolicy):
   def _action(self,
               time_step: ts.TimeStep,
               policy_state: types.NestedTensor,
-              seed: Optional[types.Seed] = None) -> policy_step.PolicyStep:
+              seed: types.Seed | None = None) -> policy_step.PolicyStep:
     new_observation = time_step.observation
     keras_model_input = self._process_observation(new_observation)
     inlining_predict = self._keras_policy(keras_model_input)[0]
