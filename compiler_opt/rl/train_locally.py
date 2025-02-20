@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +18,6 @@ import functools
 import json
 import os
 import time
-from typing import List
 
 from absl import app
 from absl import flags
@@ -116,7 +114,7 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 
-  def sequence_example_iterator_fn(seq_ex: List[str]):
+  def sequence_example_iterator_fn(seq_ex: list[str]):
     return iter(dataset_fn(seq_ex).repeat().prefetch(tf.data.AUTOTUNE))
 
   reward_stat_map = collections.defaultdict(lambda: None)

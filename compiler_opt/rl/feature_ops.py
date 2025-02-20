@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +16,7 @@
 import os
 import re
 
-from typing import List, Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -51,12 +50,12 @@ def identity_fn(obs: types.Float):
   return tf.cast(tf.expand_dims(obs, -1), tf.float32)
 
 
-def get_normalize_fn(quantile: List[float],
+def get_normalize_fn(quantile: list[float],
                      with_sqrt: bool,
                      with_z_score_normalization: bool,
                      eps: float = 1e-8,
-                     preprocessing_fn: Optional[Callable[[types.Tensor],
-                                                         types.Float]] = None):
+                     preprocessing_fn: Callable[[types.Tensor], types.Float]
+                     | None = None):
   """Return a normalization function to normalize the input feature."""
 
   if not preprocessing_fn:
