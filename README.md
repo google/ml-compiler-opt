@@ -53,7 +53,7 @@ values for the flag could be:
 Currently, the assumptions for the system are:
 
 *   Recent Ubuntu distro, e.g. 20.04
-*   python 3.8.x/3.9.x/3.10.x
+*   python 3.10.x/3.11.x
 *   for local training, which is currently the only supported mode, we recommend
     a high-performance workstation (e.g. 96 hardware threads).
 

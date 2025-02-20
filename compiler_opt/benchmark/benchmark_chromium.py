@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,8 +51,6 @@ from absl import app
 
 from compiler_opt.benchmark import gtest_executable_utils
 from compiler_opt.benchmark import benchmarking_utils
-
-from typing import List, Dict, Union
 
 FLAGS = flags.FLAGS
 
@@ -111,7 +108,7 @@ flags.DEFINE_multi_string(
 
 def build_chromium_tests(regalloc_advisor: str, chromium_build_path: str,
                          chromium_source_path: str, depot_tools_path: str,
-                         llvm_build_path: str, tests_to_build: List[str]):
+                         llvm_build_path: str, tests_to_build: list[str]):
   """Builds the chromium test suite
 
   This function will build the specified chromium tests using the specified
@@ -171,9 +168,9 @@ def build_chromium_tests(regalloc_advisor: str, chromium_build_path: str,
     ninja_compile_process.wait()
 
 
-def run_tests(tests_to_run: List[Dict[str, Union[str, List[str]]]],
+def run_tests(tests_to_run: list[dict[str, str | list[str]]],
               chromium_absolute_build_path: str, num_threads: int,
-              perf_counters: List[str]):
+              perf_counters: list[str]):
   """A utility to run a set of chromium tests
 
   This function takes in a list of test descriptions containing the
