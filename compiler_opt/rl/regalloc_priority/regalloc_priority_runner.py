@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +18,6 @@ import tensorflow as tf
 
 import os
 import tempfile
-from typing import Dict, Optional, Tuple
 
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import log_reader
@@ -30,10 +28,10 @@ class RegAllocPriorityRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for regalloc-priority-prediction."""
 
   def _compile_fn(
-      self, file_paths: Tuple[str, ...], tf_policy_path: str, reward_only: bool,
-      workdir: str, cancellation_manager: Optional[
-          compilation_runner.WorkerCancellationManager]
-  ) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      self, file_paths: tuple[str, ...], tf_policy_path: str, reward_only: bool,
+      workdir: str,
+      cancellation_manager: compilation_runner.WorkerCancellationManager | None
+  ) -> dict[str, tuple[tf.train.SequenceExample, float]]:
 
     file_paths = file_paths[0].replace('.bc', '')
     working_dir = tempfile.mkdtemp(dir=workdir)

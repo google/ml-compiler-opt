@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +40,8 @@ from compiler_opt.distributed import worker
 
 from contextlib import AbstractContextManager
 from multiprocessing import connection
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
+from collections.abc import Callable
 
 
 @dataclasses.dataclass(frozen=True)
@@ -140,7 +140,7 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
       # lock for the msgid -> reply future map. The map will be set to None
       # when we stop.
       self._lock = threading.Lock()
-      self._map: Dict[int, concurrent.futures.Future] = {}
+      self._map: dict[int, concurrent.futures.Future] = {}
 
       # thread draining the pipe
       self._pump = threading.Thread(target=self._msg_pump)
@@ -165,7 +165,7 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
     def _msg_pump(self):
       while True:
-        task_result: Optional[TaskResult] = self._pipe.recv()
+        task_result: TaskResult | None = self._pipe.recv()
         if task_result is None:  # Poison pill fed by observer
           break
         with self._lock:
@@ -230,7 +230,7 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
       """
       psutil.Process(self._process.pid).nice(val)
 
-    def set_affinity(self, val: List[int]):
+    def set_affinity(self, val: list[int]):
       """Sets the CPU affinity of the process, this modifies which cores the OS
       schedules it on.
       """
@@ -248,7 +248,7 @@ def _make_stub(cls: 'type[worker.Worker]', *args, **kwargs):
 
 
 def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
-                             count: Optional[int], *args,
+                             count: int | None, *args,
                              **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
@@ -272,7 +272,7 @@ def close_local_worker_pool(pool: worker.FixedWorkerPool):
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self, worker_class: 'type[worker.Worker]', count: Optional[int],
+  def __init__(self, worker_class: 'type[worker.Worker]', count: int | None,
                *args, **kwargs):
     self._pool = create_local_worker_pool(worker_class, count, *args, **kwargs)
 

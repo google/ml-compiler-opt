@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +19,7 @@ Generate numerical features' X (1000) quantile based on their distributions.
 import math
 import multiprocessing as mp
 import os
-from typing import Callable, Dict, List, Iterable
+from collections.abc import Callable, Iterable
 
 from absl import app
 from absl import flags
@@ -54,7 +53,7 @@ FLAGS = flags.FLAGS
 
 def _get_feature_info(
     serialized_proto: tf.Tensor,
-    features_to_not_process: Iterable[str]) -> Dict[str, tf.io.RaggedFeature]:
+    features_to_not_process: Iterable[str]) -> dict[str, tf.io.RaggedFeature]:
   """Provides feature information by analyzing a single serialized example.
 
   Args:
@@ -83,8 +82,8 @@ def _get_feature_info(
 
 
 def create_tfrecord_parser_fn(
-    sequence_features: Dict[str, tf.io.RaggedFeature]
-) -> Callable[[str], List[tf.Tensor]]:
+    sequence_features: dict[str, tf.io.RaggedFeature]
+) -> Callable[[str], list[tf.Tensor]]:
   """Create a parser function for reading serialized tf.data.TFRecordDataset.
 
   Args:
