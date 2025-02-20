@@ -53,8 +53,9 @@ _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
 
 @gin.constants_from_enum(module="es_trainer_lib")
 class GradientAscentOptimizerType(enum.Enum):
-  MOMENTUM = 1
-  ADAM = 2
+  INVALID = 0
+  MOMENTUM = enum.auto()
+  ADAM = enum.auto()
 
 
 @gin.configurable
