@@ -1,8 +1,9 @@
 [tool.ruff]
 line-length = 103
-lint.select = [ "C40", "C9", "E", "F", "PERF", "W", "YTT" ]
+lint.select = [ "C40", "C9", "E", "F", "PERF", "UP", "W", "YTT" ]
 lint.ignore = [ "E722", "E731", "F401", "PERF203" ]
 lint.mccabe.max-complexity = 18
+target-version = "py310"
 
 [tool.pytest.ini_options]
 # DO always create a tracking issue when allow-listing warnings
