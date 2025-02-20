@@ -129,7 +129,6 @@ class BlackboxLearner:
   def __init__(self,
                blackbox_opt: blackbox_optimizers.BlackboxOptimizer,
                train_corpus: corpus.Corpus,
-               tf_policy_path: str,
                output_dir: str,
                policy_saver_fn: PolicySaverCallableType,
                model_weights: npt.NDArray[np.float32],
@@ -142,7 +141,6 @@ class BlackboxLearner:
     Args:
       blackbox_opt: the blackbox optimizer to use
       train_corpus: the training corpus to utiilize
-      tf_policy_path: where to write the tf policy
       output_dir: the directory to write all outputs
       policy_saver_fn: function to save a policy to cns
       model_weights: the weights of the current model
@@ -152,7 +150,6 @@ class BlackboxLearner:
     """
     self._blackbox_opt = blackbox_opt
     self._train_corpus = train_corpus
-    self._tf_policy_path = tf_policy_path
     self._output_dir = output_dir
     self._policy_saver_fn = policy_saver_fn
     self._model_weights = model_weights
@@ -238,29 +235,6 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
-  # TODO: The current conversion is inefficient (performance-wise). We should
-  # consider doing this on the worker side.
-  def _get_policy_from_perturbation(
-      self, perturbation: npt.NDArray[np.float32]) -> policy_saver.Policy:
-    sm = tf.saved_model.load(self._tf_policy_path)
-    # devectorize the perturbation
-    policy_utils.set_vectorized_parameters_for_policy(sm, perturbation)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-      sm_dir = os.path.join(tmpdir, 'sm')
-      tf.saved_model.save(sm, sm_dir, signatures=sm.signatures)
-      src = os.path.join(self._tf_policy_path, policy_saver.OUTPUT_SIGNATURE)
-      dst = os.path.join(sm_dir, policy_saver.OUTPUT_SIGNATURE)
-      tf.io.gfile.copy(src, dst)
-
-      # convert to tflite
-      tfl_dir = os.path.join(tmpdir, 'tfl')
-      policy_saver.convert_mlgo_model(sm_dir, tfl_dir)
-
-      # create and return policy
-      policy_obj = policy_saver.Policy.from_filesystem(tfl_dir)
-      return policy_obj
-
   def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning.
     This does not instantaneously return due to several I/O
@@ -276,12 +250,15 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    perturbations_as_policies = [
-        self._get_policy_from_perturbation(perturbation)
-        for perturbation in initial_perturbations
-    ]
+    perturbations_as_bytes = []
+    for perturbation in initial_perturbations:
+      # TODO(boomanaiden154): This should be adding the perturbation to
+      # the existing model weights. That currently results in the model
+      # weights all being NaN, presumably due to rewards not being scaled for
+      # the regalloc_trace problem.
+      perturbations_as_bytes.append(perturbation.astype(np.float32).tobytes())
 
-    results = self._evaluator.get_results(pool, perturbations_as_policies)
+    results = self._evaluator.get_results(pool, perturbations_as_bytes)
     rewards = self._evaluator.get_rewards(results)
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)

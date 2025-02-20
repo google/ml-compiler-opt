@@ -15,6 +15,7 @@
 """Local ES trainer."""
 
 from absl import flags, logging
+import enum
 import functools
 import gin
 import tensorflow as tf
@@ -28,26 +29,14 @@ from compiler_opt.es import policy_utils
 from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
 
-POLICY_NAME = "policy"
-
 FLAGS = flags.FLAGS
 
-_BETA1 = flags.DEFINE_float("beta1", 0.9,
-                            "Beta1 for ADAM gradient ascent optimizer.")
-_BETA2 = flags.DEFINE_float("beta2", 0.999,
-                            "Beta2 for ADAM gradient ascent optimizer.")
 _GRAD_REG_ALPHA = flags.DEFINE_float(
     "grad_reg_alpha", 0.01,
     "Weight of regularization term in regression gradient.")
 _GRAD_REG_TYPE = flags.DEFINE_string(
     "grad_reg_type", "ridge",
     "Regularization method to use with regression gradient.")
-_GRADIENT_ASCENT_OPTIMIZER_TYPE = flags.DEFINE_string(
-    "gradient_ascent_optimizer_type", None,
-    "Gradient ascent optimization algorithm: 'momentum' or 'adam'")
-flags.mark_flag_as_required("gradient_ascent_optimizer_type")
-_MOMENTUM = flags.DEFINE_float(
-    "momentum", 0.0, "Momentum for momentum gradient ascent optimizer.")
 _OUTPUT_PATH = flags.DEFINE_string("output_path", "",
                                    "Path to write all output")
 _PRETRAINED_POLICY_PATH = flags.DEFINE_string(
@@ -61,11 +50,22 @@ _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
                                      "List of paths to training corpora")
 
 
+@gin.constants_from_enum(module="es_trainer_lib")
+class GradientAscentOptimizerType(enum.Enum):
+  MOMENTUM = 1
+  ADAM = 2
+
+
 @gin.configurable
 def train(additional_compilation_flags=(),
           delete_compilation_flags=(),
           replace_compilation_flags=(),
-          worker_class=None):
+          worker_class=None,
+          beta1=0.9,
+          beta2=0.999,
+          momentum=0.0,
+          gradient_ascent_optimizer_type=GradientAscentOptimizerType.ADAM,
+          worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
   """Train with ES."""
 
   if not _TRAIN_CORPORA.value:
@@ -77,11 +77,6 @@ def train(additional_compilation_flags=(),
 
   # Construct the policy and upload it
   policy = policy_utils.create_actor_policy()
-  saver = policy_saver.PolicySaver({POLICY_NAME: policy})
-
-  # Save the policy
-  policy_save_path = os.path.join(_OUTPUT_PATH.value, "policy")
-  saver.save(policy_save_path)
 
   # Get initial parameter
   if not _PRETRAINED_POLICY_PATH.value:
@@ -131,21 +126,20 @@ def train(additional_compilation_flags=(),
   # TODO(linzinan): delete all unused parameters.
 
   # ------------------ GRADIENT ASCENT OPTIMIZERS ------------------------------
-  if _GRADIENT_ASCENT_OPTIMIZER_TYPE.value == "momentum":
+  if gradient_ascent_optimizer_type == GradientAscentOptimizerType.MOMENTUM:
     logging.info("Running momentum gradient ascent optimizer")
     # You can obtain a vanilla gradient ascent optimizer by setting momentum=0.0
     # and setting step_size to the desired learning rate.
     gradient_ascent_optimizer = (
         gradient_ascent_optimization_algorithms.MomentumOptimizer(
-            learner_config.step_size, _MOMENTUM.value))
-  elif _GRADIENT_ASCENT_OPTIMIZER_TYPE.value == "adam":
+            learner_config.step_size, momentum))
+  elif gradient_ascent_optimizer_type == GradientAscentOptimizerType.ADAM:
     logging.info("Running Adam gradient ascent optimizer")
     gradient_ascent_optimizer = (
         gradient_ascent_optimization_algorithms.AdamOptimizer(
-            learner_config.step_size, _BETA1.value, _BETA2.value))
+            learner_config.step_size, beta1, beta2))
   else:
-    logging.info("No gradient ascent \
-                 optimizer selected. Stopping.")
+    logging.info("No gradient ascent optimizer selected. Stopping.")
     return
   # ----------------------------------------------------------------------------
 
@@ -200,7 +194,6 @@ def train(additional_compilation_flags=(),
   learner = blackbox_learner.BlackboxLearner(
       blackbox_opt=blackbox_optimizer,
       train_corpus=cps,
-      tf_policy_path=os.path.join(policy_save_path, POLICY_NAME),
       output_dir=_OUTPUT_PATH.value,
       policy_saver_fn=policy_saver_function,
       model_weights=init_current_input,
@@ -215,9 +208,9 @@ def train(additional_compilation_flags=(),
   logging.info("Ready to train: running for %d steps.",
                learner_config.total_steps)
 
-  with local_worker_manager.LocalWorkerPoolManager(
-      worker_class, learner_config.total_num_perturbations, arg="",
-      kwarg="") as pool:
+  with worker_manager_class(worker_class,
+                            learner_config.total_num_perturbations,
+                            gin.operative_config_str()) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
