@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +15,6 @@
 
 import os
 import tempfile
-from typing import Dict, Tuple
 
 import gin
 import tensorflow as tf
@@ -43,7 +41,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
   def compile_fn(
       self, command_line: corpus.FullyQualifiedCmdLine, tf_policy_path: str,
       reward_only: bool,
-      workdir: str) -> Dict[str, Tuple[tf.train.SequenceExample, float]]:
+      workdir: str) -> dict[str, tuple[tf.train.SequenceExample, float]]:
     """Run the compiler for the given IR file under the given policy.
 
     Args:

@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +18,10 @@ import subprocess
 import re
 
 from joblib import Parallel, delayed
-from typing import Tuple, List, Optional, Dict
 from absl import logging
 
 
-def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
+def run_test(test_executable: str, test_name: str, perf_counters: list[str]):
   """Runs a specific test
 
   This function executes a specific test in a gtest executable using
@@ -56,7 +54,7 @@ def run_test(test_executable: str, test_name: str, perf_counters: List[str]):
     return decoded_stderr
 
 
-def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
+def parse_perf_stat_output(perf_stat_output: str, perf_counters: list[str]):
   """Parses raw output from perf stat
 
   This function takes in the raw decoded output from perf stat
@@ -78,7 +76,7 @@ def parse_perf_stat_output(perf_stat_output: str, perf_counters: List[str]):
   return counters_dict
 
 
-def run_and_parse(test_description: Tuple[str, str, List[str]]):
+def run_and_parse(test_description: tuple[str, str, list[str]]):
   """Runs a test and processes the output of an individual test
 
   This function takes in a description of an individual test, runs the test
@@ -99,9 +97,9 @@ def run_and_parse(test_description: Tuple[str, str, List[str]]):
     return None
 
 
-def run_test_suite(test_suite_description: Dict[str, List[str]],
-                   test_executable: str, perf_counters: List[str],
-                   num_threads: Optional[int]):
+def run_test_suite(test_suite_description: dict[str, list[str]],
+                   test_executable: str, perf_counters: list[str],
+                   num_threads: int | None):
   """Runs an entire test suite
 
   This function takes in a test set description in the form of a path to a JSON
