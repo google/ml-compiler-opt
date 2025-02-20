@@ -66,7 +66,8 @@ def train(additional_compilation_flags=(),
           beta1=0.9,
           beta2=0.999,
           momentum=0.0,
-          gradient_ascent_optimizer_type=GradientAscentOptimizerType.ADAM):
+          gradient_ascent_optimizer_type=GradientAscentOptimizerType.ADAM,
+          worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
   """Train with ES."""
 
   if not _TRAIN_CORPORA.value:
@@ -215,8 +216,8 @@ def train(additional_compilation_flags=(),
   logging.info("Ready to train: running for %d steps.",
                learner_config.total_steps)
 
-  with local_worker_manager.LocalWorkerPoolManager(
-      worker_class, learner_config.total_num_perturbations) as pool:
+  with worker_manager_class(worker_class,
+                            learner_config.total_num_perturbations) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
