@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +32,7 @@ were asked to collect the counters named INSTRUCTIONS and CYCLES.
 import csv
 import json
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from absl import app
 from absl import flags

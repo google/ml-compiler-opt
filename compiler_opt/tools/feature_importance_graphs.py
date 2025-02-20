@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +19,7 @@ import numpy.typing
 import shap
 import json
 
-from typing import Dict, List, Union, Optional
-
-DataType = Dict[str, Union[numpy.typing.ArrayLike, List[str]]]
+DataType = dict[str, numpy.typing.ArrayLike | list[str]]
 
 
 def load_shap_values(file_name: str) -> DataType:
@@ -50,7 +47,7 @@ def init_shap_for_notebook():
   shap.initjs()
 
 
-def graph_individual_example(data: DataType, index: Optional[int]):
+def graph_individual_example(data: DataType, index: int | None):
   """Creates a force plot for an example
 
   Args:
