@@ -23,7 +23,6 @@ from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.distributed import buffered_scheduler
-from compiler_opt.rl import policy_saver
 
 
 class BlackboxEvaluator(metaclass=abc.ABCMeta):

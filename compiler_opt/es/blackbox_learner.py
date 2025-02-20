@@ -13,22 +13,18 @@
 # limitations under the License.
 """Class for coordinating blackbox optimization."""
 
-import os
 from absl import logging
 import dataclasses
 import gin
 import math
 import numpy as np
 import numpy.typing as npt
-import tempfile
 import tensorflow as tf
 from typing import Protocol
 
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers
-from compiler_opt.es import policy_utils
 from compiler_opt.rl import corpus
-from compiler_opt.rl import policy_saver
 from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
 # Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error

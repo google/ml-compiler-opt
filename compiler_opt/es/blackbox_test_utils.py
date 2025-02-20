@@ -54,10 +54,10 @@ class ESTraceWorker(worker.Worker):
     del kwarg  # Unused.
     self._function_value = 0.0
 
-  def compile_corpus_and_evaluate(
-      self, modules: Collection[corpus.ModuleSpec], function_index_path: str,
-      bb_trace_path: str, tflite_policy: policy_saver.Policy | None) -> float:
-    if modules and function_index_path and bb_trace_path and tflite_policy:
+  def compile_corpus_and_evaluate(self, modules: Collection[corpus.ModuleSpec],
+                                  function_index_path: str, bb_trace_path: str,
+                                  policy_as_bytes: bytes | None) -> float:
+    if modules and function_index_path and bb_trace_path and policy_as_bytes:
       self._function_value += 1
       return self._function_value
     else:

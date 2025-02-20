@@ -46,6 +46,13 @@ class RegallocTraceWorker(worker.Worker):
   segments.
   """
 
+  def _setup_base_policy(self):
+    self._tf_base_temp_dir = tempfile.mkdtemp()
+    policy = policy_utils.create_actor_policy()
+    saver = policy_saver.PolicySaver({"policy": policy})
+    saver.save(self._tf_base_temp_dir)
+    self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
+
   def __init__(self, gin_config: str, clang_path: str,
                basic_block_trace_model_path: str, thread_count: int,
                corpus_path: str):
@@ -68,12 +75,7 @@ class RegallocTraceWorker(worker.Worker):
     self._corpus_path = corpus_path
 
     gin.parse_config(gin_config)
-
-    self._tf_base_temp_dir = tempfile.mkdtemp()
-    policy = policy_utils.create_actor_policy()
-    saver = policy_saver.PolicySaver({"policy": policy})
-    saver.save(self._tf_base_temp_dir)
-    self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
+    self._setup_base_policy()
 
   def __del__(self):
     shutil.rmtree(self._tf_base_temp_dir)

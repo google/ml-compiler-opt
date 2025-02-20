@@ -123,7 +123,6 @@ class BlackboxLearnerTests(absltest.TestCase):
             extra_params=None,
             step_size=1),
         train_corpus=self._cps,
-        tf_policy_path=os.path.join(policy_save_path, policy_name),
         output_dir=output_dir,
         policy_saver_fn=_policy_saver_fn,
         model_weights=init_params,
