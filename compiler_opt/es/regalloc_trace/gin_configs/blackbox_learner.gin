@@ -1,0 +1,36 @@
+import compiler_opt.es.blackbox_learner
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.es.blackbox_optimizers
+import compiler_opt.es.blackbox_evaluator
+import compiler_opt.es.es_trainer_lib
+import compiler_opt.es.regalloc_trace.regalloc_trace_worker
+
+# Blackbox learner config
+BlackboxLearnerConfig.total_steps = 10000
+BlackboxLearnerConfig.total_num_perturbations = 100
+BlackboxLearnerConfig.blackbox_optimizer = %blackbox_optimizers.Algorithm.MONTE_CARLO
+BlackboxLearnerConfig.estimator_type = %blackbox_optimizers.EstimatorType.ANTITHETIC
+BlackboxLearnerConfig.fvalues_normalization = True
+BlackboxLearnerConfig.hyperparameters_update_method = %blackbox_optimizers.UpdateMethod.NO_METHOD
+
+BlackboxLearnerConfig.num_top_directions = 0
+
+BlackboxLearnerConfig.precision_parameter = 0.5
+
+BlackboxLearnerConfig.step_size = 0.005
+
+blackbox_evaluator.TraceBlackboxEvaluator.bb_trace_path = '<bb trace path>'
+blackbox_evaluator.TraceBlackboxEvaluator.function_index_path = '<function index path>'
+
+BlackboxLearnerConfig.evaluator = @blackbox_evaluator.TraceBlackboxEvaluator
+
+compiler_opt.es.es_trainer_lib.train.worker_class = @RegallocTraceWorker
+# Some flags that need to be deleted for successful compilation of XFDO
+# binaries. This set will need to be modified depending upon your compilation
+# setup.
+compiler_opt.es.es_trainer_lib.train.delete_compilation_flags = ('-fprofile-sample-use', '-split-dwarf-file', '-split-dwarf-output', '-fdebug-compilation-dir', '--warning-suppression-mappings')
+
+RegallocTraceWorker.clang_path = '<clang path>'
+RegallocTraceWorker.basic_block_trace_model_path = '<basic block trace model path>'
+RegallocTraceWorker.thread_count = 128
+RegallocTraceWorker.corpus_path = '<corpus path>'
