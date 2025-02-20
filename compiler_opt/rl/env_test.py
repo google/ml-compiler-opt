@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +16,19 @@
 import io
 import contextlib
 import ctypes
+import multiprocessing
+import time
 from unittest import mock
 import subprocess
 import os
 import tempfile
 from absl.testing import flagsaver
-
-from typing import Dict, List, Optional
+from absl.testing import parameterized
 
 import tensorflow as tf
 import numpy as np
 
-from compiler_opt.rl import env
+from compiler_opt.rl import env, log_reader
 from compiler_opt.rl import corpus
 from compiler_opt.rl import log_reader_test
 
@@ -46,9 +46,9 @@ _NUM_STEPS = 10
 class MockTask(env.MLGOTask):
   """Implementation of mock task for testing."""
 
-  def get_cmdline(self, clang_path: str, base_args: List[str],
-                  interactive_base_path: Optional[str],
-                  working_dir: str) -> List[str]:
+  def get_cmdline(self, clang_path: str, base_args: list[str],
+                  interactive_base_path: str | None,
+                  working_dir: str) -> list[str]:
     if interactive_base_path:
       interactive_args = [
           f'--interactive={interactive_base_path}',
@@ -57,7 +57,7 @@ class MockTask(env.MLGOTask):
       interactive_args = []
     return [clang_path] + base_args + interactive_args
 
-  def get_module_scores(self, working_dir: str) -> Dict[str, float]:
+  def get_module_scores(self, working_dir: str) -> dict[str, float]:
     return {'default': 47}
 
 
@@ -89,23 +89,23 @@ def mock_interactive_clang(cmdline, stderr, stdout):
   with io.FileIO(fname + '.out', 'wb+') as f_out:
     with io.FileIO(fname + '.in', 'rb+') as f_in:
       del f_in
+      writer = log_reader_test.LogTestExampleBuilder(opened_file=f_out)
       # Write the header describing the features/rewards
-      f_out.write(
-          log_reader_test.json_to_bytes({
-              'features': [{
-                  'name': 'times_called',
-                  'port': 0,
-                  'shape': [1],
-                  'type': 'int64_t',
-              },],
-              'score': {
-                  'name': 'reward',
-                  'port': 0,
-                  'shape': [1],
-                  'type': 'float',
-              },
-          }))
-      log_reader_test.write_nl(f_out)
+      writer.write_header({
+          'features': [{
+              'name': 'times_called',
+              'port': 0,
+              'shape': [1],
+              'type': 'int64_t',
+          },],
+          'score': {
+              'name': 'reward',
+              'port': 0,
+              'shape': [1],
+              'type': 'float',
+          },
+      })
+      writer.write_newline()
 
       class MockInteractiveProcess(MockProcess):
         """Mock clang interactive process that writes the log."""
@@ -120,14 +120,15 @@ def mock_interactive_clang(cmdline, stderr, stdout):
           if self._counter >= _NUM_STEPS:
             f_out.close()
             return None
-          log_reader_test.write_context_marker(f_out,
-                                               f'context_{self._counter}')
-          log_reader_test.write_observation_marker(f_out, 0)
-          log_reader_test.write_buff(f_out, [self._counter], ctypes.c_int64)
-          log_reader_test.write_nl(f_out)
-          log_reader_test.write_outcome_marker(f_out, 0)
-          log_reader_test.write_buff(f_out, [3.14], ctypes.c_float)
-          log_reader_test.write_nl(f_out)
+          example_writer = log_reader_test.LogTestExampleBuilder(
+              opened_file=f_out)
+          example_writer.write_context_marker(f'context_{self._counter}')
+          example_writer.write_observation_marker(0)
+          example_writer.write_buff([self._counter], ctypes.c_int64)
+          example_writer.write_newline()
+          example_writer.write_outcome_marker(0)
+          example_writer.write_buff([3.14], ctypes.c_float)
+          example_writer.write_newline()
           self._counter += 1
           return None
 
@@ -188,6 +189,246 @@ class ClangSessionTest(tf.test.TestCase):
             working_dir = obs.working_dir
             self.assertEqual(os.path.exists(working_dir), True)
         self.assertEqual(os.path.exists(working_dir), True)
+
+
+class PipelineCommsTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'write',
+          'method': 'open_write_pipe'
+      }, {
+          'testcase_name': 'read',
+          'method': 'open_read_pipe'
+      })
+  def test_pipe_timeout_open(self, method):
+    slept = multiprocessing.Event()
+
+    def _sleep():
+      time.sleep(3600)
+      slept.set()
+
+    with tempfile.TemporaryDirectory() as td:
+      fname = os.path.join(td, 'something')
+      os.mkfifo(fname, 0o666)
+      proc = multiprocessing.Process(target=_sleep)
+      proc.start()
+      with self.assertRaises(TimeoutError):
+        with getattr(env, method)(fname, timeout=5):
+          self.fail()
+      proc.kill()
+      proc.join()
+      self.assertFalse(slept.is_set())
+
+  @parameterized.named_parameters({
+      'testcase_name': 'read',
+      'method': 'read'
+  }, {
+      'testcase_name': 'readline',
+      'method': 'readline'
+  })
+  def test_read_pipe_timeout_read(self, method):
+    slept = multiprocessing.Event()
+
+    def _open_then_sleep(fname):
+      with open(fname, 'wb'):
+        time.sleep(3600)
+        slept.set()
+
+    with tempfile.TemporaryDirectory() as td:
+      fname = os.path.join(td, 'something')
+      os.mkfifo(fname, 0o666)
+      proc = multiprocessing.Process(target=_open_then_sleep, args=(fname,))
+      proc.start()
+      with env.open_read_pipe(fname, timeout=5) as read_pipe:
+        with self.assertRaises(TimeoutError):
+          getattr(read_pipe, method)()
+      proc.kill()
+      proc.join()
+      self.assertFalse(slept.is_set())
+
+  def test_write_pipeline_timeout_open(self):
+    slept = multiprocessing.Event()
+
+    def _sleep():
+      time.sleep(3600)
+      slept.set()
+
+    with tempfile.TemporaryDirectory() as td:
+      fname = os.path.join(td, 'something')
+      os.mkfifo(fname, 0o666)
+      proc = multiprocessing.Process(target=_sleep)
+      proc.start()
+      with self.assertRaises(TimeoutError):
+        with env.open_write_pipe(fname, timeout=5):
+          self.fail()
+      proc.kill()
+      proc.join()
+      self.assertFalse(slept.is_set())
+
+  def test_process_fails_to_open_writer(self):
+    slept = multiprocessing.Event()
+
+    def _sleep():
+      time.sleep(3600)
+      slept.set()
+
+    with tempfile.TemporaryDirectory() as td:
+      reader = os.path.join(td, 'reader')
+      writer = os.path.join(td, 'writer')
+      os.mkfifo(reader, 0o666)
+      os.mkfifo(writer, 0o666)
+      proc = multiprocessing.Process(target=_sleep)
+      proc.start()
+      with self.assertRaises(TimeoutError):
+        with env.interactive_session(
+            reader_name=reader, writer_name=writer, timeout=5):
+          self.fail()
+      self.assertFalse(slept.is_set())
+      proc.kill()
+      proc.join()
+
+  def test_process_fails_to_answer(self):
+    post_sleep_event = multiprocessing.Event()
+    opened_event = multiprocessing.Event()
+
+    with tempfile.TemporaryDirectory() as td:
+      reader = os.path.join(td, 'reader')
+      writer = os.path.join(td, 'writer')
+      os.mkfifo(reader, 0o666)
+      os.mkfifo(writer, 0o666)
+
+      def _the_process():
+        with open(writer, 'rb'):
+          opened_event.set()
+          pass
+        time.sleep(3600)
+        post_sleep_event.set()
+
+      proc = multiprocessing.Process(target=_the_process)
+      proc.start()
+      with self.assertRaises(TimeoutError):
+        with env.interactive_session(
+            reader_name=reader, writer_name=writer, timeout=5):
+          pass
+      self.assertTrue(opened_event.is_set())
+      self.assertFalse(post_sleep_event.is_set())
+      proc.kill()
+      proc.join()
+
+  def test_process_quits_midway(self):
+    post_sleep_event = multiprocessing.Event()
+    opened_event = multiprocessing.Event()
+    wrote_event = multiprocessing.Event()
+
+    with tempfile.TemporaryDirectory() as td:
+      reader = os.path.join(td, 'reader')
+      writer = os.path.join(td, 'writer')
+      os.mkfifo(reader, 0o666)
+      os.mkfifo(writer, 0o666)
+
+      def _the_process():
+        with open(writer, 'rb'):
+          with open(reader, 'wb') as out:
+            opened_event.set()
+            w = log_reader_test.LogTestExampleBuilder(opened_file=out)
+            w.write_header({
+                'features': [{
+                    'name': 'times_called',
+                    'port': 0,
+                    'shape': [1],
+                    'type': 'int64_t',
+                },],
+                'score': {
+                    'name': 'reward',
+                    'port': 0,
+                    'shape': [1],
+                    'type': 'float',
+                }
+            })
+            w.write_newline()
+            w.write_context_marker('hello')
+            w.write_observation_marker(0)
+            w.write_buff([1], ctypes.c_int16)
+            out.flush()
+            wrote_event.set()
+            time.sleep(3600)
+        post_sleep_event.set()
+
+      proc = multiprocessing.Process(target=_the_process)
+      proc.start()
+      with env.interactive_session(
+          reader_name=reader, writer_name=writer, timeout=10) as (read_pipe, _):
+        with self.assertRaises(IOError):
+          for _ in log_reader.read_log_from_file(read_pipe):
+            self.fail()
+
+      self.assertTrue(opened_event.is_set())
+      self.assertTrue(wrote_event.is_set())
+      self.assertFalse(post_sleep_event.is_set())
+      proc.kill()
+      proc.join()
+
+  def test_process_stops_talking_back(self):
+    post_sleep_event = multiprocessing.Event()
+    opened_event = multiprocessing.Event()
+    wrote_event = multiprocessing.Event()
+
+    with tempfile.TemporaryDirectory() as td:
+      reader = os.path.join(td, 'reader')
+      writer = os.path.join(td, 'writer')
+      os.mkfifo(reader, 0o666)
+      os.mkfifo(writer, 0o666)
+
+      def _the_process():
+        with open(writer, 'rb'):
+          with open(reader, 'wb') as out:
+            opened_event.set()
+            w = log_reader_test.LogTestExampleBuilder(opened_file=out)
+            w.write_header({
+                'features': [{
+                    'name': 'times_called',
+                    'port': 0,
+                    'shape': [1],
+                    'type': 'int64_t',
+                },],
+                'score': {
+                    'name': 'reward',
+                    'port': 0,
+                    'shape': [1],
+                    'type': 'float',
+                }
+            })
+            w.write_newline()
+            w.write_context_marker('hello')
+            w.write_observation_marker(0)
+            w.write_buff([1], ctypes.c_int64)
+            w.write_newline()
+            w.write_outcome_marker(0)
+            w.write_buff([3.14], ctypes.c_float)
+            w.write_newline()
+            out.flush()
+            wrote_event.set()
+            time.sleep(3600)
+        post_sleep_event.set()
+
+      proc = multiprocessing.Process(target=_the_process)
+      proc.start()
+      read_count = 0
+      with self.assertRaises(TimeoutError):
+        with env.interactive_session(
+            reader_name=reader, writer_name=writer,
+            timeout=10) as (read_pipe, _):
+          for obs in log_reader.read_log_from_file(read_pipe):
+            self.assertIsInstance(obs, log_reader.ObservationRecord)
+            read_count += 1
+      self.assertEqual(read_count, 1)
+      self.assertTrue(opened_event.is_set())
+      self.assertTrue(wrote_event.is_set())
+      self.assertFalse(post_sleep_event.is_set())
+
+      proc.kill()
+      proc.join()
 
 
 class MLGOEnvironmentTest(tf.test.TestCase):

@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +17,6 @@ import concurrent.futures
 import contextlib
 import functools
 import re
-from typing import Dict, List, Optional, Tuple
 
 from absl import app
 from absl import flags
@@ -76,7 +74,7 @@ class FilteringWorker(worker.Worker):
     key_filter: regex filter for key names to include, or None to include all.
   """
 
-  def __init__(self, policy_path: Optional[str], key_filter: Optional[str],
+  def __init__(self, policy_path: str | None, key_filter: str | None,
                runner_type: 'type[compilation_runner.CompilationRunner]',
                runner_kwargs):
     self._policy_path = policy_path
@@ -87,7 +85,7 @@ class FilteringWorker(worker.Worker):
 
   def compile_and_filter(
       self, loaded_module_spec: corpus.LoadedModuleSpec
-  ) -> Tuple[str, List[str], Dict[str, compilation_runner.RewardStat]]:
+  ) -> tuple[str, list[str], dict[str, compilation_runner.RewardStat]]:
     data = self._runner.collect_data(
         loaded_module_spec=loaded_module_spec,
         policy=self._policy,
@@ -185,15 +183,15 @@ def generate_trace(
             if performance_writer:
               for key, value in reward_stat.items():
                 performance_writer.write(
-                    (f'{module_name},{key},{value.default_reward},'
-                     f'{value.moving_average_reward}\n'))
+                    f'{module_name},{key},{value.default_reward},'
+                    f'{value.moving_average_reward}\n')
           logging.info('%d success, %d failed out of %d',
                        total_successful_examples, total_failed_examples,
                        total_work)
 
-  print((f'{total_successful_examples} of {len(corpus_elements)} modules '
-         f'succeeded, and {total_training_examples} trainining examples '
-         'written'))
+  print(f'{total_successful_examples} of {len(corpus_elements)} modules '
+        f'succeeded, and {total_training_examples} trainining examples '
+        'written')
 
 
 if __name__ == '__main__':
