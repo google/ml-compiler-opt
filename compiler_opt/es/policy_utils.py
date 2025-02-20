@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,8 @@
 # limitations under the License.
 """Util functions to create and edit a tf_agent policy."""
 
-from typing import Protocol, Sequence, Type
+from typing import Protocol
+from collections.abc import Sequence
 
 import gin
 import numpy as np
@@ -36,7 +36,7 @@ class HasModelVariables(Protocol):
 # TODO(abenalaast): Issue #280
 @gin.configurable(module='policy_utils')
 def create_actor_policy(
-    actor_network_ctor: Type[network.DistributionNetwork],
+    actor_network_ctor: type[network.DistributionNetwork],
     greedy: bool = False,
 ) -> tf_policy.TFPolicy:
   """Creates an actor policy."""
