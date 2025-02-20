@@ -392,7 +392,7 @@ class ImitationLearningTrainer:
     for epoch in range(self._epochs):
       logging.info('Epoch %s', epoch)
       for metric in self._metrics:
-        metric.reset_states()
+        metric.reset_state()
       for step, (x_batch_train, y_batch_train) in enumerate(dataset):
         weight_labels = [y_batch_train[:, 1]]
         weights_arr = [self._trainig_weights.get_weights()]
@@ -411,8 +411,6 @@ class ImitationLearningTrainer:
                          (step + 1) * self._batch_size)
             for metric in self._metrics:
               logging.info('%s: %s', metric.name, metric.result())
-        if step > 1000:  # debugging
-          break
 
     if self._save_model_dir:
       keras.models.save_model(self._model,
