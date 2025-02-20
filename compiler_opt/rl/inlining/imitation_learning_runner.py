@@ -37,7 +37,9 @@ def main(_):
   logging.info(gin.config_str())
 
   generate_bc_trajectories_lib.gen_trajectories(
-      callable_policies=[imitation_learning_config.greedy_policy],
+      # set callable policies here directly since callables can not be
+      # gin configured when they are pickled
+      callable_policies=[imitation_learning_config.default_policy],
       explore_on_features={
           'is_callee_avail_external':
               imitation_learning_config.explore_on_avail_external
