@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +19,8 @@ import random
 
 from absl import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any
+from collections.abc import Callable
 
 import json
 import os
@@ -30,14 +30,14 @@ from compiler_opt.rl import constant
 
 # Alias to better self-document APIs. Represents a complete, ready to use
 # command line, where all the flags reference existing, local files.
-FullyQualifiedCmdLine = Tuple[str, ...]
+FullyQualifiedCmdLine = tuple[str, ...]
 
 
 def _apply_cmdline_filters(
-    orig_options: Tuple[str, ...],
-    additional_flags: Tuple[str, ...] = (),
-    delete_flags: Tuple[str, ...] = (),
-    replace_flags: Optional[Dict[str, str]] = None) -> Tuple[str]:
+    orig_options: tuple[str, ...],
+    additional_flags: tuple[str, ...] = (),
+    delete_flags: tuple[str, ...] = (),
+    replace_flags: dict[str, str] | None = None) -> tuple[str]:
   option_iterator = iter(orig_options)
   matched_replace_flags = set()
   replace_flags = replace_flags if replace_flags is not None else {}
@@ -85,8 +85,8 @@ class LoadedModuleSpec:
   """
   name: str
   loaded_ir: bytes
-  loaded_thinlto_index: Optional[bytes] = None
-  orig_options: Tuple[str, ...] = ()
+  loaded_thinlto_index: bytes | None = None
+  orig_options: tuple[str, ...] = ()
 
   def _create_files_and_get_context(self, local_dir: str):
     root_dir = os.path.join(local_dir, self.name)
@@ -118,7 +118,7 @@ class ModuleSpec:
   """
   name: str
   size: int
-  command_line: Tuple[str, ...] = ()
+  command_line: tuple[str, ...] = ()
   has_thinlto: bool = False
 
 
@@ -126,7 +126,7 @@ class Sampler(metaclass=abc.ABCMeta):
   """Corpus sampler abstraction."""
 
   @abc.abstractmethod
-  def __init__(self, module_specs: Tuple[ModuleSpec]):
+  def __init__(self, module_specs: tuple[ModuleSpec]):
     self._module_specs = module_specs
 
   @abc.abstractmethod
@@ -134,7 +134,7 @@ class Sampler(metaclass=abc.ABCMeta):
     pass
 
   @abc.abstractmethod
-  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> list[ModuleSpec]:
     """
     Args:
       k: number of modules to sample
@@ -148,14 +148,14 @@ class SamplerBucketRoundRobin(Sampler):
   round-robin order. The buckets are sequential sections of module_specs of
   roughly equal lengths."""
 
-  def __init__(self, module_specs: Tuple[ModuleSpec]):
+  def __init__(self, module_specs: tuple[ModuleSpec]):
     self._ranges = {}
     super().__init__(module_specs)
 
   def reset(self):
     pass
 
-  def __call__(self, k: int, n: int = 20) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 20) -> list[ModuleSpec]:
     """
     Args:
       module_specs: list of module_specs to sample from
@@ -194,7 +194,7 @@ class CorpusExhaustedError(Exception):
 class SamplerWithoutReplacement(Sampler):
   """Randomly samples the corpus, without replacement."""
 
-  def __init__(self, module_specs: Tuple[ModuleSpec]):
+  def __init__(self, module_specs: tuple[ModuleSpec]):
     super().__init__(module_specs)
     self._idx = 0
     self._shuffle_order()
@@ -207,7 +207,7 @@ class SamplerWithoutReplacement(Sampler):
     self._shuffle_order()
     self._idx = 0
 
-  def __call__(self, k: int, n: int = 10) -> List[ModuleSpec]:
+  def __call__(self, k: int, n: int = 10) -> list[ModuleSpec]:
     """
     Args:
       k: number of modules to sample
@@ -263,16 +263,16 @@ class Corpus:
   class ReplaceContext:
     """Context for 'replace' rules."""
     module_full_path: str
-    thinlto_full_path: Optional[str] = None
+    thinlto_full_path: str | None = None
 
   def __init__(self,
                *,
                data_path: str,
-               module_filter: Optional[Callable[[str], bool]] = None,
-               additional_flags: Tuple[str, ...] = (),
-               delete_flags: Tuple[str, ...] = (),
-               replace_flags: Optional[Dict[str, str]] = None,
-               sampler_type: Type[Sampler] = SamplerBucketRoundRobin):
+               module_filter: Callable[[str], bool] | None = None,
+               additional_flags: tuple[str, ...] = (),
+               delete_flags: tuple[str, ...] = (),
+               replace_flags: dict[str, str] | None = None,
+               sampler_type: type[Sampler] = SamplerBucketRoundRobin):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
     sampling. Command line origin (.cmd file or override) is decided, and final
@@ -298,7 +298,7 @@ class Corpus:
     # {additional|delete}_flags here
     with tf.io.gfile.GFile(
         os.path.join(data_path, 'corpus_description.json'), 'r') as f:
-      corpus_description: Dict[str, Any] = json.load(f)
+      corpus_description: dict[str, Any] = json.load(f)
 
     module_paths = corpus_description['modules']
     if len(module_paths) == 0:
@@ -383,7 +383,7 @@ class Corpus:
   def reset(self):
     self._sampler.reset()
 
-  def sample(self, k: int, sort: bool = False) -> List[ModuleSpec]:
+  def sample(self, k: int, sort: bool = False) -> list[ModuleSpec]:
     """Samples `k` module_specs, optionally sorting by size descending.
 
     Use load_module_spec to get LoadedModuleSpecs - this allows the user to
@@ -424,8 +424,8 @@ class Corpus:
 
 
 def create_corpus_for_testing(location: str,
-                              elements: List[ModuleSpec],
-                              cmdline: Tuple[str, ...] = ('-cc1',),
+                              elements: list[ModuleSpec],
+                              cmdline: tuple[str, ...] = ('-cc1',),
                               cmdline_is_override=False,
                               is_thinlto=False,
                               **kwargs) -> Corpus:

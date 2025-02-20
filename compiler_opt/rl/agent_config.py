@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,8 @@
 # limitations under the License.
 """util function to create a tf_agent."""
 
-from typing import Any, Callable, Dict
+from typing import Any
+from collections.abc import Callable
 
 import abc
 import gin
@@ -54,13 +54,13 @@ class AgentConfig(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
   def get_policy_info_parsing_dict(
-      self) -> Dict[str, tf.io.FixedLenSequenceFeature]:
+      self) -> dict[str, tf.io.FixedLenSequenceFeature]:
     """Return the parsing dict for the policy info."""
     return {}
 
   # pylint: disable=unused-argument
   def process_parsed_sequence_and_get_policy_info(
-      self, parsed_sequence: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+      self, parsed_sequence: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Function to process parsed_sequence and to return policy_info.
 
     Args:
@@ -147,7 +147,7 @@ class PPOAgentConfig(AgentConfig):
         value_net=critic_network)
 
   def get_policy_info_parsing_dict(
-      self) -> Dict[str, tf.io.FixedLenSequenceFeature]:
+      self) -> dict[str, tf.io.FixedLenSequenceFeature]:
     if tensor_spec.is_discrete(self._action_spec):
       return {
           'CategoricalProjectionNetwork_logits':
@@ -165,7 +165,7 @@ class PPOAgentConfig(AgentConfig):
       }
 
   def process_parsed_sequence_and_get_policy_info(
-      self, parsed_sequence: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+      self, parsed_sequence: dict[str, Any]) -> dict[str, dict[str, Any]]:
     if tensor_spec.is_discrete(self._action_spec):
       policy_info = {
           'dist_params': {

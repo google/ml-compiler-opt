@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +17,6 @@ import functools
 from absl import app
 import gin
 import json
-from typing import List
 from unittest import mock
 import os
 
@@ -41,7 +39,7 @@ from compiler_opt.rl import env_test
 _eps = 1e-5
 
 
-def _get_state_list() -> List[time_step.TimeStep]:
+def _get_state_list() -> list[time_step.TimeStep]:
 
   state_0 = time_step.TimeStep(
       discount=tf.constant(np.array([0.]), dtype=tf.float32),

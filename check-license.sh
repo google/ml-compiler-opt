@@ -33,7 +33,7 @@ check_license () {
 
 for fname in `find . -name "*.py"`;
 do
-  check_license $fname "$(cat license-header.txt)" 15
+  check_license $fname "$(tail -13 license-header.txt)" 14
 done
 
 for fname in `find . -name "*.sh"`;
