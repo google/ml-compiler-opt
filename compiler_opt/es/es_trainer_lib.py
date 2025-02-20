@@ -215,8 +215,7 @@ def train(additional_compilation_flags=(),
                learner_config.total_steps)
 
   with local_worker_manager.LocalWorkerPoolManager(
-      worker_class, learner_config.total_num_perturbations, arg="",
-      kwarg="") as pool:
+      worker_class, learner_config.total_num_perturbations) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
