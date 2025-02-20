@@ -81,7 +81,7 @@ def get_task_type() -> type[env.InliningForSizeTask]:
 
 
 @gin.register
-def greedy_policy(state: time_step.TimeStep):
+def default_policy(state: time_step.TimeStep):
   """Greedy policy playing the inlining_default action."""
   return np.array(state.observation['inlining_default'])
 
