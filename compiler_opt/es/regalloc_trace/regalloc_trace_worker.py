@@ -78,9 +78,6 @@ class RegallocTraceWorker(worker.Worker):
   def __del__(self):
     shutil.rmtree(self._tf_base_temp_dir)
 
-  def __del__(self):
-    shutil.rmtree(self._tf_base_temp_dir)
-
   def _compile_module(self, module_to_compile: corpus.ModuleSpec,
                       output_directory: str, tflite_policy_path: str | None):
     command_vector = [self._clang_path]

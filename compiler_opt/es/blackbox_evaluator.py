@@ -35,8 +35,8 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_results(
-      self, pool: FixedWorkerPool, perturbations: list[bytes]
-  ) -> list[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool,
+      perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -73,8 +73,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     super().__init__(train_corpus)
 
   def get_results(
-      self, pool: FixedWorkerPool, perturbations: list[bytes]
-  ) -> list[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool,
+      perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     if not self._samples:
       for _ in range(self._total_num_perturbations):
         sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)
@@ -120,8 +120,8 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     self._baseline: float | None = None
 
   def get_results(
-      self, pool: FixedWorkerPool, perturbations: list[bytes]
-  ) -> list[concurrent.futures.Future]:
+      self, pool: FixedWorkerPool,
+      perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     job_args = [{
         'modules': self._train_corpus.module_specs,
         'function_index_path': self._function_index_path,

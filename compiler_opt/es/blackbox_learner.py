@@ -249,13 +249,14 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    perturbations_as_bytes = []
-    for perturbation in initial_perturbations:
-      # TODO(boomanaiden154): This should be adding the perturbation to
-      # the existing model weights. That currently results in the model
-      # weights all being NaN, presumably due to rewards not being scaled for
-      # the regalloc_trace problem.
-      perturbations_as_bytes.append(perturbation.astype(np.float32).tobytes())
+    # TODO(boomanaiden154): This should be adding the perturbation to
+    # the existing model weights. That currently results in the model
+    # weights all being NaN, presumably due to rewards not being scaled for
+    # the regalloc_trace problem.
+    perturbations_as_bytes = [
+        perturbation.astype(np.float32).tobytes()
+        for perturbation in initial_perturbations
+    ]
 
     results = self._evaluator.get_results(pool, perturbations_as_bytes)
     rewards = self._evaluator.get_rewards(results)
