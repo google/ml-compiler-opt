@@ -34,7 +34,8 @@ class BufferedSchedulerTest(absltest.TestCase):
         time.sleep(n)
         return n + 1
 
-    with local_worker_manager.LocalWorkerPoolManager(WaitingWorker, 2) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(
+        WaitingWorker, count=2) as pool:
       _, futures = buffered_scheduler.schedule_on_worker_pool(
           lambda w, v: w.wait_seconds(v), range(4), pool)
       not_done = futures
@@ -52,7 +53,8 @@ class BufferedSchedulerTest(absltest.TestCase):
       def square(self, the_value, extra_factor=1):
         return the_value * the_value * extra_factor
 
-    with local_worker_manager.LocalWorkerPoolManager(TheWorker, 2) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(
+        TheWorker, count=2) as pool:
       workers, futures = buffered_scheduler.schedule_on_worker_pool(
           lambda w, v: w.square(v), range(10), pool)
       self.assertLen(workers, 2)
