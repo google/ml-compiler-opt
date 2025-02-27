@@ -13,6 +13,7 @@
 # limitations under the License.
 """Test for buffered_scheduler."""
 
+import cloudpickle
 import concurrent.futures
 import threading
 import time
@@ -35,7 +36,7 @@ class BufferedSchedulerTest(absltest.TestCase):
         return n + 1
 
     with local_worker_manager.LocalWorkerPoolManager(
-        WaitingWorker, count=2) as pool:
+        WaitingWorker, count=2, pickle_func=cloudpickle.dumps) as pool:
       _, futures = buffered_scheduler.schedule_on_worker_pool(
           lambda w, v: w.wait_seconds(v), range(4), pool)
       not_done = futures
@@ -54,7 +55,7 @@ class BufferedSchedulerTest(absltest.TestCase):
         return the_value * the_value * extra_factor
 
     with local_worker_manager.LocalWorkerPoolManager(
-        TheWorker, count=2) as pool:
+        TheWorker, count=2, pickle_func=cloudpickle.dumps) as pool:
       workers, futures = buffered_scheduler.schedule_on_worker_pool(
           lambda w, v: w.square(v), range(10), pool)
       self.assertLen(workers, 2)
