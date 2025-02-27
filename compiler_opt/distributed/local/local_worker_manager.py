@@ -288,7 +288,8 @@ class LocalWorkerPoolManager(AbstractContextManager):
                *,
                count: int | None,
                worker_args: tuple = (),
-               worker_kwargs: dict = {}):
+               worker_kwargs: dict | None = None):
+    worker_kwargs = {} if worker_kwargs is None else worker_kwargs
     self._pool = _create_local_worker_pool(worker_class, count, True,
                                            pickle_func, *worker_args,
                                            **worker_kwargs)
