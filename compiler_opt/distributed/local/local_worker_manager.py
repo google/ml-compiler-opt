@@ -28,10 +28,10 @@ local thread pool, or, if the task is 'urgent', it executes it promptly.
 """
 import concurrent.futures
 import sys
-import cloudpickle
 import dataclasses
 import functools
 import multiprocessing
+import pickle
 import psutil
 import threading
 
@@ -80,7 +80,7 @@ def _run_impl(pipe: connection.Connection, worker_class: SerializedClass,
   pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
   # unpickle the type, which triggers all the necessary imports. This registers
   # abseil flags, which can then be parsed.
-  cls = cloudpickle.loads(worker_class)
+  cls = pickle.loads(worker_class)
   if parse_argv:
     flags.FLAGS(sys.argv, known_only=True)
   obj = cls(*args, **kwargs)
@@ -126,7 +126,8 @@ def _run(pipe: connection.Connection, worker_class: SerializedClass,
     raise e
 
 
-def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, *args, **kwargs):
+def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, pickle_func, *args,
+               **kwargs):
 
   class _Stub:
     """Client stub to a worker hosted by a process."""
@@ -141,7 +142,7 @@ def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, *args, **kwargs):
       # to handle high priority requests. The expectation is that the user
       # achieves concurrency through multiprocessing, not multithreading.
       self._process = _get_context().Process(
-          target=functools.partial(_run, child_pipe, cloudpickle.dumps(cls),
+          target=functools.partial(_run, child_pipe, pickle_func(cls),
                                    parse_argv, *args, **kwargs))
       # lock for the msgid -> reply future map. The map will be set to None
       # when we stop.
@@ -253,21 +254,21 @@ def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, *args, **kwargs):
   return _Stub()
 
 
-def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
-                             count: int | None, parse_argv: bool, *args,
-                             **kwargs) -> worker.FixedWorkerPool:
+def _create_local_worker_pool(worker_cls: 'type[worker.Worker]',
+                              count: int | None, parse_argv: bool, pickle_func,
+                              *args, **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
     count = _get_context().cpu_count()
   final_kwargs = worker.get_full_worker_args(worker_cls, **kwargs)
   stubs = [
-      _make_stub(worker_cls, parse_argv, *args, **final_kwargs)
+      _make_stub(worker_cls, parse_argv, pickle_func, *args, **final_kwargs)
       for _ in range(count)
   ]
   return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
 
 
-def close_local_worker_pool(pool: worker.FixedWorkerPool):
+def _close_local_worker_pool(pool: worker.FixedWorkerPool):
   """Close the given LocalWorkerPool."""
   # first, trigger killing the worker process and exiting of the msg pump,
   # which will also clear out any pending futures.
@@ -281,16 +282,22 @@ def close_local_worker_pool(pool: worker.FixedWorkerPool):
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self, worker_class: 'type[worker.Worker]', count: int | None,
-               *args, **kwargs):
-    self._pool = create_local_worker_pool(worker_class, count, True, *args,
-                                          **kwargs)
+  def __init__(self,
+               worker_class: 'type[worker.Worker]',
+               pickle_func=pickle.dumps,
+               *,
+               count: int | None,
+               worker_args: tuple = (),
+               worker_kwargs: dict = {}):
+    self._pool = _create_local_worker_pool(worker_class, count, True,
+                                           pickle_func, *worker_args,
+                                           **worker_kwargs)
 
   def __enter__(self) -> worker.FixedWorkerPool:
     return self._pool
 
   def __exit__(self, *args):
-    close_local_worker_pool(self._pool)
+    _close_local_worker_pool(self._pool)
 
   def __del__(self):
     self.__exit__()

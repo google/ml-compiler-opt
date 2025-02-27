@@ -28,7 +28,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_sampling_get_results(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESWorker, count=3, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESWorker,
+        count=3,
+        worker_args=('',),
+        worker_kwargs=dict(kwarg='')) as pool:
       perturbations = [b'00', b'01', b'10']
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(None, 5, 5, None)
       # pylint: disable=protected-access
@@ -52,7 +55,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_trace_get_results(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESTraceWorker, count=3, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESTraceWorker,
+        count=3,
+        worker_args=('',),
+        worker_kwargs=dict(kwarg='')) as pool:
       perturbations = [b'00', b'01', b'10']
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
@@ -65,7 +71,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_trace_set_baseline(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESTraceWorker, count=1, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESTraceWorker,
+        count=1,
+        worker_args=('',),
+        worker_kwargs=dict(kwarg='')) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
           elements=[corpus.ModuleSpec(name='name1', size=1)])
