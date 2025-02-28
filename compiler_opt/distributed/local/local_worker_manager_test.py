@@ -24,7 +24,7 @@ from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-flags.DEFINE_integer(
+_TEST_FLAG = flags.DEFINE_integer(
     'test_only_flag', default=1, help='A flag used by some tests.')
 
 
@@ -74,7 +74,7 @@ class JobSlow(Worker):
 class JobGetFlags(Worker):
 
   def method(self):
-    return {'argv': sys.argv, 'the_flag': flags.FLAGS.test_only_flag}
+    return {'argv': sys.argv, 'the_flag': _TEST_FLAG.value}
 
 
 class LocalWorkerManagerTest(absltest.TestCase):
