@@ -254,9 +254,11 @@ def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, pickle_func, *args,
   return _Stub()
 
 
-def _create_local_worker_pool(worker_cls: 'type[worker.Worker]',
-                              count: int | None, parse_argv: bool, pickle_func,
-                              *args, **kwargs) -> worker.FixedWorkerPool:
+# The following pair of APIs - create and close - are public without having
+# a user to support out-of-repo scenarios.
+def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
+                             count: int | None, parse_argv: bool, pickle_func,
+                             *args, **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
     count = _get_context().cpu_count()
@@ -268,7 +270,7 @@ def _create_local_worker_pool(worker_cls: 'type[worker.Worker]',
   return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
 
 
-def _close_local_worker_pool(pool: worker.FixedWorkerPool):
+def close_local_worker_pool(pool: worker.FixedWorkerPool):
   """Close the given LocalWorkerPool."""
   # first, trigger killing the worker process and exiting of the msg pump,
   # which will also clear out any pending futures.
@@ -290,15 +292,15 @@ class LocalWorkerPoolManager(AbstractContextManager):
                worker_args: tuple = (),
                worker_kwargs: dict | None = None):
     worker_kwargs = {} if worker_kwargs is None else worker_kwargs
-    self._pool = _create_local_worker_pool(worker_class, count, True,
-                                           pickle_func, *worker_args,
-                                           **worker_kwargs)
+    self._pool = create_local_worker_pool(worker_class, count, True,
+                                          pickle_func, *worker_args,
+                                          **worker_kwargs)
 
   def __enter__(self) -> worker.FixedWorkerPool:
     return self._pool
 
   def __exit__(self, *args):
-    _close_local_worker_pool(self._pool)
+    close_local_worker_pool(self._pool)
 
   def __del__(self):
     self.__exit__()
