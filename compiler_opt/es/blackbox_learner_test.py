@@ -15,6 +15,7 @@
 
 import os
 from absl.testing import absltest
+import cloudpickle
 import gin
 import tempfile
 import numpy as np
@@ -148,6 +149,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     with local_worker_manager.LocalWorkerPoolManager(
         blackbox_test_utils.ESWorker,
         count=3,
+        pickle_func=cloudpickle.dumps,
         worker_args=('',),
         worker_kwargs=dict(kwarg='')) as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
