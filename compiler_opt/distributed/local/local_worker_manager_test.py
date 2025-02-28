@@ -85,7 +85,8 @@ class LocalWorkerManagerTest(absltest.TestCase):
     kwarg = 'bar'
 
     with local_worker_manager.LocalWorkerPoolManager(
-        JobNormal, 2, arg, kwarg=kwarg) as pool:
+        JobNormal, count=2, worker_args=(arg,),
+        worker_kwargs=dict(kwarg=kwarg)) as pool:
       p1 = pool.get_currently_active()[0]
       p2 = pool.get_currently_active()[1]
       set_futures = [p1.set_token(1), p2.set_token(2)]
@@ -108,7 +109,7 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_failure(self):
 
-    with local_worker_manager.LocalWorkerPoolManager(JobFail, 2) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(JobFail, count=2) as pool:
       with self.assertRaises(concurrent.futures.CancelledError):
         # this will fail because we didn't pass the arg to the ctor, so the
         # worker hosting process will crash.
@@ -116,7 +117,7 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
   def test_worker_crash_while_waiting(self):
 
-    with local_worker_manager.LocalWorkerPoolManager(JobSlow, 2) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(JobSlow, count=2) as pool:
       p = pool.get_currently_active()[0]
       f = p.method()
       self.assertFalse(f.done())
@@ -127,12 +128,14 @@ class LocalWorkerManagerTest(absltest.TestCase):
           _ = f.result()
 
   def test_flag_parsing(self):
-    with local_worker_manager.LocalWorkerPoolManager(JobGetFlags, 1) as pool:
+    with local_worker_manager.LocalWorkerPoolManager(
+        JobGetFlags, count=1) as pool:
       result = pool.get_currently_active()[0].method().result()
       self.assertEqual(result['the_flag'], 1)
 
     with mock.patch('sys.argv', sys.argv + ['--test_only_flag=42']):
-      with local_worker_manager.LocalWorkerPoolManager(JobGetFlags, 1) as pool:
+      with local_worker_manager.LocalWorkerPoolManager(
+          JobGetFlags, count=1) as pool:
         result = pool.get_currently_active()[0].method().result()
         self.assertEqual(result['the_flag'], 42)
 

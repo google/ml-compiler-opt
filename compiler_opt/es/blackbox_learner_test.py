@@ -146,7 +146,10 @@ class BlackboxLearnerTests(absltest.TestCase):
 
   def test_run_step(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESWorker, count=3, arg='', kwarg='') as pool:
+        blackbox_test_utils.ESWorker,
+        count=3,
+        worker_args=('',),
+        worker_kwargs=dict(kwarg='')) as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
       # expected length calculated from expected shapes of variables
       self.assertEqual(len(self._learner.get_model_weights()), 17154)

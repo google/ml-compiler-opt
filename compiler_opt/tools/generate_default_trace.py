@@ -151,12 +151,13 @@ def generate_trace(
     with performance_context as performance_writer:
       with worker_manager_class(
           FilteringWorker,
-          _NUM_WORKERS.value,
-          policy_path=_POLICY_PATH.value,
-          key_filter=_KEY_FILTER.value,
-          runner_type=runner_type,
-          runner_kwargs=worker.get_full_worker_args(
-              runner_type, moving_average_decay_rate=0)) as lwm:
+          count=_NUM_WORKERS.value,
+          worker_kwargs=dict(
+              policy_path=_POLICY_PATH.value,
+              key_filter=_KEY_FILTER.value,
+              runner_type=runner_type,
+              runner_kwargs=worker.get_full_worker_args(
+                  runner_type, moving_average_decay_rate=0))) as lwm:
 
         _, result_futures = buffered_scheduler.schedule_on_worker_pool(
             action=lambda w, j: w.compile_and_filter(j),

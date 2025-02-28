@@ -253,9 +253,9 @@ def _make_stub(cls: 'type[worker.Worker]', parse_argv: bool, *args, **kwargs):
   return _Stub()
 
 
-def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
-                             count: int | None, parse_argv: bool, *args,
-                             **kwargs) -> worker.FixedWorkerPool:
+def _create_local_worker_pool(worker_cls: 'type[worker.Worker]',
+                              count: int | None, parse_argv: bool, *args,
+                              **kwargs) -> worker.FixedWorkerPool:
   """Create a local worker pool for worker_cls."""
   if not count:
     count = _get_context().cpu_count()
@@ -267,7 +267,7 @@ def create_local_worker_pool(worker_cls: 'type[worker.Worker]',
   return worker.FixedWorkerPool(workers=stubs, worker_concurrency=16)
 
 
-def close_local_worker_pool(pool: worker.FixedWorkerPool):
+def _close_local_worker_pool(pool: worker.FixedWorkerPool):
   """Close the given LocalWorkerPool."""
   # first, trigger killing the worker process and exiting of the msg pump,
   # which will also clear out any pending futures.
@@ -281,16 +281,21 @@ def close_local_worker_pool(pool: worker.FixedWorkerPool):
 class LocalWorkerPoolManager(AbstractContextManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
-  def __init__(self, worker_class: 'type[worker.Worker]', count: int | None,
-               *args, **kwargs):
-    self._pool = create_local_worker_pool(worker_class, count, True, *args,
-                                          **kwargs)
+  def __init__(self,
+               worker_class: 'type[worker.Worker]',
+               *,
+               count: int | None,
+               worker_args: tuple = (),
+               worker_kwargs: dict | None = None):
+    worker_kwargs = {} if worker_kwargs is None else worker_kwargs
+    self._pool = _create_local_worker_pool(worker_class, count, True,
+                                           *worker_args, **worker_kwargs)
 
   def __enter__(self) -> worker.FixedWorkerPool:
     return self._pool
 
   def __exit__(self, *args):
-    close_local_worker_pool(self._pool)
+    _close_local_worker_pool(self._pool)
 
   def __del__(self):
     self.__exit__()
