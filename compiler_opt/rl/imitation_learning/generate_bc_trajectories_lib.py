@@ -955,15 +955,15 @@ def gen_trajectories(
       min(os.cpu_count(), num_workers) if num_workers else os.cpu_count())
   with worker_manager_class(
       worker_class_type,
-      worker_count,
-      obs_action_specs=obs_action_spec,
-      mlgo_task_type=mlgo_task_type,
-      callable_policies=callable_policies,
-      explore_on_features=explore_on_features,
-      persistent_objects_path=persistent_objects_path,
-      explicit_temps_dir=explicit_temps_dir,
-      gin_config_str=gin.config_str(),
-  ) as lwm:
+      count=worker_count,
+      worker_kwargs=dict(
+          obs_action_specs=obs_action_spec,
+          mlgo_task_type=mlgo_task_type,
+          callable_policies=callable_policies,
+          explore_on_features=explore_on_features,
+          persistent_objects_path=persistent_objects_path,
+          explicit_temps_dir=explicit_temps_dir,
+          gin_config_str=gin.config_str())) as lwm:
 
     _, result_futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, j: w.select_best_exploration(loaded_module_spec=j),
