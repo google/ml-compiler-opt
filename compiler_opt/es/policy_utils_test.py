@@ -233,6 +233,13 @@ class VectorTest(absltest.TestCase):
     self.assertTrue(os.path.exists(os.path.join(tflite_dir, 'model.tflite')))
     self.assertTrue(
         os.path.exists(os.path.join(tflite_dir, 'output_spec.json')))
+    
+    # Additionally assert that the saved model that we create as part of the
+    # conversion process has the correct paramters.
+    load_path = os.path.join(scratch_dir, 'saved_model')
+    sm = tf.saved_model.load(load_path)
+    loaded_params = policy_utils.get_vectorized_parameters_from_policy(sm)
+    np.testing.assert_array_almost_equal(self.params, loaded_params)
 
 
 if __name__ == '__main__':
