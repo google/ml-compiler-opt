@@ -211,9 +211,10 @@ def train(additional_compilation_flags=(),
   logging.info("Ready to train: running for %d steps.",
                learner_config.total_steps)
 
-  with worker_manager_class(worker_class,
-                            learner_config.total_num_perturbations,
-                            gin.operative_config_str()) as pool:
+  with worker_manager_class(
+      worker_class,
+      learner_config.total_num_perturbations,
+      worker_kwargs=dict(gin_config=gin.operative_config_str())) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 

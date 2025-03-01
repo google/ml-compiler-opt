@@ -81,8 +81,11 @@ class RegallocTraceWorkerTest(absltest.TestCase):
                         fake_bb_trace_model_invocations.full_path)
 
     worker = regalloc_trace_worker.RegallocTraceWorker(
-        "", fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path,
-        1, corpus_dir.full_path)
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
     total_cost = worker.compile_corpus_and_evaluate(corpus_modules,
                                                     "function_index_path.pb",
                                                     "bb_trace_path.pb", None)
@@ -129,8 +132,11 @@ class RegallocTraceWorkerTest(absltest.TestCase):
     test_policy = np.ones(6777, dtype=np.float32)
 
     worker = regalloc_trace_worker.RegallocTraceWorker(
-        "", fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path,
-        1, corpus_dir.full_path)
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
     worker.compile_corpus_and_evaluate(corpus_modules, "function_index_path.pb",
                                        "bb_trace_path.pb",
                                        test_policy.tobytes())

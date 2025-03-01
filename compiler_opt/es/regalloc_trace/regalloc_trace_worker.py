@@ -53,7 +53,7 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
-  def __init__(self, gin_config: str, clang_path: str,
+  def __init__(self, *, gin_config: str, clang_path: str,
                basic_block_trace_model_path: str, thread_count: int,
                corpus_path: str):
     """Initializes the RegallocTraceWorker class.
