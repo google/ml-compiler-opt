@@ -220,6 +220,27 @@ class VectorTest(absltest.TestCase):
     # assert that they result in the same order of values
     np.testing.assert_array_almost_equal(tf_params, loaded_params)
 
+  def test_convert_to_tflite(self):
+    policy_save_path, _, _ = self._save_inlining_policy()
+    saved_model_path = os.path.join(policy_save_path, self.POLICY_NAME)
+
+    output_bytes = self.params.tobytes()
+
+    scratch_dir = self.create_tempdir()
+    tflite_dir = policy_utils.convert_to_tflite(output_bytes, scratch_dir,
+                                                saved_model_path)
+
+    self.assertTrue(os.path.exists(os.path.join(tflite_dir, 'model.tflite')))
+    self.assertTrue(
+        os.path.exists(os.path.join(tflite_dir, 'output_spec.json')))
+
+    # Additionally assert that the saved model that we create as part of the
+    # conversion process has the correct paramters.
+    load_path = os.path.join(scratch_dir, 'saved_model')
+    sm = tf.saved_model.load(load_path)
+    loaded_params = policy_utils.get_vectorized_parameters_from_policy(sm)
+    np.testing.assert_array_almost_equal(self.params, loaded_params)
+
 
 if __name__ == '__main__':
   absltest.main()
