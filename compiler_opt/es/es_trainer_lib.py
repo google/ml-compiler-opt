@@ -20,15 +20,16 @@ import gin
 import tensorflow as tf
 import os
 
+# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
+# here as these errors are false positives.
+# pytype: disable=pyi-error
+
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import gradient_ascent_optimization_algorithms
 from compiler_opt.es import blackbox_learner
 from compiler_opt.es import policy_utils
-from compiler_opt.rl import policy_saver
 from compiler_opt.rl import corpus
-
-POLICY_NAME = "policy"
 
 FLAGS = flags.FLAGS
 
@@ -79,11 +80,6 @@ def train(additional_compilation_flags=(),
 
   # Construct the policy and upload it
   policy = policy_utils.create_actor_policy()
-  saver = policy_saver.PolicySaver({POLICY_NAME: policy})
-
-  # Save the policy
-  policy_save_path = os.path.join(_OUTPUT_PATH.value, "policy")
-  saver.save(policy_save_path)
 
   # Get initial parameter
   if not _PRETRAINED_POLICY_PATH.value:
@@ -201,7 +197,6 @@ def train(additional_compilation_flags=(),
   learner = blackbox_learner.BlackboxLearner(
       blackbox_opt=blackbox_optimizer,
       train_corpus=cps,
-      tf_policy_path=os.path.join(policy_save_path, POLICY_NAME),
       output_dir=_OUTPUT_PATH.value,
       policy_saver_fn=policy_saver_function,
       model_weights=init_current_input,
@@ -216,8 +211,10 @@ def train(additional_compilation_flags=(),
   logging.info("Ready to train: running for %d steps.",
                learner_config.total_steps)
 
-  with worker_manager_class(worker_class,
-                            learner_config.total_num_perturbations) as pool:
+  with worker_manager_class(
+      worker_class,
+      learner_config.total_num_perturbations,
+      worker_kwargs=dict(gin_config=gin.operative_config_str())) as pool:
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 

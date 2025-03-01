@@ -24,6 +24,10 @@ import tensorflow as tf
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import actor_policy
 
+# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
+# here as these errors are false positives.
+# pytype: disable=pyi-error
+
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.es import blackbox_learner
 from compiler_opt.es import policy_utils
@@ -124,7 +128,6 @@ class BlackboxLearnerTests(absltest.TestCase):
             extra_params=None,
             step_size=1),
         train_corpus=self._cps,
-        tf_policy_path=os.path.join(policy_save_path, policy_name),
         output_dir=output_dir,
         policy_saver_fn=_policy_saver_fn,
         model_weights=init_params,

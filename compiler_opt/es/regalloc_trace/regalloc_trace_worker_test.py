@@ -19,11 +19,11 @@ import stat
 import textwrap
 
 from absl.testing import absltest
+import numpy as np
+import gin
 
 from compiler_opt.es.regalloc_trace import regalloc_trace_worker
 from compiler_opt.rl import corpus
-from compiler_opt.testing import model_test_utils
-from compiler_opt.rl import policy_saver
 
 
 def _setup_corpus(corpus_dir: str) -> list[corpus.ModuleSpec]:
@@ -62,6 +62,10 @@ def _create_test_binary(binary_path: str, output_path: str):
 
 class RegallocTraceWorkerTest(absltest.TestCase):
 
+  def setUp(self):
+    gin.parse_config_file(
+        "compiler_opt/es/regalloc_trace/gin_configs/regalloc_trace.gin")
+
   def test_build_corpus_and_evaluate(self):
     corpus_dir = self.create_tempdir("corpus")
     corpus_modules = _setup_corpus(corpus_dir)
@@ -77,8 +81,11 @@ class RegallocTraceWorkerTest(absltest.TestCase):
                         fake_bb_trace_model_invocations.full_path)
 
     worker = regalloc_trace_worker.RegallocTraceWorker(
-        fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path, 1,
-        corpus_dir.full_path)
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
     total_cost = worker.compile_corpus_and_evaluate(corpus_modules,
                                                     "function_index_path.pb",
                                                     "bb_trace_path.pb", None)
@@ -122,19 +129,17 @@ class RegallocTraceWorkerTest(absltest.TestCase):
     _create_test_binary(fake_bb_trace_model_binary.full_path,
                         fake_bb_trace_model_invocations.full_path)
 
-    saved_model_dir = self.create_tempdir("saved_model")
-    tflite_dir = self.create_tempdir("converted_model")
-    model_test_utils.gen_test_model(saved_model_dir.full_path)
-    policy_saver.convert_mlgo_model(saved_model_dir.full_path,
-                                    tflite_dir.full_path)
-    serialized_policy = policy_saver.Policy.from_filesystem(
-        tflite_dir.full_path)
+    test_policy = np.ones(6777, dtype=np.float32)
 
     worker = regalloc_trace_worker.RegallocTraceWorker(
-        fake_clang_binary.full_path, fake_bb_trace_model_binary.full_path, 1,
-        corpus_dir.full_path)
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
     worker.compile_corpus_and_evaluate(corpus_modules, "function_index_path.pb",
-                                       "bb_trace_path.pb", serialized_policy)
+                                       "bb_trace_path.pb",
+                                       test_policy.tobytes())
 
     # Assert that we pass the TFLite model to the clang invocations.
     clang_command_lines = fake_clang_invocations.read_text().split("\n")
