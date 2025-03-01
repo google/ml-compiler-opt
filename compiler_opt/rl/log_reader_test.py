@@ -18,8 +18,7 @@ import enum
 import json
 from compiler_opt.rl import log_reader
 
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import text_format  # pytype: disable=pyi-error
+from google.protobuf import text_format
 from typing import BinaryIO
 
 import numpy as np

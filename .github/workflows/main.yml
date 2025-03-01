@@ -46,7 +46,9 @@ jobs:
         task: [Typecheck, Lint, Ruff, Yapf, Test]
         include:
           - task: Typecheck
-            cmd: pytype -j auto .
+            # We disable pyi-error due to https://github.com/google/pytype/issues/764
+            # and other related issues with tensorflow imports.
+            cmd: pytype -j auto --disable=pyi-error .
           - task: Lint
             cmd: pylint --rcfile .pylintrc --recursive yes .
           - task: Ruff
