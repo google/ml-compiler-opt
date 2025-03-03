@@ -542,8 +542,8 @@ class ModuleExplorer:
 
     distr_logits = explore_policy(explore_state).action.logits.numpy()[0]
     for _ in range(num_samples):
-      distr_logits[replay_prefix[explore_step]] = -np.Inf
-      if all(-np.Inf == logit for logit in distr_logits):
+      distr_logits[replay_prefix[explore_step]] = -np.inf
+      if all(-np.inf == logit for logit in distr_logits):
         break
       replay_prefix[explore_step] = np.random.choice(
           range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
