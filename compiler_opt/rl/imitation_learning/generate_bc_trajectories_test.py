@@ -453,9 +453,9 @@ class ModuleExplorerTest(tf.test.TestCase):
       # will explore every 4-th step
       logits = [[
           4.0 + 1e-3 * float(env_test._NUM_STEPS - times_called),
-          -np.Inf,
-          -np.Inf,
-          -np.Inf,
+          -np.inf,
+          -np.inf,
+          -np.inf,
           float(np.mod(times_called, 5)),
       ]]
       return policy_step.PolicyStep(
@@ -632,7 +632,7 @@ class ModuleWorkerResultProcessorTest(tf.test.TestCase):
     self.assertEqual(seq_example, succeeded_comp[0][0][2])
 
 
-@gin.configurable
+@gin.configurable(module='generate_bc_trajectories_test')
 class MockModuleWorker(generate_bc_trajectories_lib.ModuleWorker):
 
   @mock.patch('subprocess.Popen')
