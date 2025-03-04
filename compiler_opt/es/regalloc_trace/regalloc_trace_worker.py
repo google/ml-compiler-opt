@@ -77,6 +77,10 @@ class RegallocTraceWorker(worker.Worker):
     gin.parse_config(gin_config)
     self._setup_base_policy()
 
+  # Deletion here is best effort as it occurs at GC time. If the shutdown is
+  # forced, cleanup might not happen as expected. This does not matter too
+  # much though as resource leakage will be small, and any cloud setups will
+  # have tempdirs wiped periodically.
   def __del__(self):
     shutil.rmtree(self._tf_base_temp_dir)
 
