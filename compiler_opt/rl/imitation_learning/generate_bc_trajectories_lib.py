@@ -367,6 +367,8 @@ class ModuleExplorer:
     self._explore_on_features = explore_on_features
     logging.info('Reward key in exploration worker: %s', self._reward_key)
 
+    self._rng = np.random.default_rng()
+
   def compile_module(
       self,
       policy: Callable[[time_step.TimeStep | None], np.ndarray],
@@ -545,7 +547,7 @@ class ModuleExplorer:
       distr_logits[replay_prefix[explore_step]] = -np.inf
       if all(-np.inf == logit for logit in distr_logits):
         break
-      replay_prefix[explore_step] = np.random.choice(
+      replay_prefix[explore_step] = self._rng.choice(
           range(distr_logits.shape[0]), p=scipy.special.softmax(distr_logits))
       base_policy = ExplorationWithPolicy(
           replay_prefix,
