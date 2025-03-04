@@ -227,7 +227,8 @@ class VectorTest(absltest.TestCase):
     output_bytes = self.params.tobytes()
 
     scratch_dir = self.create_tempdir()
-    tflite_dir = policy_utils.convert_to_tflite(output_bytes, scratch_dir,
+    tflite_dir = policy_utils.convert_to_tflite(output_bytes,
+                                                scratch_dir.full_path,
                                                 saved_model_path)
 
     self.assertTrue(os.path.exists(os.path.join(tflite_dir, 'model.tflite')))
