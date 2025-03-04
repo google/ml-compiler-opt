@@ -68,7 +68,7 @@ class RegallocTraceWorkerTest(absltest.TestCase):
 
   def test_build_corpus_and_evaluate(self):
     corpus_dir = self.create_tempdir("corpus")
-    corpus_modules = _setup_corpus(corpus_dir)
+    corpus_modules = _setup_corpus(corpus_dir.full_path)
     fake_clang_binary = self.create_tempfile("fake_clang")
     fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
     _create_test_binary(fake_clang_binary.full_path,
@@ -117,7 +117,7 @@ class RegallocTraceWorkerTest(absltest.TestCase):
 
   def test_compile_corpus_and_evaluate_with_tflite(self):
     corpus_dir = self.create_tempdir("corpus")
-    corpus_modules = _setup_corpus(corpus_dir)
+    corpus_modules = _setup_corpus(corpus_dir.full_path)
     fake_clang_binary = self.create_tempfile("fake_clang")
     fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
     _create_test_binary(fake_clang_binary.full_path,
