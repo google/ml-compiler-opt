@@ -120,12 +120,13 @@ def create_tfrecord_parser_fn(
   return _parser_fn
 
 
-def _generate_vocab(feature_values_arrays, feature_name):
+def _generate_vocab(feature_values_arrays, feature_name,
+                    rng: np.random.Generator):
   """Downsample and generate vocab using brute force method."""
   feature_values = np.concatenate(feature_values_arrays)
   sample_length = math.floor(
       np.shape(feature_values)[0] * FLAGS.sampling_fraction)
-  values = np.random.choice(feature_values, sample_length, replace=False)
+  values = rng.choice(feature_values, sample_length, replace=False)
   bin_edges = np.quantile(values, np.linspace(0, 1, FLAGS.num_buckets))
   filename = os.path.join(FLAGS.output_dir, f'{feature_name}.buckets')
   with open(filename, 'w', encoding='utf-8') as f:
@@ -168,14 +169,13 @@ def main(_) -> None:
   dataset = dataset.map(parser_fn, num_parallel_calls=tf.data.AUTOTUNE)
   data_list = np.array(list(dataset.as_numpy_iterator()), dtype=object)
   data_list = data_list.swapaxes(0, 1)
+  rng = np.random.default_rng()
 
   with mp.Pool(FLAGS.parallelism) as pool:
     feature_names = sorted(sequence_features)
     for i, feature_values_arrays in enumerate(data_list):
-      pool.apply_async(_generate_vocab, (
-          feature_values_arrays,
-          feature_names[i],
-      ))
+      pool.apply_async(_generate_vocab,
+                       (feature_values_arrays, feature_names[i], rng))
     pool.close()
     pool.join()
 
