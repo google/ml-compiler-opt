@@ -83,3 +83,24 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
       self.assertAlmostEqual(evaluator._baseline, 10)
+
+  def test_trace_get_rewards(self):
+    f1 = concurrent.futures.Future()
+    f1.set_result(2)
+    f2 = concurrent.futures.Future()
+    f2.set_result(3)
+    results = [f1, f2]
+    test_corpus = corpus.create_corpus_for_testing(
+        location=self.create_tempdir().full_path,
+        elements=[corpus.ModuleSpec(name='name1', size=1)])
+    evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
+        test_corpus, 5, "fake_bb_trace_path", "fake_function_index_path")
+
+    # pylint: disable=protected-access
+    evaluator._baseline = 2
+    rewards = evaluator.get_rewards(results)
+
+    # Only check for two decimal places as the reward calculation uses a
+    # reasonably large delta (0.01) when calculating the difference to
+    # prevent division by zero.
+    self.assertSequenceAlmostEqual(rewards, [0, -0.5], 2)
