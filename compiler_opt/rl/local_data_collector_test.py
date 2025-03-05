@@ -20,8 +20,7 @@ import string
 import tensorflow as tf
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import text_format  # pytype: disable=pyi-error
+from google.protobuf import text_format
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
