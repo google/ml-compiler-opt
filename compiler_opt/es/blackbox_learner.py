@@ -230,6 +230,9 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
+  def set_baseline(self, pool: FixedWorkerPool) -> None:
+    self._evaluator.set_baseline(pool)
+
   def run_step(self, pool: FixedWorkerPool) -> None:
     """Run a single step of blackbox learning.
     This does not instantaneously return due to several I/O
@@ -245,12 +248,8 @@ class BlackboxLearner:
           p for p in initial_perturbations for p in (p, -p)
       ]
 
-    # TODO(boomanaiden154): This should be adding the perturbation to
-    # the existing model weights. That currently results in the model
-    # weights all being NaN, presumably due to rewards not being scaled for
-    # the regalloc_trace problem.
     perturbations_as_bytes = [
-        perturbation.astype(np.float32).tobytes()
+        (self._model_weights + perturbation).astype(np.float32).tobytes()
         for perturbation in initial_perturbations
     ]
 

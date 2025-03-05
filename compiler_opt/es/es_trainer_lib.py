@@ -215,6 +215,7 @@ def train(additional_compilation_flags=(),
       worker_class,
       count=learner_config.total_num_perturbations,
       worker_kwargs=dict(gin_config=gin.operative_config_str())) as pool:
+    learner.set_baseline(pool)
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 

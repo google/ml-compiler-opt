@@ -23,6 +23,7 @@ from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.distributed import buffered_scheduler
+from compiler_opt.rl import compilation_runner
 
 
 class BlackboxEvaluator(metaclass=abc.ABCMeta):
@@ -159,3 +160,16 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
                        f' got {len(futures)}')
 
     self._baseline = futures[0].result()
+
+  def get_rewards(
+      self, results: list[concurrent.futures.Future]) -> list[float | None]:
+    rewards = []
+
+    for result in results:
+      if result.exception() is not None:
+        raise result.exception()
+
+      rewards.append(
+          compilation_runner._calculate_reward(result.result(), self._baseline))
+
+    return rewards
