@@ -21,6 +21,7 @@ from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_test_utils
 from compiler_opt.es import blackbox_evaluator
+from compiler_opt.es import blackbox_optimizers
 
 
 class BlackboxEvaluatorTests(absltest.TestCase):
@@ -33,7 +34,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         worker_args=('',),
         worker_kwargs=dict(kwarg='')) as pool:
       perturbations = [b'00', b'01', b'10']
-      evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(None, 5, 5, None)
+      evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
+          None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
       # pylint: disable=protected-access
       evaluator._samples = [[corpus.ModuleSpec(name='name1', size=1)],
                             [corpus.ModuleSpec(name='name2', size=1)],
@@ -49,7 +51,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
     f2 = concurrent.futures.Future()
     f2.set_result(2)
     results = [f1, f2]
-    evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(None, 5, 5, None)
+    evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
+        None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
     rewards = evaluator.get_rewards(results)
     self.assertEqual(rewards, [None, 2])
 
@@ -64,7 +67,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
           location=self.create_tempdir().full_path,
           elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
+          'fake_bb_trace_path', 'fake_function_index_path')
       results = evaluator.get_results(pool, perturbations)
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
@@ -79,7 +83,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
           location=self.create_tempdir().full_path,
           elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, 5, 'fake_bb_trace_path', 'fake_function_index_path')
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
+          'fake_bb_trace_path', 'fake_function_index_path')
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
       self.assertAlmostEqual(evaluator._baseline, 10)
