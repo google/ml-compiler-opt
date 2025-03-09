@@ -53,9 +53,35 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
-  def __init__(self, *, gin_config: str, clang_path: str,
-               basic_block_trace_model_path: str, thread_count: int,
-               corpus_path: str):
+  def _maybe_copy_corpus(self, corpus_path: str,
+                         copy_corpus_locally_path: str | None) -> str:
+    """Makes a local copy of the corpus if requested.
+    
+    This function makes a local copy of the corpus if requested by copying the
+    remote corpus to a user-specified directory. If no local corpus copy
+    location is specified, it simply returns the existing path.
+
+    Args:
+      corpus_path: THe path to the remote corpus.
+      copy_corpus_locally: THe path to copy the corpus to, or None if no
+        copying is desired.
+    
+    Returns:
+      The path to the corpus that is to be used for compilation/evaluation.
+    """
+    if copy_corpus_locally_path is None:
+      return corpus_path
+
+    # Create directory.
+
+  def __init__(self,
+               *,
+               gin_config: str,
+               clang_path: str,
+               basic_block_trace_model_path: str,
+               thread_count: int,
+               corpus_path: str,
+               copy_corpus_locally_path: str | None = None):
     """Initializes the RegallocTraceWorker class.
 
     Args:
@@ -68,11 +94,15 @@ class RegallocTraceWorker(worker.Worker):
       thread_count: The number of threads to use for concurrent compilation
         and modelling.
       corpus_path: The path to the corpus that modules will be compiled from.
+      copy_corpus_locally_path: If set, specifies the path that the corpus
+        should be copied to before utilizing the modules for evaluation.
+        Setting this to None signifies that no copying is desired.
     """
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
-    self._corpus_path = corpus_path
+    self._corpus_path = self._maybe_copy_corpus(corpus_path,
+                                                copy_corpus_locally_path)
 
     gin.parse_config(gin_config)
     self._setup_base_policy()
