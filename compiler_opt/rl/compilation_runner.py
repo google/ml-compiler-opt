@@ -43,7 +43,7 @@ _EXPLICIT_TEMPS_DIR = flags.DEFINE_string(
     'Put temporary files into given directory and keep them past exit.')
 
 
-def _calculate_reward(policy: float, baseline: float) -> float:
+def calculate_reward(policy: float, baseline: float) -> float:
   # This assumption allows us to imply baseline + constant.DELTA > 0.
   assert baseline >= 0
   return 1 - (policy + constant.DELTA) / (baseline + constant.DELTA)
@@ -465,14 +465,14 @@ class CompilationRunner(Worker):
       moving_average_reward = reward_stat[k].moving_average_reward
       sequence_example = _overwrite_trajectory_reward(
           sequence_example=sequence_example,
-          reward=_calculate_reward(
+          reward=calculate_reward(
               policy=policy_reward, baseline=moving_average_reward))
       sequence_example_list.append(sequence_example)
       reward_stat[k].moving_average_reward = (
           moving_average_reward * self._moving_average_decay_rate +
           policy_reward * (1 - self._moving_average_decay_rate))
       rewards.append(
-          _calculate_reward(policy=policy_reward, baseline=default_reward))
+          calculate_reward(policy=policy_reward, baseline=default_reward))
       policy_rewards.append(policy_reward)
       keys.append(k)
 
