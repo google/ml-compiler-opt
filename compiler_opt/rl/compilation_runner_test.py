@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.compilation_runner."""
 
+import math
 import os
 import string
 import subprocess
@@ -253,6 +254,14 @@ class CompilationRunnerTest(tf.test.TestCase):
                                                  cancellation_manager=cm)
     # should be at least 1 second due to the pause.
     self.assertGreater(time.time() - start_time, 1)
+
+  def test_calculate_reward_zero_delta(self):
+    reward = compilation_runner.calculate_reward(3, 0)
+    self.assertTrue(math.isfinite(reward))
+
+  def test_calculate_reward(self):
+    reward = compilation_runner.calculate_reward(1, 2)
+    self.assertAlmostEqual(reward, 0.5, 2)
 
 
 if __name__ == '__main__':
