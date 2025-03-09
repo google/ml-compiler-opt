@@ -169,8 +169,7 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
       if result.exception() is not None:
         raise result.exception()
 
-      # pylint: disable=protected-access
       rewards.append(
-          compilation_runner._calculate_reward(result.result(), self._baseline))
+          compilation_runner.calculate_reward(result.result(), self._baseline))
 
     return rewards
