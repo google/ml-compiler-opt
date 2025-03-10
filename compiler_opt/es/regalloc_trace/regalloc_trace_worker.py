@@ -38,9 +38,9 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.es import policy_utils
 
 
-def _make_dirs_and_copy(old_path: str, new_path: str):
-  tf.io.gfile.makedirs(os.path.dirname(new_path))
-  tf.io.gfile.copy(old_path, new_path)
+def _make_dirs_and_copy(old_file_path: str, new_file_path: str):
+  tf.io.gfile.makedirs(os.path.dirname(new_file_path))
+  tf.io.gfile.copy(old_file_path, new_file_path)
 
 
 @gin.configurable
@@ -60,8 +60,8 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
-  def _maybe_copy_corpus(self, corpus_path: str,
-                         copy_corpus_locally_path: str | None) -> str:
+  def _copy_corpus(self, corpus_path: str,
+                   copy_corpus_locally_path: str | None) -> None:
     """Makes a local copy of the corpus if requested.
 
     This function makes a local copy of the corpus if requested by copying the
@@ -69,18 +69,11 @@ class RegallocTraceWorker(worker.Worker):
     location is specified, it simply returns the existing path.
 
     Args:
-      corpus_path: THe path to the remote corpus.
-      copy_corpus_locally: THe path to copy the corpus to, or None if no
-        copying is desired.
-
-    Returns:
-      The path to the corpus that is to be used for compilation/evaluation.
+      corpus_path: The path to the remote corpus.
+      copy_corpus_locally: The local path to copy the corpus to.
     """
-    if copy_corpus_locally_path is None:
-      return corpus_path
-
     # We use the tensorflow APIs below rather than the standard Python file
-    # APIs for compatibility with internal (to Google) filesystems.
+    # APIs for compatibility with more filesystems.
 
     if tf.io.gfile.exists(copy_corpus_locally_path):
       return copy_corpus_locally_path
@@ -138,9 +131,12 @@ class RegallocTraceWorker(worker.Worker):
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
-    self._corpus_path = self._maybe_copy_corpus(corpus_path,
-                                                copy_corpus_locally_path)
-    self._has_local_corpus = copy_corpus_locally_path is not None
+    self._has_local_corpus = False
+    self._corpus_path = corpus_path
+    if copy_corpus_locally_path is not None:
+      self._copy_corpus(corpus_path, copy_corpus_locally_path)
+      self._corpus_path = copy_corpus_locally_path
+      self._has_local_corpus = True
 
     gin.parse_config(gin_config)
     self._setup_base_policy()
