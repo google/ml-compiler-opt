@@ -105,8 +105,7 @@ def evaluate(root_dir: str, corpus_path: str,
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=num_workers,
-      worker_kwargs=dict(moving_average_decay_rate=1)
-      ) as worker_pool:
+      worker_kwargs=dict(moving_average_decay_rate=1)) as worker_pool:
     logging.info('constructed pool')
     collector = local_data_collector.LocalDataCollector(
         cps=cps,

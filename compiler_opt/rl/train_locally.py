@@ -146,8 +146,8 @@ def train_eval(worker_manager_class=LocalWorkerPoolManager,
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=FLAGS.num_workers,
-      worker_kwargs=dict(moving_average_decay_rate=moving_average_decay_rate)
-      ) as worker_pool:
+      worker_kwargs=dict(
+          moving_average_decay_rate=moving_average_decay_rate)) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
         cps=cps,
         num_modules=num_modules,
