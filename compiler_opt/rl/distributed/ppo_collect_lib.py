@@ -167,8 +167,11 @@ def collect(corpus_path: str, replay_buffer_server_address: str,
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
       count=num_workers,
-      moving_average_decay_rate=1,
-      create_observer_fns=create_observer_fns) as worker_pool:
+      worker_kwargs=dict(
+        moving_average_decay_rate=1,
+        create_observer_fns=create_observer_fns
+        )
+      ) as worker_pool:
 
     data_collector = local_data_collector.LocalDataCollector(
         cps=cps,
