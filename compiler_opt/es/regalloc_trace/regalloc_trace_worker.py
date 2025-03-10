@@ -27,13 +27,20 @@ import json
 import concurrent.futures
 import tempfile
 import shutil
+from typing import Any
 
 import gin
+import tensorflow as tf
 
 from compiler_opt.rl import corpus
 from compiler_opt.distributed import worker
 from compiler_opt.rl import policy_saver
 from compiler_opt.es import policy_utils
+
+
+def _make_dirs_and_copy(old_file_path: str, new_file_path: str):
+  tf.io.gfile.makedirs(os.path.dirname(new_file_path))
+  tf.io.gfile.copy(old_file_path, new_file_path)
 
 
 @gin.configurable
@@ -53,9 +60,56 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
-  def __init__(self, *, gin_config: str, clang_path: str,
-               basic_block_trace_model_path: str, thread_count: int,
-               corpus_path: str):
+  def _copy_corpus(self, corpus_path: str,
+                   copy_corpus_locally_path: str | None) -> None:
+    """Makes a local copy of the corpus if requested.
+
+    This function makes a local copy of the corpus if requested by copying the
+    remote corpus to a user-specified directory. If no local corpus copy
+    location is specified, it simply returns the existing path.
+
+    Args:
+      corpus_path: The path to the remote corpus.
+      copy_corpus_locally: The local path to copy the corpus to.
+    """
+    # We use the tensorflow APIs below rather than the standard Python file
+    # APIs for compatibility with more filesystems.
+
+    if tf.io.gfile.exists(copy_corpus_locally_path):
+      return
+
+    with tf.io.gfile.GFile(
+        os.path.join(corpus_path, "corpus_description.json"),
+        "r") as corpus_description_file:
+      corpus_description: dict[str, Any] = json.load(corpus_description_file)
+
+    file_extensions_to_copy = [".bc", ".cmd"]
+    if corpus_description["has_thinlto"]:
+      file_extensions_to_copy.append(".thinlto.bc")
+
+    copy_futures = []
+    with concurrent.futures.ThreadPoolExecutor(self._thread_count *
+                                               5) as copy_thread_pool:
+      for module in corpus_description["modules"]:
+        for extension in file_extensions_to_copy:
+          current_path = os.path.join(corpus_path, module + extension)
+          new_path = os.path.join(copy_corpus_locally_path, module + extension)
+          copy_futures.append(
+              copy_thread_pool.submit(_make_dirs_and_copy, current_path,
+                                      new_path))
+
+    for copy_future in copy_futures:
+      if copy_future.exception() is not None:
+        raise copy_future.exception()
+
+  def __init__(self,
+               *,
+               gin_config: str,
+               clang_path: str,
+               basic_block_trace_model_path: str,
+               thread_count: int,
+               corpus_path: str,
+               copy_corpus_locally_path: str | None = None):
     """Initializes the RegallocTraceWorker class.
 
     Args:
@@ -68,11 +122,19 @@ class RegallocTraceWorker(worker.Worker):
       thread_count: The number of threads to use for concurrent compilation
         and modelling.
       corpus_path: The path to the corpus that modules will be compiled from.
+      copy_corpus_locally_path: If set, specifies the path that the corpus
+        should be copied to before utilizing the modules for evaluation.
+        Setting this to None signifies that no copying is desired.
     """
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
+    self._has_local_corpus = False
     self._corpus_path = corpus_path
+    if copy_corpus_locally_path is not None:
+      self._copy_corpus(corpus_path, copy_corpus_locally_path)
+      self._corpus_path = copy_corpus_locally_path
+      self._has_local_corpus = True
 
     gin.parse_config(gin_config)
     self._setup_base_policy()
@@ -83,6 +145,8 @@ class RegallocTraceWorker(worker.Worker):
   # have tempdirs wiped periodically.
   def __del__(self):
     shutil.rmtree(self._tf_base_temp_dir)
+    if self._has_local_corpus:
+      shutil.rmtree(self._corpus_path)
 
   def _compile_module(self, module_to_compile: corpus.ModuleSpec,
                       output_directory: str, tflite_policy_path: str | None):
