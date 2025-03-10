@@ -76,7 +76,7 @@ class RegallocTraceWorker(worker.Worker):
     # APIs for compatibility with more filesystems.
 
     if tf.io.gfile.exists(copy_corpus_locally_path):
-      return copy_corpus_locally_path
+      return
 
     with tf.io.gfile.GFile(
         os.path.join(corpus_path, "corpus_description.json"),
@@ -101,8 +101,6 @@ class RegallocTraceWorker(worker.Worker):
     for copy_future in copy_futures:
       if copy_future.exception() is not None:
         raise copy_future.exception()
-
-    return copy_corpus_locally_path
 
   def __init__(self,
                *,
