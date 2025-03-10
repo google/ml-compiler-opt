@@ -122,6 +122,9 @@ cmake -GNinja -S gemmlowp/src/gemmlowp/contrib -B gemmlowp/src/gemmlowp-build \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/gemmlowp \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
 ninja -C gemmlowp/src/gemmlowp-build install
+# Sometimes INSTALL_LIBDIR defaults to `lib64` instead of `lib`
+# Ask CMakeCache which one did it use.
+export gemmlowp_INSTALL_LIBDIR=$(grep CMAKE_INSTALL_LIBDIR\:PATH= gemmlowp/src/gemmlowp-build/CMakeCache.txt | cut -d'=' -f2-)
 
 # ml_dtypes
 git clone --filter=tree:0 --no-checkout ${ML_DTYPES_REPOSITORY} ml_dtypes/src/ml_dtypes
@@ -141,7 +144,7 @@ cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/ten
   -Druy_DIR:PATH=${PWD}/ruy/lib/cmake/ruy \
   -Dabsl_DIR:PATH=${PWD}/abseil-cpp/lib/cmake/absl \
   -DEigen3_DIR:PATH=${PWD}/eigen/share/eigen3/cmake \
-  -Dgemmlowp_DIR:PATH=${PWD}/gemmlowp/lib/cmake/gemmlowp \
+  -Dgemmlowp_DIR:PATH=${PWD}/gemmlowp/${gemmlowp_INSTALL_LIBDIR}/cmake/gemmlowp \
   -DNEON_2_SSE_DIR:PATH=${PWD}/ARM_NEON_2_x86_SSE/lib/cmake/NEON_2_SSE \
   -DFlatBuffers_DIR:PATH=${PWD}/flatbuffers/lib/cmake/flatbuffers \
   -DML_DTYPES_SOURCE_DIR:PATH=${PWD}/ml_dtypes/src/ml_dtypes
@@ -154,7 +157,7 @@ set(ruy_DIR "${PWD}/ruy/lib/cmake/ruy" CACHE PATH "")
 set(absl_DIR "${PWD}/abseil-cpp/lib/cmake/absl" CACHE PATH "")
 set(Eigen3_DIR "${PWD}/eigen/share/eigen3/cmake" CACHE PATH "")
 set(NEON_2_SSE_DIR "${PWD}/ARM_NEON_2_x86_SSE/lib/cmake/NEON_2_SSE" CACHE PATH "")
-set(gemmlowp_DIR "${PWD}/gemmlowp/lib/cmake/gemmlowp" CACHE PATH "")
+set(gemmlowp_DIR "${PWD}/gemmlowp/${gemmlowp_INSTALL_LIBDIR}/cmake/gemmlowp" CACHE PATH "")
 set(FlatBuffers_DIR "${PWD}/flatbuffers/lib/cmake/flatbuffers" CACHE PATH "")
 set(tensorflow-lite_DIR "${PWD}/tensorflow/lib/cmake/tensorflow-lite" CACHE PATH "")
 set(TENSORFLOW_SRC_DIR "${PWD}/tensorflow/src/tensorflow" CACHE PATH "")
