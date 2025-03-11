@@ -27,11 +27,9 @@ from compiler_opt.es.regalloc_trace import regalloc_trace_worker
 from compiler_opt.rl import corpus
 
 
-def _setup_corpus(
-    corpus_dir: str,
-    has_thinlto: bool = False,
-    cli_flags: tuple = ()
-) -> list[corpus.ModuleSpec]:
+def _setup_corpus(corpus_dir: str,
+                  has_thinlto: bool = False,
+                  cli_flags: tuple = ()) -> list[corpus.ModuleSpec]:
   modules = [
       corpus.ModuleSpec("module_a.o", 1, ("-fmodule-a", *cli_flags), True),
       corpus.ModuleSpec("module_b.o", 1, ("-fmodule-b", *cli_flags), True)
