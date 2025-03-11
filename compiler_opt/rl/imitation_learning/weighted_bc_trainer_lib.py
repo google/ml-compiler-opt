@@ -43,10 +43,6 @@ _QUANTILE_MAP_PATH = flags.DEFINE_string(
     ('Directory containing the quantile map for normalizing features'
      'in feature_ops.build_quantile_map.'))
 
-# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
-# here as these errors are false positives.
-# pytype: disable=pyi-error
-
 
 @gin.configurable
 class TrainingWeights:
