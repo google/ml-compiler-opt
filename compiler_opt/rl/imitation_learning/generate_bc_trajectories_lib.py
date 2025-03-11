@@ -43,6 +43,7 @@ from compiler_opt.rl import corpus
 from compiler_opt.rl import env
 
 from compiler_opt.distributed import worker
+from compiler_opt.distributed import worker_manager
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
 
@@ -900,7 +901,9 @@ def gen_trajectories(
     profiling_file_path: str | None = None,
     worker_wait_sec: float | None = None,
     worker_class_type=ModuleWorker,
-    worker_manager_class=local_worker_manager.LocalWorkerPoolManager,
+    worker_manager_class: type[
+        worker_manager.WorkerManager] = local_worker_manager
+    .LocalWorkerPoolManager,
 ):
   """Generates all trajectories for imitation learning training.
 

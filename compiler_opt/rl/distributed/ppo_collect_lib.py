@@ -33,6 +33,7 @@ from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 from tf_agents.trajectories import trajectory
 
+from compiler_opt.distributed import worker_manager
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import corpus
@@ -102,7 +103,8 @@ class ReverbCompilationObserver(compilation_runner.CompilationResultObserver):
 
 def collect(corpus_path: str, replay_buffer_server_address: str,
             variable_container_server_address: str, num_workers: int | None,
-            worker_manager_class, sequence_length: int) -> None:
+            worker_manager_class: type[worker_manager.WorkerManager],
+            sequence_length: int) -> None:
   """Collects experience using a policy updated after every episode.
 
   Args:

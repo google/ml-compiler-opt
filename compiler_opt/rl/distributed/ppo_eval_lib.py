@@ -27,6 +27,7 @@ from tf_agents.train import learner
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
+from compiler_opt.distributed import worker_manager
 from compiler_opt.rl import data_reader
 from compiler_opt.rl import local_data_collector
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
@@ -39,7 +40,7 @@ from compiler_opt.rl import data_collector
 
 def evaluate(root_dir: str, corpus_path: str,
              variable_container_server_address: str, num_workers: int | None,
-             worker_manager_class):
+             worker_manager_class: type[worker_manager.WorkerManager]):
   """Evaluate a given policy on the given corpus.
 
   Args:

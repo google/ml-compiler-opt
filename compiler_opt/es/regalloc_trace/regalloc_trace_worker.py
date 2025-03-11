@@ -156,8 +156,7 @@ class RegallocTraceWorker(worker.Worker):
       self._corpus_path = copy_corpus_locally_path
       self._has_local_corpus = True
 
-    if copy_corpus_locally_path is None and len(
-        aux_file_replacement_flags) != 0:
+    if copy_corpus_locally_path is None and aux_file_replacement_flags is not None:
       raise ValueError(
           "additional_replacement_flags is incompatible with fully local "
           "corpus setups. Please directly replace the flag with the correct "

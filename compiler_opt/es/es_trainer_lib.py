@@ -24,6 +24,7 @@ import os
 # here as these errors are false positives.
 # pytype: disable=pyi-error
 
+from compiler_opt.distributed import worker_manager
 from compiler_opt.distributed.local import local_worker_manager
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import gradient_ascent_optimization_algorithms
@@ -68,7 +69,9 @@ def train(additional_compilation_flags=(),
           beta2=0.999,
           momentum=0.0,
           gradient_ascent_optimizer_type=GradientAscentOptimizerType.ADAM,
-          worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
+          worker_manager_class: type[
+              worker_manager.WorkerManager] = local_worker_manager
+          .LocalWorkerPoolManager):
   """Train with ES."""
 
   if not _TRAIN_CORPORA.value:
