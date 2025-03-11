@@ -26,6 +26,7 @@ import gin
 import tensorflow as tf
 
 from compiler_opt.distributed import worker
+from compiler_opt.distributed import worker_manager
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
 
@@ -112,8 +113,9 @@ def main(_):
   generate_trace()
 
 
-def generate_trace(
-    worker_manager_class=local_worker_manager.LocalWorkerPoolManager):
+def generate_trace(worker_manager_class: type[
+    worker_manager.WorkerManager] = local_worker_manager.LocalWorkerPoolManager
+                  ):
 
   config = registry.get_configuration()
 

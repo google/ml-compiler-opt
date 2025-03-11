@@ -38,8 +38,8 @@ import threading
 from absl import flags, logging
 # pylint: disable=unused-import
 from compiler_opt.distributed import worker
+from compiler_opt.distributed import worker_manager
 
-from contextlib import AbstractContextManager
 from multiprocessing import connection
 from typing import Any
 from collections.abc import Callable
@@ -281,7 +281,7 @@ def close_local_worker_pool(pool: worker.FixedWorkerPool):
     stub.join()
 
 
-class LocalWorkerPoolManager(AbstractContextManager):
+class LocalWorkerPoolManager(worker_manager.WorkerManager):
   """A pool of workers hosted on the local machines, each in its own process."""
 
   def __init__(self,

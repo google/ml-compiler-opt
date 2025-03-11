@@ -27,6 +27,7 @@ import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.system import system_multiprocessing as multiprocessing
 
+from compiler_opt.distributed import worker_manager
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import agent_config
 from compiler_opt.rl import best_trajectory
@@ -58,7 +59,8 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable
-def train_eval(worker_manager_class=LocalWorkerPoolManager,
+def train_eval(worker_manager_class: type[
+    worker_manager.WorkerManager] = LocalWorkerPoolManager,
                agent_config_type=agent_config.PPOAgentConfig,
                warmstart_policy_dir=None,
                num_policy_iterations=0,
