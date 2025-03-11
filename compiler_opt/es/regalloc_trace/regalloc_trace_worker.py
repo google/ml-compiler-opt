@@ -60,6 +60,9 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
+  # TODO(issues/471): aux_file_replacement_flags should be refactored out of
+  # regalloc_trace_worker as it will need to be used in other places
+  # eventually.
   def _copy_corpus(self, corpus_path: str, copy_corpus_locally_path: str | None,
                    aux_file_replacement_flags: dict[str, str]) -> None:
     """Makes a local copy of the corpus if requested.
