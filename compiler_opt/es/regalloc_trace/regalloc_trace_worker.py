@@ -64,9 +64,8 @@ class RegallocTraceWorker(worker.Worker):
                    copy_corpus_locally_path: str | None) -> None:
     """Makes a local copy of the corpus if requested.
 
-    This function makes a local copy of the corpus if requested by copying the
-    remote corpus to a user-specified directory. If no local corpus copy
-    location is specified, it simply returns the existing path.
+    This function makes a local copy of the corpus by copying the remote
+    corpus to a user-specified directory.
 
     Args:
       corpus_path: The path to the remote corpus.
