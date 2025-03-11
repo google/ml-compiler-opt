@@ -28,10 +28,11 @@ from compiler_opt.rl import corpus
 
 
 def _setup_corpus(corpus_dir: str,
-                  has_thinlto: bool = False) -> list[corpus.ModuleSpec]:
+                  has_thinlto: bool = False,
+                  cli_flags: tuple = ()) -> list[corpus.ModuleSpec]:
   modules = [
-      corpus.ModuleSpec("module_a.o", 1, ("-fmodule-a",), True),
-      corpus.ModuleSpec("module_b.o", 1, ("-fmodule-b",), True)
+      corpus.ModuleSpec("module_a.o", 1, ("-fmodule-a", *cli_flags), True),
+      corpus.ModuleSpec("module_b.o", 1, ("-fmodule-b", *cli_flags), True)
   ]
 
   corpus_description = {
@@ -208,3 +209,46 @@ class RegallocTraceWorkerTest(absltest.TestCase):
         os.path.exists(os.path.join(corpus_copy_dir, "module_a.o.thinlto.bc")))
     self.assertTrue(
         os.path.exists(os.path.join(corpus_copy_dir, "module_b.o.thinlto.bc")))
+
+  def test_remote_corpus_replacement_flags(self):
+    corpus_copy_base_dir = self.create_tempdir("corpus_copy")
+    corpus_copy_dir = os.path.join(corpus_copy_base_dir.full_path,
+                                   "corpus_copy")
+    corpus_dir = self.create_tempdir("corpus")
+    profile_path = os.path.join(corpus_dir, "profile.prof")
+    Path(profile_path).touch()
+    corpus_modules = _setup_corpus(corpus_dir.full_path, False,
+                                   ("-fprofile-instr-use={prof}",))
+
+    fake_clang_binary = self.create_tempfile("fake_clang")
+    fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
+    _create_test_binary(fake_clang_binary.full_path,
+                        fake_clang_invocations.full_path)
+    fake_bb_trace_model_binary = self.create_tempfile(
+        "fake_basic_block_trace_model")
+    fake_bb_trace_model_invocations = self.create_tempfile(
+        "fake_basic_block_trace_model_invocations")
+    _create_test_binary(fake_bb_trace_model_binary.full_path,
+                        fake_bb_trace_model_invocations.full_path)
+
+    worker = regalloc_trace_worker.RegallocTraceWorker(
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path,
+        copy_corpus_locally_path=corpus_copy_dir,
+        aux_file_replacement_flags={"prof": profile_path})
+
+    copied_profile_path = os.path.join(corpus_copy_dir, "profile.prof")
+    self.assertTrue(os.path.exists(copied_profile_path))
+    _ = worker.compile_corpus_and_evaluate(corpus_modules,
+                                           "function_index_path.pb",
+                                           "bb_trace_path.pb", None)
+    clang_command_lines = fake_clang_invocations.read_text().split("\n")
+    clang_command_lines.remove("")
+    self.assertLen(clang_command_lines, 2)
+    self.assertTrue(
+        f"-fprofile-instr-use={copied_profile_path}" in clang_command_lines[0])
+    self.assertTrue(
+        f"-fprofile-instr-use={copied_profile_path}" in clang_command_lines[1])

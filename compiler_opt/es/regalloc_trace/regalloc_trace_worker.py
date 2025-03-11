@@ -60,8 +60,11 @@ class RegallocTraceWorker(worker.Worker):
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
-  def _copy_corpus(self, corpus_path: str,
-                   copy_corpus_locally_path: str | None) -> None:
+  # TODO(issues/471): aux_file_replacement_flags should be refactored out of
+  # regalloc_trace_worker as it will need to be used in other places
+  # eventually.
+  def _copy_corpus(self, corpus_path: str, copy_corpus_locally_path: str | None,
+                   aux_file_replacement_flags: dict[str, str]) -> None:
     """Makes a local copy of the corpus if requested.
 
     This function makes a local copy of the corpus by copying the remote
@@ -70,6 +73,8 @@ class RegallocTraceWorker(worker.Worker):
     Args:
       corpus_path: The path to the remote corpus.
       copy_corpus_locally: The local path to copy the corpus to.
+      aux_file_replacement_flags: Additional files to copy over that are
+        passed in through flags, like profiles.
     """
     # We use the tensorflow APIs below rather than the standard Python file
     # APIs for compatibility with more filesystems.
@@ -97,18 +102,30 @@ class RegallocTraceWorker(worker.Worker):
               copy_thread_pool.submit(_make_dirs_and_copy, current_path,
                                       new_path))
 
+      if aux_file_replacement_flags is not None:
+        for flag_name in aux_file_replacement_flags:
+          aux_replacement_file = aux_file_replacement_flags[flag_name]
+          new_path = os.path.join(copy_corpus_locally_path,
+                                  os.path.basename(aux_replacement_file))
+          copy_futures.append(
+              copy_thread_pool.submit(_make_dirs_and_copy, aux_replacement_file,
+                                      new_path))
+
     for copy_future in copy_futures:
       if copy_future.exception() is not None:
         raise copy_future.exception()
 
-  def __init__(self,
-               *,
-               gin_config: str,
-               clang_path: str,
-               basic_block_trace_model_path: str,
-               thread_count: int,
-               corpus_path: str,
-               copy_corpus_locally_path: str | None = None):
+  def __init__(
+      self,
+      *,
+      gin_config: str,
+      clang_path: str,
+      basic_block_trace_model_path: str,
+      thread_count: int,
+      corpus_path: str,
+      copy_corpus_locally_path: str | None = None,
+      aux_file_replacement_flags: dict[str, str] | None = None,
+  ):
     """Initializes the RegallocTraceWorker class.
 
     Args:
@@ -124,16 +141,38 @@ class RegallocTraceWorker(worker.Worker):
       copy_corpus_locally_path: If set, specifies the path that the corpus
         should be copied to before utilizing the modules for evaluation.
         Setting this to None signifies that no copying is desired.
+      aux_file_replacement_flags: A dictionary mapping sentinel values intended
+        to be set using the corpus replace_flags feature to actual file paths
+        local to the worker. This is intended to be used in distributed
+        training setups where training corpora and auxiliary files need to be
+        copied locally before being compiled.
     """
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
+
     self._has_local_corpus = False
     self._corpus_path = corpus_path
     if copy_corpus_locally_path is not None:
-      self._copy_corpus(corpus_path, copy_corpus_locally_path)
+      self._copy_corpus(corpus_path, copy_corpus_locally_path,
+                        aux_file_replacement_flags)
       self._corpus_path = copy_corpus_locally_path
       self._has_local_corpus = True
+
+    if (copy_corpus_locally_path is None and
+        aux_file_replacement_flags is not None):
+      raise ValueError(
+          "additional_replacement_flags is incompatible with fully local "
+          "corpus setups. Please directly replace the flag with the correct "
+          "value.")
+    self._aux_file_replacement_flags = aux_file_replacement_flags
+    self._aux_file_replacement_context = {}
+    if aux_file_replacement_flags is not None:
+      for flag_name in self._aux_file_replacement_flags:
+        self._aux_file_replacement_context[flag_name] = os.path.join(
+            self._corpus_path,
+            os.path.basename(self._aux_file_replacement_flags[flag_name]),
+        )
 
     gin.parse_config(gin_config)
     self._setup_base_policy()
@@ -156,7 +195,7 @@ class RegallocTraceWorker(worker.Worker):
         # using ThinLTO, we will just never end up replacing anything.
         os.path.join(self._corpus_path, module_to_compile.name) + ".thinlto.bc")
     command_vector.extend([
-        option.format(context=context)
+        option.format(context=context, **self._aux_file_replacement_context)
         for option in module_to_compile.command_line
     ])
 
