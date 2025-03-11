@@ -100,13 +100,14 @@ class RegallocTraceWorker(worker.Worker):
               copy_thread_pool.submit(_make_dirs_and_copy, current_path,
                                       new_path))
 
-      for flag_name in aux_file_replacement_flags:
-        aux_replacement_file = aux_file_replacement_flags[flag_name]
-        new_path = os.path.join(copy_corpus_locally_path,
-                                os.path.basename(aux_replacement_file))
-        copy_futures.append(
-            copy_thread_pool.submit(_make_dirs_and_copy, aux_replacement_file,
-                                    new_path))
+      if aux_file_replacement_flags is not None:
+        for flag_name in aux_file_replacement_flags:
+          aux_replacement_file = aux_file_replacement_flags[flag_name]
+          new_path = os.path.join(copy_corpus_locally_path,
+                                  os.path.basename(aux_replacement_file))
+          copy_futures.append(
+              copy_thread_pool.submit(_make_dirs_and_copy, aux_replacement_file,
+                                      new_path))
 
     for copy_future in copy_futures:
       if copy_future.exception() is not None:
@@ -121,7 +122,7 @@ class RegallocTraceWorker(worker.Worker):
       thread_count: int,
       corpus_path: str,
       copy_corpus_locally_path: str | None = None,
-      aux_file_replacement_flags: dict[str, str] = {},
+      aux_file_replacement_flags: dict[str, str] | None = None,
   ):
     """Initializes the RegallocTraceWorker class.
 
@@ -164,11 +165,12 @@ class RegallocTraceWorker(worker.Worker):
           "value.")
     self._aux_file_replacement_flags = aux_file_replacement_flags
     self._aux_file_replacement_context = {}
-    for flag_name in self._aux_file_replacement_flags:
-      self._aux_file_replacement_context[flag_name] = os.path.join(
-          self._corpus_path,
-          os.path.basename(self._aux_file_replacement_flags[flag_name]),
-      )
+    if aux_file_replacement_flags is not None:
+      for flag_name in self._aux_file_replacement_flags:
+        self._aux_file_replacement_context[flag_name] = os.path.join(
+            self._corpus_path,
+            os.path.basename(self._aux_file_replacement_flags[flag_name]),
+        )
 
     gin.parse_config(gin_config)
     self._setup_base_policy()
