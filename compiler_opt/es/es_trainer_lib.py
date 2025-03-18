@@ -51,6 +51,8 @@ _REQUEST_DEADLINE = flags.DEFINE_float(
     to the data collection requests.")
 _TRAIN_CORPORA = flags.DEFINE_string("train_corpora", "",
                                      "List of paths to training corpora")
+_NUM_WORKERS = flags.DEFINE_integer("num_workers", 100,
+                                    "The number of workers to create.")
 
 
 @gin.constants_from_enum(module="es_trainer_lib")
@@ -216,7 +218,7 @@ def train(additional_compilation_flags=(),
 
   with worker_manager_class(
       worker_class,
-      count=learner_config.total_num_perturbations,
+      count=_NUM_WORKERS.value,
       worker_kwargs=dict(gin_config=gin.operative_config_str())) as pool:
     learner.set_baseline(pool)
     for _ in range(learner_config.total_steps):
