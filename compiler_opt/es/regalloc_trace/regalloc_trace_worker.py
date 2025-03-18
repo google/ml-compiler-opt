@@ -125,7 +125,7 @@ class RegallocTraceWorker(worker.Worker):
       corpus_path: str,
       copy_corpus_locally_path: str | None = None,
       aux_file_replacement_flags: dict[str, str] | None = None,
-      extra_bb_trace_model_flags: list[str] = [],
+      extra_bb_trace_model_flags: list[str] | None = None,
   ):
     """Initializes the RegallocTraceWorker class.
 
@@ -153,7 +153,8 @@ class RegallocTraceWorker(worker.Worker):
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
-    self._extra_bb_trace_model_flags = extra_bb_trace_model_flags
+    self._extra_bb_trace_model_flags = ([] if extra_bb_trace_model_flags is None
+                                        else extra_bb_trace_model_flags)
 
     self._has_local_corpus = False
     self._corpus_path = corpus_path
