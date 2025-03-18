@@ -153,7 +153,7 @@ class RegallocTraceWorker(worker.Worker):
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
-    self._extra_bb_trace_model_flags = ([] if extra_bb_trace_model_flags is None
+    self._extra_bb_trace_model_flags = ([] if not extra_bb_trace_model_flags
                                         else extra_bb_trace_model_flags)
 
     self._has_local_corpus = False
