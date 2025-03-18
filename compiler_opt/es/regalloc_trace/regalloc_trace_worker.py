@@ -125,6 +125,7 @@ class RegallocTraceWorker(worker.Worker):
       corpus_path: str,
       copy_corpus_locally_path: str | None = None,
       aux_file_replacement_flags: dict[str, str] | None = None,
+      extra_bb_trace_model_flags: list[str] | None = None,
   ):
     """Initializes the RegallocTraceWorker class.
 
@@ -146,10 +147,14 @@ class RegallocTraceWorker(worker.Worker):
         local to the worker. This is intended to be used in distributed
         training setups where training corpora and auxiliary files need to be
         copied locally before being compiled.
+      extra_bb_trace_model_flags: Extra flags to pass to the
+        basic_block_trace_model invocation.
     """
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
+    self._extra_bb_trace_model_flags = ([] if extra_bb_trace_model_flags is None
+                                        else extra_bb_trace_model_flags)
 
     self._has_local_corpus = False
     self._corpus_path = corpus_path
@@ -257,6 +262,7 @@ class RegallocTraceWorker(worker.Worker):
         f"--thread_count={self._thread_count}",
         f"--bb_trace_path={bb_trace_path}", "--model_type=mca"
     ]
+    command_vector.extend(self._extra_bb_trace_model_flags)
 
     output = subprocess.run(command_vector, capture_output=True, check=True)
 

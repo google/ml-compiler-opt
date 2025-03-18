@@ -252,3 +252,33 @@ class RegallocTraceWorkerTest(absltest.TestCase):
         f"-fprofile-instr-use={copied_profile_path}" in clang_command_lines[0])
     self.assertTrue(
         f"-fprofile-instr-use={copied_profile_path}" in clang_command_lines[1])
+
+  def test_extra_bb_trace_flags(self):
+    corpus_dir = self.create_tempdir("corpus")
+    corpus_modules = _setup_corpus(corpus_dir.full_path)
+    fake_clang_binary = self.create_tempfile("fake_clang")
+    fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
+    _create_test_binary(fake_clang_binary.full_path,
+                        fake_clang_invocations.full_path)
+    fake_bb_trace_model_binary = self.create_tempfile(
+        "fake_basic_block_trace_model")
+    fake_bb_trace_model_invocations = self.create_tempfile(
+        "fake_basic_block_trace_model_invocations")
+    _create_test_binary(fake_bb_trace_model_binary.full_path,
+                        fake_bb_trace_model_invocations.full_path)
+
+    worker = regalloc_trace_worker.RegallocTraceWorker(
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path=fake_bb_trace_model_binary.full_path,
+        thread_count=1,
+        corpus_path=corpus_dir.full_path,
+        extra_bb_trace_model_flags=["--extra_flag"])
+    _ = worker.compile_corpus_and_evaluate(corpus_modules,
+                                           "function_index_path.pb",
+                                           "bb_trace_path.pb", None)
+
+    command_line = fake_bb_trace_model_invocations.read_text().split(
+        "\n")[0].split()
+
+    self.assertTrue("--extra_flag" in command_line)
