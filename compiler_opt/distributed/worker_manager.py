@@ -14,8 +14,10 @@
 """The interface for WorkerManager."""
 
 import abc
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 import pickle
+from typing import Any
 
 from compiler_opt.distributed import worker
 
@@ -26,7 +28,7 @@ class WorkerManager(AbstractContextManager, metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def __init__(self,
                worker_class: type[worker.Worker],
-               pickle_func=pickle.dumps,
+               pickle_func: Callable[[Any], bytes] = pickle.dumps,
                *,
                count: int | None,
                worker_args: tuple = (),
