@@ -65,7 +65,8 @@ class BlackboxLearnerTests(absltest.TestCase):
         evaluator=blackbox_evaluator.SamplingBlackboxEvaluator,
         total_num_perturbations=3,
         precision_parameter=1,
-        step_size=1.0)
+        step_size=1.0,
+        save_best_policy=False)
 
     self._cps = corpus.create_corpus_for_testing(
         location=tempfile.gettempdir(),

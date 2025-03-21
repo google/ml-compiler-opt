@@ -76,6 +76,9 @@ class BlackboxLearnerConfig:
   # Learning rate
   step_size: float
 
+  # Whether or not to save a policy if it has the greatest reward seen so far.
+  save_best_policy: bool
+
 
 def _prune_skipped_perturbations(perturbations: list[npt.NDArray[np.float32]],
                                  rewards: list[float | None]):
@@ -152,6 +155,7 @@ class BlackboxLearner:
     self._step = initial_step
     self._deadline = deadline
     self._seed = seed
+    self._global_max_reward = 0.0
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
@@ -269,6 +273,18 @@ class BlackboxLearner:
     self._update_model(initial_perturbations, rewards)
     self._log_rewards(rewards)
     self._log_tf_summary(rewards)
+
+    if self._config.save_best_policy and np.max(
+        rewards) > self._global_max_reward:
+      self._global_max = np.max(rewards)
+      logging.info('Found new best model with reward %f at step '
+                   '%d, saving.', self._global_max, self._step)
+      max_index = np.argmax(rewards)
+      perturbation = initial_perturbations[max_index]
+      self._policy_saver_fn(
+          parameters=self._model_weights + perturbation,
+          policy_name=f'best_policy_{self._global_max}_step_{self._step}',
+      )
 
     self._save_model()
 
