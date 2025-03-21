@@ -277,9 +277,8 @@ class BlackboxLearner:
     if self._config.save_best_policy and np.max(
         rewards) > self._global_max_reward:
       self._global_max = np.max(rewards)
-      logging.info(
-          'Found new best model with reward %f at step '
-          '%d, saving.', self._global_max, self._step)
+      logging.info('Found new best model with reward %f at step '
+                   '%d, saving.', self._global_max, self._step)
       max_index = np.argmax(rewards)
       perturbation = initial_perturbations[max_index]
       self._policy_saver_fn(
