@@ -38,7 +38,8 @@ flags.FLAGS['gin_bindings'].allow_override = True
 class MockCompilationRunner(compilation_runner.CompilationRunner):
   """A compilation runner just for test."""
 
-  def __init__(self, sentinel=None):
+  def __init__(self, moving_average_decay_rate: float, sentinel=None):
+    del moving_average_decay_rate  # Unused.
     assert sentinel == 42
     super().__init__()
 
