@@ -205,7 +205,7 @@ def generate_trace(worker_manager_class: type[
         'written')
 
   if _KEYS_FILE.value is not None:
-    with open(_KEYS_FILE.value, 'w') as keys_file:
+    with open(_KEYS_FILE.value, 'w', encoding='utf-8') as keys_file:
       for key in all_keys:
         keys_file.write(f'{key}\n')
 
