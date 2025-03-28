@@ -111,8 +111,12 @@ class GenerateDefaultTraceTest(absltest.TestCase):
         output_path=os.path.join(tmp_dir.full_path, 'output'),
         output_performance_path=os.path.join(tmp_dir.full_path,
                                              'output_performance'),
-    ):
+        keys_file=os.path.join(tmp_dir.full_path, 'keys_file')):
       generate_default_trace.generate_trace()
+
+    with open(os.path.join(tmp_dir.full_path, 'keys_file')) as keys_file:
+      keys = [key_line.strip() for key_line in keys_file.readlines()]
+      self.assertListEqual(keys, ['default', 'default', 'default', 'default'])
 
 
 if __name__ == '__main__':

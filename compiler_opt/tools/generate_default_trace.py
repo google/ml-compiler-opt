@@ -64,6 +64,9 @@ _GIN_FILES = flags.DEFINE_multi_string(
 _GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
+_KEYS_FILE = flags.DEFINE_string(
+    'keys_file', None,
+    'THe path to the file to write out the keys encountered.')
 
 
 class FilteringWorker(worker.Worker):
@@ -80,13 +83,15 @@ class FilteringWorker(worker.Worker):
                runner_kwargs):
     self._policy_path = policy_path
     self._key_filter = re.compile(key_filter) if key_filter else None
+    print(runner_kwargs)
     self._runner = runner_type(**runner_kwargs)
     self._policy = policy_saver.Policy.from_filesystem(
         policy_path) if policy_path else None
 
   def compile_and_filter(
       self, loaded_module_spec: corpus.LoadedModuleSpec
-  ) -> tuple[str, list[str], dict[str, compilation_runner.RewardStat]]:
+  ) -> tuple[str, list[str], dict[str, compilation_runner.RewardStat],
+             list[str]]:
     data = self._runner.collect_data(
         loaded_module_spec=loaded_module_spec,
         policy=self._policy,
@@ -94,7 +99,7 @@ class FilteringWorker(worker.Worker):
         model_id=0)
     if self._key_filter is None:
       return (loaded_module_spec.name, data.serialized_sequence_examples,
-              data.reward_stats)
+              data.reward_stats, data.keys)
     new_reward_stats = {}
     new_sequence_examples = []
     for k, sequence_example in zip(data.keys,
@@ -103,7 +108,8 @@ class FilteringWorker(worker.Worker):
         continue
       new_reward_stats[k] = data.reward_stats[k]
       new_sequence_examples.append(sequence_example)
-    return (loaded_module_spec.name, new_sequence_examples, new_reward_stats)
+    return (loaded_module_spec.name, new_sequence_examples, new_reward_stats,
+            data.keys)
 
 
 def main(_):
@@ -147,6 +153,7 @@ def generate_trace(worker_manager_class: type[
   work = [
       cps.load_module_spec(corpus_element) for corpus_element in corpus_elements
   ]
+  all_keys = []
 
   runner_type = config.get_runner_type()
   with tfrecord_context as tfrecord_writer:
@@ -178,7 +185,8 @@ def generate_trace(worker_manager_class: type[
           total_successful_examples += len(succeeded)
           total_failed_examples += (len(done) - len(succeeded))
           for r in succeeded:
-            module_name, records, reward_stat = r.result()
+            module_name, records, reward_stat, keys = r.result()
+            all_keys.extend(keys)
             if tfrecord_writer:
               total_training_examples += len(records)
               for r in records:
@@ -195,6 +203,11 @@ def generate_trace(worker_manager_class: type[
   print(f'{total_successful_examples} of {len(corpus_elements)} modules '
         f'succeeded, and {total_training_examples} trainining examples '
         'written')
+
+  if _KEYS_FILE.value is not None:
+    with open(_KEYS_FILE.value, 'w') as keys_file:
+      for key in all_keys:
+        keys_file.write(f'{key}\n')
 
 
 if __name__ == '__main__':
