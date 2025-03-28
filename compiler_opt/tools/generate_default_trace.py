@@ -83,7 +83,6 @@ class FilteringWorker(worker.Worker):
                runner_kwargs):
     self._policy_path = policy_path
     self._key_filter = re.compile(key_filter) if key_filter else None
-    print(runner_kwargs)
     self._runner = runner_type(**runner_kwargs)
     self._policy = policy_saver.Policy.from_filesystem(
         policy_path) if policy_path else None
