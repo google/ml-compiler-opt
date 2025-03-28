@@ -102,14 +102,16 @@ class FilteringWorker(worker.Worker):
               data.reward_stats, data.keys)
     new_reward_stats = {}
     new_sequence_examples = []
+    new_keys = []
     for k, sequence_example in zip(data.keys,
                                    data.serialized_sequence_examples):
       if not self._key_filter.match(k):
         continue
       new_reward_stats[k] = data.reward_stats[k]
       new_sequence_examples.append(sequence_example)
+      new_keys.append(k)
     return (loaded_module_spec.name, new_sequence_examples, new_reward_stats,
-            data.keys)
+            new_keys)
 
 
 def main(_):
