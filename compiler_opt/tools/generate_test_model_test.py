@@ -16,12 +16,16 @@
 An integration test for model saving, to detect TFLite model conversion.
 """
 
+from absl import flags
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
 import gin
 
 from compiler_opt.tools import generate_test_model
+
+flags.FLAGS['gin_files'].allow_override = True
+flags.FLAGS['gin_bindings'].allow_override = True
 
 
 def _get_test_settings():
