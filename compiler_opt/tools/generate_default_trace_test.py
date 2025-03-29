@@ -16,7 +16,6 @@ import json
 import os
 from unittest import mock
 
-from absl import flags
 from absl.testing import absltest
 from absl.testing import flagsaver
 import gin
@@ -28,10 +27,6 @@ from compiler_opt.rl import compilation_runner
 from compiler_opt.tools import generate_default_trace
 
 from tf_agents.system import system_multiprocessing as multiprocessing
-
-flags.FLAGS['num_workers'].allow_override = True
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
 
 
 @gin.configurable(module='runners')
