@@ -61,16 +61,17 @@ class MockCompilationRunner(compilation_runner.CompilationRunner):
     sequence_example = text_format.Parse(sequence_example_text,
                                          tf.train.SequenceExample())
 
+    key = f'key_{os.getpid()}'
     return compilation_runner.CompilationResult(
         sequence_examples=[sequence_example],
         reward_stats={
-            'default':
+            key:
                 compilation_runner.RewardStat(
                     default_reward=1, moving_average_reward=2)
         },
         rewards=[1.2],
         policy_rewards=[18],
-        keys=['default'],
+        keys=[key],
         model_id=model_id)
 
 
@@ -118,7 +119,8 @@ class GenerateDefaultTraceTest(absltest.TestCase):
         os.path.join(tmp_dir.full_path, 'keys_file'),
         encoding='utf-8') as keys_file:
       keys = [key_line.strip() for key_line in keys_file.readlines()]
-      self.assertListEqual(keys, ['default', 'default', 'default', 'default'])
+      for key in keys:
+        self.assertStartsWith(key, 'key_')
 
 
 if __name__ == '__main__':

@@ -66,7 +66,7 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
     'Gin bindings to override the values set in the config files.')
 _KEYS_FILE = flags.DEFINE_string(
     'keys_file', None,
-    'THe path to the file to write out the keys encountered.')
+    'The path to the file to write out the keys encountered.')
 
 
 class FilteringWorker(worker.Worker):
@@ -207,8 +207,7 @@ def generate_trace(worker_manager_class: type[
 
   if _KEYS_FILE.value is not None:
     with open(_KEYS_FILE.value, 'w', encoding='utf-8') as keys_file:
-      for key in all_keys:
-        keys_file.write(f'{key}\n')
+      keys_file.write('\n'.join(str(key) for key in all_keys) + '\n')
 
 
 if __name__ == '__main__':
