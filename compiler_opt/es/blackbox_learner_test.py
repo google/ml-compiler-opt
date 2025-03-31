@@ -175,6 +175,6 @@ class BlackboxLearnerTests(absltest.TestCase):
         worker_args=('',),
         worker_kwargs=dict(kwarg='')) as pool:
       self._learner.run_step(pool)
-      self.assertIn("best_policy_2.0_step_0", self._saved_policies)
+      self.assertIn('best_policy_2.0_step_0', self._saved_policies)
       self._learner.run_step(pool)
-      self.assertIn("best_policy_4.0_step_1", self._saved_policies)
+      self.assertIn('best_policy_4.0_step_1', self._saved_policies)
