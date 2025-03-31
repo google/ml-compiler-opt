@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./check-license.sh
+  PreCommit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run pre-commit run --all-files
   Envvars:
     runs-on: ubuntu-22.04
     outputs:
@@ -43,16 +48,12 @@ jobs:
     strategy:
       matrix:
         python-version: ${{ fromJSON(needs.Envvars.outputs.version_matrix) }}
-        task: [Typecheck, Lint, Ruff, Yapf, Test]
+        task: [Typecheck, Lint, Test]
         include:
           - task: Typecheck
             cmd: pytype -j auto .
           - task: Lint
             cmd: pylint --rcfile .pylintrc --recursive yes .
-          - task: Ruff
-            cmd: ruff check
-          - task: Yapf
-            cmd: yapf . -drp
           - task: Test
             cmd: pytest
     steps:
