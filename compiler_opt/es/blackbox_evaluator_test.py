@@ -32,7 +32,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         blackbox_test_utils.ESWorker,
         count=3,
         worker_args=('',),
-        worker_kwargs=dict(kwarg='')) as pool:
+        worker_kwargs={}) as pool:
       perturbations = [b'00', b'01', b'10']
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
           None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
