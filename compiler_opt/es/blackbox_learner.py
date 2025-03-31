@@ -196,7 +196,7 @@ class BlackboxLearner:
       for percentile_to_report in _PERCENTILES_TO_REPORT:
         percentile_value = np.percentile(rewards, percentile_to_report)
         tf.summary.scalar(
-            f'reward/{percentile_value}_percentile',
+            f'reward/{percentile_to_report}_percentile',
             percentile_value,
             step=self._step)
 
