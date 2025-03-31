@@ -66,7 +66,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         total_num_perturbations=3,
         precision_parameter=1,
         step_size=1.0,
-        save_best_policy=False)
+        save_best_policy=True)
 
     self._cps = corpus.create_corpus_for_testing(
         location=tempfile.gettempdir(),
@@ -113,9 +113,12 @@ class BlackboxLearnerTests(absltest.TestCase):
     policy_save_path = os.path.join(output_dir, 'temp_output', 'policy')
     saver.save(policy_save_path)
 
+    self._saved_policies = []
+
     def _policy_saver_fn(parameters: npt.NDArray[np.float32],
                          policy_name: str) -> None:
       if parameters is not None and policy_name:
+        self._saved_policies.append(policy_name)
         return None
       return None
 
@@ -163,3 +166,15 @@ class BlackboxLearnerTests(absltest.TestCase):
       # this will indicate general validity of all the values
       for value in self._learner.get_model_weights()[:5]:
         self.assertNotAlmostEqual(value, 0.0)
+
+  def test_save_best_model(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESWorker,
+        count=3,
+        pickle_func=cloudpickle.dumps,
+        worker_args=('',),
+        worker_kwargs=dict(kwarg='')) as pool:
+      self._learner.run_step(pool)
+      self.assertIn("best_policy_2.0_step_0", self._saved_policies)
+      self._learner.run_step(pool)
+      self.assertIn("best_policy_4.0_step_1", self._saved_policies)
