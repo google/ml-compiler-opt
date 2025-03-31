@@ -28,7 +28,7 @@ class ESWorker(worker.Worker):
   Each time a worker is called, the function value
   it will return increases."""
 
-  def __init__(self, arg, *, delta = 1.0, initial_value = 0.0):
+  def __init__(self, arg, *, delta=1.0, initial_value=0.0):
     self._arg = arg
     self.function_value = initial_value
     self._delta = delta

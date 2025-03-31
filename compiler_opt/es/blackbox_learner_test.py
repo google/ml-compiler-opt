@@ -185,7 +185,10 @@ class BlackboxLearnerTests(absltest.TestCase):
         count=3,
         pickle_func=cloudpickle.dumps,
         worker_args=('',),
-        worker_kwargs={'delta': -1.0, 'initial_value': 5}) as pool:
+        worker_kwargs={
+            'delta': -1.0,
+            'initial_value': 5
+        }) as pool:
       self._learner.run_step(pool)
       self.assertIn('best_policy_4.0_step_0', self._saved_policies)
 
