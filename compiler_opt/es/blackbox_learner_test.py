@@ -125,7 +125,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     self._learner = blackbox_learner.BlackboxLearner(
         blackbox_opt=blackbox_optimizers.MonteCarloBlackboxOptimizer(
             precision_parameter=1.0,
-            estimator_type=blackbox_optimizers.EstimatorType.ANTITHETIC,
+            estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
             normalize_fvalues=True,
             hyperparameters_update_method=blackbox_optimizers.UpdateMethod
             .NO_METHOD,
@@ -158,7 +158,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         count=3,
         pickle_func=cloudpickle.dumps,
         worker_args=('',),
-        worker_kwargs=dict(kwarg='')) as pool:
+        worker_kwargs={}) as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
       # expected length calculated from expected shapes of variables
       self.assertEqual(len(self._learner.get_model_weights()), 17154)
@@ -173,8 +173,27 @@ class BlackboxLearnerTests(absltest.TestCase):
         count=3,
         pickle_func=cloudpickle.dumps,
         worker_args=('',),
-        worker_kwargs=dict(kwarg='')) as pool:
+        worker_kwargs={}) as pool:
       self._learner.run_step(pool)
       self.assertIn('best_policy_2.0_step_0', self._saved_policies)
       self._learner.run_step(pool)
       self.assertIn('best_policy_4.0_step_1', self._saved_policies)
+
+  def test_save_best_model_only_saves_best(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESWorker,
+        count=3,
+        pickle_func=cloudpickle.dumps,
+        worker_args=('',),
+        worker_kwargs={
+            'delta': -1.0,
+            'initial_value': 5
+        }) as pool:
+      self._learner.run_step(pool)
+      self.assertIn('best_policy_4.0_step_0', self._saved_policies)
+
+      # Check that the within the next step we only get a new iteration
+      # policy and do not save any new best.
+      current_policies_count = len(self._saved_policies)
+      self._learner.run_step(pool)
+      self.assertLen(self._saved_policies, current_policies_count + 1)
