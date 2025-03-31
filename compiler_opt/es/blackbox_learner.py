@@ -284,7 +284,7 @@ class BlackboxLearner:
       self._policy_saver_fn(
           parameters=self._model_weights + perturbation,
           policy_name=f'best_policy_{self._global_max_reward}_step'
-          '_{self._step}',
+          f'_{self._step}',
       )
 
     self._save_model()

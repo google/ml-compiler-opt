@@ -28,15 +28,15 @@ class ESWorker(worker.Worker):
   Each time a worker is called, the function value
   it will return increases."""
 
-  def __init__(self, arg, *, kwarg):
+  def __init__(self, arg, *, delta = 1.0, initial_value = 0.0):
     self._arg = arg
-    self._kwarg = kwarg
-    self.function_value = 0.0
+    self.function_value = initial_value
+    self._delta = delta
 
   def compile(self, policy: policy_saver.Policy,
               samples: list[corpus.ModuleSpec]) -> float:
     if policy and samples:
-      self.function_value += 1.0
+      self.function_value += self._delta
       return self.function_value
     else:
       return 0.0
