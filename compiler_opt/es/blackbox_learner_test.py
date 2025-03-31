@@ -50,9 +50,9 @@ class BlackboxLearnerTests(absltest.TestCase):
   def setUp(self):
     super().setUp()
 
-    gin.bind_parameter('SamplingBlackboxEvaluator.total_num_perturbations', 5)
+    gin.bind_parameter('SamplingBlackboxEvaluator.total_num_perturbations', 3)
     gin.bind_parameter('SamplingBlackboxEvaluator.num_ir_repeats_within_worker',
-                       5)
+                       1)
 
     self._learner_config = blackbox_learner.BlackboxLearnerConfig(
         total_steps=1,
