@@ -97,6 +97,8 @@ ninja -C eigen/src/eigen-build install
 # ARM_NEON_2_x86_SSE
 git clone --filter=tree:0 --no-checkout ${NEON_2_SSE_REPOSITORY} ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE
 git -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE checkout ${NEON_2_SSE_TAG}
+# TODO(boomanaiden154): Remove this once the upstream patch
+# (https://github.com/intel/ARM_NEON_2_x86_SSE/pull/80) has landed.
 sed -i -e 's/3.0/3.5/' ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE/CMakeLists.txt
 cmake -GNinja -S ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE -B ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
