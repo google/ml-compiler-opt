@@ -170,19 +170,19 @@ class BlackboxLearnerTests(absltest.TestCase):
   def test_save_best_model(self):
     with local_worker_manager.LocalWorkerPoolManager(
         blackbox_test_utils.ESWorker,
-        count=3,
+        count=1,
         pickle_func=cloudpickle.dumps,
         worker_args=('',),
         worker_kwargs={}) as pool:
       self._learner.run_step(pool)
-      self.assertIn('best_policy_2.0_step_0', self._saved_policies)
+      self.assertIn('best_policy_6.0_step_0', self._saved_policies)
       self._learner.run_step(pool)
-      self.assertIn('best_policy_4.0_step_1', self._saved_policies)
+      self.assertIn('best_policy_12.0_step_1', self._saved_policies)
 
   def test_save_best_model_only_saves_best(self):
     with local_worker_manager.LocalWorkerPoolManager(
         blackbox_test_utils.ESWorker,
-        count=3,
+        count=1,
         pickle_func=cloudpickle.dumps,
         worker_args=('',),
         worker_kwargs={
