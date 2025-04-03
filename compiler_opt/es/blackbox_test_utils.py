@@ -28,8 +28,7 @@ class ESWorker(worker.Worker):
   Each time a worker is called, the function value
   it will return increases."""
 
-  def __init__(self, arg, *, delta=1.0, initial_value=0.0):
-    self._arg = arg
+  def __init__(self, *, delta=1.0, initial_value=0.0):
     self.function_value = initial_value
     self._delta = delta
 
@@ -49,9 +48,7 @@ class ESTraceWorker(worker.Worker):
   different interface than other workers.
   """
 
-  def __init__(self, arg, *, kwarg):
-    del arg  # Unused.
-    del kwarg  # Unused.
+  def __init__(self):
     self._function_value = 0.0
 
   def compile_corpus_and_evaluate(self, modules: Collection[corpus.ModuleSpec],
