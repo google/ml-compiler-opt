@@ -22,8 +22,7 @@ from absl.testing import flagsaver
 import gin
 import tensorflow as tf
 
-# This is https://github.com/google/pytype/issues/764
-from google.protobuf import text_format  # pytype: disable=pyi-error
+from google.protobuf import text_format
 from compiler_opt.rl import compilation_runner
 from compiler_opt.tools import generate_default_trace
 
