@@ -75,15 +75,17 @@ def main(_) -> None:
       replace_flags=replace_compilation_flags,
   )
 
-  logging.info("Compiling corpus.")
+  logging.info('Compiling corpus.')
   compile_start = time.time()
+  # pylint: disable=missing-kwoa
   worker = regalloc_trace_worker.RegallocTraceWorker(
       gin_config=gin.operative_config_str())
+  # pylint: disable=protected-access
   worker._build_corpus(train_corpus.module_specs, _OUTPUT_PATH.value,
                        _TFLITE_POLICY_PATH.value)
   compile_end = time.time()
   compile_duration = compile_end - compile_start
-  logging.info(f'Compilation took {compile_duration}s')
+  logging.info('Compilation took %ds', compile_duration)
 
 
 if __name__ == '__main__':
