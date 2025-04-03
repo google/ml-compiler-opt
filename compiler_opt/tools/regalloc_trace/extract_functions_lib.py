@@ -11,7 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""A library that contains utilities for extracting functions."""
+"""A library that contains utilities for extracting functions.
+
+This library contains utilities to find what functions exist within a specific
+bitcode module as well as to extract functions of interest to separate bitcode
+files for use in the training process.
+"""
 
 import subprocess
 import os
@@ -21,8 +26,12 @@ import concurrent.futures
 from collections.abc import Sequence
 
 
-def _get_functions_in_file(bc_file_path: str, llvm_nm_path: str) -> list[str]:
+def _get_function_names_in_file(bc_file_path: str,
+                                llvm_nm_path: str) -> list[str]:
   """Gets all function names defined in a file.
+
+  This function returns all the (mangled) function names present in a bitcode
+  file that have external or weak linkage.
 
   Args:
     bc_file_path: The path to the bitcode file to find functions in.
@@ -87,8 +96,8 @@ def _extract_function_from_file(
   subprocess.run(opt_command_vector, capture_output=True, check=True)
   os.remove(output_file_path + ".fat")
 
-  orig_cmd_file_path = bc_file_path[:-3] + ".cmd"
-  output_cmd_file_path = output_file_path[:-3] + ".cmd"
+  orig_cmd_file_path = os.path.splitext(bc_file_path)[0] + ".cmd"
+  output_cmd_file_path = os.path.splitext(output_file_path)[0] + ".cmd"
   shutil.copy(orig_cmd_file_path, output_cmd_file_path)
 
 
@@ -113,7 +122,7 @@ def get_function_module_map(corpus_path: str,
 
   for module in corpus_description["modules"]:
     module_path = os.path.join(corpus_path, module) + ".bc"
-    for function_name in _get_functions_in_file(module_path, llvm_nm_path):
+    for function_name in _get_function_names_in_file(module_path, llvm_nm_path):
       function_to_module_map[function_name] = module_path
 
   return function_to_module_map
