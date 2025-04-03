@@ -49,7 +49,7 @@ def main(_):
       _CORPUS_PATH.value, _LLVM_NM_PATH.value)
 
   logging.info("Loading functions to extract.")
-  with open(_FUNCTION_LIST.value) as function_list_handle:
+  with open(_FUNCTION_LIST.value, encoding="utf-8") as function_list_handle:
     functions_to_extract = [
         function_name.strip()
         for function_name in function_list_handle.readlines()
