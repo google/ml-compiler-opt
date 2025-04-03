@@ -157,7 +157,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         blackbox_test_utils.ESWorker,
         count=3,
         pickle_func=cloudpickle.dumps,
-        worker_args=('',),
+        worker_args=(),
         worker_kwargs={}) as pool:
       self._learner.run_step(pool)  # pylint: disable=protected-access
       # expected length calculated from expected shapes of variables
@@ -172,7 +172,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         blackbox_test_utils.ESWorker,
         count=1,
         pickle_func=cloudpickle.dumps,
-        worker_args=('',),
+        worker_args=(),
         worker_kwargs={}) as pool:
       self._learner.run_step(pool)
       self.assertIn('best_policy_6.0_step_0', self._saved_policies)
@@ -184,7 +184,7 @@ class BlackboxLearnerTests(absltest.TestCase):
         blackbox_test_utils.ESWorker,
         count=1,
         pickle_func=cloudpickle.dumps,
-        worker_args=('',),
+        worker_args=(),
         worker_kwargs={
             'delta': -1.0,
             'initial_value': 5
