@@ -56,14 +56,15 @@ def setup_corpus(corpus_dir: str,
 
 def create_test_binary(binary_path: str,
                        output_path: str,
-                       commands_to_run: Sequence[str] = []):
+                       commands_to_run: Sequence[str] = None):
   test_binary = textwrap.dedent(f"""\
   #!/bin/bash
   echo "$@" >> {output_path}
   """)
 
-  for command in commands_to_run:
-    test_binary = test_binary + f"{command}\n"
+  if commands_to_run is not None:
+    for command in commands_to_run:
+      test_binary = test_binary + f"{command}\n"
 
   with open(binary_path, "w", encoding="utf-8") as binary_handle:
     binary_handle.write(test_binary)

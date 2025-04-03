@@ -95,12 +95,12 @@ def _extract_function_from_file(
 def get_function_module_map(corpus_path: str,
                             llvm_nm_path: str) -> dict[str, str]:
   """Gets a mapping from function names to module paths.
-  
+
   Args:
     corpus_path: The path to the corpus to obtain the mapping from.
     llvm_nm_path: The path to the llvm-nm binary to obtain symbols from
       bitcode files.
-  
+
   Returns:
     A dictionary mapping (mangled) function names to module paths.
   """
@@ -123,7 +123,7 @@ def extract_functions(functions_to_extract: Sequence[str],
                       llvm_extract_path: str, opt_path: str, thread_count: int,
                       output_dir: str) -> None:
   """Extracts all the functions specified.
-  
+
   Args:
     functions_to_extract: A string list containing (mangled) names of all the
       functions that should be extracted.
