@@ -106,8 +106,9 @@ def get_function_module_map(corpus_path: str,
   """
   function_to_module_map = {}
 
-  with open(os.path.join(
-      corpus_path, "corpus_description.json")) as corpus_description_handle:
+  with open(
+      os.path.join(corpus_path, "corpus_description.json"),
+      encoding="utf-8") as corpus_description_handle:
     corpus_description = json.load(corpus_description_handle)
 
   for module in corpus_description["modules"]:
@@ -155,6 +156,8 @@ def extract_functions(functions_to_extract: Sequence[str],
 
   corpus_description = {"modules": module_paths, "has_thinlto": False}
 
-  with open(os.path.join(output_dir, "corpus_description.json"),
-            "w") as corpus_description_handle:
+  with open(
+      os.path.join(output_dir, "corpus_description.json"),
+      "w",
+      encoding="utf-8") as corpus_description_handle:
     json.dump(corpus_description, corpus_description_handle)
