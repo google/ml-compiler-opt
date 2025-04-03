@@ -29,7 +29,7 @@ readonly EIGEN_REPOSITORY="https://gitlab.com/libeigen/eigen"
 readonly EIGEN_TAG="d791d48859c6fc7850c9fd5270d2b236c818068d"
 
 readonly NEON_2_SSE_REPOSITORY="https://github.com/intel/ARM_NEON_2_x86_SSE"
-readonly NEON_2_SSE_TAG="697bb1c077b495b9bb6a7ea2db5674f357751dee"
+readonly NEON_2_SSE_TAG="6315d3c5007e6c209eb77abae4deece4978d8dbc"
 
 readonly FLATBUFFERS_REPOSITORY="https://github.com/google/flatbuffers"
 readonly FLATBUFFERS_TAG="fb9afbafc7dfe226b9db54d4923bfb8839635274"
@@ -97,9 +97,6 @@ ninja -C eigen/src/eigen-build install
 # ARM_NEON_2_x86_SSE
 git clone --filter=tree:0 --no-checkout ${NEON_2_SSE_REPOSITORY} ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE
 git -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE checkout ${NEON_2_SSE_TAG}
-# TODO(boomanaiden154): Remove this once the upstream patch
-# (https://github.com/intel/ARM_NEON_2_x86_SSE/pull/80) has landed.
-sed -i -e 's/3.0/3.5/' ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE/CMakeLists.txt
 cmake -GNinja -S ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE -B ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/ARM_NEON_2_x86_SSE \
