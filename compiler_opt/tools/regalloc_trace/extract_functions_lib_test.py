@@ -93,5 +93,5 @@ class ExtractFunctionsTest(absltest.TestCase):
         f"{os.path.join(output_dir.full_path, '1.bc.fat')}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()
