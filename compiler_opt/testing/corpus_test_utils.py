@@ -56,7 +56,7 @@ def setup_corpus(corpus_dir: str,
 
 def create_test_binary(binary_path: str,
                        output_path: str,
-                       commands_to_run: Sequence[str] = None):
+                       commands_to_run: Sequence[str] | None = None):
   test_binary = textwrap.dedent(f"""\
   #!/bin/bash
   echo "$@" >> {output_path}
