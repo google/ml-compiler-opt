@@ -33,7 +33,7 @@ class ExtractFunctionsTest(absltest.TestCase):
     _ = corpus_test_utils.setup_corpus(corpus_dir.full_path)
 
     function_module_map = extract_functions_lib.get_function_module_map(
-        corpus_dir, fake_llvm_nm_binary.full_path)
+        corpus_dir.full_path, fake_llvm_nm_binary.full_path)
     self.assertDictEqual(
         function_module_map, {
             "a": os.path.join(corpus_dir.full_path, "module_b.o.bc"),
