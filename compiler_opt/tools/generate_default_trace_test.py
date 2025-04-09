@@ -115,4 +115,4 @@ class GenerateDefaultTraceTest(absltest.TestCase):
 
 
 if __name__ == '__main__':
-  multiprocessing.handle_main(absltest.main)
+  multiprocessing.handle_test_main(absltest.main)

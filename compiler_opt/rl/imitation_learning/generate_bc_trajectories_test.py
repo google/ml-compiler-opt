@@ -717,4 +717,4 @@ class GenTrajectoriesTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  multiprocessing.handle_main(functools.partial(app.run, tf.test.main))
+  multiprocessing.handle_test_main(functools.partial(app.run, tf.test.main))
