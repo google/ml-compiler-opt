@@ -113,16 +113,14 @@ class Trainer:
         ckpt_dir=self._root_dir,
         agent=self._agent,
         global_step=self._global_step)
-    
-    if self._checkpointer.checkpoint_exists() and warmstart_policy_dir:
+
+    if self._checkpointer.checkpoint_exists and warmstart_policy_dir:
       raise ValueError(
-          'Checkpoint exists at %s, but warmstart policy dir is also provided.'
-          ' This is not supported; please provide only one of these. To'
-          ' warmstart, use a different root_dir which does not have a'
-          ' checkpoint. Or, to restore from a checkpoint, do not provide a'
-          ' warmstart policy dir.'
-          % self._root_dir
-      )
+          f'Checkpoint exists at {self._root_dir}, but warmstart policy dir is'
+          ' also provided. This is not supported; please provide only one of'
+          ' these. To warmstart, use a different root_dir which does not have'
+          ' a checkpoint. Or, to restore from a checkpoint, do not provide a'
+          ' warmstart policy dir.')
 
     self._checkpointer.initialize_or_restore()
 
