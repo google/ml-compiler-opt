@@ -311,6 +311,12 @@ rm -rf $OUTPUT_DIR && \
   --gin_bindings=train_eval.warmstart_policy_dir=\"$WARMSTART_OUTPUT_DIR/saved_policy\"
 ```
 
+You can resume training from a previously saved checkpoint by specifying
+the directory path containing `ckpt-*.index` files as the `root_dir`.
+Typically, this would be the `$OUTPUT_DIR`. So, if `$OUTPUT_DIR` has
+previously saved checkpoints, running the above command would restore the 
+latest checkpoint and resume training.
+
 You may also start a tensorboard to monitor the training process with 
 
 ```shell
