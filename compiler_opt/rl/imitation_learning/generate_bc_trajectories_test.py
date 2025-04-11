@@ -27,7 +27,7 @@ from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from google.protobuf import text_format  # pytype: disable=pyi-error
+from google.protobuf import text_format
 
 from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.rl import env

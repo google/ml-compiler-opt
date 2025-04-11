@@ -27,10 +27,6 @@ from compiler_opt.es import blackbox_optimizers
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
-# Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
-# here as these errors are false positives.
-# pytype: disable=pyi-error
-
 # If less than 40% of requests succeed, skip the step.
 _SKIP_STEP_SUCCESS_RATIO = 0.4
 
