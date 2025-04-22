@@ -15,21 +15,15 @@
 
 import concurrent.futures
 import contextlib
-import functools
 import re
 
-from absl import app
-from absl import flags
 from absl import logging
-import gin
-
 import tensorflow as tf
 
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import worker_manager
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
-
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
