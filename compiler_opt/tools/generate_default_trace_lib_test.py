@@ -25,13 +25,9 @@ import tensorflow as tf
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
 from compiler_opt.rl import compilation_runner
-from compiler_opt.tools import generate_default_trace
+from compiler_opt.tools import generate_default_trace_lib
 
 from tf_agents.system import system_multiprocessing as multiprocessing
-
-flags.FLAGS['num_workers'].allow_override = True
-flags.FLAGS['gin_files'].allow_override = True
-flags.FLAGS['gin_bindings'].allow_override = True
 
 
 @gin.configurable(module='runners')
@@ -106,14 +102,16 @@ class GenerateDefaultTraceTest(absltest.TestCase):
     mock_compilation_runner = MockCompilationRunner
     mock_get_runner.return_value = mock_compilation_runner
 
-    with flagsaver.flagsaver(
-        data_path=tmp_dir.full_path,
+    generate_default_trace_lib.generate_trace(
+        tmp_dir.full_path,
+        os.path.join(tmp_dir.full_path, 'output'),
+        os.path.join(tmp_dir.full_path, 'output_performance'),
         num_workers=2,
-        output_path=os.path.join(tmp_dir.full_path, 'output'),
-        output_performance_path=os.path.join(tmp_dir.full_path,
-                                             'output_performance'),
-        keys_file=os.path.join(tmp_dir.full_path, 'keys_file')):
-      generate_default_trace.generate_trace()
+        sampling_rate=1,
+        module_filter_str=None,
+        key_filter=None,
+        keys_file_path=os.path.join(tmp_dir.full_path, 'keys_file'),
+        policy_path='')
 
     with open(
         os.path.join(tmp_dir.full_path, 'keys_file'),
