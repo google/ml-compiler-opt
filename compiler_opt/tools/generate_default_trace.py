@@ -13,32 +13,18 @@
 # limitations under the License.
 """Generate initial training data from the behavior of the current heuristic."""
 
-import concurrent.futures
-import contextlib
 import functools
-import re
 
 from absl import app
 from absl import flags
 from absl import logging
 import gin
-
-import tensorflow as tf
-
-from compiler_opt.distributed import worker
-from compiler_opt.distributed import worker_manager
-from compiler_opt.distributed import buffered_scheduler
-from compiler_opt.distributed.local import local_worker_manager
-
-from compiler_opt.rl import compilation_runner
-from compiler_opt.rl import corpus
-from compiler_opt.rl import policy_saver
-from compiler_opt.rl import registry
-
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-_DATA_PATH = flags.DEFINE_string('data_path', None,
-                                 'Path to folder containing IR files.')
+from compiler_opt.tools import generate_default_trace_lib
+
+_DATA_PATH = flags.DEFINE_string(
+    'data_path', None, 'Path to folder containing IR files.', required=True)
 _POLICY_PATH = flags.DEFINE_string(
     'policy_path', '', 'Path to the policy to generate trace with.')
 _OUTPUT_PATH = flags.DEFINE_string(
@@ -69,147 +55,15 @@ _KEYS_FILE = flags.DEFINE_string(
     'The path to the file to write out the keys encountered.')
 
 
-class FilteringWorker(worker.Worker):
-  """Worker that performs a computation and optionally filters the result.
-
-
-  Args:
-    policy_path: the policy_path to generate trace with.
-    key_filter: regex filter for key names to include, or None to include all.
-  """
-
-  def __init__(self, policy_path: str | None, key_filter: str | None,
-               runner_type: 'type[compilation_runner.CompilationRunner]',
-               runner_kwargs):
-    self._policy_path = policy_path
-    self._key_filter = re.compile(key_filter) if key_filter else None
-    self._runner = runner_type(**runner_kwargs)
-    self._policy = policy_saver.Policy.from_filesystem(
-        policy_path) if policy_path else None
-
-  def compile_and_filter(
-      self, loaded_module_spec: corpus.LoadedModuleSpec
-  ) -> tuple[str, list[str], dict[str, compilation_runner.RewardStat],
-             list[str]]:
-    data = self._runner.collect_data(
-        loaded_module_spec=loaded_module_spec,
-        policy=self._policy,
-        reward_stat=None,
-        model_id=0)
-    if self._key_filter is None:
-      return (loaded_module_spec.name, data.serialized_sequence_examples,
-              data.reward_stats, data.keys)
-    new_reward_stats = {}
-    new_sequence_examples = []
-    new_keys = []
-    for k, sequence_example in zip(data.keys,
-                                   data.serialized_sequence_examples):
-      if not self._key_filter.match(k):
-        continue
-      new_reward_stats[k] = data.reward_stats[k]
-      new_sequence_examples.append(sequence_example)
-      new_keys.append(k)
-    return (loaded_module_spec.name, new_sequence_examples, new_reward_stats,
-            new_keys)
-
-
 def main(_):
   gin.parse_config_files_and_bindings(
       _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
-  generate_trace()
-
-
-def generate_trace(worker_manager_class: type[
-    worker_manager.WorkerManager] = local_worker_manager.LocalWorkerPoolManager
-                  ):
-
-  config = registry.get_configuration()
-
-  logging.info('Loading module specs from corpus.')
-  module_filter = re.compile(
-      _MODULE_FILTER.value) if _MODULE_FILTER.value else None
-
-  cps = corpus.Corpus(
-      data_path=_DATA_PATH.value,
-      module_filter=lambda name: True
-      if not module_filter else module_filter.match(name),
-      additional_flags=config.flags_to_add(),
-      delete_flags=config.flags_to_delete(),
-      replace_flags=config.flags_to_replace())
-  logging.info('Done loading module specs from corpus.')
-
-  # Sampling if needed.
-  sampled_modules = int(len(cps) * _SAMPLING_RATE.value)
-  # sort files by size, to process the large files upfront, hopefully while
-  # other smaller files are processed in parallel
-  corpus_elements = cps.sample(k=sampled_modules, sort=True)
-
-  tfrecord_context = (
-      tf.io.TFRecordWriter(_OUTPUT_PATH.value)
-      if _OUTPUT_PATH.value else contextlib.nullcontext())
-  performance_context = (
-      tf.io.gfile.GFile(_OUTPUT_PERFORMANCE_PATH.value, 'w')
-      if _OUTPUT_PERFORMANCE_PATH.value else contextlib.nullcontext())
-  work = [
-      cps.load_module_spec(corpus_element) for corpus_element in corpus_elements
-  ]
-  all_keys = []
-
-  runner_type = config.get_runner_type()
-  with tfrecord_context as tfrecord_writer:
-    with performance_context as performance_writer:
-      with worker_manager_class(
-          FilteringWorker,
-          count=_NUM_WORKERS.value,
-          worker_kwargs=dict(
-              policy_path=_POLICY_PATH.value,
-              key_filter=_KEY_FILTER.value,
-              runner_type=runner_type,
-              runner_kwargs=worker.get_full_worker_args(
-                  runner_type, moving_average_decay_rate=0))) as lwm:
-
-        _, result_futures = buffered_scheduler.schedule_on_worker_pool(
-            action=lambda w, j: w.compile_and_filter(j),
-            jobs=work,
-            worker_pool=lwm)
-        total_successful_examples = 0
-        total_work = len(corpus_elements)
-        total_failed_examples = 0
-        total_training_examples = 0
-        not_done = result_futures
-        while not_done:
-          (done, not_done) = concurrent.futures.wait(not_done, 10)
-          succeeded = [
-              r for r in done if not r.cancelled() and r.exception() is None
-          ]
-          total_successful_examples += len(succeeded)
-          total_failed_examples += (len(done) - len(succeeded))
-          for r in succeeded:
-            module_name, records, reward_stat, keys = r.result()
-            all_keys.extend(keys)
-            if tfrecord_writer:
-              total_training_examples += len(records)
-              for r in records:
-                tfrecord_writer.write(r)
-            if performance_writer:
-              for key, value in reward_stat.items():
-                performance_writer.write(
-                    f'{module_name},{key},{value.default_reward},'
-                    f'{value.moving_average_reward}\n')
-          logging.info('%d success, %d failed out of %d',
-                       total_successful_examples, total_failed_examples,
-                       total_work)
-
-  print(f'{total_successful_examples} of {len(corpus_elements)} modules '
-        f'succeeded, and {total_training_examples} trainining examples '
-        'written')
-
-  if _KEYS_FILE.value is not None:
-    with open(_KEYS_FILE.value, 'w', encoding='utf-8') as keys_file:
-      keys_file.write('\n'.join(str(key) for key in all_keys) + '\n')
+  generate_default_trace_lib.generate_trace(
+      _DATA_PATH.value, _OUTPUT_PATH.value, _OUTPUT_PERFORMANCE_PATH.value,
+      _NUM_WORKERS.value, _SAMPLING_RATE.value, _MODULE_FILTER.value,
+      _KEY_FILTER.value, _KEYS_FILE.value, _POLICY_PATH.value)
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('data_path')
   multiprocessing.handle_main(functools.partial(app.run, main))
