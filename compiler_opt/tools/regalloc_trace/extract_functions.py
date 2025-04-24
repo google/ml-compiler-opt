@@ -14,6 +14,7 @@
 """Extracts functions specified in a list from a corpus."""
 
 import multiprocessing
+import pathlib
 
 from absl import flags
 from absl import app
@@ -56,6 +57,7 @@ def main(_):
     ]
 
   logging.info("Extracting functions.")
+  pathlib.Path(_OUTPUT_PATH.value).mkdir(parents=True, exist_ok=True)
   extract_functions_lib.extract_functions(functions_to_extract,
                                           function_to_module,
                                           _LLVM_EXTRACT_PATH.value,
