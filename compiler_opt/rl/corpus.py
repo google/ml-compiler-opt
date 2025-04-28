@@ -343,10 +343,20 @@ class Corpus:
 
     # don't use add/remove for replace
     add_keys = {k.split('=', maxsplit=1)[0] for k in additional_flags}
-    if add_keys.intersection(
-        set(replace_flags)) or set(delete_flags).intersection(
-            set(replace_flags)) or add_keys.intersection(set(delete_flags)):
-      raise ValueError('do not use add/delete flags to replace')
+    if add_keys.intersection(set(replace_flags)):
+      raise ValueError(
+          'Do not use add/delete flags to replace flags: add flags and '
+          'replace flags intersect: '
+          f'{add_keys.intersection(set(replace_flags))}')
+    elif set(delete_flags).intersection(set(replace_flags)):
+      raise ValueError(
+          'Do not use add/delete flags to replace flags: delete flags and '
+          'replace flags intersect: '
+          f'{set(delete_flags).intersection(set(replace_flags))}')
+    elif add_keys.intersection(set(delete_flags)):
+      raise ValueError(
+          'Do not use add/delete flags to replace flags: add flags and delete '
+          f'flags intersect: {add_keys.intersection(set(delete_flags))}')
 
     if module_filter:
       module_paths = [name for name in module_paths if module_filter(name)]
