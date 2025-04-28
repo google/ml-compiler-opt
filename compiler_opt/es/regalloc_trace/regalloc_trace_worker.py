@@ -192,7 +192,8 @@ class RegallocTraceWorker(worker.Worker):
       shutil.rmtree(self._corpus_path)
 
   def _compile_module(self, module_to_compile: corpus.ModuleSpec,
-                      output_directory: str, tflite_policy_path: str | None):
+                      output_directory: str, tflite_policy_path: str | None,
+                      compiled_module_suffix: str):
     command_vector = [self._clang_path]
     context = corpus.Corpus.ReplaceContext(
         os.path.join(self._corpus_path, module_to_compile.name) + ".bc",
@@ -215,21 +216,39 @@ class RegallocTraceWorker(worker.Worker):
       # corpus.
       command_vector.extend(["-mllvm", "-regalloc-enable-advisor=default"])
 
-    module_output_path = os.path.join(output_directory,
-                                      module_to_compile.name + ".bc.o")
+    module_output_path = os.path.join(
+        output_directory, module_to_compile.name + compiled_module_suffix)
     pathlib.Path(os.path.dirname(module_output_path)).mkdir(
         parents=True, exist_ok=True)
     command_vector.extend(["-o", module_output_path])
 
     subprocess.run(command_vector, check=True, capture_output=True)
 
-  def _build_corpus(self, modules: Collection[corpus.ModuleSpec],
-                    output_directory: str, tflite_policy_path: str | None):
+  def build_corpus(self,
+                   modules: Collection[corpus.ModuleSpec],
+                   output_directory: str,
+                   tflite_policy_path: str | None,
+                   compiled_module_suffix=".bc.o"):
+    """Compiles a set of modules.
+
+    This function takes the set of modules composing a corpus and compiles
+    them using the specified policy, dumping them into the output directory
+    specified.
+
+    Args:
+      modules: A list of modules to compile.
+      output_directory: The path to place the compiled modules in.
+      tflite_policy_path: The path to the TFLite policy to use to compile the
+        modules, or None if the default advisor should be used.
+      compiled_module_suffix: The suffix that should be appended to the module
+        name when writing the output into the output directory.
+    """
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=self._thread_count) as thread_pool:
       compile_futures = [
           thread_pool.submit(self._compile_module, module, output_directory,
-                             tflite_policy_path) for module in modules
+                             tflite_policy_path, compiled_module_suffix)
+          for module in modules
       ]
 
     for future in compile_futures:

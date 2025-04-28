@@ -13,6 +13,8 @@
 # limitations under the License.
 """Compiles a corpus for further downstream processing."""
 
+import os
+import shutil
 import time
 
 from absl import app
@@ -80,12 +82,19 @@ def main(_) -> None:
   # pylint: disable=missing-kwoa
   worker = regalloc_trace_worker.RegallocTraceWorker(
       gin_config=gin.operative_config_str())
-  # pylint: disable=protected-access
-  worker._build_corpus(train_corpus.module_specs, _OUTPUT_PATH.value,
-                       _TFLITE_POLICY_PATH.value)
+  compiled_module_suffix = '.bc' if _MODE.value == 'bc' else '.bc.o'
+  worker.build_corpus(train_corpus.module_specs, _OUTPUT_PATH.value,
+                      _TFLITE_POLICY_PATH.value, compiled_module_suffix)
   compile_end = time.time()
   compile_duration = compile_end - compile_start
   logging.info('Compilation took %ds', compile_duration)
+
+  if _MODE.value == 'bc':
+    for module in train_corpus.module_specs:
+      command_file = os.path.join(_CORPUS_PATH.value, module.name) + '.cmd'
+      new_command_file_path = os.path.join(_OUTPUT_PATH.value,
+                                           module.name) + '.cmd'
+      shutil.copy(command_file, new_command_file_path)
 
 
 if __name__ == '__main__':
