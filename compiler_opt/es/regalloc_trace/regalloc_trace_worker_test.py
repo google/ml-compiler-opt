@@ -118,6 +118,31 @@ class RegallocTraceWorkerTest(absltest.TestCase):
         "-regalloc-enable-advisor=development" in clang_command_lines[1])
     self.assertTrue("-regalloc-model=" in clang_command_lines[1])
 
+  def test_compile_corpus_suffix(self):
+    corpus_dir = self.create_tempdir("corpus")
+    corpus_modules = corpus_test_utils.setup_corpus(corpus_dir.full_path)
+    fake_clang_binary = self.create_tempfile("fake_clang")
+    fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
+    corpus_test_utils.create_test_binary(fake_clang_binary.full_path,
+                                         fake_clang_invocations.full_path)
+
+    worker = regalloc_trace_worker.RegallocTraceWorker(
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path="/dev/null",
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
+    output_dir = self.create_tempdir("output")
+    # pylint: disable=protected-access
+    worker._build_corpus(corpus_modules, output_dir.full_path, None,
+                         ".fake_suffix")
+
+    clang_command_lines = fake_clang_invocations.read_text().split("\n")
+    clang_command_lines.remove("")
+    self.assertLen(clang_command_lines, 2)
+    self.assertTrue("module_a.o.fake_suffix" in clang_command_lines[0])
+    self.assertTrue("module_b.o.fake_suffix" in clang_command_lines[1])
+
   def test_copy_corpus_locally(self):
     corpus_copy_base_dir = self.create_tempdir("corpus_copy")
     corpus_copy_dir = os.path.join(corpus_copy_base_dir.full_path,
