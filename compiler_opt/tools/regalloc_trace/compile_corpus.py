@@ -83,9 +83,8 @@ def main(_) -> None:
   worker = regalloc_trace_worker.RegallocTraceWorker(
       gin_config=gin.operative_config_str())
   compiled_module_suffix = '.bc' if _MODE.value == 'bc' else '.bc.o'
-  # pylint: disable=protected-access
-  worker._build_corpus(train_corpus.module_specs, _OUTPUT_PATH.value,
-                       _TFLITE_POLICY_PATH.value, compiled_module_suffix)
+  worker.build_corpus(train_corpus.module_specs, _OUTPUT_PATH.value,
+                      _TFLITE_POLICY_PATH.value, compiled_module_suffix)
   compile_end = time.time()
   compile_duration = compile_end - compile_start
   logging.info('Compilation took %ds', compile_duration)

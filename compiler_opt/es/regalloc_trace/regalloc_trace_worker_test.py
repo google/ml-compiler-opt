@@ -133,9 +133,8 @@ class RegallocTraceWorkerTest(absltest.TestCase):
         thread_count=1,
         corpus_path=corpus_dir.full_path)
     output_dir = self.create_tempdir("output")
-    # pylint: disable=protected-access
-    worker._build_corpus(corpus_modules, output_dir.full_path, None,
-                         ".fake_suffix")
+    worker.build_corpus(corpus_modules, output_dir.full_path, None,
+                        ".fake_suffix")
 
     clang_command_lines = fake_clang_invocations.read_text().split("\n")
     clang_command_lines.remove("")

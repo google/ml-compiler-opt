@@ -224,11 +224,25 @@ class RegallocTraceWorker(worker.Worker):
 
     subprocess.run(command_vector, check=True, capture_output=True)
 
-  def _build_corpus(self,
-                    modules: Collection[corpus.ModuleSpec],
-                    output_directory: str,
-                    tflite_policy_path: str | None,
-                    compiled_module_suffix=".bc.o"):
+  def build_corpus(self,
+                   modules: Collection[corpus.ModuleSpec],
+                   output_directory: str,
+                   tflite_policy_path: str | None,
+                   compiled_module_suffix=".bc.o"):
+    """Compiles a set of modules.
+
+    This function takes the set of modules composing a corpus and compiles
+    them using the specified policy, dumping them into the output directory
+    specified.
+
+    Args:
+      modules: A list of modules to compile.
+      output_directory: The path to place the compiled modules in.
+      tflite_policy_path: The path to the TFLite policy to use to compile the
+        modules, or None if the default advisor should be used.
+      compiled_module_suffix: The suffix that should be appended to the module
+        name when writing the output into the output directory.
+    """
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=self._thread_count) as thread_pool:
       compile_futures = [
@@ -293,7 +307,7 @@ class RegallocTraceWorker(worker.Worker):
         tflite_policy_path = policy_utils.convert_to_tflite(
             policy_as_bytes, compilation_dir, self._tf_base_policy_path)
 
-      self._build_corpus(modules, compilation_dir, tflite_policy_path)
+      self.build_corpus(modules, compilation_dir, tflite_policy_path)
 
       segment_costs = self._evaluate_corpus(compilation_dir,
                                             function_index_path, bb_trace_path)
