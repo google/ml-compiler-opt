@@ -307,7 +307,7 @@ class RegallocTraceWorker(worker.Worker):
         tflite_policy_path = policy_utils.convert_to_tflite(
             policy_as_bytes, compilation_dir, self._tf_base_policy_path)
 
-      self._build_corpus(modules, compilation_dir, tflite_policy_path)
+      self.build_corpus(modules, compilation_dir, tflite_policy_path)
 
       segment_costs = self._evaluate_corpus(compilation_dir,
                                             function_index_path, bb_trace_path)
