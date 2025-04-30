@@ -33,12 +33,12 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
+import tensorflow as tf
 from tensorflow import summary
 from tf_agents.agents import tf_agent
 from tf_agents.policies import tf_policy
 from tf_agents import trajectories
 from tensorboard.plugins.hparams import api as hp
-import tensorflow as tf
 
 _ROOT_DIR = flags.DEFINE_string(
     'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
@@ -87,6 +87,9 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
       train_sequence_length=train_sequence_length)
 
   def evaluation_hook():
+    # Pytype complains that tf.compat does not have an attribute v1 at this
+    # callsite for some reason.
+    # pytype: disable=module-attr
     global_step = tf.compat.v1.train.get_or_create_global_step()
     eval_dataset = data_reader.create_tfrecord_dataset_fn(
         agent_cfg=agent_cfg,
