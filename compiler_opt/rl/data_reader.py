@@ -194,9 +194,11 @@ def create_file_dataset_fn(
             files_buffer_size).interleave(
                 input_dataset, cycle_length=num_readers, block_length=1)
         # Due to a bug in collection, we sometimes get empty rows.
-        .filter(lambda string: tf.strings.length(string) > 0).apply(
-            tf.data.experimental.shuffle_and_repeat(shuffle_buffer_size, count=shuffle_repeat_count)).map(
-                parser_fn, num_parallel_calls=num_map_threads)
+        .filter(lambda string: tf.strings.length(string) > 0)
+        .apply(tf.data.experimental.shuffle_and_repeat(
+                 shuffle_buffer_size,
+                 count=shuffle_repeat_count))
+        .map(parser_fn, num_parallel_calls=num_map_threads)
         # Only keep sequences of length 2 or more.
         .filter(lambda traj: tf.size(traj.reward) > 2))
 
