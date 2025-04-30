@@ -10,7 +10,7 @@ include 'compiler_opt/rl/regalloc/gin_configs/common.gin'
 include 'compiler_opt/rl/regalloc/gin_configs/network.gin'
 
 train_eval.agent_config_type=@agents.BCAgentConfig
-train_eval.num_iterations=3000
+train_eval.num_iterations=10000
 train_eval.batch_size=64
 train_eval.train_sequence_length=1
 

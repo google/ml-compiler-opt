@@ -174,6 +174,8 @@ def create_file_dataset_fn(
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
     input_dataset: A tf.data.Dataset subclass object.
+    shuffle_repeat_count: The number of times to repeat a shuffled version of
+      the dataset, or None to repeat indefinitely.
 
   Returns:
     A callable that takes file path(s) and returns a `tf.data.Dataset`.
@@ -228,6 +230,8 @@ def create_tfrecord_dataset_fn(
     action_spec: action spec of the optimization problem.
     batch_size: int, batch_size B.
     train_sequence_length: int, trajectory sequence length T.
+    shuffle_repeat_count: The number of times to repeat a shuffled version of
+      the dataset, or None to repeat indefinitely.
 
   Returns:
     A callable that takes tfrecord path(s) and returns a `tf.data.Dataset`.

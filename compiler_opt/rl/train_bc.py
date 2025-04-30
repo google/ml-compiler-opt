@@ -108,13 +108,13 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
       policy_actions = agent.policy.action(experience_time_step)
       percentage_correct.update_state(experience.action, policy_actions.action)
 
-      if (batch_count + 1) % evaluation_logging_interval == 0:
-        logging.info('Evaluating: batch = %d', batch_count + 1)
+      batch_count += 1
+      if batch_count % evaluation_logging_interval == 0:
+        logging.info('Evaluating: batch = %d', batch_count)
         time_since_last_log = time.time() - start_time
         batches_per_sec = evaluation_logging_interval / time_since_last_log
         logging.info('%.3f batches/sec', batches_per_sec)
         start_time = time.time()
-      batch_count += 1
 
     tf.summary.scalar(
         name='eval_percentage_correct',
