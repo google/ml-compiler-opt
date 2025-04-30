@@ -14,6 +14,7 @@
 """LLVM Policy Trainer."""
 
 import time
+from typing import Callable
 
 from absl import logging
 
@@ -207,7 +208,11 @@ class Trainer:
   def global_step_numpy(self):
     return self._global_step.numpy()
 
-  def train(self, dataset_iter, monitor_dict, num_iterations: int):
+  def train(self,
+            dataset_iter,
+            monitor_dict,
+            num_iterations: int,
+            hooks: list[tuple[int, Callable[[], None]]] | None = None):
     """Trains policy with data from dataset_iter for num_iterations steps."""
     self._reset_metrics()
     # context management is implemented in decorator
@@ -216,7 +221,7 @@ class Trainer:
     with tf.summary.record_if(lambda: tf.math.equal(
         self._global_step % self._summary_export_interval, 0)):
       # pytype: enable=attribute-error
-      for _ in range(num_iterations):
+      for iteration_index in range(num_iterations):
         # When the data is not enough to fill in a batch, next(dataset_iter)
         # will throw StopIteration exception, logging a warning message instead
         # of killing the training when it happens.
@@ -239,3 +244,8 @@ class Trainer:
         self._update_metrics(experience, monitor_dict)
         self._log_experiment(loss.loss)
         self._save_checkpoint()
+
+        if hooks:
+          for hook_iterations, hook_fn in hooks:
+            if (iteration_index + 1) % hook_iterations == 0:
+              hook_fn()

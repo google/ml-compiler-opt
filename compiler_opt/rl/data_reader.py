@@ -163,7 +163,8 @@ def create_file_dataset_fn(
     agent_cfg: agent_config.AgentConfig,
     batch_size: int,
     train_sequence_length: int,
-    input_dataset) -> Callable[[list[str]], tf.data.Dataset]:
+    input_dataset,
+    shuffle_repeat_count: int | None = None) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from files.
 
   Args:
@@ -194,7 +195,7 @@ def create_file_dataset_fn(
                 input_dataset, cycle_length=num_readers, block_length=1)
         # Due to a bug in collection, we sometimes get empty rows.
         .filter(lambda string: tf.strings.length(string) > 0).apply(
-            tf.data.experimental.shuffle_and_repeat(shuffle_buffer_size)).map(
+            tf.data.experimental.shuffle_and_repeat(shuffle_buffer_size, count=shuffle_repeat_count)).map(
                 parser_fn, num_parallel_calls=num_map_threads)
         # Only keep sequences of length 2 or more.
         .filter(lambda traj: tf.size(traj.reward) > 2))
