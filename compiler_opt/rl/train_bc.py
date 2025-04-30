@@ -105,7 +105,7 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
       percentage_correct.update_state(experience.action, policy_actions.action)
 
       if (batch_count + 1) % evaluation_logging_interval == 0:
-        logging.info(f'Evaluating: batch = {batch_count + 1}')
+        logging.info('Evaluating: batch = %d', batch_count + 1)
         time_since_last_log = time.time() - start_time
         batches_per_sec = evaluation_logging_interval / time_since_last_log
         logging.info('%.3f batches/sec', batches_per_sec)
