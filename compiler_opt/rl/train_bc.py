@@ -91,6 +91,7 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
     # callsite for some reason.
     # pytype: disable=module-attr
     global_step = tf.compat.v1.train.get_or_create_global_step()
+    # pytype: enable=module-attr
     eval_dataset = data_reader.create_tfrecord_dataset_fn(
         agent_cfg=agent_cfg,
         batch_size=batch_size,
