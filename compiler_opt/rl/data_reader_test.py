@@ -143,7 +143,7 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
         shuffle_repeat_count=1)
 
     batch_count = 0
-    for _ in dataset_fn(data_source):
+    for _ in dataset_fn([data_source]):
       batch_count += 1
 
     # Assert that we only see a fixed number of batches and only iterate over
