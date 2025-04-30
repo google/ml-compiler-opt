@@ -164,7 +164,7 @@ def create_file_dataset_fn(
     batch_size: int,
     train_sequence_length: int,
     input_dataset,
-    shuffle_repeat_count: int | None = None) -> Callable[[list[str]], tf.data.Dataset]:
+    shuffle_repeat_count: int | None) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from files.
 
   Args:
@@ -215,7 +215,8 @@ def create_file_dataset_fn(
 
 def create_tfrecord_dataset_fn(
     agent_cfg: agent_config.AgentConfig, batch_size: int,
-    train_sequence_length: int) -> Callable[[list[str]], tf.data.Dataset]:
+    train_sequence_length: int,
+    shuffle_repeat_count: int | None = None) -> Callable[[list[str]], tf.data.Dataset]:
   """Get a function that creates an dataset from tfrecord.
 
   Args:
@@ -234,4 +235,5 @@ def create_tfrecord_dataset_fn(
       agent_cfg,
       batch_size,
       train_sequence_length,
-      input_dataset=tf.data.TFRecordDataset)
+      input_dataset=tf.data.TFRecordDataset,
+      shuffle_repeat_count=shuffle_repeat_count)
