@@ -196,6 +196,31 @@ class TrainerTest(tf.test.TestCase):
                                                        action_outputs.state)
     self.assertAllEqual([inference_batch_size], action_outputs.action.shape)
 
+  def test_hooks(self):
+    test_hook_invocations = []
+
+    def test_hook_fn():
+      test_hook_invocations.append(len(test_hook_invocations))
+
+    test_agent = behavioral_cloning_agent.BehavioralCloningAgent(
+        self._time_step_spec,
+        self._action_spec,
+        self._network,
+        tf.compat.v1.train.AdamOptimizer(),
+        num_outer_dims=2)
+    test_trainer = trainer.Trainer(
+        root_dir=self.get_temp_dir(), agent=test_agent, summary_log_interval=1)
+
+    dataset_iter = _create_test_data(batch_size=3, sequence_length=3)
+    monitor_dict = {'default': {'test': 1}}
+    test_trainer.train(
+        dataset_iter,
+        monitor_dict,
+        num_iterations=10,
+        hooks=[(5, test_hook_fn)])
+
+    self.assertSequenceEqual(test_hook_invocations, [0, 1])
+
 
 if __name__ == '__main__':
   tf.test.main()
