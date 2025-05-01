@@ -245,7 +245,7 @@ class Trainer:
         self._log_experiment(loss.loss)
         self._save_checkpoint()
 
-        if hooks:
+        if hooks is not None:
           for hook_iterations, hook_fn in hooks:
             if (iteration_index + 1) % hook_iterations == 0:
               hook_fn()
