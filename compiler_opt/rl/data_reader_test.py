@@ -128,6 +128,28 @@ class DataReaderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([[2.3, 2.3, 2.3], [2.3, 2.3, 2.3]], experience.reward)
     self.assertAllEqual([[1, 1, 1], [1, 1, 1]], experience.discount)
 
+  def test_create_dataset_fn_shuffle_repeat(self):
+    agent_type_override = agent_config.DQNAgentConfig
+    example = _define_sequence_example(
+        agent_type_override, is_action_discrete=True)
+
+    data_source = self._create_tfrecord_datasource(example)
+    dataset_fn = data_reader.create_tfrecord_dataset_fn(
+        agent_cfg=agent_type_override(
+            time_step_spec=self._time_step_spec,
+            action_spec=self._discrete_action_spec),
+        batch_size=2,
+        train_sequence_length=3,
+        shuffle_repeat_count=1)
+
+    batch_count = 0
+    for _ in dataset_fn([data_source]):
+      batch_count += 1
+
+    # Assert that we only see a fixed number of batches and only iterate over
+    # the dataset once, which in this case means we see 166 batches.
+    self.assertEqual(batch_count, 166)
+
   _distrib_test_config = (('SequenceExampleDatasetFnDistributed',
                            data_reader.create_sequence_example_dataset_fn,
                            agent_config.DistributedPPOAgentConfig,
