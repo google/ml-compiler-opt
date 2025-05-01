@@ -14,6 +14,7 @@
 r"""Train behavioral cloning policy."""
 
 import os
+import time
 
 from absl import app
 from absl import flags
@@ -32,9 +33,11 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
+import tensorflow as tf
 from tensorflow import summary
 from tf_agents.agents import tf_agent
 from tf_agents.policies import tf_policy
+from tf_agents import trajectories
 from tensorboard.plugins.hparams import api as hp
 
 _ROOT_DIR = flags.DEFINE_string(
@@ -56,7 +59,9 @@ _GIN_BINDINGS = flags.DEFINE_multi_string(
 def train_eval(agent_config_type=agent_config.BCAgentConfig,
                num_iterations=100,
                batch_size=64,
-               train_sequence_length=1):
+               train_sequence_length=1,
+               evaluation_interval: int | None = None,
+               evaluation_logging_interval=100):
   """Train Behavioral Cloning."""
   root_dir = os.path.expanduser(_ROOT_DIR.value)
   root_dir = os.path.normpath(root_dir)
@@ -81,11 +86,49 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
       batch_size=batch_size,
       train_sequence_length=train_sequence_length)
 
+  def evaluation_hook():
+    # Pytype complains that tf.compat does not have an attribute v1 at this
+    # callsite for some reason.
+    # pytype: disable=module-attr
+    global_step = tf.compat.v1.train.get_or_create_global_step()
+    # pytype: enable=module-attr
+    eval_dataset = data_reader.create_tfrecord_dataset_fn(
+        agent_cfg=agent_cfg,
+        batch_size=batch_size,
+        train_sequence_length=train_sequence_length,
+        shuffle_repeat_count=1)
+    percentage_correct = tf.keras.metrics.Accuracy()
+    batch_count = 0
+    start_time = time.time()
+    for experience in eval_dataset(_DATA_PATH.value):
+      experience_time_step = trajectories.TimeStep(experience.step_type,
+                                                   experience.reward,
+                                                   experience.discount,
+                                                   experience.observation)
+      policy_actions = agent.policy.action(experience_time_step)
+      percentage_correct.update_state(experience.action, policy_actions.action)
+
+      batch_count += 1
+      if batch_count % evaluation_logging_interval == 0:
+        logging.info('Evaluating: batch = %d', batch_count)
+        time_since_last_log = time.time() - start_time
+        batches_per_sec = evaluation_logging_interval / time_since_last_log
+        logging.info('%.3f batches/sec', batches_per_sec)
+        start_time = time.time()
+
+    tf.summary.scalar(
+        name='eval_percentage_correct',
+        data=percentage_correct.result(),
+        step=global_step)
+
   # Train.
   if _DATA_PATH.value:
     dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
     monitor_dict = {}
-    llvm_trainer.train(dataset_iter, monitor_dict, num_iterations)
+    hooks = []
+    if evaluation_interval:
+      hooks.append((evaluation_interval, evaluation_hook))
+    llvm_trainer.train(dataset_iter, monitor_dict, num_iterations, hooks)
 
   # Save final policy.
   saver.save(root_dir)
