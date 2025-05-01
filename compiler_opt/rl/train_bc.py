@@ -121,6 +121,14 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
         data=percentage_correct.result(),
         step=global_step)
 
+  # Save (command line specified) hyperparameter information.
+  with summary.create_file_writer(_ROOT_DIR.value).as_default():
+    hparams = {}
+    for gin_binding in _GIN_BINDINGS.value:
+      param_name, param_value = gin_binding.split('=')
+      hparams[param_name] = param_value
+    hp.hparams(hparams)
+
   # Train.
   if _DATA_PATH.value:
     dataset_iter = iter(tfrecord_dataset_fn(_DATA_PATH.value).repeat())
@@ -132,14 +140,6 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
 
   # Save final policy.
   saver.save(root_dir)
-
-  # Save (command line specified) hyperparameter information.
-  with summary.create_file_writer(_ROOT_DIR.value).as_default():
-    hparams = {}
-    for gin_binding in _GIN_BINDINGS.value:
-      param_name, param_value = gin_binding.split('=')
-      hparams[param_name] = param_value
-    hp.hparams(hparams)
 
 
 def main(_):
