@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Worker for inlining for size.
-"""
+"""Worker for inlining for size."""
 
 import logging
 import os
 import concurrent.futures
+import subprocess
 import tempfile
 import shutil
 import gin
@@ -36,7 +36,8 @@ class InliningWorker(worker.Worker):
   compiles a set of modules in parallel remotely, evaluates them with
   llvm-size, and then computes the rewards based on the baseline size.
   """
-
+  # TODO: Same method is defined in RegallocTraceWorker. Needs to be
+  # refactored.
   def _setup_base_policy(self):
     self._tf_base_temp_dir = tempfile.mkdtemp()
     policy = policy_utils.create_actor_policy()
@@ -106,19 +107,20 @@ class InliningWorker(worker.Worker):
         }
 
         total_size = 0
-        try:
-          for future in concurrent.futures.as_completed(compile_futures):
-            size = future.result()
-            # Check for failure indicator from the compile function
-            if size == float("inf"):
-              raise ValueError(
-                  "Size obtained is infinity. This is not expected.")
-            total_size += size
-        except Exception as e:
-          # Even if one of the compilations fail, currently we return None which
-          # will be skipped later by get_rewards method.
-          logging.error(
-              "Module generated an exception during future"
-              " processing: %s", e)
-          return None
+        for future in concurrent.futures.as_completed(compile_futures):
+          e = future.exception()
+          if e is not None:
+            # Even if one of the compilations fail, currently we return None which
+            # will be skipped later by get_rewards method.
+            logging.error(
+                "Module generated an exception during future"
+                " processing: %s", str(e))
+            return None
+
+          size = future.result()
+          # Check for failure indicator from the compile function
+          if size == float("inf"):
+            raise ValueError(
+                "Size obtained is infinity. This is not expected.")
+          total_size += size
       return total_size

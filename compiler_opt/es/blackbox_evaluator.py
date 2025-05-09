@@ -77,11 +77,11 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     """Samples and loads modules if not already done.
 
     Ensures self._samples contains the expected number of loaded samples.
-    Raises RuntimeError if loading fails and counts don't match.
+
+    Raises:
+      RuntimeError if loading fails and counts don't match.
     """
     if not self._samples:
-      logging.info('Sampling and loading modules for evaluator...')
-
       for _ in range(self._total_num_perturbations):
         samples = self._train_corpus.sample(self._num_ir_repeats_within_worker)
         loaded_samples = [
