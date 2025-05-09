@@ -102,7 +102,7 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
         expected_count = self._total_num_perturbations
 
       if len(self._samples) != expected_count:
-        raise RuntimeError("Some samples could not be loaded correctly.")
+        raise RuntimeError('Some samples could not be loaded correctly.')
 
   def _launch_compilation_workers(self,
                                   pool: FixedWorkerPool,
@@ -129,7 +129,7 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
       perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     # We should have _samples by now.
     if not self._samples:
-      raise RuntimeError("Loaded samples are not available.")
+      raise RuntimeError('Loaded samples are not available.')
     return self._launch_compilation_workers(pool, perturbations)
 
   def set_baseline(self, pool: FixedWorkerPool) -> None:

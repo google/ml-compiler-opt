@@ -16,7 +16,6 @@
 import logging
 import os
 import concurrent.futures
-import subprocess
 import tempfile
 import shutil
 import gin
@@ -36,6 +35,7 @@ class InliningWorker(worker.Worker):
   compiles a set of modules in parallel remotely, evaluates them with
   llvm-size, and then computes the rewards based on the baseline size.
   """
+
   # TODO: Same method is defined in RegallocTraceWorker. Needs to be
   # refactored.
   def _setup_base_policy(self):
@@ -110,8 +110,8 @@ class InliningWorker(worker.Worker):
         for future in concurrent.futures.as_completed(compile_futures):
           e = future.exception()
           if e is not None:
-            # Even if one of the compilations fail, currently we return None which
-            # will be skipped later by get_rewards method.
+            # Even if one of the compilations fail, currently we return
+            # None which will be skipped later by get_rewards method.
             logging.error(
                 "Module generated an exception during future"
                 " processing: %s", str(e))
@@ -120,7 +120,6 @@ class InliningWorker(worker.Worker):
           size = future.result()
           # Check for failure indicator from the compile function
           if size == float("inf"):
-            raise ValueError(
-                "Size obtained is infinity. This is not expected.")
+            raise ValueError("Size obtained is infinity. This is not expected.")
           total_size += size
       return total_size
