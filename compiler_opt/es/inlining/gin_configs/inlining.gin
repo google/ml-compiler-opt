@@ -16,10 +16,6 @@ inlining.config.get_observation_processing_layer_creator.with_z_score_normalizat
 
 policy_utils.create_actor_policy.actor_network_ctor = @actor_distribution_network.ActorDistributionNetwork
 
-inlining.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
-inlining.config.get_observation_processing_layer_creator.with_sqrt = False
-inlining.config.get_observation_processing_layer_creator.with_z_score_normalization = False
-
 InliningWorker.thread_count = 128
 InliningWorker.clang_path = %clang_path
 InliningWorker.llvm_size_path = %llvm_size_path
