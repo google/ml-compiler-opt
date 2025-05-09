@@ -23,7 +23,7 @@ from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
 from compiler_opt.rl import log_reader
 
-_DEFAULT_IDENTIFIER = 'default'
+DEFAULT_IDENTIFIER = 'default'
 
 
 @gin.configurable(module='runners')
@@ -105,7 +105,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
       return {}
 
     if reward_only:
-      return {_DEFAULT_IDENTIFIER: (None, native_size)}
+      return {DEFAULT_IDENTIFIER: (None, native_size)}
 
     result = log_reader.read_log_as_sequence_examples(log_path)
     if len(result) != 1:
@@ -115,4 +115,4 @@ class InliningRunner(compilation_runner.CompilationRunner):
     if not sequence_example.HasField('feature_lists'):
       return {}
 
-    return {_DEFAULT_IDENTIFIER: (sequence_example, native_size)}
+    return {DEFAULT_IDENTIFIER: (sequence_example, native_size)}
