@@ -18,7 +18,7 @@ import concurrent.futures
 from absl.testing import absltest
 
 from compiler_opt.distributed.local import local_worker_manager
-from compiler_opt.rl import corpus
+from compiler_opt.rl import compilation_runner, corpus
 from compiler_opt.es import blackbox_test_utils
 from compiler_opt.es import blackbox_evaluator
 from compiler_opt.es import blackbox_optimizers
@@ -43,16 +43,49 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
 
-  def test_get_rewards(self):
-    f1 = concurrent.futures.Future()
-    f1.set_exception(None)
-    f2 = concurrent.futures.Future()
-    f2.set_result(2)
-    results = [f1, f2]
+  def test_sampling_set_baseline(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESWorker, count=1, worker_args=(),
+        worker_kwargs={}) as pool:
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir().full_path,
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 1, 1)
+
+      evaluator.set_baseline(pool)
+      # pylint: disable=protected-access
+      self.assertAlmostEqual(evaluator._baselines, [0])
+
+  def test_sampling_get_rewards_without_baseline(self):
     evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
         None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
-    rewards = evaluator.get_rewards(results)
-    self.assertEqual(rewards, [None, 2])
+    self.assertRaises(RuntimeError, evaluator.get_rewards, None)
+
+  def test_sampling_get_rewards_with_baseline(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESWorker, count=1, worker_args=(),
+        worker_kwargs={}) as pool:
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir().full_path,
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 2, 1)
+
+      evaluator.set_baseline(pool)
+
+      f_policy1 = concurrent.futures.Future()
+      f_policy1.set_result(1.5)
+      f_policy2 = concurrent.futures.Future()
+      f_policy2.set_result(0.5)
+      policy_results = [f_policy1, f_policy2]
+
+      rewards = evaluator.get_rewards(policy_results)
+      expected_rewards = [
+          compilation_runner.calculate_reward(1.5, 0.0),
+          compilation_runner.calculate_reward(0.5, 0.0)
+      ]
+      self.assertSequenceAlmostEqual(rewards, expected_rewards)
 
   def test_trace_get_results(self):
     with local_worker_manager.LocalWorkerPoolManager(

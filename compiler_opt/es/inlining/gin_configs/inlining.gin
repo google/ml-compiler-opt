@@ -1,5 +1,6 @@
 import compiler_opt.rl.gin_external_configurables
 import compiler_opt.rl.inlining.config
+import compiler_opt.es.es_trainer_lib
 import compiler_opt.es.inlining.inlining_worker
 
 include 'compiler_opt/rl/inlining/gin_configs/common.gin'

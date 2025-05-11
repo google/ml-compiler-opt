@@ -33,8 +33,8 @@ class ESWorker(worker.Worker):
     self._delta = delta
 
   def compile(self, policy: policy_saver.Policy,
-              samples: list[corpus.ModuleSpec]) -> float:
-    if policy and samples:
+              modules: list[corpus.LoadedModuleSpec]) -> float:
+    if policy and modules:
       self.function_value += self._delta
       return self.function_value
     else:
