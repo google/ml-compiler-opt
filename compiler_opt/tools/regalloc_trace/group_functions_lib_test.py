@@ -107,12 +107,12 @@ class GroupFunctionsTest(absltest.TestCase):
         ])
     corpus_chunks = group_functions_lib.get_chunks(corpus_folder.full_path, (),
                                                    2)
-    fake_llvm_link_binary = self.create_tempfile("fake_llvm_link")
+    fake_llvm_link_binary = self.create_tempfile('fake_llvm_link')
     fake_llvm_link_invocations = self.create_tempfile(
-        "fake_llvm_link_invocations")
+        'fake_llvm_link_invocations')
     corpus_test_utils.create_test_binary(fake_llvm_link_binary.full_path,
                                          fake_llvm_link_invocations.full_path,
-                                         ["touch $2"])
+                                         ['touch $2'])
 
     output_folder = self.create_tempdir()
     group_functions_lib.combine_chunks(corpus_chunks,
@@ -123,5 +123,5 @@ class GroupFunctionsTest(absltest.TestCase):
         ['corpus_description.json', '0.bc', '0.cmd'])
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()

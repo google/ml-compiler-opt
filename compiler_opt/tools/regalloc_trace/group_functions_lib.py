@@ -55,10 +55,10 @@ def _get_functions_chunked_by_command_line(
         reverse=True)
 
   final_command_lines = {}
-  for command_line in command_lines:
+  for command_line, sorted_functions in command_lines.items():
     final_command_lines[command_line] = [
         function_path_and_size.path
-        for function_path_and_size in command_lines[command_line]
+        for function_path_and_size in sorted_functions
     ]
 
   return final_command_lines
@@ -98,19 +98,22 @@ def combine_chunks(function_chunks: dict[str, list[list[str]]],
   for command_line in function_chunks:
     for function_chunk in function_chunks[command_line]:
       output_file = os.path.join(output_folder, f'{corpus_chunk_index}.bc')
-      command_vector = [llvm_link_path, "-o", output_file]
+      command_vector = [llvm_link_path, '-o', output_file]
       command_vector.extend(function_chunk)
       subprocess.run(command_vector, capture_output=True, check=True)
 
       output_cmd_file = os.path.join(output_folder, f'{corpus_chunk_index}.cmd')
-      with open(output_cmd_file, 'w') as output_cmd_file_handle:
+      with open(
+          output_cmd_file, 'w', encoding='utf-8') as output_cmd_file_handle:
         output_cmd_file_handle.write('\0'.join(command_line))
       corpus_chunk_index += 1
 
-  with open(os.path.join(output_folder, 'corpus_description.json'),
-            'w') as corpus_description_handle:
+  with open(
+      os.path.join(output_folder, 'corpus_description.json'),
+      'w',
+      encoding='utf-8') as corpus_description_handle:
     corpus_description = {
-        "has_thinlto": False,
-        "modules": [str(index) for index in range(0, corpus_chunk_index + 1)]
+        'has_thinlto': False,
+        'modules': [str(index) for index in range(0, corpus_chunk_index + 1)]
     }
     json.dump(corpus_description, corpus_description_handle)
