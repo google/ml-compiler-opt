@@ -30,7 +30,7 @@ class FunctionPathAndSize:
 
 def _get_functions_chunked_by_command_line(
     function_folder: str, delete_flags: tuple[str, ...] = ()
-) -> dict[str, list[FunctionPathAndSize]]:
+) -> dict[tuple[str], list[str]]:
   function_corpus = corpus.Corpus(
       data_path=function_folder,
       delete_flags=delete_flags,
@@ -65,8 +65,8 @@ def _get_functions_chunked_by_command_line(
 
 
 def _partition_functions(
-    functions_per_command_line: dict[str, list[FunctionPathAndSize]],
-    max_functions_per_chunk: int) -> dict[str, list[list[str]]]:
+    functions_per_command_line: dict[tuple[str], list[str]],
+    max_functions_per_chunk: int) -> dict[tuple[str], list[list[str]]]:
   corpus_chunks = {}
   for command_line in functions_per_command_line:
     corpus_chunks[command_line] = []
@@ -83,8 +83,9 @@ def _partition_functions(
   return corpus_chunks
 
 
-def get_chunks(function_folder: str, delete_flags: tuple[str, ...],
-               max_functions_per_chunk: int) -> dict[str, list[list[str]]]:
+def get_chunks(
+    function_folder: str, delete_flags: tuple[str, ...],
+    max_functions_per_chunk: int) -> dict[tuple[str], list[list[str]]]:
   chunked_functions = _get_functions_chunked_by_command_line(
       function_folder, delete_flags)
   partitioned_functions = _partition_functions(chunked_functions,
@@ -92,7 +93,7 @@ def get_chunks(function_folder: str, delete_flags: tuple[str, ...],
   return partitioned_functions
 
 
-def combine_chunks(function_chunks: dict[str, list[list[str]]],
+def combine_chunks(function_chunks: dict[tuple[str], list[list[str]]],
                    llvm_link_path: str, output_folder: str):
   corpus_chunk_index = 0
   for command_line in function_chunks:
