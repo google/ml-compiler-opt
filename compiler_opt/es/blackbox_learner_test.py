@@ -17,7 +17,6 @@ import os
 from absl.testing import absltest
 import cloudpickle
 import gin
-import tempfile
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
@@ -70,7 +69,9 @@ class BlackboxLearnerTests(absltest.TestCase):
 
     self._cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir().full_path,
-        elements=[corpus.ModuleSpec(name='smth', size=1)],
+        elements=[
+            corpus.ModuleSpec(name='smth', size=1, command_line=('-cc1',))
+        ],
         additional_flags=(),
         delete_flags=())
 
