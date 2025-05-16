@@ -79,38 +79,39 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     Ensures self._samples contains the expected number of loaded samples.
 
     Raises:
-      RuntimeError if loading fails and counts don't match.
+      RuntimeError if samples are already loaded or if
+        loading fails and counts don't match.
     """
-    if not self._samples:
-      for _ in range(self._total_num_perturbations):
-        samples = self._train_corpus.sample(self._num_ir_repeats_within_worker)
-        loaded_samples = [
-            self._train_corpus.load_module_spec(sample) for sample in samples
-        ]
+    if self._samples:
+      raise RuntimeError('Samples have already been loaded.')
+    for _ in range(self._total_num_perturbations):
+      samples = self._train_corpus.sample(self._num_ir_repeats_within_worker)
+      loaded_samples = [
+          self._train_corpus.load_module_spec(sample) for sample in samples
+      ]
+      self._samples.append(loaded_samples)
+
+      # add copy of sample for antithetic perturbation pair
+      if self._estimator_type == (blackbox_optimizers.EstimatorType.ANTITHETIC):
         self._samples.append(loaded_samples)
 
-        # add copy of sample for antithetic perturbation pair
-        if self._estimator_type == (
-            blackbox_optimizers.EstimatorType.ANTITHETIC):
-          self._samples.append(loaded_samples)
+    logging.info('Done sampling and loading modules for evaluator.')
+    expected_count = (2 * self._total_num_perturbations if self._estimator_type
+                      == (blackbox_optimizers.EstimatorType.ANTITHETIC) else
+                      self._total_num_perturbations)
 
-      logging.info('Done sampling and loading modules for evaluator.')
-
-      if self._estimator_type == (blackbox_optimizers.EstimatorType.ANTITHETIC):
-        expected_count = 2 * self._total_num_perturbations
-      else:
-        expected_count = self._total_num_perturbations
-
-      if len(self._samples) != expected_count:
-        raise RuntimeError('Some samples could not be loaded correctly.')
+    if len(self._samples) != expected_count:
+      raise RuntimeError('Some samples could not be loaded correctly.')
 
   def _launch_compilation_workers(self,
                                   pool: FixedWorkerPool,
                                   perturbations: list[bytes] | None = None
                                  ) -> list[concurrent.futures.Future]:
+    if self._samples is None:
+      raise RuntimeError('Loaded samples are not available.')
     if perturbations is None:
       perturbations = [None] * len(self._samples)
-    compile_args = list(zip(perturbations, self._samples))
+    compile_args = zip(perturbations, self._samples)
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile(policy=args[0], modules=args[1]),
         jobs=compile_args,

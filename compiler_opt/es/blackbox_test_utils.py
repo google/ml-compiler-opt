@@ -41,6 +41,17 @@ class ESWorker(worker.Worker):
       return 0.0
 
 
+class SizeReturningESWorker(worker.Worker):
+  """A mock worker that returns the size of the first module."""
+
+  def compile(self, policy: bytes | None,
+              modules: list[corpus.LoadedModuleSpec]) -> int:
+    del policy  # Unused.
+    if not modules:
+      return 0
+    return len(modules[0].loaded_ir)
+
+
 class ESTraceWorker(worker.Worker):
   """Temporary placeholder worker.
 

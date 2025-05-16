@@ -45,17 +45,19 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_sampling_set_baseline(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESWorker, count=1, worker_args=(),
+        blackbox_test_utils.SizeReturningESWorker,
+        count=1,
+        worker_args=(),
         worker_kwargs={}) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
-          elements=[corpus.ModuleSpec(name='name1', size=1)])
+          elements=[corpus.ModuleSpec(name='name1', size=10)])
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 1, 1)
 
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
-      self.assertAlmostEqual(evaluator._baselines, [0])
+      self.assertAlmostEqual(evaluator._baselines, [10])
 
   def test_sampling_get_rewards_without_baseline(self):
     evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
@@ -64,7 +66,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_sampling_get_rewards_with_baseline(self):
     with local_worker_manager.LocalWorkerPoolManager(
-        blackbox_test_utils.ESWorker, count=1, worker_args=(),
+        blackbox_test_utils.SizeReturningESWorker,
+        count=1,
+        worker_args=(),
         worker_kwargs={}) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
@@ -82,8 +86,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
       rewards = evaluator.get_rewards(policy_results)
       expected_rewards = [
-          compilation_runner.calculate_reward(1.5, 0.0),
-          compilation_runner.calculate_reward(0.5, 0.0)
+          compilation_runner.calculate_reward(1.5, 1.0),
+          compilation_runner.calculate_reward(0.5, 1.0)
       ]
       self.assertSequenceAlmostEqual(rewards, expected_rewards)
 

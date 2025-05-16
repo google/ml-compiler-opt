@@ -29,11 +29,12 @@ from compiler_opt.es import policy_utils
 
 @gin.configurable
 class InliningWorker(worker.Worker):
-  """A worker that produces rewards for a given Inlining policy.
+  """Wraps InliningRunner to manage distributed compilation and code size
+  evaluation.
 
-  InliningWorker exposes a compile function, which
-  compiles a set of modules in parallel remotely, evaluates them with
-  llvm-size, and then computes the rewards based on the baseline size.
+  This worker handles parallel compilation of modules with and/ without a
+  learned policy, leveraging InliningRunner. It aggregates the native code
+  size of the compiled modules.
   """
 
   # TODO: Same method is defined in RegallocTraceWorker. Needs to be
@@ -81,13 +82,28 @@ class InliningWorker(worker.Worker):
     # Build the final command line using LoadedModuleSpec
     original_cmd_line = loaded_module_spec.build_command_line(working_dir)
 
-    result = self._inliner.compile_fn(original_cmd_line, tflite_policy_path,
-                                      True, working_dir)
-
-    return result[inlining_runner.DEFAULT_IDENTIFIER][1]
+    size, _ = self._inliner.compile_and_get_size(original_cmd_line,
+                                                 tflite_policy_path,
+                                                 working_dir)
+    return size
 
   def compile(self, policy: bytes | None,
               modules: list[corpus.LoadedModuleSpec]) -> float | None:
+    """Compiles modules in parallel and returns their total native code size.
+
+    If a `policy` is provided, it's converted to TFLite format before
+    compilation. The method aggregates the native code sizes from all
+    successfully compiled modules.
+
+    Args:
+      policy: Optional policy to apply during compilation.
+      modules: A list of `LoadedModuleSpec` objects to compile.
+
+    Returns:
+      The total native code size (as a float) of all successfully compiled
+      modules. Returns None if any module compilation fails or if an
+      exception occurs during the parallel processing.
+    """
     with tempfile.TemporaryDirectory() as compilation_dir:
       tflite_policy_path = None
       if policy is not None:
