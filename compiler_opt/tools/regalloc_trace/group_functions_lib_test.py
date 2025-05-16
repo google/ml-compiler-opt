@@ -118,7 +118,7 @@ class GroupFunctionsTest(absltest.TestCase):
     group_functions_lib.combine_chunks(corpus_chunks,
                                        fake_llvm_link_binary.full_path,
                                        output_folder.full_path)
-    self.assertContainsSubsequence(
+    self.assertContainsSubset(
         os.listdir(output_folder.full_path),
         ['corpus_description.json', '0.bc', '0.cmd'])
 
