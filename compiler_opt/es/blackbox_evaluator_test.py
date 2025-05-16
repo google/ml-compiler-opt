@@ -67,7 +67,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
           'fake_bb_trace_path', 'fake_function_index_path')
+      # pylint: disable=protected-access
       evaluator._baselines = [1]
+      # pylint: enable=protected-access
       results = evaluator.get_results(pool, perturbations)
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
@@ -88,6 +90,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       # pylint: disable=protected-access
       self.assertLen(evaluator._baselines, 1)
       self.assertAlmostEqual(evaluator._baselines[0], 10)
+      # pylint: enable=protected-access
 
   def test_trace_get_rewards(self):
     f1 = concurrent.futures.Future()
@@ -104,6 +107,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
     # pylint: disable=protected-access
     evaluator._current_baselines = [2, 3]
+    # pylint: enable=protected-access
     rewards = evaluator.get_rewards(results)
 
     # Only check for two decimal places as the reward calculation uses a
@@ -127,7 +131,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
           bb_trace_dir.full_path, 'fake_function_index_path')
+      # pylint: disable=protected-access
       evaluator._baselines = [1, 2]
+      # pylint: enable=protected-access
       results = evaluator.get_results(pool, perturbations)
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
@@ -152,3 +158,4 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       self.assertLen(evaluator._baselines, 2)
       self.assertAlmostEqual(evaluator._baselines[0], 10)
       self.assertAlmostEqual(evaluator._baselines[1], 10)
+      # pylint: enable=protected-access

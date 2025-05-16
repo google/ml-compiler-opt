@@ -157,14 +157,12 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     if self._baselines is not None:
       raise RuntimeError('The baseline has already been set.')
 
-    job_args = []
-    for bb_trace_path in self._bb_trace_paths:
-      job_args.append({
-          'modules': self._train_corpus.module_specs,
-          'function_index_path': self._function_index_path,
-          'bb_trace_path': bb_trace_path,
-          'policy_as_bytes': None,
-      })
+    job_args = [{
+        'modules': self._train_corpus.module_specs,
+        'function_index_path': self._function_index_path,
+        'bb_trace_path': bb_trace_path,
+        'policy_as_bytes': None,
+    } for bb_trace_path in self._bb_trace_paths]
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile_corpus_and_evaluate(**args),
