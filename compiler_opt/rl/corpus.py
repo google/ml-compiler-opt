@@ -272,7 +272,8 @@ class Corpus:
                additional_flags: tuple[str, ...] = (),
                delete_flags: tuple[str, ...] = (),
                replace_flags: dict[str, str] | None = None,
-               sampler_type: type[Sampler] = SamplerBucketRoundRobin):
+               sampler_type: type[Sampler] = SamplerBucketRoundRobin,
+               construct_cmd_for_compilation=True):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
     sampling. Command line origin (.cmd file or override) is decided, and final
@@ -338,8 +339,10 @@ class Corpus:
               '-fthinlto-index must be handled by the infrastructure')
         replace_flags[fthinlto_index_flag] = '{context.thinlto_full_path}'
 
-    additional_flags = ('-x', 'ir',
-                        '{context.module_full_path}') + additional_flags
+    default_additional_flags = ()
+    if construct_cmd_for_compilation:
+      default_additional_flags = ('-x', 'ir', '{context.module_full_path}')
+    additional_flags = default_additional_flags + additional_flags
 
     # don't use add/remove for replace
     add_keys = {k.split('=', maxsplit=1)[0] for k in additional_flags}
@@ -435,8 +438,7 @@ class Corpus:
 
 def create_corpus_for_testing(location: str,
                               elements: list[ModuleSpec],
-                              cmdline: tuple[str, ...] = ('-cc1',),
-                              cmdline_is_override=False,
+                              override_cmdline: tuple[str, ...] | None = None,
                               is_thinlto=False,
                               **kwargs) -> Corpus:
   os.makedirs(location, exist_ok=True)
@@ -444,10 +446,10 @@ def create_corpus_for_testing(location: str,
     with tf.io.gfile.GFile(os.path.join(location, element.name + '.bc'),
                            'wb') as f:
       f.write(bytes([1] * element.size))
-    if not cmdline_is_override:
+    if element.command_line:
       with tf.io.gfile.GFile(
           os.path.join(location, element.name + '.cmd'), 'w') as f:
-        f.write('\0'.join(cmdline))
+        f.write('\0'.join(element.command_line))
     if is_thinlto:
       with tf.io.gfile.GFile(
           os.path.join(location, element.name + '.thinlto.bc'), 'w') as f:
@@ -457,8 +459,8 @@ def create_corpus_for_testing(location: str,
       'modules': [e.name for e in elements],
       'has_thinlto': is_thinlto,
   }
-  if cmdline_is_override:
-    corpus_description['global_command_override'] = cmdline
+  if override_cmdline is not None:
+    corpus_description['global_command_override'] = override_cmdline
   with tf.io.gfile.GFile(
       os.path.join(location, 'corpus_description.json'), 'w') as f:
     f.write(json.dumps(corpus_description))
