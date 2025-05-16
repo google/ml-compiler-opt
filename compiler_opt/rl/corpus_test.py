@@ -355,6 +355,15 @@ class CorpusTest(tf.test.TestCase):
       sample = cps.sample(k=i, sort=True)
       self.assertLen(sample, i)
 
+  def test_no_construct_cmd_for_compilation(self):
+    cps = corpus.create_corpus_for_testing(
+        location=self.create_tempdir(),
+        elements=[
+            corpus.ModuleSpec(name='test', size=5, command_line=('-cc1',))
+        ],
+        construct_cmd_for_compilation=False)
+    self.assertTupleEqual(cps.module_specs[0].command_line, ('-cc1',))
+
 
 if __name__ == '__main__':
   tf.test.main()

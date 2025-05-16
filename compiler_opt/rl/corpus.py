@@ -272,7 +272,8 @@ class Corpus:
                additional_flags: tuple[str, ...] = (),
                delete_flags: tuple[str, ...] = (),
                replace_flags: dict[str, str] | None = None,
-               sampler_type: type[Sampler] = SamplerBucketRoundRobin):
+               sampler_type: type[Sampler] = SamplerBucketRoundRobin,
+               construct_cmd_for_compilation=True):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
     sampling. Command line origin (.cmd file or override) is decided, and final
@@ -338,8 +339,10 @@ class Corpus:
               '-fthinlto-index must be handled by the infrastructure')
         replace_flags[fthinlto_index_flag] = '{context.thinlto_full_path}'
 
-    additional_flags = ('-x', 'ir',
-                        '{context.module_full_path}') + additional_flags
+    default_additional_flags = ()
+    if construct_cmd_for_compilation:
+      default_additional_flags = ('-x', 'ir', '{context.module_full_path}')
+    additional_flags = default_additional_flags + additional_flags
 
     # don't use add/remove for replace
     add_keys = {k.split('=', maxsplit=1)[0] for k in additional_flags}
