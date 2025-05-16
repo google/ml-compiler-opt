@@ -57,7 +57,7 @@ def main(_) -> None:
 
   # We have a .bc and a .cmd for each extracted function along with a
   # corpus_description.json file.
-  functions_in_corpus = (os.listdir(_FUNCTION_FOLDER.value) - 1) / 2
+  functions_in_corpus = (len(os.listdir(_FUNCTION_FOLDER.value)) - 1) / 2
   max_functions_per_chunk = math.ceil(functions_in_corpus / _CHUNK_COUNT.value)
   logging.info("Getting chunks.")
   corpus_chunks = group_functions_lib.get_chunks(_FUNCTION_FOLDER.value,
