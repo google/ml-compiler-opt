@@ -69,12 +69,12 @@ class BlackboxLearnerTests(absltest.TestCase):
         save_best_policy=True)
 
     self._cps = corpus.create_corpus_for_testing(
-        location=tempfile.gettempdir(),
+        location=self.create_tempdir().full_path,
         elements=[corpus.ModuleSpec(name='smth', size=1)],
         additional_flags=(),
         delete_flags=())
 
-    output_dir = tempfile.gettempdir()
+    output_dir = self.create_tempdir()
     policy_name = 'policy_name'
 
     # create a policy
@@ -110,7 +110,8 @@ class BlackboxLearnerTests(absltest.TestCase):
 
     # save the policy
     saver = policy_saver.PolicySaver({policy_name: policy})
-    policy_save_path = os.path.join(output_dir, 'temp_output', 'policy')
+    policy_save_path = os.path.join(output_dir.full_path, 'temp_output',
+                                    'policy')
     saver.save(policy_save_path)
 
     self._saved_policies = []
@@ -132,7 +133,7 @@ class BlackboxLearnerTests(absltest.TestCase):
             extra_params=None,
             step_size=1),
         train_corpus=self._cps,
-        output_dir=output_dir,
+        output_dir=output_dir.full_path,
         policy_saver_fn=_policy_saver_fn,
         model_weights=init_params,
         config=self._learner_config,
