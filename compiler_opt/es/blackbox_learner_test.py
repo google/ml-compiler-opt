@@ -17,7 +17,6 @@ import os
 from absl.testing import absltest
 import cloudpickle
 import gin
-import tempfile
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
