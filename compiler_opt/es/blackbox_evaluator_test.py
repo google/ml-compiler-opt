@@ -67,6 +67,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
           'fake_bb_trace_path', 'fake_function_index_path')
+      evaluator._baselines = [1]
       results = evaluator.get_results(pool, perturbations)
       self.assertSequenceAlmostEqual([result.result() for result in results],
                                      [1.0, 1.0, 1.0])
@@ -85,7 +86,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
           'fake_bb_trace_path', 'fake_function_index_path')
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
-      self.assertAlmostEqual(evaluator._baseline, 10)
+      self.assertLen(evaluator._baselines, 1)
+      self.assertAlmostEqual(evaluator._baselines[0], 10)
 
   def test_trace_get_rewards(self):
     f1 = concurrent.futures.Future()
@@ -101,10 +103,52 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         'fake_bb_trace_path', 'fake_function_index_path')
 
     # pylint: disable=protected-access
-    evaluator._baseline = 2
+    evaluator._current_baselines = [2, 3]
     rewards = evaluator.get_rewards(results)
 
     # Only check for two decimal places as the reward calculation uses a
     # reasonably large delta (0.01) when calculating the difference to
     # prevent division by zero.
-    self.assertSequenceAlmostEqual(rewards, [0, -0.5], 2)
+    self.assertSequenceAlmostEqual(rewards, [0, 0], 2)
+
+  def test_trace_multiple_get_results(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESTraceWorker,
+        count=3,
+        worker_args=(),
+        worker_kwargs={}) as pool:
+      perturbations = [b'00', b'01', b'10']
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir().full_path,
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      bb_trace_dir = self.create_tempdir()
+      bb_trace_dir.create_file('bb_trace1.pb')
+      bb_trace_dir.create_file('bb_trace2.pb')
+      evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_dir.full_path, 'fake_function_index_path')
+      evaluator._baselines = [1, 2]
+      results = evaluator.get_results(pool, perturbations)
+      self.assertSequenceAlmostEqual([result.result() for result in results],
+                                     [1.0, 1.0, 1.0])
+
+  def test_trace_multiple_set_baseline(self):
+    with local_worker_manager.LocalWorkerPoolManager(
+        blackbox_test_utils.ESTraceWorker,
+        count=1,
+        worker_args=(),
+        worker_kwargs={}) as pool:
+      test_corpus = corpus.create_corpus_for_testing(
+          location=self.create_tempdir().full_path,
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
+      bb_trace_dir = self.create_tempdir()
+      bb_trace_dir.create_file('bb_trace1.pb')
+      bb_trace_dir.create_file('bb_trace2.pb')
+      evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
+          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_dir.full_path, 'fake_function_index_path')
+      evaluator.set_baseline(pool)
+      # pylint: disable=protected-access
+      self.assertLen(evaluator._baselines, 2)
+      self.assertAlmostEqual(evaluator._baselines[0], 10)
+      self.assertAlmostEqual(evaluator._baselines[1], 10)
