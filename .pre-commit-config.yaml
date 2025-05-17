@@ -1,0 +1,19 @@
+# Learn more about this config here: https://pre-commit.com
+
+# To enable these pre-commit hooks:
+# 1. Install pre-commit: `pip install pre-commit`
+#    or if you are using pipx: `pipx install pre-commit`
+#    or if you are using uv: `uv tool install pre-commit`.
+# Then in the project root directory run `pre-commit install`
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.2
+    hooks:
+      - id: ruff
+
+  - repo: https://github.com/google/yapf
+    rev: v0.43.0
+    hooks:
+      - id: yapf
+        args: [--in-place, --recursive, --parallel]
