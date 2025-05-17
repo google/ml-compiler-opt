@@ -67,30 +67,56 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
   def __init__(self, train_corpus: corpus.Corpus,
                estimator_type: blackbox_optimizers.EstimatorType,
                total_num_perturbations: int, num_ir_repeats_within_worker: int):
-    self._samples = []
+    self._samples: list[list[corpus.LoadedModuleSpec]] = []
     self._train_corpus = train_corpus
     self._total_num_perturbations = total_num_perturbations
     self._num_ir_repeats_within_worker = num_ir_repeats_within_worker
     self._estimator_type = estimator_type
+    self._baselines: list[float | None] | None = None
 
     super().__init__(train_corpus)
 
-  def get_results(
-      self, pool: FixedWorkerPool,
-      perturbations: list[bytes]) -> list[concurrent.futures.Future]:
+  def _load_samples(self) -> None:
+    """Samples and loads modules if not already done.
+
+    Ensures self._samples contains the expected number of loaded samples.
+    Raises RuntimeError if loading fails and counts don't match.
+    """
     if not self._samples:
+      logging.info('Sampling and loading modules for evaluator...')
+
       for _ in range(self._total_num_perturbations):
-        sample = self._train_corpus.sample(self._num_ir_repeats_within_worker)
-        self._samples.append(sample)
+        samples = self._train_corpus.sample(self._num_ir_repeats_within_worker)
+        loaded_samples = [
+            self._train_corpus.load_module_spec(sample) for sample in samples
+        ]
+        self._samples.append(loaded_samples)
+
         # add copy of sample for antithetic perturbation pair
         if self._estimator_type == (
             blackbox_optimizers.EstimatorType.ANTITHETIC):
-          self._samples.append(sample)
+          self._samples.append(loaded_samples)
 
-    compile_args = zip(perturbations, self._samples)
+      logging.info('Done sampling and loading modules for evaluator.')
 
+      if self._estimator_type == (blackbox_optimizers.EstimatorType.ANTITHETIC):
+        expected_count = 2 * self._total_num_perturbations
+      else:
+        expected_count = self._total_num_perturbations
+
+      if len(self._samples) != expected_count:
+        raise RuntimeError("Some samples could not be loaded correctly.")
+
+  def _launch_compilation_workers(self,
+                                  pool: FixedWorkerPool,
+                                  perturbations: list[bytes] | None = None
+                                 ) -> list[concurrent.futures.Future]:
+    if perturbations is None:
+      perturbations = [None] * len(self._samples)
+
+    compile_args = list(zip(perturbations, self._samples))
     _, futures = buffered_scheduler.schedule_on_worker_pool(
-        action=lambda w, v: w.compile(v[0], v[1]),
+        action=lambda w, args: w.compile(policy=args[0], modules=args[1]),
         jobs=compile_args,
         worker_pool=pool)
 
@@ -100,12 +126,44 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
       # update lists as work gets done
       _, not_done = concurrent.futures.wait(
           not_done, return_when=concurrent.futures.FIRST_COMPLETED)
-
     return futures
 
+  def get_results(
+      self, pool: FixedWorkerPool,
+      perturbations: list[bytes]) -> list[concurrent.futures.Future]:
+    # We should have _samples by now.
+    if not self._samples:
+      raise RuntimeError("Loaded samples are not available.")
+    return self._launch_compilation_workers(pool, perturbations)
+
   def set_baseline(self, pool: FixedWorkerPool) -> None:
-    del pool  # Unused.
-    pass
+    if self._baselines is not None:
+      raise RuntimeError('The baseline has already been set.')
+    self._load_samples()
+    results = self._launch_compilation_workers(pool)
+    self._baselines = super().get_rewards(results)
+
+  def get_rewards(
+      self, results: list[concurrent.futures.Future]) -> list[float | None]:
+    if self._baselines is None:
+      raise RuntimeError('The baseline has not been set.')
+
+    if len(results) != len(self._baselines):
+      raise RuntimeError(
+          'The number of results does not match the number of baselines.')
+
+    policy_results = super().get_rewards(results)
+
+    rewards = []
+    for i in range(len(policy_results)):
+      policy_result = policy_results[i]
+      baseline = self._baselines[i]
+      if policy_result is None or baseline is None:
+        rewards.append(None)
+      else:
+        rewards.append(
+            compilation_runner.calculate_reward(policy_result, baseline))
+    return rewards
 
 
 @gin.configurable
