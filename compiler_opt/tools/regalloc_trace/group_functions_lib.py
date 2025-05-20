@@ -89,8 +89,8 @@ def _partition_functions(
     chunks_for_command_line = math.ceil(
         len(functions_per_command_line[command_line]) / max_functions_per_chunk)
     if chunks_for_command_line == 0:
-      raise RuntimeError("Expected chunks_for_command_line to be greater than "
-                         f"zero, actually got {chunks_for_command_line}.")
+      raise RuntimeError('Expected chunks_for_command_line to be greater than '
+                         f'zero, actually got {chunks_for_command_line}.')
     for chunk_index in range(0, chunks_for_command_line):
       current_index = chunk_index
       current_chunk = []
