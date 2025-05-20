@@ -22,7 +22,7 @@ import json
 from compiler_opt.rl import corpus
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class FunctionPathAndSize:
   path: str
   size: int
@@ -31,6 +31,23 @@ class FunctionPathAndSize:
 def _get_functions_chunked_by_command_line(
     function_folder: str, delete_flags: tuple[str, ...] = ()
 ) -> dict[tuple[str], list[str]]:
+  """Groups functions by their command line.
+  
+  This function takes in a path to a corpus containing modules that all contain
+  single functions (from the extract_functions script). It then arranges these
+  functions by their commandline, ensuring all functions with the same
+  commandline (minus the flags in delete_flags) are in the same chunk.
+
+  Args:
+    function_folder: The path to the corpus containing the individual functions
+      to process.
+    delete_flags: The flags to delete from each of the command lines. This
+      should contain all flags that make each command line unique.
+  
+  Returns:
+    A dictionary mapping the command line stored as a tuple to a list of
+    function names.
+  """
   function_corpus = corpus.Corpus(
       data_path=function_folder,
       delete_flags=delete_flags,
@@ -41,8 +58,7 @@ def _get_functions_chunked_by_command_line(
     function_path = os.path.join(function_folder, module_spec.name + '.bc')
     function_size = module_spec.size
     function_path_and_size = FunctionPathAndSize(function_path, function_size)
-    module_command_line = list(module_spec.command_line)
-    module_command_line = tuple(module_command_line)
+    module_command_line = tuple(module_spec.command_line)
     if module_command_line in command_lines:
       command_lines[module_command_line].append(function_path_and_size)
     else:
@@ -72,6 +88,9 @@ def _partition_functions(
     corpus_chunks[command_line] = []
     chunks_for_command_line = math.ceil(
         len(functions_per_command_line[command_line]) / max_functions_per_chunk)
+    if chunks_for_command_line == 0:
+      raise RuntimeError("Expected chunks_for_command_line to be greater than "
+                         f"zero, actually got {chunks_for_command_line}.")
     for chunk_index in range(0, chunks_for_command_line):
       current_index = chunk_index
       current_chunk = []
