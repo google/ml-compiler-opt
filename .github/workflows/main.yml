@@ -18,31 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./check-license.sh
-  Envvars:
-    runs-on: ubuntu-22.04
-    outputs:
-      version_matrix: ${{ steps.set-output.outputs.version_matrix }}
-      do_cache: ${{ steps.set-output.outputs.do_cache }}
-    steps:
-      - id: set-output
-        run: |
-          if [ -z $ACT ]
-          then
-            _ver="['3.10','3.11']"
-            _cache="1"
-          else
-            # 3.10 instead of '3.10' to make github act work.
-            _ver="[3.10,3.11]"
-            _cache="0"
-          fi
-          echo "version_matrix=$_ver" >> $GITHUB_OUTPUT
-          echo "do_cache=$_cache" >> $GITHUB_OUTPUT
   Checks:
     runs-on: ubuntu-22.04
-    needs: [Envvars]
     strategy:
       matrix:
-        python-version: ${{ fromJSON(needs.Envvars.outputs.version_matrix) }}
+        python-version: ['3.10', '3.11']
         task: [Typecheck, Lint, Ruff, Yapf, Test]
         include:
           - task: Typecheck
@@ -57,18 +37,12 @@ jobs:
             cmd: pytest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Python With Cached pip Packages
-        if: needs.Envvars.outputs.do_cache == '1'
+      - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pipenv'
           cache-dependency-path: Pipfile.lock
-      - name: Install Python, no cache
-        if: needs.Envvars.outputs.do_cache == '0'
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
       - name: Install Pipenv
         run: pip3 install pipenv
       - name: Install Python Dependencies
