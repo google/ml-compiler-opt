@@ -435,8 +435,7 @@ class Corpus:
 
 def create_corpus_for_testing(location: str,
                               elements: list[ModuleSpec],
-                              cmdline: tuple[str, ...] = ('-cc1',),
-                              cmdline_is_override=False,
+                              override_cmdline: tuple[str, ...] | None = None,
                               is_thinlto=False,
                               **kwargs) -> Corpus:
   os.makedirs(location, exist_ok=True)
@@ -444,10 +443,10 @@ def create_corpus_for_testing(location: str,
     with tf.io.gfile.GFile(os.path.join(location, element.name + '.bc'),
                            'wb') as f:
       f.write(bytes([1] * element.size))
-    if not cmdline_is_override:
+    if element.command_line:
       with tf.io.gfile.GFile(
           os.path.join(location, element.name + '.cmd'), 'w') as f:
-        f.write('\0'.join(cmdline))
+        f.write('\0'.join(element.command_line))
     if is_thinlto:
       with tf.io.gfile.GFile(
           os.path.join(location, element.name + '.thinlto.bc'), 'w') as f:
@@ -457,8 +456,8 @@ def create_corpus_for_testing(location: str,
       'modules': [e.name for e in elements],
       'has_thinlto': is_thinlto,
   }
-  if cmdline_is_override:
-    corpus_description['global_command_override'] = cmdline
+  if override_cmdline is not None:
+    corpus_description['global_command_override'] = override_cmdline
   with tf.io.gfile.GFile(
       os.path.join(location, 'corpus_description.json'), 'w') as f:
     f.write(json.dumps(corpus_description))
