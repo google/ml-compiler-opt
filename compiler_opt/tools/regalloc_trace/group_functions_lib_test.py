@@ -30,7 +30,7 @@ class GroupFunctionsTest(absltest.TestCase):
         corpus_folder.full_path,
         elements=[
             corpus.ModuleSpec(name='module1', size=5, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='module2', size=5, command_line=('-cc1',))
+            corpus.ModuleSpec(name='module2', size=3, command_line=('-cc1',))
         ])
     corpus_chunks = group_functions_lib.get_chunks(corpus_folder.full_path, (),
                                                    2)
@@ -68,7 +68,7 @@ class GroupFunctionsTest(absltest.TestCase):
         corpus_folder.full_path,
         elements=[
             corpus.ModuleSpec(name='module1', size=5, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='module2', size=5, command_line=('-cc1',))
+            corpus.ModuleSpec(name='module2', size=3, command_line=('-cc1',))
         ])
     corpus_chunks = group_functions_lib.get_chunks(corpus_folder.full_path, (),
                                                    1)
@@ -84,8 +84,8 @@ class GroupFunctionsTest(absltest.TestCase):
         corpus_folder.full_path,
         elements=[
             corpus.ModuleSpec(name='module1', size=5, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='module2', size=5, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='module3', size=5, command_line=('-cc1',)),
+            corpus.ModuleSpec(name='module2', size=4, command_line=('-cc1',)),
+            corpus.ModuleSpec(name='module3', size=3, command_line=('-cc1',)),
         ])
     corpus_chunks = group_functions_lib.get_chunks(corpus_folder.full_path, (),
                                                    2)
@@ -103,7 +103,7 @@ class GroupFunctionsTest(absltest.TestCase):
         corpus_folder.full_path,
         elements=[
             corpus.ModuleSpec(name='module1', size=5, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='module2', size=5, command_line=('-cc1',))
+            corpus.ModuleSpec(name='module2', size=3, command_line=('-cc1',))
         ])
     corpus_chunks = group_functions_lib.get_chunks(corpus_folder.full_path, (),
                                                    2)
