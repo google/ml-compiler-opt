@@ -293,6 +293,9 @@ class Corpus:
         Thinlto index is handled this way, too.
       module_filter: a regular expression used to filter 'in' modules with names
         matching it. None to include everything.
+      construct_cmd_for_compilation: Whether or not to append additional flags
+        to enable passing the command line directly to a subprocess invocation
+        of the compiler.
     """
     self._base_dir = data_path
     # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
@@ -328,7 +331,7 @@ class Corpus:
     replace_flags = replace_flags.copy() if replace_flags else {}
     fthinlto_index_flag = '-fthinlto-index'
 
-    if has_thinlto:
+    if has_thinlto and construct_cmd_for_compilation:
       additional_flags = ('-mllvm', '-thinlto-assume-merged') + additional_flags
       if cmd_override_was_specified:
         additional_flags = (f'{fthinlto_index_flag}=' +
