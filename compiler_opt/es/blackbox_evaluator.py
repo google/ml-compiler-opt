@@ -15,9 +15,12 @@
 
 import abc
 import concurrent.futures
+import os
+import random
 
 from absl import logging
 import gin
+import tensorflow as tf
 
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.rl import corpus
@@ -114,20 +117,33 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
                bb_trace_path: str, function_index_path: str):
     self._train_corpus = train_corpus
     self._estimator_type = estimator_type
-    self._bb_trace_path = bb_trace_path
+    self._bb_trace_paths = []
+    if tf.io.gfile.isdir(bb_trace_path):
+      self._bb_trace_paths.extend([
+          os.path.join(bb_trace_path, bb_trace)
+          for bb_trace in tf.io.gfile.listdir(bb_trace_path)
+      ])
+    else:
+      self._bb_trace_paths.append(bb_trace_path)
     self._function_index_path = function_index_path
 
-    self._baseline: float | None = None
+    self._baselines: list[float] | None = None
 
   def get_results(
       self, pool: FixedWorkerPool,
       perturbations: list[bytes]) -> list[concurrent.futures.Future]:
-    job_args = [{
-        'modules': self._train_corpus.module_specs,
-        'function_index_path': self._function_index_path,
-        'bb_trace_path': self._bb_trace_path,
-        'policy_as_bytes': perturbation,
-    } for perturbation in perturbations]
+    job_args = []
+    self._current_baselines = []
+    for perturbation in perturbations:
+      bb_trace_path_index = random.randrange(len(self._bb_trace_paths))
+      bb_trace_path = self._bb_trace_paths[bb_trace_path_index]
+      self._current_baselines.append(self._baselines[bb_trace_path_index])
+      job_args.append({
+          'modules': self._train_corpus.module_specs,
+          'function_index_path': self._function_index_path,
+          'bb_trace_path': bb_trace_path,
+          'policy_as_bytes': perturbation
+      })
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile_corpus_and_evaluate(**args),
@@ -138,15 +154,15 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     return futures
 
   def set_baseline(self, pool: FixedWorkerPool) -> None:
-    if self._baseline is not None:
+    if self._baselines is not None:
       raise RuntimeError('The baseline has already been set.')
 
     job_args = [{
         'modules': self._train_corpus.module_specs,
         'function_index_path': self._function_index_path,
-        'bb_trace_path': self._bb_trace_path,
+        'bb_trace_path': bb_trace_path,
         'policy_as_bytes': None,
-    }]
+    } for bb_trace_path in self._bb_trace_paths]
 
     _, futures = buffered_scheduler.schedule_on_worker_pool(
         action=lambda w, args: w.compile_corpus_and_evaluate(**args),
@@ -155,21 +171,22 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
 
     concurrent.futures.wait(
         futures, return_when=concurrent.futures.ALL_COMPLETED)
-    if len(futures) != 1:
-      raise ValueError('Expected to have one result for setting the baseline,'
-                       f' got {len(futures)}')
+    if len(futures) != len(self._bb_trace_paths):
+      raise ValueError(
+          f'Expected to have {len(self._bb_trace_paths)} results for setting,'
+          f'the baseline, got {len(futures)}.')
 
-    self._baseline = futures[0].result()
+    self._baselines = [future.result() for future in futures]
 
   def get_rewards(
       self, results: list[concurrent.futures.Future]) -> list[float | None]:
     rewards = []
 
-    for result in results:
+    for result, baseline in zip(results, self._current_baselines):
       if result.exception() is not None:
         raise result.exception()
 
       rewards.append(
-          compilation_runner.calculate_reward(result.result(), self._baseline))
+          compilation_runner.calculate_reward(result.result(), baseline))
 
     return rewards
