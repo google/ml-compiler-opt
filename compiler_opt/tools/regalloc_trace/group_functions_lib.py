@@ -32,7 +32,7 @@ def _get_functions_chunked_by_command_line(
     function_folder: str, delete_flags: tuple[str, ...] = ()
 ) -> dict[tuple[str], list[str]]:
   """Groups functions by their command line.
-  
+
   This function takes in a path to a corpus containing modules that all contain
   single functions (from the extract_functions script). It then arranges these
   functions by their commandline, ensuring all functions with the same
@@ -43,7 +43,7 @@ def _get_functions_chunked_by_command_line(
       to process.
     delete_flags: The flags to delete from each of the command lines. This
       should contain all flags that make each command line unique.
-  
+
   Returns:
     A dictionary mapping the command line stored as a tuple to a list of
     function names.
