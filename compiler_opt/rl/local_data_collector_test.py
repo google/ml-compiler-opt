@@ -151,9 +151,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       cps = corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
           elements=[
-              corpus.ModuleSpec(
-                  name=f'dummy{i}', size=i, command_line=('-cc1',))
-              for i in range(100)
+              corpus.ModuleSpec(name=f'dummy{i}', size=i) for i in range(100)
           ],
           sampler_type=DeterministicSampler)
       collector = local_data_collector.LocalDataCollector(
@@ -215,8 +213,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
           cps=corpus.create_corpus_for_testing(
               location=self.create_tempdir(),
               elements=[
-                  corpus.ModuleSpec(
-                      name=f'dummy{i}', size=1, command_line=('-cc1',))
+                  corpus.ModuleSpec(name=f'dummy{i}', size=1)
                   for i in range(200)
               ]),
           num_modules=4,
