@@ -272,7 +272,8 @@ class Corpus:
                additional_flags: tuple[str, ...] = (),
                delete_flags: tuple[str, ...] = (),
                replace_flags: dict[str, str] | None = None,
-               sampler_type: type[Sampler] = SamplerBucketRoundRobin):
+               sampler_type: type[Sampler] = SamplerBucketRoundRobin,
+               construct_cmd_for_compilation=True):
     """
     Prepares the corpus by pre-loading all the CorpusElements and preparing for
     sampling. Command line origin (.cmd file or override) is decided, and final
@@ -292,6 +293,9 @@ class Corpus:
         Thinlto index is handled this way, too.
       module_filter: a regular expression used to filter 'in' modules with names
         matching it. None to include everything.
+      construct_cmd_for_compilation: Whether or not to append additional flags
+        to enable passing the command line directly to a subprocess invocation
+        of the compiler.
     """
     self._base_dir = data_path
     # TODO: (b/233935329) Per-corpus *fdo profile paths can be read into
@@ -327,7 +331,7 @@ class Corpus:
     replace_flags = replace_flags.copy() if replace_flags else {}
     fthinlto_index_flag = '-fthinlto-index'
 
-    if has_thinlto:
+    if has_thinlto and construct_cmd_for_compilation:
       additional_flags = ('-mllvm', '-thinlto-assume-merged') + additional_flags
       if cmd_override_was_specified:
         additional_flags = (f'{fthinlto_index_flag}=' +
@@ -338,8 +342,10 @@ class Corpus:
               '-fthinlto-index must be handled by the infrastructure')
         replace_flags[fthinlto_index_flag] = '{context.thinlto_full_path}'
 
-    additional_flags = ('-x', 'ir',
-                        '{context.module_full_path}') + additional_flags
+    default_additional_flags = ()
+    if construct_cmd_for_compilation:
+      default_additional_flags = ('-x', 'ir', '{context.module_full_path}')
+    additional_flags = default_additional_flags + additional_flags
 
     # don't use add/remove for replace
     add_keys = {k.split('=', maxsplit=1)[0] for k in additional_flags}
