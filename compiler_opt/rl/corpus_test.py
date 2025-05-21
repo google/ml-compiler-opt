@@ -80,9 +80,7 @@ class ModuleSpecTest(tf.test.TestCase):
   def test_loadable_spec(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(name='smth', size=1, command_line=('-cc1',))
-        ])
+        elements=[corpus.ModuleSpec(name='smth', size=1)])
     lms = cps.load_module_spec(cps.module_specs[0])
     corpdir2 = self.create_tempdir()
     fqcmd = lms.build_command_line(corpdir2)
@@ -97,7 +95,7 @@ class CorpusTest(tf.test.TestCase):
   def test_constructor(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.ModuleSpec(name='1', size=1, command_line=('-cc1',))],
+        elements=[corpus.ModuleSpec(name='1', size=1)],
         additional_flags=('-add',))
     self.assertEqual(cps.module_specs, (corpus.ModuleSpec(
         name='1',
@@ -111,17 +109,15 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='-cc1 flag not present in .cmd file'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-h1',))
-          ])
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-hi',))
 
     with self.assertRaises(
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-          ],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-cc1',),
           additional_flags=('-fsomething',),
           replace_flags={'-fsomething': 'does not matter'})
 
@@ -129,9 +125,8 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-          ],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-cc1',),
           additional_flags=('-fsomething=new_value',),
           replace_flags={'-fsomething': 'does not matter'})
 
@@ -139,9 +134,8 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-          ],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-cc1',),
           delete_flags=('-fsomething',),
           replace_flags={'-fsomething': 'does not matter'})
 
@@ -149,9 +143,8 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-          ],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-cc1',),
           additional_flags=('-fsomething',),
           delete_flags=('-fsomething',))
 
@@ -159,9 +152,8 @@ class CorpusTest(tf.test.TestCase):
         ValueError, msg='do not use add/delete flags to replace'):
       corpus.create_corpus_for_testing(
           location=self.create_tempdir(),
-          elements=[
-              corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-          ],
+          elements=[corpus.ModuleSpec(name='smol', size=1)],
+          cmdline=('-cc1',),
           additional_flags=('-fsomething=value',),
           delete_flags=('-fsomething',))
 
@@ -171,17 +163,13 @@ class CorpusTest(tf.test.TestCase):
         ValueError,
         msg=f'{location}\'s corpus_description contains no modules.'):
       corpus.create_corpus_for_testing(
-          location=self.create_tempdir(), elements=[])
+          location=self.create_tempdir(), elements=[], cmdline=('-hello',))
 
   def test_ctor_thinlto(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(
-                name='smol',
-                size=1,
-                command_line=('-cc1', '-fthinlto-index=foo'))
-        ],
+        elements=[corpus.ModuleSpec(name='smol', size=1)],
+        cmdline=('-cc1', '-fthinlto-index=foo'),
         is_thinlto=True)
     self.assertIn('-fthinlto-index={context.thinlto_full_path}',
                   cps.module_specs[0].command_line)
@@ -193,12 +181,8 @@ class CorpusTest(tf.test.TestCase):
     corpusdir = self.create_tempdir()
     cps = corpus.create_corpus_for_testing(
         location=corpusdir,
-        elements=[
-            corpus.ModuleSpec(
-                name='somename',
-                size=1,
-                command_line=('-cc1', r'-DMACRO(expr)=do {} while(0)'))
-        ],
+        elements=[corpus.ModuleSpec(name='somename', size=1)],
+        cmdline=('-cc1', r'-DMACRO(expr)=do {} while(0)'),
         additional_flags=('-additional_flag={context.module_full_path}',))
     mod_spec = cps.module_specs[0]
     loaded_spec = cps.load_module_spec(mod_spec)
@@ -213,7 +197,8 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[corpus.ModuleSpec(name='smol', size=1)],
-        override_cmdline=(),
+        cmdline=(),
+        cmdline_is_override=True,
         is_thinlto=True)
     self.assertNotIn('-fthinlto-index', cps.module_specs[0].command_line)
     self.assertEqual(cps.module_specs[0].command_line[-6:],
@@ -224,7 +209,8 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[corpus.ModuleSpec(name='smol', size=1)],
-        override_cmdline=('-something',),
+        cmdline=('-something',),
+        cmdline_is_override=True,
         is_thinlto=True)
     self.assertIn('-fthinlto-index={context.thinlto_full_path}',
                   cps.module_specs[0].command_line)
@@ -238,10 +224,10 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='middle', size=200, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='largest', size=500, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='small', size=100, command_line=('-cc1',))
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
         ])
     sample = cps.sample(4, sort=True)
     self.assertLen(sample, 4)
@@ -254,10 +240,10 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='middle', size=200, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='largest', size=500, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='small', size=100, command_line=('-cc1',))
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
         ],
         sampler_type=corpus.SamplerWithoutReplacement)
     samples = []
@@ -284,10 +270,10 @@ class CorpusTest(tf.test.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='middle', size=200, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='largest', size=500, command_line=('-cc1',)),
-            corpus.ModuleSpec(name='small', size=100, command_line=('-cc1',))
+            corpus.ModuleSpec(name='smol', size=1),
+            corpus.ModuleSpec(name='middle', size=200),
+            corpus.ModuleSpec(name='largest', size=500),
+            corpus.ModuleSpec(name='small', size=100)
         ],
         module_filter=lambda name: re.compile(r'.+l').match(name))
     sample = cps.sample(999, sort=True)
@@ -299,9 +285,7 @@ class CorpusTest(tf.test.TestCase):
   def test_sample_zero(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(name='smol', size=1, command_line=('-cc1',))
-        ])
+        elements=[corpus.ModuleSpec(name='smol', size=1)])
 
     self.assertRaises(ValueError, cps.sample, 0)
     self.assertRaises(ValueError, cps.sample, -213213213)
@@ -309,10 +293,7 @@ class CorpusTest(tf.test.TestCase):
   def test_bucket_sample(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(name=f'{i}', size=i, command_line=('-cc1',))
-            for i in range(100)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(100)])
     # Odds of passing once by pure luck with random.sample: 1.779e-07
     # Try 32 times, for good measure.
     for i in range(32):
@@ -328,10 +309,7 @@ class CorpusTest(tf.test.TestCase):
     # Create corpus with a prime number of modules.
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(name=f'{i}', size=i, command_line=('-cc1',))
-            for i in range(101)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(101)])
 
     # Try 32 times, for good measure.
     for i in range(32):
@@ -345,10 +323,7 @@ class CorpusTest(tf.test.TestCase):
     # Make sure we can sample even when k < n.
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[
-            corpus.ModuleSpec(name=f'{i}', size=i, command_line=('-cc1',))
-            for i in range(100)
-        ])
+        elements=[corpus.ModuleSpec(name=f'{i}', size=i) for i in range(100)])
 
     # Try all 19 possible values 0 < i < n
     for i in range(1, 20):

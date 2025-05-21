@@ -63,9 +63,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       perturbations = [b'00', b'01', b'10']
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
-          elements=[
-              corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
-          ])
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
           'fake_bb_trace_path', 'fake_function_index_path')
@@ -84,9 +82,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         worker_kwargs={}) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
-          elements=[
-              corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
-          ])
+          elements=[corpus.ModuleSpec(name='name1', size=1)])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
           'fake_bb_trace_path', 'fake_function_index_path')
@@ -104,9 +100,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
     results = [f1, f2]
     test_corpus = corpus.create_corpus_for_testing(
         location=self.create_tempdir().full_path,
-        elements=[
-            corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
-        ])
+        elements=[corpus.ModuleSpec(name='name1', size=1)])
     evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
         test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
         'fake_bb_trace_path', 'fake_function_index_path')

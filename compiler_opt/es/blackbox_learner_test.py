@@ -69,9 +69,7 @@ class BlackboxLearnerTests(absltest.TestCase):
 
     self._cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir().full_path,
-        elements=[
-            corpus.ModuleSpec(name='smth', size=1, command_line=('-cc1',))
-        ],
+        elements=[corpus.ModuleSpec(name='smth', size=1)],
         additional_flags=(),
         delete_flags=())
 
