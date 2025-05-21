@@ -40,7 +40,7 @@ _LLVM_LINK_PATH = flags.DEFINE_string(
     None,
     "The path to the llvm-link binary to use.",
     required=True)
-_CHUNK_COUNT = flags.DEFINE_string(
+_CHUNK_COUNT = flags.DEFINE_integer(
     "chunk_count", 256, "The approximate number of chunks to produce.")
 
 
