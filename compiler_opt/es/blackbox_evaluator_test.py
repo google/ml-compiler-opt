@@ -51,7 +51,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         worker_kwargs={}) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
-          elements=[corpus.ModuleSpec(name='name1', size=10)])
+          elements=[
+              corpus.ModuleSpec(name='name1', size=10, command_line=('-cc1',))
+          ])
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 1, 1)
 
@@ -72,7 +74,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         worker_kwargs={}) as pool:
       test_corpus = corpus.create_corpus_for_testing(
           location=self.create_tempdir().full_path,
-          elements=[corpus.ModuleSpec(name='name1', size=1)])
+          elements=[
+              corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
+          ])
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
           test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 2, 1)
 
