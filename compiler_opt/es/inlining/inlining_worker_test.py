@@ -43,8 +43,8 @@ class InliningWorkerTest(absltest.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.ModuleSpec(name="smth1", size=1),
-            corpus.ModuleSpec(name="smth2", size=1)
+            corpus.ModuleSpec(name="smth1", size=1, command_line=("-cc1",)),
+            corpus.ModuleSpec(name="smth2", size=1, command_line=("-cc1",))
         ])
     loaded_modules = [
         cps.load_module_spec(cps.module_specs[0]),
@@ -96,8 +96,8 @@ class InliningWorkerTest(absltest.TestCase):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
         elements=[
-            corpus.ModuleSpec(name="smth1", size=1),
-            corpus.ModuleSpec(name="smth2", size=1)
+            corpus.ModuleSpec(name="smth1", size=1, command_line=("-cc1",)),
+            corpus.ModuleSpec(name="smth2", size=1, command_line=("-cc1",))
         ])
     loaded_modules = [
         cps.load_module_spec(cps.module_specs[0]),
@@ -156,7 +156,9 @@ class InliningWorkerTest(absltest.TestCase):
   def test_compile_failure_returns_none(self):
     cps = corpus.create_corpus_for_testing(
         location=self.create_tempdir(),
-        elements=[corpus.ModuleSpec(name="smth1", size=1)])
+        elements=[
+            corpus.ModuleSpec(name="smth1", size=1, command_line=("-cc1",))
+        ])
     loaded_modules = [cps.load_module_spec(cps.module_specs[0])]
 
     fake_clang_binary = self.create_tempfile("fake_clang")
