@@ -25,40 +25,47 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 from compiler_opt.rl.distributed import ppo_collect_lib
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 
-flags.DEFINE_string('root_dir', None,
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('corpus_path', None, 'Path to the training corpus.')
-flags.DEFINE_string('replay_buffer_server_address', None,
-                    'Replay buffer server address.')
-flags.DEFINE_string('variable_container_server_address', None,
-                    'Variable container server address.')
-flags.DEFINE_multi_string('gin_file', None, 'Paths to the gin-config files.')
-flags.DEFINE_multi_string('gin_bindings', None, 'Gin binding parameters.')
-flags.DEFINE_integer(
+_ROOT_DIR = flags.DEFINE_string(
+    'root_dir',
+    None,
+    'Root directory for writing logs/summaries/checkpoints.',
+    required=True)
+_CORPUS_PATH = flags.DEFINE_string(
+    'corpus_path', None, 'Path to the training corpus.', required=True)
+_REPLAY_BUFFER_SERVER_ADDRESS = flags.DEFINE_string(
+    'replay_buffer_server_address',
+    None,
+    'Replay buffer server address.',
+    required=True)
+_VARIABLE_CONTAINER_SERVER_ADDRESS = flags.DEFINE_string(
+    'variable_container_server_address',
+    None,
+    'Variable container server address.',
+    required=True)
+_GIN_FILES = flags.DEFINE_multi_string('gin_files', None,
+                                       'Paths to the gin-config files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string('gin_bindings', None,
+                                          'Gin binding parameters.')
+_NUM_WORKERS = flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
-
-FLAGS = flags.FLAGS
 
 
 def main(_):
   logging.set_verbosity(logging.INFO)
 
-  gin.parse_config_files_and_bindings(FLAGS.gin_file, FLAGS.gin_bindings)
+  gin.parse_config_files_and_bindings(_GIN_FILES.value, _GIN_BINDINGS.value)
   logging.info(gin.config_str())
 
   ppo_collect_lib.run_collect(
-      root_dir=FLAGS.root_dir,
-      corpus_path=FLAGS.corpus_path,
-      replay_buffer_server_address=FLAGS.replay_buffer_server_address,
-      variable_container_server_address=FLAGS.variable_container_server_address,
-      num_workers=FLAGS.num_workers,
+      root_dir=_ROOT_DIR.value,
+      corpus_path=_CORPUS_PATH.value,
+      replay_buffer_server_address=_REPLAY_BUFFER_SERVER_ADDRESS.value,
+      variable_container_server_address=_VARIABLE_CONTAINER_SERVER_ADDRESS
+      .value,
+      num_workers=_NUM_WORKERS.value,
       worker_manager_class=LocalWorkerPoolManager)
 
 
 if __name__ == '__main__':
-  flags.mark_flags_as_required([
-      'root_dir', 'corpus_path', 'replay_buffer_server_address',
-      'variable_container_server_address'
-  ])
   multiprocessing.handle_main(functools.partial(app.run, main))

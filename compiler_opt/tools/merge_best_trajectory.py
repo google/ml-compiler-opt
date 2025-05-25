@@ -31,8 +31,6 @@ _OUTPUT_CSV_PATH = flags.DEFINE_string(
     'output_csv_path', '',
     'output path of the merged best trajectory repo in csv format if given.')
 
-FLAGS = flags.FLAGS
-
 
 def main(argv):
   if len(argv) > 1:
