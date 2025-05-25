@@ -33,9 +33,6 @@ from compiler_opt.rl.imitation_learning import generate_bc_trajectories_lib
 from compiler_opt.rl import env
 from compiler_opt.rl import env_test
 
-# flags.FLAGS['gin_files'].allow_override = True
-# flags.FLAGS['gin_bindings'].allow_override = True
-
 _eps = 1e-5
 
 
