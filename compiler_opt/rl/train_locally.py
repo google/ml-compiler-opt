@@ -42,20 +42,19 @@ from compiler_opt.rl import random_net_distillation
 from compiler_opt.rl import registry
 from compiler_opt.rl import trainer
 
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('data_path', None,
-                    'Path to directory containing the corpus.')
-flags.DEFINE_integer(
+_ROOT_DIR = flags.DEFINE_string(
+    'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+    'Root directory for writing logs/summaries/checkpoints.')
+_DATA_PATH = flags.DEFINE_string('data_path', None,
+                                 'Path to directory containing the corpus.')
+_NUM_WORKERS = flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
-flags.DEFINE_multi_string('gin_files', [],
-                          'List of paths to gin configuration files.')
-flags.DEFINE_multi_string(
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
-FLAGS = flags.FLAGS
 
 
 @gin.configurable
@@ -73,7 +72,7 @@ def train_eval(worker_manager_class: type[
                dump_best_trajectory=False,
                moving_average_decay_rate=1):
   """Training coordinator."""
-  root_dir = FLAGS.root_dir
+  root_dir = _ROOT_DIR.value
   problem_config = registry.get_configuration()
   time_step_spec, action_spec = problem_config.get_signature_spec()
   preprocessing_layer_creator = problem_config.get_preprocessing_layer_creator()
@@ -103,9 +102,9 @@ def train_eval(worker_manager_class: type[
   }
   saver = policy_saver.PolicySaver(policy_dict=policy_dict)
 
-  logging.info('Loading module specs from corpus at %s.', FLAGS.data_path)
+  logging.info('Loading module specs from corpus at %s.', _DATA_PATH.value)
   cps = corpus.Corpus(
-      data_path=FLAGS.data_path,
+      data_path=_DATA_PATH.value,
       additional_flags=problem_config.flags_to_add(),
       delete_flags=problem_config.flags_to_delete(),
       replace_flags=problem_config.flags_to_replace())
@@ -147,7 +146,7 @@ def train_eval(worker_manager_class: type[
 
   with worker_manager_class(
       worker_class=problem_config.get_runner_type(),
-      count=FLAGS.num_workers,
+      count=_NUM_WORKERS.value,
       worker_kwargs=dict(
           moving_average_decay_rate=moving_average_decay_rate)) as worker_pool:
     data_collector = local_data_collector.LocalDataCollector(
@@ -195,7 +194,7 @@ def train_eval(worker_manager_class: type[
 
 def main(_):
   gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=False)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
   train_eval()

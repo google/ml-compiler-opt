@@ -31,24 +31,30 @@ import tensorflow as tf
 
 from compiler_opt.rl import registry
 
-flags.DEFINE_string('input', None,
-                    'Path to input file containing tf record datasets.')
-flags.DEFINE_string('output_dir', None,
-                    'Path to output directory to store quantiles per feature.')
-flags.DEFINE_float('sampling_fraction', 1.0,
-                   'Fraction to downsample input data.', 0.0, 1.0)
-flags.DEFINE_integer(
+_INPUT = flags.DEFINE_string(
+    'input',
+    None,
+    'Path to input file containing tf record datasets.',
+    required=True)
+_OUTPUT_DIR = flags.DEFINE_string(
+    'output_dir',
+    None,
+    'Path to output directory to store quantiles per feature.',
+    required=True)
+_SAMPLING_FRACTION = flags.DEFINE_float('sampling_fraction', 1.0,
+                                        'Fraction to downsample input data.',
+                                        0.0, 1.0)
+_PARALLELISM = flags.DEFINE_integer(
     'parallelism', None, 'Number of parallel processes to spawn.'
     'Each process does vocab generation for each feature.', 1)
-flags.DEFINE_integer('num_buckets', 1000,
-                     'Number of quantiles to bucketize feature values into.')
-flags.DEFINE_multi_string('gin_files', [],
-                          'List of paths to gin configuration files.')
-flags.DEFINE_multi_string(
+_NUM_BUCKETS = flags.DEFINE_integer(
+    'num_buckets', 1000,
+    'Number of quantiles to bucketize feature values into.')
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
-FLAGS = flags.FLAGS
 
 
 def _get_feature_info(
@@ -125,10 +131,10 @@ def _generate_vocab(feature_values_arrays, feature_name,
   """Downsample and generate vocab using brute force method."""
   feature_values = np.concatenate(feature_values_arrays)
   sample_length = math.floor(
-      np.shape(feature_values)[0] * FLAGS.sampling_fraction)
+      np.shape(feature_values)[0] * _SAMPLING_FRACTION.value)
   values = rng.choice(feature_values, sample_length, replace=False)
-  bin_edges = np.quantile(values, np.linspace(0, 1, FLAGS.num_buckets))
-  filename = os.path.join(FLAGS.output_dir, f'{feature_name}.buckets')
+  bin_edges = np.quantile(values, np.linspace(0, 1, _NUM_BUCKETS.value))
+  filename = os.path.join(_OUTPUT_DIR.value, f'{feature_name}.buckets')
   with open(filename, 'w', encoding='utf-8') as f:
     for edge in bin_edges:
       f.write(f'{edge}\n')
@@ -136,13 +142,13 @@ def _generate_vocab(feature_values_arrays, feature_name,
 
 def main(_) -> None:
   gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=False)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
   problem_config = registry.get_configuration()
 
   # Generate num_buckets quantiles for each feature.
-  tf.io.gfile.makedirs(FLAGS.output_dir)
-  dataset = tf.data.Dataset.list_files(FLAGS.input)
+  tf.io.gfile.makedirs(_OUTPUT_DIR.value)
+  dataset = tf.data.Dataset.list_files(_INPUT.value)
   dataset = tf.data.TFRecordDataset(dataset)
   features_to_not_process = problem_config.get_nonnormalized_features()
 
@@ -171,7 +177,7 @@ def main(_) -> None:
   data_list = data_list.swapaxes(0, 1)
   rng = np.random.default_rng()
 
-  with mp.Pool(FLAGS.parallelism) as pool:
+  with mp.Pool(_PARALLELISM.value) as pool:
     feature_names = sorted(sequence_features)
     for i, feature_values_arrays in enumerate(data_list):
       pool.apply_async(_generate_vocab,
@@ -181,6 +187,4 @@ def main(_) -> None:
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('input')
-  flags.mark_flag_as_required('output_dir')
   app.run(main)
