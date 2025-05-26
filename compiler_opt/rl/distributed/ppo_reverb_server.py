@@ -23,33 +23,34 @@ from compiler_opt.rl.distributed import ppo_reverb_server_lib
 from compiler_opt.rl import registry  # pylint: disable=unused-import
 from compiler_opt.rl import agent_config  # pylint: disable=unused-import
 
-flags.DEFINE_string('root_dir', None,
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_integer('replay_buffer_capacity', 1000000,
-                     'Capacity of the replay buffer table.')
-flags.DEFINE_integer('port', None, 'Port to start the server on.')
-flags.DEFINE_multi_string('gin_files', [],
-                          'List of paths to gin configuration files.')
-flags.DEFINE_multi_string(
+_ROOT_DIR = flags.DEFINE_string(
+    'root_dir',
+    None,
+    'Root directory for writing logs/summaries/checkpoints.',
+    required=True)
+_REPLAY_BUFFER_CAPACITY = flags.DEFINE_integer(
+    'replay_buffer_capacity', 1000000, 'Capacity of the replay buffer table.')
+_PORT = flags.DEFINE_integer(
+    'port', None, 'Port to start the server on.', required=True)
+_GIN_FILES = flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string(
     'gin_bindings', [],
     'Gin bindings to override the values set in the config files.')
-
-FLAGS = flags.FLAGS
 
 
 def main(_):
   logging.set_verbosity(logging.INFO)
 
   gin.parse_config_files_and_bindings(
-      FLAGS.gin_files, bindings=FLAGS.gin_bindings, skip_unknown=False)
+      _GIN_FILES.value, bindings=_GIN_BINDINGS.value, skip_unknown=False)
   logging.info(gin.config_str())
 
   ppo_reverb_server_lib.run_reverb_server(
-      FLAGS.root_dir,
-      port=FLAGS.port,
-      replay_buffer_capacity=FLAGS.replay_buffer_capacity)
+      _ROOT_DIR.value,
+      port=_PORT.value,
+      replay_buffer_capacity=_REPLAY_BUFFER_CAPACITY.value)
 
 
 if __name__ == '__main__':
-  flags.mark_flags_as_required(['root_dir', 'port'])
   app.run(main)
