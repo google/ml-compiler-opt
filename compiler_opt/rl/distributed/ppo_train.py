@@ -28,14 +28,25 @@ from tf_agents.train.utils import strategy_utils
 from compiler_opt.rl import gin_external_configurables  # pylint: disable=unused-import
 from compiler_opt.rl.distributed import ppo_train_lib
 
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('replay_buffer_server_address', None,
-                    'Replay buffer server address.')
-flags.DEFINE_string('variable_container_server_address', None,
-                    'Variable container server address.')
-flags.DEFINE_multi_string('gin_file', None, 'Paths to the gin-config files.')
-flags.DEFINE_multi_string('gin_bindings', None, 'Gin binding parameters.')
+_ROOT_DIR = flags.DEFINE_string(
+    'root_dir',
+    os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+    'Root directory for writing logs/summaries/checkpoints.',
+    required=True)
+_REPLAY_BUFFER_SERVER_ADDRESS = flags.DEFINE_string(
+    'replay_buffer_server_address',
+    None,
+    'Replay buffer server address.',
+    required=True)
+_VARIABLE_CONTAINER_SERVER_ADDRESS = flags.DEFINE_string(
+    'variable_container_server_address',
+    None,
+    'Variable container server address.',
+    required=True)
+_GIN_FILES = flags.DEFINE_multi_string('gin_files', None,
+                                       'Paths to the gin-config files.')
+_GIN_BINDINGS = flags.DEFINE_multi_string('gin_bindings', None,
+                                          'Gin binding parameters.')
 
 FLAGS = flags.FLAGS
 
@@ -43,21 +54,18 @@ FLAGS = flags.FLAGS
 def main(_):
   logging.set_verbosity(logging.INFO)
 
-  gin.parse_config_files_and_bindings(FLAGS.gin_file, FLAGS.gin_bindings)
+  gin.parse_config_files_and_bindings(_GIN_FILES.value, _GIN_BINDINGS.value)
   logging.info(gin.config_str())
 
   strategy = strategy_utils.get_strategy(FLAGS.tpu, FLAGS.use_gpu)
 
   ppo_train_lib.train(
-      FLAGS.root_dir,
+      _ROOT_DIR.value,
       strategy=strategy,
-      replay_buffer_server_address=FLAGS.replay_buffer_server_address,
-      variable_container_server_address=FLAGS.variable_container_server_address)
+      replay_buffer_server_address=_REPLAY_BUFFER_SERVER_ADDRESS.value,
+      variable_container_server_address=_VARIABLE_CONTAINER_SERVER_ADDRESS.value
+  )
 
 
 if __name__ == '__main__':
-  flags.mark_flags_as_required([
-      'root_dir', 'replay_buffer_server_address',
-      'variable_container_server_address'
-  ])
   multiprocessing.handle_main(functools.partial(app.run, main))
