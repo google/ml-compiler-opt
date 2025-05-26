@@ -33,12 +33,23 @@ class ESWorker(worker.Worker):
     self._delta = delta
 
   def compile(self, policy: policy_saver.Policy,
-              samples: list[corpus.ModuleSpec]) -> float:
-    if policy and samples:
+              modules: list[corpus.LoadedModuleSpec]) -> float:
+    if policy and modules:
       self.function_value += self._delta
       return self.function_value
     else:
       return 0.0
+
+
+class SizeReturningESWorker(worker.Worker):
+  """A mock worker that returns the size of the first module."""
+
+  def compile(self, policy: bytes | None,
+              modules: list[corpus.LoadedModuleSpec]) -> int:
+    del policy  # Unused.
+    if not modules:
+      return 0
+    return len(modules[0].loaded_ir)
 
 
 class ESTraceWorker(worker.Worker):
