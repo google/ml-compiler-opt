@@ -45,8 +45,11 @@ from compiler_opt.rl import trainer
 _ROOT_DIR = flags.DEFINE_string(
     'root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
     'Root directory for writing logs/summaries/checkpoints.')
-_DATA_PATH = flags.DEFINE_string('data_path', None,
-                                 'Path to directory containing the corpus.')
+_DATA_PATH = flags.DEFINE_string(
+    'data_path',
+    None,
+    'Path to directory containing the corpus.',
+    required=True)
 _NUM_WORKERS = flags.DEFINE_integer(
     'num_workers', None,
     'Number of parallel data collection workers. `None` for max available')
@@ -201,5 +204,4 @@ def main(_):
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('data_path')
   multiprocessing.handle_main(functools.partial(app.run, main))
