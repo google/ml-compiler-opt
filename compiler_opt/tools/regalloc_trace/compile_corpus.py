@@ -55,12 +55,18 @@ def main(_) -> None:
     # compiler is set up to do normally.
     pass
   elif _MODE.value == 'bc':
+    # We want to only run through the middle end pipeline, so we pass
+    # -emit-llvm-bc to emit bitcode after the optimization pipeline has run.
     additional_compilation_flags = additional_compilation_flags + (
         '-emit-llvm-bc',)
   elif _MODE.value == 'asm':
     # When compiling from bitcode to an object file, we also need to remove all
     # the flags that can load profiles or ThinLTO indices as they are embedded
     # within the BC at this stage of compilation.
+    # We additionally need to ensure that middle end optimizations are
+    # disabled. The flag to do this (-disable-llvm-passes) is added directly
+    # to each module command line in bc mode, so we do not need to handle it
+    # here.
     delete_compilation_flags = delete_compilation_flags + (
         '-fprofile-sample-use', '-fprofile-instrument-use-path',
         'fthinlto-index')
