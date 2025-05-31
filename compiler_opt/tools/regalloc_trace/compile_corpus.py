@@ -14,7 +14,6 @@
 """Compiles a corpus for further downstream processing."""
 
 import os
-import shutil
 import time
 
 from absl import app
@@ -59,8 +58,6 @@ def main(_) -> None:
     additional_compilation_flags = additional_compilation_flags + (
         '-emit-llvm-bc',)
   elif _MODE.value == 'asm':
-    additional_compilation_flags = additional_compilation_flags + (
-        '-disable-llvm-passes',)
     # When compiling from bitcode to an object file, we also need to remove all
     # the flags that can load profiles or ThinLTO indices as they are embedded
     # within the BC at this stage of compilation.
@@ -92,9 +89,15 @@ def main(_) -> None:
   if _MODE.value == 'bc':
     for module in train_corpus.module_specs:
       command_file = os.path.join(_CORPUS_PATH.value, module.name) + '.cmd'
-      new_command_file_path = os.path.join(_OUTPUT_PATH.value,
-                                           module.name) + '.cmd'
-      shutil.copy(command_file, new_command_file_path)
+      with open(command_file, encoding='utf-8') as command_file_handle:
+        command_tuple = tuple(command_file_handle.read().split('\0')[:-1])
+      command_tuple = command_tuple + ('-disable-llvm-passes',)
+      new_command_file_path = (
+          os.path.join(_OUTPUT_PATH.value, module.name) + '.cmd')
+      with open(
+          new_command_file_path, 'w',
+          encoding='utf-8') as new_command_file_handle:
+        new_command_file_handle.write('\0'.join(command_tuple))
 
 
 if __name__ == '__main__':
