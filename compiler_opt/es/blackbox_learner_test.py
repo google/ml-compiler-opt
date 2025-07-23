@@ -176,13 +176,15 @@ class BlackboxLearnerTests(absltest.TestCase):
         count=1,
         pickle_func=cloudpickle.dumps,
         worker_args=(),
-        worker_kwargs={}) as pool:
+        worker_kwargs={
+          'delta': -1.0,
+          'initial_value': 5
+        }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
-      self.assertEqual(len(self._saved_policies), 1)
-      self.assertIn('iteration0', self._saved_policies)
+      self.assertIn('best_policy_1.01_step_0', self._saved_policies)
       self._learner.run_step(pool)
-      self.assertIn('iteration1', self._saved_policies)
+      self.assertIn('best_policy_1.07_step_1', self._saved_policies)
 
   def test_save_best_model_only_saves_best(self):
     with local_worker_manager.LocalWorkerPoolManager(
@@ -191,9 +193,15 @@ class BlackboxLearnerTests(absltest.TestCase):
         pickle_func=cloudpickle.dumps,
         worker_args=(),
         worker_kwargs={
-            'delta': -1.0,
+            'delta': 1.0,
             'initial_value': 5
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
-      self.assertIn('best_policy_100.0_step_0', self._saved_policies)
+      self.assertIn('best_policy_0.94_step_0', self._saved_policies)
+
+      # Check that the within the next step we only get a new iteration
+      # policy and do not save any new best.
+      current_policies_count = len(self._saved_policies)
+      self._learner.run_step(pool)
+      self.assertLen(self._saved_policies, current_policies_count + 1)

@@ -20,6 +20,7 @@ import gin
 from compiler_opt.distributed import worker
 from compiler_opt.rl import corpus
 from compiler_opt.rl import policy_saver
+from compiler_opt.rl import constant
 
 
 @gin.configurable
@@ -34,11 +35,14 @@ class ESWorker(worker.Worker):
 
   def compile(self, policy: policy_saver.Policy,
               modules: list[corpus.LoadedModuleSpec]) -> float:
+    # We return the values with constant.DELTA subtracted so that we get
+    # exact values we can assert against when writing tests that only see
+    # the relative reward.
     if policy and modules:
       self.function_value += self._delta
-      return self.function_value
+      return self.function_value - constant.DELTA
     else:
-      return 0.0
+      return 100 - constant.DELTA
 
 
 class SizeReturningESWorker(worker.Worker):
