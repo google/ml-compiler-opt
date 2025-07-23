@@ -177,8 +177,8 @@ class BlackboxLearnerTests(absltest.TestCase):
         pickle_func=cloudpickle.dumps,
         worker_args=(),
         worker_kwargs={
-          'delta': -1.0,
-          'initial_value': 5
+            'delta': -1.0,
+            'initial_value': 5
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
