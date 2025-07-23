@@ -257,6 +257,10 @@ class BlackboxLearner:
         model_save_result.get()
       self._models_to_flush.pop(0)
 
+  def flush_models(self):
+    self._start_model_saving()
+    self._flush_models()
+
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
