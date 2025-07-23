@@ -17,6 +17,7 @@ from absl import logging
 import dataclasses
 import gin
 import math
+import multiprocessing
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
@@ -162,6 +163,15 @@ class BlackboxLearner:
     self._evaluator = self._config.evaluator(self._train_corpus,
                                              self._config.estimator_type)
 
+    self._thread_pool = multiprocessing.pool.ThreadPool(processes=1)
+    self._models_to_save = []
+    self._models_to_flush = []
+
+  def __del__(self):
+    self._start_model_saving()
+    self._flush_models()
+    self._thread_pool.close()
+
   def _get_perturbations(self) -> list[npt.NDArray[np.float32]]:
     """Get perturbations for the model weights."""
     rng = np.random.default_rng(seed=self._seed)
@@ -225,11 +235,27 @@ class BlackboxLearner:
           len(train_wins) / len(rewards),
           step=self._step)
 
-  def _save_model(self) -> None:
+  def _save_model(self, parameters: npt.NDArray[np.float32],
+                  policy_name: str) -> None:
     """Save the model."""
     logging.info('Saving the model.')
-    self._policy_saver_fn(
-        parameters=self._model_weights, policy_name=f'iteration{self._step}')
+    self._models_to_save.append((parameters, policy_name))
+
+  def _start_model_saving(self):
+    for _ in range(len(self._models_to_save)):
+      model_parameters, model_name = self._models_to_save[0]
+      self._models_to_flush.append(
+          self._thread_pool.apply_async(self._policy_saver_fn,
+                                        (model_parameters, model_name)))
+      self._models_to_save.pop(0)
+
+  def _flush_models(self):
+    for _ in range(len(self._models_to_flush)):
+      model_save_result = self._models_to_flush[0]
+      model_save_result.wait()
+      if not model_save_result.successful():
+        model_save_result.get()
+      self._models_to_flush.pop(0)
 
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
@@ -257,8 +283,10 @@ class BlackboxLearner:
         for perturbation in initial_perturbations
     ]
 
+    self._start_model_saving()
     results = self._evaluator.get_results(pool, perturbations_as_bytes)
     rewards = self._evaluator.get_rewards(results)
+    self._flush_models()
 
     num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
     logging.info('Pruned [%d]', num_pruned)
@@ -281,12 +309,13 @@ class BlackboxLearner:
                    '%d, saving.', self._global_max_reward, self._step)
       max_index = np.argmax(rewards)
       perturbation = initial_perturbations[max_index]
-      self._policy_saver_fn(
+      self._save_model(
           parameters=self._model_weights + perturbation,
           policy_name=f'best_policy_{self._global_max_reward}_step'
           f'_{self._step}',
       )
 
-    self._save_model()
+    self._save_model(
+        parameters=self._model_weights, policy_name=f'iteration{self._step}')
 
     self._step += 1
