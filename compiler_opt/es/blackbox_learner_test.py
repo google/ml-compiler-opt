@@ -195,7 +195,7 @@ class BlackboxLearnerTests(absltest.TestCase):
       self._learner.run_step(pool)
       # Check the policy from step zero since it will be flushed in step one.
       self.assertIn('best_policy_1.01_step_0',
-              os.listdir(self._iteration_policies_path))
+                    os.listdir(self._iteration_policies_path))
       # Manually flush the model since we are not going to run another step.
       self._learner.flush_models()
       self.assertIn('best_policy_1.07_step_1',
@@ -217,7 +217,7 @@ class BlackboxLearnerTests(absltest.TestCase):
       self._learner.run_step(pool)
       # CHeck the policy from step zero since it will be flushed in step one.
       self.assertIn('best_policy_0.94_step_0',
-              os.listdir(self._iteration_policies_path))
+                    os.listdir(self._iteration_policies_path))
       # Check that the within the next step we only get a new iteration
       # policy and do not save any new best.
       current_policies_count = len(os.listdir(self._iteration_policies_path))
