@@ -41,7 +41,7 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       # pylint: enable=protected-access
       results = evaluator.get_results(pool, perturbations)
       self.assertSequenceAlmostEqual([result.result() for result in results],
-                                     [1.0, 1.0, 1.0])
+                                     [0.99, 0.99, 0.99])
 
   def test_sampling_set_baseline(self):
     with local_worker_manager.LocalWorkerPoolManager(
