@@ -242,20 +242,18 @@ class BlackboxLearner:
     self._models_to_save.append((parameters, policy_name))
 
   def _start_model_saving(self):
-    for _ in range(len(self._models_to_save)):
-      model_parameters, model_name = self._models_to_save[0]
+    for model_parameters, model_name in self._models_to_save:
       self._models_to_flush.append(
           self._thread_pool.apply_async(self._policy_saver_fn,
                                         (model_parameters, model_name)))
-      self._models_to_save.pop(0)
+    self._models_to_save.clear()
 
   def _flush_models(self):
-    for _ in range(len(self._models_to_flush)):
-      model_save_result = self._models_to_flush[0]
-      model_save_result.wait()
-      if not model_save_result.successful():
-        model_save_result.get()
-      self._models_to_flush.pop(0)
+    for model_to_flush in self._models_to_flush:
+      model_to_flush.wait()
+      if not model_to_flush.successful():
+        model_to_flush.get()
+    self._models_to_flush.clear()
 
   def flush_models(self):
     self._start_model_saving()
