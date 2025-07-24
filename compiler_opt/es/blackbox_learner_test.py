@@ -121,7 +121,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     # The directory should be unique per test and thus should not exist
     # before we create it. Raise an error otherwise.
     if os.path.exists(self._iteration_policies_path):
-      raise ValueError("Test directory already exists.")
+      raise ValueError('Test directory already exists.')
     os.mkdir(self._iteration_policies_path)
 
     def _policy_saver_fn(parameters: npt.NDArray[np.float32],
