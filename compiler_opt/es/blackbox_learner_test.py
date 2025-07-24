@@ -19,6 +19,7 @@ import cloudpickle
 import gin
 import numpy as np
 import numpy.typing as npt
+import pathlib
 import tensorflow as tf
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import actor_policy
@@ -115,12 +116,19 @@ class BlackboxLearnerTests(absltest.TestCase):
                                     'policy')
     saver.save(policy_save_path)
 
-    self._saved_policies = []
+    self._iteration_policies_path = os.path.join(output_dir.full_path,
+                                                 'policies')
+    # The directory should be unique per test and thus should not exist
+    # before we create it. Raise an error otherwise.
+    if os.path.exists(self._iteration_policies_path):
+      raise ValueError("Test directory already exists.")
+    os.mkdir(self._iteration_policies_path)
 
     def _policy_saver_fn(parameters: npt.NDArray[np.float32],
                          policy_name: str) -> None:
       if parameters is not None and policy_name:
-        self._saved_policies.append(policy_name)
+        pathlib.Path(os.path.join(self._iteration_policies_path,
+                                  policy_name)).touch()
         return None
       return None
 
@@ -182,9 +190,11 @@ class BlackboxLearnerTests(absltest.TestCase):
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
-      self.assertIn('best_policy_1.01_step_0', self._saved_policies)
+      self.assertIn('best_policy_1.01_step_0',
+                    os.listdir(self._iteration_policies_path))
       self._learner.run_step(pool)
-      self.assertIn('best_policy_1.07_step_1', self._saved_policies)
+      self.assertIn('best_policy_1.07_step_1',
+                    os.listdir(self._iteration_policies_path))
 
   def test_save_best_model_only_saves_best(self):
     with local_worker_manager.LocalWorkerPoolManager(
@@ -198,10 +208,12 @@ class BlackboxLearnerTests(absltest.TestCase):
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
-      self.assertIn('best_policy_0.94_step_0', self._saved_policies)
+      self.assertIn('best_policy_0.94_step_0',
+                    os.listdir(self._iteration_policies_path))
 
       # Check that the within the next step we only get a new iteration
       # policy and do not save any new best.
-      current_policies_count = len(self._saved_policies)
+      current_policies_count = len(os.listdir(self._iteration_policies_path))
       self._learner.run_step(pool)
-      self.assertLen(self._saved_policies, current_policies_count + 1)
+      self.assertLen(
+          os.listdir(self._iteration_policies_path), current_policies_count + 1)
