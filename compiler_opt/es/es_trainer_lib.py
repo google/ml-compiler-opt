@@ -224,4 +224,6 @@ def train(additional_compilation_flags=(),
     for _ in range(learner_config.total_steps):
       learner.run_step(pool)
 
+  learner.flush_models()
+
   return learner.get_model_weights()

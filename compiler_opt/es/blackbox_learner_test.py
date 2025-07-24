@@ -121,7 +121,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     # The directory should be unique per test and thus should not exist
     # before we create it. Raise an error otherwise.
     if os.path.exists(self._iteration_policies_path):
-      raise ValueError("Test directory already exists.")
+      raise ValueError('Test directory already exists.')
     os.mkdir(self._iteration_policies_path)
 
     def _policy_saver_fn(parameters: npt.NDArray[np.float32],
@@ -178,6 +178,12 @@ class BlackboxLearnerTests(absltest.TestCase):
       for value in self._learner.get_model_weights()[:5]:
         self.assertNotAlmostEqual(value, 0.0)
 
+      # Normally the models would be saved asynchronously while
+      # blackbox_learner waits for compilation results. Flush them explicitly
+      # here so we can see the model.
+      self._learner.flush_models()
+      self.assertIn('iteration0', os.listdir(self._iteration_policies_path))
+
   def test_save_best_model(self):
     with local_worker_manager.LocalWorkerPoolManager(
         blackbox_test_utils.ESWorker,
@@ -190,9 +196,12 @@ class BlackboxLearnerTests(absltest.TestCase):
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
+      self._learner.run_step(pool)
+      # Check the policy from step zero since it will be flushed in step one.
       self.assertIn('best_policy_1.01_step_0',
                     os.listdir(self._iteration_policies_path))
-      self._learner.run_step(pool)
+      # Manually flush the model since we are not going to run another step.
+      self._learner.flush_models()
       self.assertIn('best_policy_1.07_step_1',
                     os.listdir(self._iteration_policies_path))
 
@@ -208,12 +217,15 @@ class BlackboxLearnerTests(absltest.TestCase):
         }) as pool:
       self._learner.set_baseline(pool)
       self._learner.run_step(pool)
+
+      self._learner.run_step(pool)
+      # CHeck the policy from step zero since it will be flushed in step one.
       self.assertIn('best_policy_0.94_step_0',
                     os.listdir(self._iteration_policies_path))
-
       # Check that the within the next step we only get a new iteration
       # policy and do not save any new best.
       current_policies_count = len(os.listdir(self._iteration_policies_path))
-      self._learner.run_step(pool)
+      # Flush the policies since we are not going to run another step.
+      self._learner.flush_models()
       self.assertLen(
           os.listdir(self._iteration_policies_path), current_policies_count + 1)
