@@ -13,7 +13,9 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.feature_ops."""
 
+import json
 import os
+import tempfile
 
 from absl.testing import parameterized
 import numpy as np
@@ -40,6 +42,25 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
   def setUp(self):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
     super().setUp()
+
+  def _create_temp_vocab_file(self, vocab_data):
+    """Helper method to create a temporary vocab file with given data."""
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=False) as f:
+      if isinstance(vocab_data, str):
+        f.write(vocab_data)  # For invalid JSON
+      else:
+        json.dump(vocab_data, f)
+      return f.name
+
+  def _test_vocab_file_dimensions(self, vocab_data, expected_dimensions):
+    """Helper method to test vocab file dimension reading."""
+    temp_file = self._create_temp_vocab_file(vocab_data)
+    try:
+      dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(temp_file)
+      self.assertEqual(expected_dimensions, dimensions)
+    finally:
+      os.unlink(temp_file)
 
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
@@ -72,6 +93,13 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([2, 1, 1], output.shape)
     self.assertAllClose(expected.tolist(), output)
 
+  def test_identity_fn_without_expand_dims(self):
+    # obs in shape of [2, 1].
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = feature_ops.identity_fn(obs, expand_dims=False)
+    self.assertAllEqual(obs.shape, output.shape)
+    self.assertAllClose(obs, output)
+
   @parameterized.named_parameters(
       *_get_sqrt_z_score_preprocessing_fn_cross_product())
   def test_normalize_fn_sqrt_z_normalization(self, with_sqrt, with_z_score,
@@ -103,6 +131,64 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllEqual(expected_shape, output.shape)
     self.assertAllClose(expected, output)
+
+  def test_get_ir2vec_normalize_fn(self):
+    normalize_fn = feature_ops.get_ir2vec_normalize_fn()
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = normalize_fn(obs)
+    self.assertAllEqual(obs.shape, output.shape)
+    self.assertAllClose(obs, output)
+
+    normalize_fn = feature_ops.get_ir2vec_normalize_fn(
+        with_standardization=True)
+    output = normalize_fn(obs)
+    expected = np.array([[-1], [1]])
+    self.assertAllEqual(obs.shape, output.shape)
+    self.assertAllClose(expected, output)
+
+  def test_get_ir2vec_dimensions_from_vocab_file_valid_file(self):
+    vocab_data = {
+        'section1': {
+            'instruction1': [1.0, 2.0, 3.0, 4.0, 5.0],  # 5 dimensions
+            'instruction2': [2.0, 3.0, 4.0, 5.0, 6.0]
+        },
+        'section2': {
+            'instruction3': [0.1, 0.2, 0.3, 0.4, 0.5]
+        }
+    }
+    self._test_vocab_file_dimensions(vocab_data, 5)
+
+  @parameterized.named_parameters(
+      ('empty_embedding', {
+          'section1': {
+              'instruction1': []
+          }
+      }, 0),
+      ('invalid_json', 'invalid json content {', 0),
+      ('wrong_structure_list', [], 0),
+      ('section_not_dict', {
+          'section1': 'not_a_dict'
+      }, 0),
+      ('embedding_not_list', {
+          'section1': {
+              'instruction1': 'not_a_list'
+          }
+      }, 0),
+      ('empty_sections', {}, 0),
+      ('section_with_no_embeddings', {
+          'section1': {}
+      }, 0),
+  )
+  def test_get_ir2vec_dimensions_from_vocab_file_error_cases(
+      self, vocab_data, expected_dimensions):
+    """Test various error cases that should return 0 dimensions."""
+    self._test_vocab_file_dimensions(vocab_data, expected_dimensions)
+
+  def test_get_ir2vec_dimensions_from_vocab_file_nonexistent_file(self):
+    """Test handling of non-existent file."""
+    dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(
+        '/nonexistent/path/file.json')
+    self.assertEqual(0, dimensions)
 
 
 if __name__ == '__main__':
