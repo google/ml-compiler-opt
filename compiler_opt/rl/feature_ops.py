@@ -87,18 +87,34 @@ def get_normalize_fn(quantile: list[float],
   return normalize
 
 
-def get_ir2vec_normalize_fn(with_standardization: bool = False,
+def get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization: bool = False,
                             eps: float = 1e-8):
-  """Return a normalization function for embeddings."""
-  if with_standardization:
+  """Return a normalization function for embeddings.
+
+  Args:
+    ir2vec_with_z_score_normalization: If True, applies z-score standardization
+      (whitening) to the embeddings per batch. This transforms the embeddings
+      to have zero mean and unit variance across the batch dimension.
+      Setting this to True would reduce the impact of outlier embeddings and
+      improve training stability, especially when embeddings from different
+      batches have significantly different scales.
+
+    eps: Small epsilon value added to standard deviation to prevent division
+      by zero during standardization.
+
+  Returns:
+    A function that normalizes IR2Vec embeddings according to the specified
+    parameters.
+  """
+  if ir2vec_with_z_score_normalization:
     # Whitens the embeddings per batch.
-    def standardize(batch_embeddings: types.Float):
+    def z_score_normalize(batch_embeddings: types.Float):
       mean = tf.math.reduce_mean(batch_embeddings, axis=0, keepdims=True)
       std = tf.math.reduce_std(batch_embeddings, axis=0, keepdims=True)
       standardized_embeddings = (batch_embeddings - mean) / (std + eps)
       return standardized_embeddings
 
-    return standardize
+    return z_score_normalize
   # Currently, we just return the identity function for embeddings.
   # We can extend this to include other normalizations like L2
   # normalization if needed.
@@ -113,13 +129,18 @@ def get_ir2vec_dimensions_from_vocab_file(vocab_file_path: str) -> int:
     vocab_file_path: Path to the IR2Vec vocabulary JSON file.
 
   Returns:
-    The number of dimensions in the embeddings, or 0 if file cannot be read.
+    The number of dimensions in the embeddings.
+
+  Raises:
+    tf.errors.NotFoundError: If the vocabulary file cannot be found.
+    json.JSONDecodeError: If the vocabulary file contains invalid JSON.
+    ValueError: If the vocabulary file structure is invalid.
   """
   try:
     # Load the vocabulary file and get the length of the first embedding.
     # Robust structure checks are done by IR2Vec within LLVM.
     # This method could be replaced to use IR2Vec Python APIs, when available.
-    with open(vocab_file_path, encoding='utf-8') as f:
+    with tf.io.gfile.GFile(vocab_file_path, 'r') as f:
       vocab_data = json.load(f)
 
     # Check if vocab_data is a dict with sections
@@ -139,10 +160,13 @@ def get_ir2vec_dimensions_from_vocab_file(vocab_file_path: str) -> int:
     if not isinstance(first_embedding, list):
       raise ValueError('Vocabulary file embeddings must be lists')
 
+    if not first_embedding:
+      raise ValueError('Vocabulary file embeddings must be non-empty')
+
     # Find any embedding array and return its length
     return len(first_embedding)
 
-  except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
+  except (tf.errors.NotFoundError, json.JSONDecodeError, ValueError) as e:
     logging.error('Error reading vocab file %s: %s', vocab_file_path, e)
     logging.warning('Not using IR2Vec embeddings')
-    return 0
+    raise e

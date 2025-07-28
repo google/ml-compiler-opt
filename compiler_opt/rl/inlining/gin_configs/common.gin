@@ -6,7 +6,6 @@ launcher_path=None
 llvm_size_path=None
 clang_path=None
 ir2vec_vocab_path=None
-ir2vec_standardize=False
 
 runners.InliningRunner.llvm_size_path=%llvm_size_path
 runners.InliningRunner.clang_path=%clang_path

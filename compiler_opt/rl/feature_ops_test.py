@@ -62,6 +62,17 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     finally:
       os.unlink(temp_file)
 
+  def _test_vocab_file_dimensions_with_exception(self, vocab_data,
+                                                 expected_exception):
+    """Helper method to test vocab file dimension reading that should raise
+    exceptions."""
+    temp_file = self._create_temp_vocab_file(vocab_data)
+    try:
+      with self.assertRaises(expected_exception):
+        feature_ops.get_ir2vec_dimensions_from_vocab_file(temp_file)
+    finally:
+      os.unlink(temp_file)
+
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
 
@@ -140,7 +151,7 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(obs, output)
 
     normalize_fn = feature_ops.get_ir2vec_normalize_fn(
-        with_standardization=True)
+        ir2vec_with_z_score_normalization=True)
     output = normalize_fn(obs)
     expected = np.array([[-1], [1]])
     self.assertAllEqual(obs.shape, output.shape)
@@ -163,32 +174,33 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
           'section1': {
               'instruction1': []
           }
-      }, 0),
-      ('invalid_json', 'invalid json content {', 0),
-      ('wrong_structure_list', [], 0),
+      }, ValueError),
+      ('invalid_json', 'invalid json content {', json.JSONDecodeError),
+      ('wrong_structure_list', [], ValueError),
       ('section_not_dict', {
           'section1': 'not_a_dict'
-      }, 0),
+      }, ValueError),
       ('embedding_not_list', {
           'section1': {
               'instruction1': 'not_a_list'
           }
-      }, 0),
-      ('empty_sections', {}, 0),
+      }, ValueError),
+      ('empty_sections', {}, ValueError),
       ('section_with_no_embeddings', {
           'section1': {}
-      }, 0),
+      }, ValueError),
   )
   def test_get_ir2vec_dimensions_from_vocab_file_error_cases(
-      self, vocab_data, expected_dimensions):
-    """Test various error cases that should return 0 dimensions."""
-    self._test_vocab_file_dimensions(vocab_data, expected_dimensions)
+      self, vocab_data, expected_exception):
+    """Test various error cases that should raise exceptions."""
+    self._test_vocab_file_dimensions_with_exception(vocab_data,
+                                                    expected_exception)
 
   def test_get_ir2vec_dimensions_from_vocab_file_nonexistent_file(self):
     """Test handling of non-existent file."""
-    dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(
-        '/nonexistent/path/file.json')
-    self.assertEqual(0, dimensions)
+    with self.assertRaises(tf.errors.NotFoundError):
+      feature_ops.get_ir2vec_dimensions_from_vocab_file(
+          '/nonexistent/path/file.json')
 
 
 if __name__ == '__main__':

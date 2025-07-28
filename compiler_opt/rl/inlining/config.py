@@ -92,11 +92,12 @@ def get_inlining_signature_spec(ir2vec_vocab_path: str | None = None):
 
 
 @gin.configurable
-def get_observation_processing_layer_creator(quantile_file_dir=None,
-                                             with_sqrt=True,
-                                             with_z_score_normalization=True,
-                                             standardize_ir2vec=True,
-                                             eps=1e-8):
+def get_observation_processing_layer_creator(
+    quantile_file_dir=None,
+    with_sqrt=True,
+    with_z_score_normalization=True,
+    ir2vec_with_z_score_normalization=True,
+    eps=1e-8):
   """Wrapper for observation_processing_layer."""
   quantile_map = feature_ops.build_quantile_map(quantile_file_dir)
 
@@ -104,8 +105,8 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
     """Creates the layer to process observation given obs_spec."""
     if obs_spec.name in ('caller_embedding', 'callee_embedding'):
       return tf.keras.layers.Lambda(
-          feature_ops.get_ir2vec_normalize_fn(
-              with_standardization=standardize_ir2vec, eps=eps))
+          feature_ops.get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization,
+                                              eps))
 
     quantile = quantile_map[obs_spec.name]
     return tf.keras.layers.Lambda(

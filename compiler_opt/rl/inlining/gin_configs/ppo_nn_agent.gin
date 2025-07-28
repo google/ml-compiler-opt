@@ -31,7 +31,7 @@ RandomNetworkDistillation.half_decay_steps = 10000
 inlining.config.get_observation_processing_layer_creator.quantile_file_dir='compiler_opt/rl/inlining/vocab'
 inlining.config.get_observation_processing_layer_creator.with_sqrt = False
 inlining.config.get_observation_processing_layer_creator.with_z_score_normalization = False
-inlining.config.get_observation_processing_layer_creator.standardize_ir2vec = %ir2vec_standardize
+inlining.config.get_observation_processing_layer_creator.ir2vec_with_z_score_normalization = True
 
 inlining.config.get_inlining_signature_spec.ir2vec_vocab_path=%ir2vec_vocab_path
 
