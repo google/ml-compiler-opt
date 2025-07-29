@@ -96,7 +96,6 @@ def get_ir2vec_normalize_fn(
       Setting this to True would reduce the impact of outlier embeddings and
       improve training stability, especially when embeddings from different
       batches have significantly different scales.
-
     eps: Small epsilon value added to standard deviation to prevent division
       by zero during standardization.
 

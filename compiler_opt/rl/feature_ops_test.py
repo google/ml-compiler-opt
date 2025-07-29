@@ -43,35 +43,25 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
     super().setUp()
 
-  def _create_temp_vocab_file(self, vocab_data):
-    """Helper method to create a temporary vocab file with given data."""
-    with tempfile.NamedTemporaryFile(
-        mode='w', suffix='.json', delete=False) as f:
-      if isinstance(vocab_data, str):
-        f.write(vocab_data)  # For invalid JSON
-      else:
-        json.dump(vocab_data, f)
-      return f.name
-
   def _test_vocab_file_dimensions(self, vocab_data, expected_dimensions):
     """Helper method to test vocab file dimension reading."""
-    temp_file = self._create_temp_vocab_file(vocab_data)
-    try:
-      dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(temp_file)
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=True) as f:
+      json.dump(vocab_data, f)
+      f.flush()
+      dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(f.name)
       self.assertEqual(expected_dimensions, dimensions)
-    finally:
-      os.unlink(temp_file)
 
   def _test_vocab_file_dimensions_with_exception(self, vocab_data,
                                                  expected_exception):
     """Helper method to test vocab file dimension reading that should raise
     exceptions."""
-    temp_file = self._create_temp_vocab_file(vocab_data)
-    try:
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=True) as f:
+      json.dump(vocab_data, f)
+      f.flush()
       with self.assertRaises(expected_exception):
-        feature_ops.get_ir2vec_dimensions_from_vocab_file(temp_file)
-    finally:
-      os.unlink(temp_file)
+        feature_ops.get_ir2vec_dimensions_from_vocab_file(f.name)
 
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
