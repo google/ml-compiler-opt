@@ -104,13 +104,6 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([2, 1, 1], output.shape)
     self.assertAllClose(expected.tolist(), output)
 
-  def test_identity_fn_without_expand_dims(self):
-    # obs in shape of [2, 1].
-    obs = tf.constant(value=[[2.0], [8.0]])
-    output = feature_ops.identity_fn(obs, expand_dims=False)
-    self.assertAllEqual(obs.shape, output.shape)
-    self.assertAllClose(obs, output)
-
   @parameterized.named_parameters(
       *_get_sqrt_z_score_preprocessing_fn_cross_product())
   def test_normalize_fn_sqrt_z_normalization(self, with_sqrt, with_z_score,
@@ -175,7 +168,6 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
               'instruction1': []
           }
       }, ValueError),
-      ('invalid_json', 'invalid json content {', json.JSONDecodeError),
       ('wrong_structure_list', [], ValueError),
       ('section_not_dict', {
           'section1': 'not_a_dict'
@@ -195,12 +187,6 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
     """Test various error cases that should raise exceptions."""
     self._test_vocab_file_dimensions_with_exception(vocab_data,
                                                     expected_exception)
-
-  def test_get_ir2vec_dimensions_from_vocab_file_nonexistent_file(self):
-    """Test handling of non-existent file."""
-    with self.assertRaises(tf.errors.NotFoundError):
-      feature_ops.get_ir2vec_dimensions_from_vocab_file(
-          '/nonexistent/path/file.json')
 
 
 if __name__ == '__main__':

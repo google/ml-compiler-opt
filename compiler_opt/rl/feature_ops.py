@@ -16,13 +16,13 @@
 import json
 import os
 import re
+import functools
 
 from collections.abc import Callable
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 from tf_agents.typing import types
-from absl import logging
 
 
 def build_quantile_map(quantile_file_dir: str):
@@ -47,12 +47,9 @@ def discard_fn(obs: types.Float):
   return tf.expand_dims(zeros, axis=-1)
 
 
-def identity_fn(obs: types.Float, expand_dims: bool = True):
-  """Return the same value, optionally expanding the last dimension."""
-  if expand_dims:
-    return tf.cast(tf.expand_dims(obs, -1), tf.float32)
-  else:
-    return tf.cast(obs, tf.float32)
+def identity_fn(obs: types.Float):
+  """Return the same value with expanding the last dimension."""
+  return tf.cast(tf.expand_dims(obs, -1), tf.float32)
 
 
 def get_normalize_fn(quantile: list[float],
@@ -87,8 +84,9 @@ def get_normalize_fn(quantile: list[float],
   return normalize
 
 
-def get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization: bool = False,
-                            eps: float = 1e-8):
+def get_ir2vec_normalize_fn(
+    ir2vec_with_z_score_normalization: bool = False,
+    eps: float = 1e-8) -> Callable[[tf.Tensor], tf.Tensor]:
   """Return a normalization function for embeddings.
 
   Args:
@@ -107,8 +105,9 @@ def get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization: bool = False,
     parameters.
   """
   if ir2vec_with_z_score_normalization:
-    # Whitens the embeddings per batch.
-    def z_score_normalize(batch_embeddings: types.Float):
+
+    def z_score_normalize(batch_embeddings: tf.Tensor) -> tf.Tensor:
+      """Whitens the embeddings per batch."""
       mean = tf.math.reduce_mean(batch_embeddings, axis=0, keepdims=True)
       std = tf.math.reduce_std(batch_embeddings, axis=0, keepdims=True)
       standardized_embeddings = (batch_embeddings - mean) / (std + eps)
@@ -118,7 +117,7 @@ def get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization: bool = False,
   # Currently, we just return the identity function for embeddings.
   # We can extend this to include other normalizations like L2
   # normalization if needed.
-  return lambda x: identity_fn(x, expand_dims=False)
+  return functools.partial(tf.cast, dtype=tf.float32)
 
 
 def get_ir2vec_dimensions_from_vocab_file(vocab_file_path: str) -> int:
@@ -132,41 +131,33 @@ def get_ir2vec_dimensions_from_vocab_file(vocab_file_path: str) -> int:
     The number of dimensions in the embeddings.
 
   Raises:
-    tf.errors.NotFoundError: If the vocabulary file cannot be found.
-    json.JSONDecodeError: If the vocabulary file contains invalid JSON.
     ValueError: If the vocabulary file structure is invalid.
   """
-  try:
-    # Load the vocabulary file and get the length of the first embedding.
-    # Robust structure checks are done by IR2Vec within LLVM.
-    # This method could be replaced to use IR2Vec Python APIs, when available.
-    with tf.io.gfile.GFile(vocab_file_path, 'r') as f:
-      vocab_data = json.load(f)
+  # Load the vocabulary file and get the length of the first embedding.
+  # Robust structure checks are done by IR2Vec within LLVM.
+  # This method could be replaced to use IR2Vec Python APIs, when available.
+  with tf.io.gfile.GFile(vocab_file_path, 'r') as f:
+    vocab_data = json.load(f)
 
-    # Check if vocab_data is a dict with sections
-    if not isinstance(vocab_data, dict) or not vocab_data:
-      raise ValueError('Vocabulary file must contain a non-empty dictionary')
+  # Check if vocab_data is a dict with sections
+  if not isinstance(vocab_data, dict) or not vocab_data:
+    raise ValueError('Vocabulary file must contain a non-empty dictionary')
 
-    # Get the first section
-    sections = vocab_data.values()
-    first_section = next(iter(sections), None)
-    if not isinstance(first_section, dict) or not first_section:
-      raise ValueError('Vocabulary file sections must be non-empty '
-                       'dictionaries')
+  # Get the first section
+  sections = vocab_data.values()
+  first_section = next(iter(sections), None)
+  if not isinstance(first_section, dict) or not first_section:
+    raise ValueError('Vocabulary file sections must be non-empty '
+                     'dictionaries')
 
-    # Get the first embedding
-    embeddings = first_section.values()
-    first_embedding = next(iter(embeddings), None)
-    if not isinstance(first_embedding, list):
-      raise ValueError('Vocabulary file embeddings must be lists')
+  # Get the first embedding
+  embeddings = first_section.values()
+  first_embedding = next(iter(embeddings), None)
+  if not isinstance(first_embedding, list):
+    raise ValueError('Vocabulary file embeddings must be lists')
 
-    if not first_embedding:
-      raise ValueError('Vocabulary file embeddings must be non-empty')
+  if not first_embedding:
+    raise ValueError('Vocabulary file embeddings must be non-empty')
 
-    # Find any embedding array and return its length
-    return len(first_embedding)
-
-  except (tf.errors.NotFoundError, json.JSONDecodeError, ValueError) as e:
-    logging.error('Error reading vocab file %s: %s', vocab_file_path, e)
-    logging.warning('Not using IR2Vec embeddings')
-    raise e
+  # Find any embedding array and return its length
+  return len(first_embedding)
