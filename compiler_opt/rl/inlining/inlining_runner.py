@@ -39,9 +39,11 @@ class InliningRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  def __init__(self, llvm_size_path: str, *args, **kwargs):
+  def __init__(self, llvm_size_path: str, ir2vec_vocab_path: str | None, *args,
+               **kwargs):
     super().__init__(*args, **kwargs)
     self._llvm_size_path = llvm_size_path
+    self._ir2vec_vocab_path = ir2vec_vocab_path
 
   def compile_and_get_size(self, command_line: corpus.FullyQualifiedCmdLine,
                            tf_policy_path: str | None,
@@ -75,10 +77,16 @@ class InliningRunner(compilation_runner.CompilationRunner):
     cmdline = []
     if self._launcher_path:
       cmdline.append(self._launcher_path)
-    cmdline.extend([self._clang_path] + list(command_line) + [
-        '-mllvm', '-enable-ml-inliner=development', '-mllvm', '-training-log=' +
-        log_path, '-o', output_native_path
-    ])
+    cmdline.extend([self._clang_path] + list(command_line))
+
+    mllvm_args = ['-mllvm', '-enable-ml-inliner=development']
+    if self._ir2vec_vocab_path:
+      mllvm_args.extend([
+          '-mllvm', '-ml-inliner-ir2vec-vocab-file=' + self._ir2vec_vocab_path
+      ])
+    mllvm_args.extend(['-mllvm', '-training-log=' + log_path])
+
+    cmdline.extend(mllvm_args + ['-o', output_native_path])
     if tf_policy_path:
       cmdline.extend(
           ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])

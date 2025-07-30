@@ -22,8 +22,21 @@ from compiler_opt.rl import feature_ops
 
 # pylint: disable=g-complex-comprehension
 @gin.configurable()
-def get_inlining_signature_spec():
-  """Returns (time_step_spec, action_spec) for LLVM inlining."""
+def get_inlining_signature_spec(ir2vec_vocab_path: str | None = None):
+  """Returns (time_step_spec, action_spec) for LLVM inlining.
+
+  Args:
+    ir2vec_vocab_path: Path to the IR2Vec vocabulary file. If provided,
+                      dimensions will be computed.
+  """
+  # Determine IR2Vec dimensions
+  if ir2vec_vocab_path is not None:
+    # Compute dimensions from vocabulary file
+    ir2vec_dim = feature_ops.get_ir2vec_dimensions_from_vocab_file(
+        ir2vec_vocab_path)
+  else:
+    ir2vec_dim = 0
+
   observation_spec = {
       key: tf.TensorSpec(dtype=tf.int64, shape=(), name=key) for key in (
           # Base features
@@ -65,6 +78,11 @@ def get_inlining_signature_spec():
           'nested_inline_cost_estimate',
           'threshold')
   }
+  if ir2vec_dim > 0:
+    observation_spec.update({
+        key: tf.TensorSpec(dtype=tf.float32, shape=(ir2vec_dim,), name=key)
+        for key in ('callee_embedding', 'caller_embedding')
+    })
   reward_spec = tf.TensorSpec(dtype=tf.float32, shape=(), name='reward')
   time_step_spec = time_step.time_step_spec(observation_spec, reward_spec)
   action_spec = tensor_spec.BoundedTensorSpec(
@@ -74,15 +92,22 @@ def get_inlining_signature_spec():
 
 
 @gin.configurable
-def get_observation_processing_layer_creator(quantile_file_dir=None,
-                                             with_sqrt=True,
-                                             with_z_score_normalization=True,
-                                             eps=1e-8):
+def get_observation_processing_layer_creator(
+    quantile_file_dir=None,
+    with_sqrt=True,
+    with_z_score_normalization=True,
+    ir2vec_with_z_score_normalization=True,
+    eps=1e-8):
   """Wrapper for observation_processing_layer."""
   quantile_map = feature_ops.build_quantile_map(quantile_file_dir)
 
   def observation_processing_layer(obs_spec):
     """Creates the layer to process observation given obs_spec."""
+    if obs_spec.name in ('caller_embedding', 'callee_embedding'):
+      return tf.keras.layers.Lambda(
+          feature_ops.get_ir2vec_normalize_fn(ir2vec_with_z_score_normalization,
+                                              eps))
+
     quantile = quantile_map[obs_spec.name]
     return tf.keras.layers.Lambda(
         feature_ops.get_normalize_fn(quantile, with_sqrt,
@@ -91,5 +116,11 @@ def get_observation_processing_layer_creator(quantile_file_dir=None,
   return observation_processing_layer
 
 
-def get_nonnormalized_features():
-  return ['reward', 'inlining_decision']
+@gin.configurable()
+def get_nonnormalized_features(ir2vec_vocab_path: str | None = None):
+  if ir2vec_vocab_path is not None:
+    return [
+        'reward', 'inlining_decision', 'caller_embedding', 'callee_embedding'
+    ]
+  else:
+    return ['reward', 'inlining_decision']

@@ -13,7 +13,9 @@
 # limitations under the License.
 """Tests for compiler_opt.rl.feature_ops."""
 
+import json
 import os
+import tempfile
 
 from absl.testing import parameterized
 import numpy as np
@@ -40,6 +42,26 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
   def setUp(self):
     self._quantile_file_dir = os.path.join(constant.BASE_DIR, 'testdata')
     super().setUp()
+
+  def _test_vocab_file_dimensions(self, vocab_data, expected_dimensions):
+    """Helper method to test vocab file dimension reading."""
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=True) as f:
+      json.dump(vocab_data, f)
+      f.flush()
+      dimensions = feature_ops.get_ir2vec_dimensions_from_vocab_file(f.name)
+      self.assertEqual(expected_dimensions, dimensions)
+
+  def _test_vocab_file_dimensions_with_exception(self, vocab_data,
+                                                 expected_exception):
+    """Helper method to test vocab file dimension reading that should raise
+    exceptions."""
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=True) as f:
+      json.dump(vocab_data, f)
+      f.flush()
+      with self.assertRaises(expected_exception):
+        feature_ops.get_ir2vec_dimensions_from_vocab_file(f.name)
 
   def test_build_quantile_map(self):
     quantile_map = feature_ops.build_quantile_map(self._quantile_file_dir)
@@ -103,6 +125,58 @@ class FeatureUtilsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllEqual(expected_shape, output.shape)
     self.assertAllClose(expected, output)
+
+  def test_get_ir2vec_normalize_fn(self):
+    normalize_fn = feature_ops.get_ir2vec_normalize_fn()
+    obs = tf.constant(value=[[2.0], [8.0]])
+    output = normalize_fn(obs)
+    self.assertAllEqual(obs.shape, output.shape)
+    self.assertAllClose(obs, output)
+
+    normalize_fn = feature_ops.get_ir2vec_normalize_fn(
+        ir2vec_with_z_score_normalization=True)
+    output = normalize_fn(obs)
+    expected = np.array([[-1], [1]])
+    self.assertAllEqual(obs.shape, output.shape)
+    self.assertAllClose(expected, output)
+
+  def test_get_ir2vec_dimensions_from_vocab_file_valid_file(self):
+    vocab_data = {
+        'section1': {
+            'instruction1': [1.0, 2.0, 3.0, 4.0, 5.0],  # 5 dimensions
+            'instruction2': [2.0, 3.0, 4.0, 5.0, 6.0]
+        },
+        'section2': {
+            'instruction3': [0.1, 0.2, 0.3, 0.4, 0.5]
+        }
+    }
+    self._test_vocab_file_dimensions(vocab_data, 5)
+
+  @parameterized.named_parameters(
+      ('empty_embedding', {
+          'section1': {
+              'instruction1': []
+          }
+      }, ValueError),
+      ('wrong_structure_list', [], ValueError),
+      ('section_not_dict', {
+          'section1': 'not_a_dict'
+      }, ValueError),
+      ('embedding_not_list', {
+          'section1': {
+              'instruction1': 'not_a_list'
+          }
+      }, ValueError),
+      ('empty_sections', {}, ValueError),
+      ('section_with_no_embeddings', {
+          'section1': {}
+      }, ValueError),
+  )
+  def test_get_ir2vec_dimensions_from_vocab_file_error_cases(
+      self, vocab_data, expected_exception):
+    """Test various error cases that should raise exceptions."""
+    self._test_vocab_file_dimensions_with_exception(vocab_data,
+                                                    expected_exception)
 
 
 if __name__ == '__main__':
