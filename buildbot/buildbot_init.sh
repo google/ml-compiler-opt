@@ -61,8 +61,8 @@ ADMIN_PACKAGES="tmux"
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
         g++ \
-        cmake/bullseye-backports \
-        cmake-data/bullseye-backports \
+        cmake \
+        cmake-data \
         ccache \
         binutils-gold \
         binutils-dev \
@@ -120,9 +120,12 @@ wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfi
   || on_error "failed to get Pipfile.lock"
 
 # install the tf pip package for the AOT ("release" scenario).
-sudo -u buildbot python3 -m pip install pipenv
-sudo -u buildbot python3 -m pipenv sync --categories "packages dev-packages" --system
-python3 -m pip install buildbot-worker==2.9.0
+sudo -u buildbot python3 -m pip install --break-system-packages pipenv
+echo installed pipenv
+sudo -u buildbot python3 -m pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
+echo used pipenv
+python3 -m pip install --break-system-packages buildbot-worker==2.9.0
+echo installed buildbot worker
 
 TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
