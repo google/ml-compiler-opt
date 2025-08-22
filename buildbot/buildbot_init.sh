@@ -60,11 +60,9 @@ ADMIN_PACKAGES="tmux"
         python-is-python3 \
         $TF_API_DEP_PACKAGES \
         $ADMIN_PACKAGES \
-        g++ \
         cmake \
         cmake-data \
         ccache \
-        binutils-gold \
         binutils-dev \
         ninja-build \
         pkg-config \
@@ -84,15 +82,20 @@ ADMIN_PACKAGES="tmux"
         libgss-dev \
         python3-dev \
         wget \
-        zlib1g-dev
+        zlib1g-dev \
+        lsb-release \
+        software-properties-common \
+        gnupg
+
+      bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 20
+      ln -sf /usr/bin/clang-20 /usr/bin/cc
+      ln -sf /usr/bin/clang++-20 /usr/bin/c++
+      ln -sf /usr/bin/ld.lld-20 /usr/bin/ld
 
     ) && exit 0
   done
   exit 1
 ) || on_error "Failed to install required packages."
-
-update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.gold" 20
-update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10
 
 userdel buildbot
 groupadd buildbot
