@@ -120,7 +120,8 @@ git clone --filter=tree:0 --no-checkout ${GEMMLOWP_REPOSITORY} gemmlowp/src/gemm
 git -C gemmlowp/src/gemmlowp checkout ${GEMMLOWP_TAG}
 cmake -GNinja -S gemmlowp/src/gemmlowp/contrib -B gemmlowp/src/gemmlowp-build \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/gemmlowp \
-  -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
+  -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON   \
+  -DCMAKE_INSTALL_LIBDIR=lib
 ninja -C gemmlowp/src/gemmlowp-build install
 
 # ml_dtypes
