@@ -48,7 +48,7 @@ def _get_policy_bytes(agent):
   """Recover the collect_policy bytes from a TF agent"""
   policy_key = 'collect'
   with tempfile.TemporaryDirectory() as tmpdirname:
-    saver = policy_saver.PolicySaver(policy_dict={
+    saver = policy_saver.MLGOPolicySaver(policy_dict={
         policy_key: agent.collect_policy,
     })
     saver.save(tmpdirname)

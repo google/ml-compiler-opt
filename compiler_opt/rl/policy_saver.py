@@ -142,11 +142,11 @@ class Policy:
     return Policy(output_spec=output_spec, policy=policy)
 
 
-class PolicySaver:
+class MLGOPolicySaver:
   """Object that saves policy and model config file required by inference.
 
   ```python
-  policy_saver = PolicySaver(policy_dict, config)
+  policy_saver = MLGOPolicySaver(policy_dict, config)
   policy_saver.save(root_dir)
   ```
   """

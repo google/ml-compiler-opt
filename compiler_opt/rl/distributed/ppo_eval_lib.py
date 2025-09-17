@@ -121,7 +121,7 @@ def evaluate(root_dir: str, corpus_path: str,
     actions = []
     while True:
       with tempfile.TemporaryDirectory() as tmpdirname:
-        saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+        saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
         saver.save(tmpdirname)
         policy_bytes = policy_saver.Policy.from_filesystem(
             os.path.join(tmpdirname, 'policy'))

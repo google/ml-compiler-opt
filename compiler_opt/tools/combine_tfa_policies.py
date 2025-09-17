@@ -80,7 +80,7 @@ def main(_):
       action_spec=action_spec)
   combined_policy_path = _COMBINED_POLICY_PATH.value
   policy_dict = {'combined_policy': combined_policy}
-  saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+  saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
   saver.save(combined_policy_path)
 
 

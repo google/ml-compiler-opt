@@ -111,7 +111,8 @@ class VectorTest(absltest.TestCase):
   POLICY_NAME = 'test_policy_name'
 
   def _save_inlining_policy(
-      self) -> tuple[str, actor_policy.ActorPolicy, policy_saver.PolicySaver]:
+      self
+  ) -> tuple[str, actor_policy.ActorPolicy, policy_saver.MLGOPolicySaver]:
     problem_config = registry.get_configuration(
         implementation=inlining.InliningConfig)
     time_step_spec, action_spec = problem_config.get_signature_spec()
@@ -138,7 +139,7 @@ class VectorTest(absltest.TestCase):
         actor_network=actor_network)
 
     # save the policy
-    saver = policy_saver.PolicySaver({VectorTest.POLICY_NAME: policy})
+    saver = policy_saver.MLGOPolicySaver({VectorTest.POLICY_NAME: policy})
     testing_path = self.create_tempdir()
     policy_save_path = os.path.join(testing_path, 'temp_output', 'policy')
     saver.save(policy_save_path)

@@ -28,7 +28,7 @@ from compiler_opt.rl import policy_saver
 from compiler_opt.testing import model_test_utils
 
 
-class PolicySaverTest(tf.test.TestCase):
+class MLGOPolicySaverTest(tf.test.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -54,7 +54,7 @@ class PolicySaverTest(tf.test.TestCase):
         'saved_policy': test_agent.policy,
         'saved_collect_policy': test_agent.collect_policy
     }
-    test_policy_saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+    test_policy_saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
 
     root_dir = self.get_temp_dir()
     test_policy_saver.save(root_dir)
