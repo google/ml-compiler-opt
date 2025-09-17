@@ -79,7 +79,7 @@ def train_eval(agent_config_type=agent_config.BCAgentConfig,
       'saved_policy': agent.policy,
       'saved_collect_policy': agent.collect_policy,
   }
-  saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+  saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
 
   tfrecord_dataset_fn = data_reader.create_tfrecord_dataset_fn(
       agent_cfg=agent_cfg,

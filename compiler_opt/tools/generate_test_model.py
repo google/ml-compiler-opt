@@ -54,7 +54,7 @@ def generate_test_model(agent_config_type=agent_config.PPOAgentConfig):
       'saved_policy': tf_agent.policy,
       'saved_collect_policy': tf_agent.collect_policy,
   }
-  saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+  saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
 
   # Save policy.
   saver.save(root_dir)

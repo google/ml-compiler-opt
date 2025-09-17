@@ -69,7 +69,7 @@ def train():
         time_step_spec=expected_signature,
         action_spec=action_spec)
     policy_dict = {'tf_agents_policy': wrapped_keras_model}
-    saver = policy_saver.PolicySaver(policy_dict=policy_dict)
+    saver = policy_saver.MLGOPolicySaver(policy_dict=policy_dict)
     saver.save(_SAVE_MODEL_DIR.value)
 
 

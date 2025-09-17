@@ -111,7 +111,7 @@ class BlackboxLearnerTests(absltest.TestCase):
     init_params = policy_utils.get_vectorized_parameters_from_policy(policy)
 
     # save the policy
-    saver = policy_saver.PolicySaver({policy_name: policy})
+    saver = policy_saver.MLGOPolicySaver({policy_name: policy})
     policy_save_path = os.path.join(output_dir.full_path, 'temp_output',
                                     'policy')
     saver.save(policy_save_path)

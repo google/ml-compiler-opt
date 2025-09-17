@@ -42,7 +42,7 @@ class InliningWorker(worker.Worker):
   def _setup_base_policy(self):
     self._tf_base_temp_dir = tempfile.mkdtemp()
     policy = policy_utils.create_actor_policy()
-    saver = policy_saver.PolicySaver({"policy": policy})
+    saver = policy_saver.MLGOPolicySaver({"policy": policy})
     saver.save(self._tf_base_temp_dir)
     self._tf_base_policy_path = os.path.join(self._tf_base_temp_dir, "policy")
 
