@@ -48,14 +48,16 @@ class CompilationError(Exception):
 
 
 class BuildEnv:
+  """Represents a build environment, defined by the presence of LLVM tools."""
 
   def __init__(
       self,
       toolchain_path: str,
       workingdir: str,
       tool_suffix="",
-      extra_build_flags=[],
+      extra_build_flags=None,
   ):
+    extra_build_flags = [] if extra_build_flags is None else extra_build_flags
     tool_names = ["clang", "llc", "llvm-extract", "llvm-profdata"]
     tools = [
         os.path.join(toolchain_path, tool + tool_suffix) for tool in tool_names
