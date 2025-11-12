@@ -17,7 +17,11 @@ import math
 
 from absl import flags
 
-import toolchain
+from compiler_opt.tools.profgen import toolchain
+
+import tensorflow as tf
+
+gfile = tf.io.gfile
 
 _EPSILON = flags.DEFINE_float(
     "qualifier_epsilon",
@@ -36,7 +40,7 @@ _EXTRA_STATS = flags.DEFINE_integer(
 
 def _get_nr_branch_weights(ir_path: str) -> int:
   total = 0
-  with open(ir_path) as f:
+  with gfile.open(ir_path) as f:
     for line in f:
       if """!"branch_weights""" in line:
         total += 1
