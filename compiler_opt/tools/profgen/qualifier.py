@@ -17,7 +17,7 @@ import math
 
 from absl import flags
 
-import toolchain
+from compiler_opt.tools.profgen import toolchain
 
 _EPSILON = flags.DEFINE_float(
     "qualifier_epsilon",

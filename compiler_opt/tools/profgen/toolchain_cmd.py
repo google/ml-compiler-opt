@@ -25,8 +25,8 @@ import tempfile
 from absl import app
 from absl import flags
 
-import qualifier
-import toolchain
+from compiler_opt.tools.profgen import qualifier
+from compiler_opt.tools.profgen import toolchain
 import tensorflow as tf
 
 gfile = tf.io.gfile
