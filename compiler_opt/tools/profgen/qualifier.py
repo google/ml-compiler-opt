@@ -40,7 +40,7 @@ _EXTRA_STATS = flags.DEFINE_integer(
 
 def _get_nr_branch_weights(ir_path: str) -> int:
   total = 0
-  with gfile.open(ir_path) as f:
+  with gfile.Open(ir_path) as f:
     for line in f:
       if """!"branch_weights""" in line:
         total += 1
