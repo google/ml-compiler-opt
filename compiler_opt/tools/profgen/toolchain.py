@@ -57,7 +57,7 @@ class BuildEnv:
       tool_suffix="",
       extra_build_flags=None,
   ):
-    extra_build_flags = [] if extra_build_flags is None else extra_build_flags
+    extra_build_flags = extra_build_flags or []
     tool_names = ["clang", "llc", "llvm-extract", "llvm-profdata"]
     tools = [
         os.path.join(toolchain_path, tool + tool_suffix) for tool in tool_names
