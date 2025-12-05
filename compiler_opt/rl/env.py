@@ -179,7 +179,7 @@ class InteractiveClang(ClangProcess):
       tv_dict = {}
       for fv in obs.feature_values:
         array = fv.to_numpy()
-        tv_dict[fv.spec.name] = np.reshape(array, newshape=fv.spec.shape)
+        tv_dict[fv.spec.name] = np.reshape(array, fv.spec.shape)
       return TimeStep(
           obs=tv_dict,
           reward={obs.context: obs.score} if obs.score else None,
