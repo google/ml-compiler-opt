@@ -117,16 +117,16 @@ else
   echo "NOT building TFLite - this is a release only bot."
 fi
 
-wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile \
-  || on_error "failed to get Pipfile"
-wget --quiet https://raw.githubusercontent.com/google/ml-compiler-opt/main/Pipfile.lock \
-  || on_error "failed to get Pipfile.lock"
+sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
+pushd ml-compiler-opt
 
-# install the tf pip package for the AOT ("release" scenario).
+# install the tf pip package for the AOT ("release" scenario) and for test model builds.
 sudo -u buildbot python3 -m pip install --break-system-packages pipenv
 echo installed pipenv
 sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
 echo used pipenv
+popd
+
 python3 -m pip install --break-system-packages buildbot-worker==2.9.0
 echo installed buildbot worker
 
