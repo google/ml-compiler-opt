@@ -123,7 +123,7 @@ ml-compiler-opt repository:
 ```bash
 cd $WORKING_DIR/ml-compiler-opt
 pip3 install pipenv
-pipenv sync --system
+./versioned_pipenv sync --system
 ```
 
 If you plan on doing development work on this checkout of ml-compiler-opt,
@@ -209,7 +209,7 @@ should work:
 
 ```bash
 pip3 uninstall protobuf
-pipenv sync --system
+./versioned_pipenv sync --system
 ```
 
 ## Building LLVM

@@ -24,8 +24,8 @@ again.
 
 Use `yapf` to format the submission before making a PR. The version of yapf 
 that is used by this repository along with other development tools can be 
-installed with `pipenv sync --categories="dev-packages" --system` and run on 
-the entire repository with `yapf . -ir`.
+installed with `./versioned_pipenv sync --categories="dev-packages" --system`
+and run on the entire repository with `yapf . -ir`.
 
 ## Linting
 

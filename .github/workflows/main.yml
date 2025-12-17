@@ -43,11 +43,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pipenv'
           cache-dependency-path: Pipfile.lock.${{ matrix.python-version }}
-      - name: Set up lock file
-        run: cp Pipfile.lock.${{ matrix.python-version }} Pipfile.lock
       - name: Install Pipenv
         run: pip3 install pipenv
       - name: Install Python Dependencies
-        run: pipenv sync --categories="packages dev-packages ci" --verbose
+        run: ./versioned_pipenv sync --categories="packages dev-packages ci" --verbose
       - name: ${{ matrix.task }}
-        run: pipenv run ${{ matrix.cmd }}
+        run: ./versioned_pipenv run ${{ matrix.cmd }}

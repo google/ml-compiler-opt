@@ -19,9 +19,9 @@ pip3 install pipenv
 
 # Download pre-requisite packages.
 PIPENV_VENV_IN_PROJECT=1
-pipenv sync --dev
+./versioned_pipenv sync --dev
 
 # Run tests
 TF_CPP_MIN_LOG_LEVE=3
 PYTHONPATH="${PYTHONPATH}:$(dirname "$0")"
-pipenv run python3 -m pytest
+./versioned_pipenv run python3 -m pytest

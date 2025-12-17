@@ -72,7 +72,7 @@ pip3 install pipenv
 
 The actual dependencies:
 ```shell
-pipenv sync --system --categories "packages dev-packages ci"
+./versioned_pipenv sync --system --categories "packages dev-packages ci"
 ```
 Note that the above command will only work from the root of the repository
 since it needs to have `Pipfile.lock` in the working directory at the time
