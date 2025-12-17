@@ -42,10 +42,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pipenv'
-          cache-dependency-path: Pipfile.lock
+          cache-dependency-path: Pipfile.lock.${{ matrix.python-version }}
       - name: Install Pipenv
         run: pip3 install pipenv
       - name: Install Python Dependencies
-        run: pipenv sync --categories="packages dev-packages ci" --verbose
+        run: ./versioned_pipenv sync --categories="packages dev-packages ci" --verbose
       - name: ${{ matrix.task }}
-        run: pipenv run ${{ matrix.cmd }}
+        run: ./versioned_pipenv run ${{ matrix.cmd }}

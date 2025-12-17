@@ -115,7 +115,7 @@ See also [the build bot script](../../buildbot/buildbot_init.sh)
 cd ~/ml-compiler-opt
 sudo apt-get install python3-pip
 pip3 install pipenv
-pipenv sync --system
+./versioned_pipenv sync --system
 
 TF_PIP=$(python3 -m pip show tensorflow | grep Location | cut -d ' ' -f 2)
 
