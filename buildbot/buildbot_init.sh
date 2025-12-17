@@ -117,6 +117,7 @@ else
   echo "NOT building TFLite - this is a release only bot."
 fi
 
+pushd /tmp
 sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
 pushd ml-compiler-opt
 
@@ -125,6 +126,7 @@ sudo -u buildbot python3 -m pip install --break-system-packages pipenv
 echo installed pipenv
 sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
 echo used pipenv
+popd
 popd
 
 python3 -m pip install --break-system-packages buildbot-worker==2.9.0
