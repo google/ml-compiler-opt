@@ -4,7 +4,6 @@ import sys
 import subprocess
 import shutil
 
-
 lockfile = "Pipfile.lock"
 versioned_lockfile = f"{lockfile}.{sys.version_info.major}.{sys.version_info.minor}"
 
