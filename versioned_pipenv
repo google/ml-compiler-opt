@@ -13,4 +13,4 @@ print(f"using lockfile {versioned_lockfile}")
 print(f"args: {my_args}")
 
 shutil.copy(versioned_lockfile, lockfile)
-subprocess.check_call(["pipenv"] + my_args)
+subprocess.check_call([sys.executable, "-m", "pipenv"] + my_args)
