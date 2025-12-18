@@ -40,11 +40,11 @@ class InliningRunner(compilation_runner.CompilationRunner):
   """
 
   def __init__(self,
+               *,
                llvm_size_path: str,
                ir2vec_vocab_path: str | None = None,
-               *args,
                **kwargs):
-    super().__init__(*args, **kwargs)
+    super().__init__(**kwargs)
     self._llvm_size_path = llvm_size_path
     self._ir2vec_vocab_path = ir2vec_vocab_path
 
