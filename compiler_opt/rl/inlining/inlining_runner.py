@@ -39,9 +39,12 @@ class InliningRunner(compilation_runner.CompilationRunner):
       ir_path, tf_policy_path, default_reward, moving_average_reward)
   """
 
-  def __init__(self, llvm_size_path: str, ir2vec_vocab_path: str | None, *args,
+  def __init__(self,
+               *,
+               llvm_size_path: str,
+               ir2vec_vocab_path: str | None = None,
                **kwargs):
-    super().__init__(*args, **kwargs)
+    super().__init__(**kwargs)
     self._llvm_size_path = llvm_size_path
     self._ir2vec_vocab_path = ir2vec_vocab_path
 
