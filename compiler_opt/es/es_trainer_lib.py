@@ -15,7 +15,6 @@
 
 from absl import flags, logging
 import enum
-import functools
 import gin
 import tensorflow as tf
 import os
@@ -119,10 +118,13 @@ def train(additional_compilation_flags=(),
 
   # Construct policy saver
   saved_policy = policy_utils.create_actor_policy()
-  policy_saver_function = functools.partial(
-      policy_utils.save_policy,
-      policy=saved_policy,
-      save_folder=os.path.join(_OUTPUT_PATH.value, "saved_policies"))
+
+  def policy_saver_function(parameters, model_name):
+    policy_utils.save_policy(
+        parameters=parameters,
+        policy=saved_policy,
+        policy_name=model_name,
+        save_folder=os.path.join(_OUTPUT_PATH.value, "saved_policies"))
 
   # Get learner config
   learner_config = blackbox_learner.BlackboxLearnerConfig()
