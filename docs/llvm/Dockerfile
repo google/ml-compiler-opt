@@ -49,4 +49,3 @@ ENV PATH="/work/pyenv/bin:$PATH"
 
 RUN python -m pip install pipenv
 RUN ./versioned_pipenv sync --system --categories "packages dev-packages ci"
-
