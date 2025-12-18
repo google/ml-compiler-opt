@@ -15,7 +15,6 @@
 
 from absl import flags, logging
 import enum
-import functools
 import gin
 import tensorflow as tf
 import os
