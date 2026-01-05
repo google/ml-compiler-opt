@@ -48,6 +48,30 @@ export LLVM_SRCDIR=~/llvm-project
 export LLVM_INSTALLDIR=~/llvm-install
 ```
 
+### LLVM Dependencies
+
+The LLVM toolchain that Fuchsia uses has a couple additionaly dependencies,
+namely [cpp-httplib](https://github.com/yhirose/cpp-httplib). First off,
+set a directory where the cpp-httplib install will go:
+
+```shell
+export CPPHTTPLIB_SRC_DIR=~/cpphttplib
+export CPPHTTPLIB_INSTALL_DIR=~/cpp-httplib-install
+```
+
+Then clone the repository and build:
+
+```shell
+git clone https://github.com/yhirose/cpp-httplib $CPPHTTPLIB_SRC_DIR
+mkdir $CPPHTTPLIB_SRC_DIR/build
+cd $CPPHTTPLIB_SRC_DIR/build
+cmake -GNinja \
+  -DHTTPLIB_NO_EXCEPTIONS=ON \
+  -DCMAKE_INSTALL_PREFIX=$CPPHTTPLIB_INSTALL_DIR \
+  ../
+ninja install
+```
+
 ### Fuchsia
 
 See instructions at https://fuchsia.dev/fuchsia-src/get-started/get_fuchsia_source. Make sure `PATH` is set up appropriately.
@@ -143,6 +167,7 @@ cmake -G Ninja \
   -DFUCHSIA_SDK=${IDK_DIR} \
   -DCMAKE_INSTALL_PREFIX= \
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=On \
+  -Dhttplib_ROOT=$CPPHTTPLIB_INSTALL_DIR \
   -C ${LLVM_SRCDIR}/clang/cmake/caches/Fuchsia-stage2.cmake \
   -C ${TFLITE_PATH}/tflite.cmake \
   ${LLVM_SRCDIR}/llvm
