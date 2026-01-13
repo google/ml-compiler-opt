@@ -91,8 +91,8 @@ class ExplorationWithPolicyTest(tf.test.TestCase):
   def _explore_policy(self,
                       state: time_step.TimeStep) -> policy_step.PolicyStep:
     probs = [
-        0.5 * float(state.observation['feature_3'].numpy()),
-        1 - 0.5 * float(state.observation['feature_3'].numpy())
+        0.5 * float(state.observation['feature_3'].numpy().item()),
+        1 - 0.5 * float(state.observation['feature_3'].numpy().item())
     ]
     logits = [[0.0, tf.math.log(probs[1] / (1.0 - probs[1] + _eps))]]
     return policy_step.PolicyStep(

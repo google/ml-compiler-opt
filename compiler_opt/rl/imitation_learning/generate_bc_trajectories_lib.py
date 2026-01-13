@@ -396,7 +396,7 @@ class ModuleExplorer:
       while curr_obs_dict.step_type != env.StepType.LAST:
         timestep = self._create_timestep(curr_obs_dict)
         action = policy(timestep)
-        add_int_feature(sequence_example, int(action),
+        add_int_feature(sequence_example, int(action.item()),
                         SequenceExampleFeatureNames.action)
         curr_obs_dict = self._env.step(action)
         curr_obs = curr_obs_dict.obs
