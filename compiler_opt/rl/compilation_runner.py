@@ -258,6 +258,7 @@ def start_cancellable_process(cmdline: list[str],
       raise subprocess.CalledProcessError(retcode, cmdline)
     else:
       if want_output:
+        assert p.stdout is not None
         ret: bytes = p.stdout.read()
         p.stdout.close()
         return ret
