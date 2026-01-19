@@ -1,0 +1,17 @@
+import compiler_opt.es.blackbox_learner
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.es.blackbox_optimizers
+
+# Blackbox learner config
+BlackboxLearnerConfig.total_steps = 20000
+BlackboxLearnerConfig.blackbox_optimizer = %blackbox_optimizers.Algorithm.MONTE_CARLO
+BlackboxLearnerConfig.est_type = %blackbox_optimizers.EstimatorType.ANTITHETIC
+BlackboxLearnerConfig.fvalues_normalization = True
+BlackboxLearnerConfig.hyperparameters_update_method = %blackbox_optimizers.UpdateMethod.NO_METHOD
+BlackboxLearnerConfig.num_top_directions = 0
+BlackboxLearnerConfig.num_ir_repeats_within_worker = 1
+BlackboxLearnerConfig.num_ir_repeats_across_worker = 1
+BlackboxLearnerConfig.num_exact_evals = 64
+BlackboxLearnerConfig.total_num_perturbations = 384
+BlackboxLearnerConfig.precision_parameter = 0.025
+BlackboxLearnerConfig.step_size = 0.005
