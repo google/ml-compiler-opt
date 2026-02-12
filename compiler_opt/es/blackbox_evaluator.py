@@ -30,6 +30,19 @@ from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.rl import compilation_runner
 
 
+def _extract_results(futures: list[concurrent.futures.Future]) -> list[Any]:
+  results = [None] * len(futures)
+
+  for i in range(len(futures)):
+    if not futures[i].exception():
+      results[i] = futures[i].result()
+    else:
+      logging.info('Error retrieving result from future: %s',
+                   str(futures[i].exception()))
+
+  return results
+
+
 class BlackboxEvaluator(metaclass=abc.ABCMeta):
   """Blockbox evaluator abstraction."""
 
@@ -46,19 +59,6 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def set_baseline(self, pool: FixedWorkerPool) -> None:
     raise NotImplementedError()
-
-  @staticmethod
-  def extract_results(futures: list[concurrent.futures.Future]) -> list[Any]:
-    results = [None] * len(futures)
-
-    for i in range(len(futures)):
-      if not futures[i].exception():
-        results[i] = futures[i].result()
-      else:
-        logging.info('Error retrieving result from future: %s',
-                     str(futures[i].exception()))
-
-    return results
 
 
 @gin.configurable
@@ -142,7 +142,7 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
       raise RuntimeError('The baseline has already been set.')
     self._load_samples()
     results_futures = self._launch_compilation_workers(pool)
-    self._baselines = BlackboxEvaluator.extract_results(results_futures)
+    self._baselines = _extract_results(results_futures)
 
   def get_rewards(
       self,
@@ -154,7 +154,7 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
       raise RuntimeError(
           'The number of results does not match the number of baselines.')
 
-    policy_results = BlackboxEvaluator.extract_results(results_futures)
+    policy_results = _extract_results(results_futures)
 
     rewards = []
     for policy_result, baseline in zip(
