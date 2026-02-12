@@ -17,6 +17,7 @@ import abc
 import concurrent.futures
 import os
 import random
+from typing import Any
 
 from absl import logging
 import gin
@@ -46,18 +47,18 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
   def set_baseline(self, pool: FixedWorkerPool) -> None:
     raise NotImplementedError()
 
-  def get_rewards(
-      self, results: list[concurrent.futures.Future]) -> list[float | None]:
-    rewards = [None] * len(results)
+  @staticmethod
+  def extract_results(futures: list[concurrent.futures.Future]) -> list[Any]:
+    results = [None] * len(futures)
 
-    for i in range(len(results)):
-      if not results[i].exception():
-        rewards[i] = results[i].result()
+    for i in range(len(futures)):
+      if not futures[i].exception():
+        results[i] = futures[i].result()
       else:
         logging.info('Error retrieving result from future: %s',
-                     str(results[i].exception()))
+                     str(futures[i].exception()))
 
-    return rewards
+    return results
 
 
 @gin.configurable
@@ -140,19 +141,20 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     if self._baselines is not None:
       raise RuntimeError('The baseline has already been set.')
     self._load_samples()
-    results = self._launch_compilation_workers(pool)
-    self._baselines = super().get_rewards(results)
+    results_futures = self._launch_compilation_workers(pool)
+    self._baselines = BlackboxEvaluator.extract_results(results_futures)
 
   def get_rewards(
-      self, results: list[concurrent.futures.Future]) -> list[float | None]:
+      self,
+      results_futures: list[concurrent.futures.Future]) -> list[float | None]:
     if self._baselines is None:
       raise RuntimeError('The baseline has not been set.')
 
-    if len(results) != len(self._baselines):
+    if len(results_futures) != len(self._baselines):
       raise RuntimeError(
           'The number of results does not match the number of baselines.')
 
-    policy_results = super().get_rewards(results)
+    policy_results = BlackboxEvaluator.extract_results(results_futures)
 
     rewards = []
     for policy_result, baseline in zip(

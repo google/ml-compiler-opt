@@ -1,0 +1,18 @@
+1) build the docker image
+
+```
+docker build --tag mlgo_demo .
+```
+
+2) start it
+
+```
+docker run -t -d --name demo mlgo_demo
+
+```
+
+3) run everything
+
+```
+docker exec demo bash /work/ml-compiler-opt/docs/llvm/run_everything.sh
+```
