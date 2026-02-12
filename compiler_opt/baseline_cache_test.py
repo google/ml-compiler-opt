@@ -43,9 +43,9 @@ class BaselineCacheTest(absltest.TestCase):
 
     cache = baseline_cache.BaselineCache(
         get_scores=track_score, get_key=lambda x: x)
-    self.assertEmpty(cache._cache)
+    self.assertEmpty(cache.get_cache())
     self.assertEqual(cache.get_score(["c", "b"]), [3, 2])
-    self.assertDictEqual(cache._cache, {"b": 2, "c": 3})
+    self.assertDictEqual(cache.get_cache(), {"b": 2, "c": 3})
     self.assertListEqual(score_asked_for, ["c", "b"])
     score_asked_for.clear()
 
@@ -81,10 +81,10 @@ class BaselineCacheTest(absltest.TestCase):
 
       cache = baseline_cache.BaselineCache(
           get_key=lambda x: x, get_scores=get_scores)
-      self.assertEmpty(cache._cache)
+      self.assertEmpty(cache.get_cache())
       self.assertEqual(cache.get_score(["4", "2"]), [4, 2])
       self.assertListEqual(score_asked_for, ["4", "2"])
-      self.assertDictEqual(cache._cache, {"4": 4, "2": 2})
+      self.assertDictEqual(cache.get_cache(), {"4": 4, "2": 2})
       score_asked_for.clear()
 
       self.assertEqual(cache.get_score(["4", "2"]), [4, 2])

@@ -54,3 +54,7 @@ class BaselineCache(Generic[T]):
     for i, s in zip(todo, scores):
       self._cache[self._get_key(i)] = s
     return [self._cache[self._get_key(i)] for i in items]
+
+  def get_cache(self):
+    """Intended for testing."""
+    return self._cache
