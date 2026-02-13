@@ -160,8 +160,9 @@ class BlackboxLearner:
 
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
-    self._evaluator = self._config.evaluator(self._train_corpus,
-                                             self._config.estimator_type)
+    self._evaluator = self._config.evaluator(
+        train_corpus=self._train_corpus,
+        estimator_type=self._config.estimator_type)
 
     self._thread_pool = multiprocessing.pool.ThreadPool(processes=1)
     self._models_to_save = []
