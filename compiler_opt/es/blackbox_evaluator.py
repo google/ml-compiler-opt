@@ -23,7 +23,7 @@ from absl import logging
 import gin
 import tensorflow as tf
 
-from compiler_opt.distributed.worker import FixedWorkerPool, WorkerPool
+from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.distributed import buffered_scheduler
