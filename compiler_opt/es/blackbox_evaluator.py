@@ -47,8 +47,10 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
   """Blockbox evaluator abstraction."""
 
   @abc.abstractmethod
-  def __init__(self, train_corpus: corpus.Corpus):
-    pass
+  def __init__(self, *, train_corpus: corpus.Corpus,
+               estimator_type: blackbox_optimizers.EstimatorType):
+    self._train_corpus = train_corpus
+    self._estimator_type = estimator_type
 
   @abc.abstractmethod
   def get_results(
@@ -65,17 +67,16 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
 class SamplingBlackboxEvaluator(BlackboxEvaluator):
   """A blackbox evaluator that samples from a corpus to collect reward."""
 
-  def __init__(self, train_corpus: corpus.Corpus,
-               estimator_type: blackbox_optimizers.EstimatorType,
-               total_num_perturbations: int, num_ir_repeats_within_worker: int):
+  def __init__(self,
+               *,
+               total_num_perturbations: int,
+               num_ir_repeats_within_worker: int = 1,
+               **kwargs):
+    super().__init__(**kwargs)
     self._samples: list[list[corpus.LoadedModuleSpec]] = []
-    self._train_corpus = train_corpus
     self._total_num_perturbations = total_num_perturbations
     self._num_ir_repeats_within_worker = num_ir_repeats_within_worker
-    self._estimator_type = estimator_type
     self._baselines: list[float | None] | None = None
-
-    super().__init__(train_corpus)
 
   def _load_samples(self) -> None:
     """Samples and loads modules if not already done.
@@ -171,11 +172,8 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
 class TraceBlackboxEvaluator(BlackboxEvaluator):
   """A blackbox evaluator that utilizes trace based cost modelling."""
 
-  def __init__(self, train_corpus: corpus.Corpus,
-               estimator_type: blackbox_optimizers.EstimatorType,
-               bb_trace_path: str, function_index_path: str):
-    self._train_corpus = train_corpus
-    self._estimator_type = estimator_type
+  def __init__(self, *, bb_trace_path: str, function_index_path: str, **kwargs):
+    super().__init__(**kwargs)
     self._bb_trace_paths = []
     if tf.io.gfile.isdir(bb_trace_path):
       self._bb_trace_paths.extend([
