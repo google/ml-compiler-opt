@@ -61,7 +61,6 @@ class BaselineCacheTest(absltest.TestCase):
 
     self.assertEqual(cache.get_score(["a", "n", "c", "b"]), [1, None, 3, 2])
     self.assertListEqual(score_asked_for, [])
-    score_asked_for.clear()
 
   def test_with_workers(self):
     with local_worker_manager.LocalWorkerPoolManager(
