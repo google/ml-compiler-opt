@@ -61,8 +61,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
           train_corpus=test_corpus,
           estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
           total_num_perturbations=1)
-
-      evaluator.set_baseline(pool)
+      evaluator.load_samples()
+      evaluator.ensure_baselines(pool)
       # pylint: disable=protected-access
       self.assertAlmostEqual(evaluator._baselines, [10])
 
@@ -90,7 +90,8 @@ class BlackboxEvaluatorTests(absltest.TestCase):
           estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
           total_num_perturbations=2)
 
-      evaluator.set_baseline(pool)
+      evaluator.load_samples()
+      evaluator.ensure_baselines(pool)
 
       f_policy1 = concurrent.futures.Future()
       f_policy1.set_result(1.5)
