@@ -22,32 +22,32 @@ T = TypeVar("T")
 class BaselineCache(Generic[T]):
   """Manages a cache of baseline scores."""
 
-  def __init__(self, *, get_scores: Callable[[list[T]], list[float]],
-               get_key: Callable[[T], Any]):
+  def __init__(self, *, get_key: Callable[[T], Any]):
     """Constructor.
 
         Args:
-            get_scores: A callable that returns the scores for a batch of items.
-            The callable is responsible for timely completion. It must not
-            raise, and it must return results in the order of the items
-            provided. A None value is expected for items that could not produce
-            a value.
             get_key: A callable that returns the key for an item.
         """
-    self._get_scores = get_scores
     self._get_key = get_key
     self._cache = {}
 
-  def get_score(self, items: list[T | None]):
+  def get_score(self, items: list[T | None],
+                get_scores_func: Callable[[list[T]], list[float]]):
     """Get the scores for a batch of items.
         The scores are returned in the same order as the provided items. A None
         result indicates the score could not be obtained.
 
         Args:
             items: A list of items to get scores for.
+            get_scores_func: A callable that returns the scores for a batch of
+            items.
+            The callable is responsible for timely completion. It must not
+            raise, and it must return results in the order of the items
+            provided. A None value is expected for items that could not produce
+            a value.
         """
-    todo = [i for i in items if self._get_key(i) not in self._cache]
-    scores = self._get_scores(todo)
+    todo = {i for i in items if self._get_key(i) not in self._cache}
+    scores = get_scores_func(list(todo))
     if len(scores) != len(todo):
       raise ValueError(
           "got a different number of results for the requested items")
