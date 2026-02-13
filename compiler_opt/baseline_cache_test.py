@@ -84,21 +84,6 @@ class BaselineCacheTest(absltest.TestCase):
         [3, 2, 3, 2])
     self.assertListEqual(sorted(score_asked_for), sorted(["c", "b"]))
 
-  def test_duplicates(self):
-    mock = {"a": 1, "b": 2, "c": 3}
-    score_asked_for = []
-
-    def track_score(lst):
-      score_asked_for.extend(lst)
-      return [mock[k] if k in mock else None for k in lst]
-
-    cache = baseline_cache.BaselineCache(get_key=lambda x: x)
-    self.assertEmpty(cache.get_cache())
-    self.assertEqual(
-        cache.get_score(["c", "b", "c", "b"], get_scores_func=track_score),
-        [3, 2, 3, 2])
-    self.assertListEqual(sorted(score_asked_for), sorted(["c", "b"]))
-
   def test_with_workers(self):
     with local_worker_manager.LocalWorkerPoolManager(
         worker_class=MockWorker, count=4) as lwm:
