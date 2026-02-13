@@ -33,7 +33,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
         worker_kwargs={}) as pool:
       perturbations = [b'00', b'01', b'10']
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
-          None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
+          train_corpus=None,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          total_num_perturbations=5,
+          num_ir_repeats_within_worker=0)
       # pylint: disable=protected-access
       evaluator._samples = [[corpus.ModuleSpec(name='name1', size=1)],
                             [corpus.ModuleSpec(name='name2', size=1)],
@@ -55,7 +58,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
               corpus.ModuleSpec(name='name1', size=10, command_line=('-cc1',))
           ])
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 1, 1)
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          total_num_perturbations=1)
 
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
@@ -63,7 +68,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
 
   def test_sampling_get_rewards_without_baseline(self):
     evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
-        None, blackbox_optimizers.EstimatorType.FORWARD_FD, 5, None)
+        train_corpus=None,
+        estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+        total_num_perturbations=5,
+        num_ir_repeats_within_worker=0)
     self.assertRaises(RuntimeError, evaluator.get_rewards, None)
 
   def test_sampling_get_rewards_with_baseline(self):
@@ -78,7 +86,9 @@ class BlackboxEvaluatorTests(absltest.TestCase):
               corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
           ])
       evaluator = blackbox_evaluator.SamplingBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD, 2, 1)
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          total_num_perturbations=2)
 
       evaluator.set_baseline(pool)
 
@@ -108,8 +118,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
               corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
           ])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
-          'fake_bb_trace_path', 'fake_function_index_path')
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_path='fake_bb_trace_path',
+          function_index_path='fake_function_index_path')
       # pylint: disable=protected-access
       evaluator._baselines = [1]
       # pylint: enable=protected-access
@@ -129,8 +141,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
               corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
           ])
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
-          'fake_bb_trace_path', 'fake_function_index_path')
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_path='fake_bb_trace_path',
+          function_index_path='fake_function_index_path')
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
       self.assertLen(evaluator._baselines, 1)
@@ -149,8 +163,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
             corpus.ModuleSpec(name='name1', size=1, command_line=('-cc1',))
         ])
     evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-        test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
-        'fake_bb_trace_path', 'fake_function_index_path')
+        train_corpus=test_corpus,
+        estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+        bb_trace_path='fake_bb_trace_path',
+        function_index_path='fake_function_index_path')
 
     # pylint: disable=protected-access
     evaluator._current_baselines = [2, 3]
@@ -178,8 +194,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       bb_trace_dir.create_file('bb_trace1.pb')
       bb_trace_dir.create_file('bb_trace2.pb')
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
-          bb_trace_dir.full_path, 'fake_function_index_path')
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_path=bb_trace_dir.full_path,
+          function_index_path='fake_function_index_path')
       # pylint: disable=protected-access
       evaluator._baselines = [1, 2]
       # pylint: enable=protected-access
@@ -202,8 +220,10 @@ class BlackboxEvaluatorTests(absltest.TestCase):
       bb_trace_dir.create_file('bb_trace1.pb')
       bb_trace_dir.create_file('bb_trace2.pb')
       evaluator = blackbox_evaluator.TraceBlackboxEvaluator(
-          test_corpus, blackbox_optimizers.EstimatorType.FORWARD_FD,
-          bb_trace_dir.full_path, 'fake_function_index_path')
+          train_corpus=test_corpus,
+          estimator_type=blackbox_optimizers.EstimatorType.FORWARD_FD,
+          bb_trace_path=bb_trace_dir.full_path,
+          function_index_path='fake_function_index_path')
       evaluator.set_baseline(pool)
       # pylint: disable=protected-access
       self.assertLen(evaluator._baselines, 2)
