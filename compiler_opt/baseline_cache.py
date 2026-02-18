@@ -39,12 +39,13 @@ class BaselineCache(Generic[T]):
 
         Args:
             items: A list of items to get scores for.
-            get_scores_func: A callable that returns the scores for a batch of
-            items.
-            The callable is responsible for timely completion. It must not
-            raise, and it must return results in the order of the items
-            provided. A None value is expected for items that could not produce
-            a value.
+              get_scores_func: A callable that returns the scores for a batch of
+              items.
+
+            get_scores_func: Responsible for timely completion. It must not
+              raise, and it must return results in the order of the items
+              provided. A None value is expected for items that could not
+              produce a value.
         """
     todo = {i for i in items if self._get_key(i) not in self._cache}
     scores = get_scores_func(list(todo))
