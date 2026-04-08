@@ -159,7 +159,8 @@ class RegallocTraceWorkerTest(absltest.TestCase):
         thread_count=1,
         corpus_path=corpus_dir.full_path)
     output_dir = self.create_tempdir("output")
-    with self.assertRaisesRegex(ValueError, "this is on stderr.*this is on stdout"):
+    with self.assertRaisesRegex(ValueError,
+                                "this is on stderr.*this is on stdout"):
       worker.build_corpus(corpus_modules, output_dir.full_path, None)
 
   def test_copy_corpus_locally(self):
