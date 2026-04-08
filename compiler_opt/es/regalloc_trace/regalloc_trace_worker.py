@@ -222,7 +222,13 @@ class RegallocTraceWorker(worker.Worker):
         parents=True, exist_ok=True)
     command_vector.extend(["-o", module_output_path])
 
-    subprocess.run(command_vector, check=True, capture_output=True)
+    try:
+      subprocess.run(command_vector, check=True, capture_output=True)
+    except subprocess.CalledProcessError as process_error:
+      raise ValueError(
+          f"Running command {command_vector} failed with stderr "
+          f"{process_error.stderr} and stdout {process_error.stdout}"
+      ) from process_error
 
   def build_corpus(self,
                    modules: Collection[corpus.ModuleSpec],
