@@ -142,6 +142,26 @@ class RegallocTraceWorkerTest(absltest.TestCase):
     self.assertTrue("module_a.o.fake_suffix" in clang_command_lines[0])
     self.assertTrue("module_b.o.fake_suffix" in clang_command_lines[1])
 
+  def test_compiler_failure(self):
+    corpus_dir = self.create_tempdir("corpus")
+    corpus_modules = corpus_test_utils.setup_corpus(corpus_dir.full_path)
+    fake_clang_binary = self.create_tempfile("fake_clang")
+    fake_clang_invocations = self.create_tempfile("fake_clang_invocations")
+    corpus_test_utils.create_test_binary(
+        fake_clang_binary.full_path, fake_clang_invocations.full_path, [
+            "echo -n this is on stdout", "echo -n this is on stderr >&2",
+            "exit 1"
+        ])
+    worker = regalloc_trace_worker.RegallocTraceWorker(
+        gin_config="",
+        clang_path=fake_clang_binary.full_path,
+        basic_block_trace_model_path="/dev/null",
+        thread_count=1,
+        corpus_path=corpus_dir.full_path)
+    output_dir = self.create_tempdir("output")
+    with self.assertRaisesRegex(ValueError, "this is on stderr.*this is on stdout"):
+      worker.build_corpus(corpus_modules, output_dir.full_path, None)
+
   def test_copy_corpus_locally(self):
     corpus_copy_base_dir = self.create_tempdir("corpus_copy")
     corpus_copy_dir = os.path.join(corpus_copy_base_dir.full_path,
