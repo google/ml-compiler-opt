@@ -227,7 +227,8 @@ class RegallocTraceWorker(worker.Worker):
     except subprocess.CalledProcessError as process_error:
       raise ValueError(
           f"Running command {command_vector} failed with stderr "
-          f"{process_error.stderr} and stdout {process_error.stdout}")
+          f"{process_error.stderr} and stdout {process_error.stdout}"
+      ) from process_error
 
   def build_corpus(self,
                    modules: Collection[corpus.ModuleSpec],
