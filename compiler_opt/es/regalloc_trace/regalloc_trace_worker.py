@@ -325,4 +325,4 @@ class RegallocTraceWorker(worker.Worker):
                                             function_index_path, bb_trace_path)
       score = sum(segment_costs)
       logging.info("Finished evaluating the corpus. The score was %f", score)
-      return sum(score)
+      return score
