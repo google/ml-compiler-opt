@@ -115,6 +115,7 @@ class GradientAscentOptimizer(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError("Abstract method")
 
+
 class MomentumOptimizer(GradientAscentOptimizer):
   """Class implementing momentum gradient ascent optimizer.
 
@@ -154,6 +155,7 @@ class MomentumOptimizer(GradientAscentOptimizer):
 
   def reset_state(self) -> None:
     self.set_state(np.asarray([], dtype=np.float32))
+
 
 class AdamOptimizer(GradientAscentOptimizer):
   """Class implementing ADAM gradient ascent optimizer.
