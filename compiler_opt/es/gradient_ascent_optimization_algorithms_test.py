@@ -101,6 +101,46 @@ class GradientAscentOptimizationAlgorithmsTest(parameterized.TestCase):
     parameter = optimizer.run_step(parameter, gradient2)
     np.testing.assert_array_almost_equal(parameter, final_parameter)
 
+  def test_momentum_reset_state(self):
+    optimizer = gradient_ascent_optimization_algorithms.MomentumOptimizer(
+        0.1, 0.9)
+    optimizer.run_step(
+        np.asarray([1.0, 2.0], dtype=np.float32),
+        np.asarray([1.0, 1.0], dtype=np.float32))
+    optimizer.reset_state()
+    self.assertEqual(optimizer.get_state(), [])
+
+  def test_adam_reset_state(self):
+    optimizer = gradient_ascent_optimization_algorithms.AdamOptimizer(0.1)
+    optimizer.run_step(
+        np.asarray([1.0, 2.0], dtype=np.float32),
+        np.asarray([1.0, 1.0], dtype=np.float32))
+    optimizer.reset_state()
+    self.assertEqual(optimizer.get_state(), [0])
+
+  def test_momentum_reset_allows_new_dimension(self):
+    optimizer = gradient_ascent_optimization_algorithms.MomentumOptimizer(
+        0.1, 0.9)
+    optimizer.run_step(
+        np.asarray([1.0, 2.0], dtype=np.float32),
+        np.asarray([1.0, 1.0], dtype=np.float32))
+    optimizer.reset_state()
+    result = optimizer.run_step(
+        np.asarray([1.0, 2.0, 3.0], dtype=np.float32),
+        np.asarray([1.0, 1.0, 1.0], dtype=np.float32))
+    self.assertEqual(result.shape, (3,))
+
+  def test_adam_reset_allows_new_dimension(self):
+    optimizer = gradient_ascent_optimization_algorithms.AdamOptimizer(0.1)
+    optimizer.run_step(
+        np.asarray([1.0, 2.0], dtype=np.float32),
+        np.asarray([1.0, 1.0], dtype=np.float32))
+    optimizer.reset_state()
+    result = optimizer.run_step(
+        np.asarray([1.0, 2.0, 3.0], dtype=np.float32),
+        np.asarray([1.0, 1.0, 1.0], dtype=np.float32))
+    self.assertEqual(result.shape, (3,))
+
 
 if __name__ == '__main__':
   absltest.main()

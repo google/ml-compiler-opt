@@ -106,6 +106,14 @@ class GradientAscentOptimizer(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError("Abstract method")
 
+  @abc.abstractmethod
+  def reset_state(self) -> None:
+    """Resets the internal state of the optimizer.
+
+    This should be called explicitly when the dimension of the parameters
+    changes.
+    """
+    raise NotImplementedError("Abstract method")
 
 class MomentumOptimizer(GradientAscentOptimizer):
   """Class implementing momentum gradient ascent optimizer.
@@ -144,6 +152,8 @@ class MomentumOptimizer(GradientAscentOptimizer):
   def set_state(self, state: npt.NDArray[np.float32]) -> None:
     self.moving_average = np.asarray(state, dtype=np.float32)
 
+  def reset_state(self) -> None:
+    self.set_state(np.asarray([], dtype=np.float32))
 
 class AdamOptimizer(GradientAscentOptimizer):
   """Class implementing ADAM gradient ascent optimizer.
@@ -213,3 +223,6 @@ class AdamOptimizer(GradientAscentOptimizer):
     self.t = int(state[-1])
     if self.t < 0:
       raise ValueError("The step counter should be non-negative")
+
+  def reset_state(self) -> None:
+    self.set_state(np.asarray([0], dtype=np.float32))
