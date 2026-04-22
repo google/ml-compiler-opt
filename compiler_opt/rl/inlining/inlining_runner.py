@@ -97,14 +97,14 @@ class InliningRunner(compilation_runner.CompilationRunner):
                                                  self._compilation_timeout,
                                                  self._cancellation_manager)
     cmdline = [self._llvm_size_path, output_native_path]
-    output_bytes = compilation_runner.start_cancellable_process(
+    output = compilation_runner.start_cancellable_process(
         cmdline,
         timeout=self._compilation_timeout,
         cancellation_manager=self._cancellation_manager,
-        want_output=True)
-    if not output_bytes:
+        want_output=True,
+        text=True)
+    if not output:
       raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
-    output = output_bytes.decode('utf-8')
     tmp = output.split('\n')
     if len(tmp) != 3:
       raise RuntimeError(f'Wrong llvm-size output {output}')
