@@ -29,6 +29,7 @@ import tempfile
 import shutil
 from typing import Any
 
+from absl import logging
 import gin
 import tensorflow as tf
 
@@ -82,6 +83,7 @@ class RegallocTraceWorker(worker.Worker):
     if tf.io.gfile.exists(copy_corpus_locally_path):
       return
 
+    logging.info("Starting to copy the corpus locally.")
     with tf.io.gfile.GFile(
         os.path.join(corpus_path, "corpus_description.json"),
         "r") as corpus_description_file:
@@ -114,6 +116,7 @@ class RegallocTraceWorker(worker.Worker):
     for copy_future in copy_futures:
       if copy_future.exception() is not None:
         raise copy_future.exception()
+    logging.info("Finished creating a local copy of the corpus.")
 
   def __init__(
       self,
@@ -150,6 +153,7 @@ class RegallocTraceWorker(worker.Worker):
       extra_bb_trace_model_flags: Extra flags to pass to the
         basic_block_trace_model invocation.
     """
+    logging.info("Initializing a regalloc_trace worker.")
     self._clang_path = clang_path
     self._basic_block_trace_model_path = basic_block_trace_model_path
     self._thread_count = thread_count
@@ -313,8 +317,12 @@ class RegallocTraceWorker(worker.Worker):
         tflite_policy_path = policy_utils.convert_to_tflite(
             policy_as_bytes, compilation_dir, self._tf_base_policy_path)
 
+      logging.info("Building the corpus.")
       self.build_corpus(modules, compilation_dir, tflite_policy_path)
 
+      logging.info("Evaluating the corpus.")
       segment_costs = self._evaluate_corpus(compilation_dir,
                                             function_index_path, bb_trace_path)
-      return sum(segment_costs)
+      score = sum(segment_costs)
+      logging.info("Finished evaluating the corpus. The score was %f", score)
+      return score
