@@ -217,11 +217,13 @@ class CompilationRunnerTest(tf.test.TestCase):
 
   def test_start_subprocess_output(self):
     cm = compilation_runner.WorkerCancellationManager()
-    output = compilation_runner.start_cancellable_process(
-        ['ls', '-l'], timeout=100, cancellation_manager=cm, want_output=True)
-    if output:
-      output_str = output.decode('utf-8')
-    else:
+    output_str = compilation_runner.start_cancellable_process(
+        ['ls', '-l'],
+        timeout=100,
+        cancellation_manager=cm,
+        want_output=True,
+        text=True)
+    if not output_str:
       self.fail('output should have been non-empty')
     self.assertNotEmpty(output_str)
 
