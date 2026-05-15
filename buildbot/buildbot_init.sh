@@ -132,6 +132,12 @@ popd
 python3 -m pip install --break-system-packages buildbot-worker==2.9.0
 echo installed buildbot worker
 
+# Install IR2Vec Python binding dependencies.
+# Installs from llvm-project main; canonical source is
+# llvm/tools/llvm-ir2vec/Bindings/requirements.txt
+python3 -m pip install --break-system-packages \
+  -r https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/tools/llvm-ir2vec/Bindings/requirements.txt
+
 TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
