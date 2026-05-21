@@ -25,6 +25,7 @@ from typing import Protocol
 
 from compiler_opt.distributed.worker import FixedWorkerPool
 from compiler_opt.es import blackbox_optimizers
+from compiler_opt.es import perturbations
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_evaluator  # pylint: disable=unused-import
 
@@ -81,37 +82,6 @@ class BlackboxLearnerConfig:
   save_best_policy: bool
 
 
-def _prune_skipped_perturbations(perturbations: list[npt.NDArray[np.float32]],
-                                 rewards: list[float | None]):
-  """Remove perturbations that were skipped during the training step.
-
-  Perturbations may be skipped due to an early exit condition or a server error
-  (clang timeout, malformed training example, etc). The blackbox optimizer
-  assumes that each perturbations has a valid reward, so we must remove any of
-  these "skipped" perturbations.
-
-  Pruning occurs in-place.
-
-  Args:
-    perturbations: the model perturbations used for the ES training step.
-    rewards: the rewards for each perturbation.
-
-  Returns:
-    The number of perturbations that were pruned.
-  """
-  indices_to_prune = []
-  for i, reward in enumerate(rewards):
-    if reward is None:
-      indices_to_prune.append(i)
-
-  # Iterate in reverse so that the indices remain valid
-  for i in reversed(indices_to_prune):
-    del perturbations[i]
-    del rewards[i]
-
-  return len(indices_to_prune)
-
-
 class PolicySaverCallableType(Protocol):
   """Protocol for the policy saver function.
   A Protocol is required to type annotate
@@ -132,6 +102,7 @@ class BlackboxLearner:
                policy_saver_fn: PolicySaverCallableType,
                model_weights: npt.NDArray[np.float32],
                config: BlackboxLearnerConfig,
+               perturbation_scale_vector: npt.NDArray[np.float32],
                initial_step: int = 0,
                deadline: float = 30.0,
                seed: int | None = None):
@@ -158,6 +129,15 @@ class BlackboxLearner:
     self._seed = seed
     self._global_max_reward = 0.0
 
+    self._perturbations_generator = perturbations.Perturbations(
+        dimension=len(self._model_weights),
+        precision_parameter=self._config.precision_parameter,
+        perturbation_scale_vector=perturbation_scale_vector,
+        total_num_perturbations=self._config.total_num_perturbations,
+        is_antithetic=(self._config.estimator_type ==
+                       blackbox_optimizers.EstimatorType.ANTITHETIC),
+        seed=self._seed)
+
     self._summary_writer = tf.summary.create_file_writer(output_dir)
 
     self._evaluator = self._config.evaluator(
@@ -173,20 +153,11 @@ class BlackboxLearner:
     self._flush_models()
     self._thread_pool.close()
 
-  def _get_perturbations(self) -> list[npt.NDArray[np.float32]]:
-    """Get perturbations for the model weights."""
-    rng = np.random.default_rng(seed=self._seed)
-    return [
-        rng.normal(size=len(self._model_weights)) *
-        self._config.precision_parameter
-        for _ in range(self._config.total_num_perturbations)
-    ]
-
-  def _update_model(self, perturbations: list[npt.NDArray[np.float32]],
+  def _update_model(self, pert: list[npt.NDArray[np.float32]],
                     rewards: list[float]) -> None:
     """Update the model given a list of perturbations and rewards."""
     self._model_weights = self._blackbox_opt.run_step(
-        perturbations=np.array(perturbations),
+        perturbations=np.array(pert),
         function_values=np.array(rewards),
         current_input=self._model_weights,
         current_value=np.mean(rewards))
@@ -273,17 +244,11 @@ class BlackboxLearner:
     logging.info('-' * 80)
     logging.info('Step [%d]', self._step)
 
-    initial_perturbations = self._get_perturbations()
-    # positive-negative pairs
-    if (self._config.estimator_type ==
-        blackbox_optimizers.EstimatorType.ANTITHETIC):
-      initial_perturbations = [
-          p for p in initial_perturbations for p in (p, -p)
-      ]
+    perts = self._perturbations_generator.get_next_perturbations()
 
     perturbations_as_bytes = [
         (self._model_weights + perturbation).astype(np.float32).tobytes()
-        for perturbation in initial_perturbations
+        for perturbation in perts
     ]
 
     self._start_model_saving()
@@ -291,7 +256,11 @@ class BlackboxLearner:
     rewards = self._evaluator.get_rewards(results)
     self._flush_models()
 
-    num_pruned = _prune_skipped_perturbations(initial_perturbations, rewards)
+    original_len = len(rewards)
+    perts, rewards = (
+        self._perturbations_generator.prune_skipped_perturbations(
+            perts, rewards))
+    num_pruned = original_len - len(rewards)
     logging.info('Pruned [%d]', num_pruned)
     min_num_rewards = math.ceil(_SKIP_STEP_SUCCESS_RATIO * len(results))
     if len(rewards) < min_num_rewards:
@@ -301,7 +270,7 @@ class BlackboxLearner:
           min_num_rewards)
       return
 
-    self._update_model(initial_perturbations, rewards)
+    self._update_model(perts, rewards)
     self._log_rewards(rewards)
     self._log_tf_summary(rewards)
 
@@ -311,7 +280,7 @@ class BlackboxLearner:
       logging.info('Found new best model with reward %f at step '
                    '%d, saving.', self._global_max_reward, self._step)
       max_index = np.argmax(rewards)
-      perturbation = initial_perturbations[max_index]
+      perturbation = perts[max_index]
       self._save_model(
           parameters=self._model_weights + perturbation,
           policy_name=f'best_policy_{self._global_max_reward}_step'

@@ -350,13 +350,8 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
                current_input: FloatArray, current_value: float) -> FloatArray:
     dim = len(current_input)
     if self.normalize_fvalues:
-      values = function_values.tolist()
-      values.append(current_value)
-      mean = sum(values) / float(len(values))
-      stdev = np.std(np.array(values))
-      normalized_values = [(x - mean) / stdev for x in values]
-      function_values = np.array(normalized_values[:-1])
-      current_value = normalized_values[-1]
+      function_values, current_value = normalize_function_values(
+          function_values, current_value)
     top_ps, top_fs = filter_top_directions(perturbations, function_values,
                                            self.estimator_type,
                                            self.num_top_directions)
@@ -429,13 +424,8 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
                current_input: FloatArray, current_value: float) -> FloatArray:
     dim = len(current_input)
     if self.normalize_fvalues:
-      values = function_values.tolist()
-      values.append(current_value)
-      mean = sum(values) / float(len(values))
-      stdev = np.std(np.array(values))
-      normalized_values = [(x - mean) / stdev for x in values]
-      function_values = np.array(normalized_values[:-1])
-      current_value = normalized_values[-1]
+      function_values, current_value = normalize_function_values(
+          function_values, current_value)
 
     matrix = None
     b_vector = None
@@ -483,15 +473,16 @@ Implemented: monte_carlo_gradient
 """
 
 
-def normalize_function_values(
-    function_values: FloatArray,
-    current_value: float) -> tuple[FloatArray, list[float]]:
+def normalize_function_values(function_values: FloatArray,
+                              current_value: float) -> tuple[FloatArray, float]:
   values = function_values.tolist()
   values.append(current_value)
   mean = sum(values) / float(len(values))
   stdev = np.std(np.array(values))
+  stdev = stdev if stdev > 1e-8 else 1.0
   normalized_values = [(x - mean) / stdev for x in values]
-  return (np.array(normalized_values[:-1]), normalized_values[-1])
+  return (np.array(normalized_values[:-1],
+                   dtype=np.float32), float(normalized_values[-1]))
 
 
 def monte_carlo_gradient(precision_parameter: float,

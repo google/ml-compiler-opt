@@ -18,6 +18,7 @@ import enum
 import gin
 import tensorflow as tf
 import os
+import numpy as np
 
 # Pytype cannot pick up the pyi file for tensorflow.summary. Disable the error
 # here as these errors are false positives.
@@ -72,7 +73,8 @@ def train(additional_compilation_flags=(),
           gradient_ascent_optimizer_type=GradientAscentOptimizerType.ADAM,
           worker_manager_class: type[
               worker_manager.WorkerManager] = local_worker_manager
-          .LocalWorkerPoolManager):
+          .LocalWorkerPoolManager,
+          perturbation_scale_epsilon: float = 0.01):
   """Train with ES."""
 
   if not _TRAIN_CORPORA.value:
@@ -93,6 +95,8 @@ def train(additional_compilation_flags=(),
         policy)
     logging.info("Parameter dimension: %s", initial_parameters.shape)
     logging.info("Initial parameters: %s", initial_parameters)
+    perturbation_scale_vector = np.ones(
+        initial_parameters.shape[0], dtype=np.float32)
   else:
     # Read the parameters from the pretrained policy
     logging.info("Reading policy parameters from %s",
@@ -101,6 +105,8 @@ def train(additional_compilation_flags=(),
     pretrained_policy = tf.saved_model.load(_PRETRAINED_POLICY_PATH.value)
     initial_parameters = policy_utils.get_vectorized_parameters_from_policy(
         pretrained_policy)
+    perturbation_scale_vector = np.abs(
+        initial_parameters) + perturbation_scale_epsilon
 
   policy_parameter_dimension = (
       policy_utils.get_vectorized_parameters_from_policy(policy).shape[0])
@@ -209,7 +215,8 @@ def train(additional_compilation_flags=(),
       model_weights=init_current_input,
       config=learner_config,
       initial_step=init_iteration,
-      deadline=_REQUEST_DEADLINE.value)
+      deadline=_REQUEST_DEADLINE.value,
+      perturbation_scale_vector=perturbation_scale_vector)
 
   if not worker_class:
     logging.info("No Worker class selected. Stopping.")
