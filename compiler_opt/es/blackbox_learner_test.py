@@ -39,6 +39,7 @@ from compiler_opt.rl import registry
 from compiler_opt.rl.inlining import config as inlining_config
 from compiler_opt.es import blackbox_evaluator
 from compiler_opt.es import blackbox_test_utils
+from compiler_opt.es.perturbations import Perturbations
 
 
 class BlackboxLearnerTests(absltest.TestCase):
@@ -146,21 +147,59 @@ class BlackboxLearnerTests(absltest.TestCase):
         policy_saver_fn=_policy_saver_fn,
         model_weights=init_params,
         config=self._learner_config,
+        perturbation_scale_vector=np.ones_like(init_params, dtype=np.float32),
         seed=17)
 
   def test_get_perturbations(self):
     # test values generated with seed=17
-    perturbations = self._learner._get_perturbations()  # pylint: disable=protected-access
+    perturbations = (
+        self._learner._perturbations_generator.get_next_perturbations())  # pylint: disable=protected-access
     rng = np.random.default_rng(seed=17)
-    for perturbation in perturbations:
-      for value in perturbation:
-        self.assertAlmostEqual(value, rng.normal())
+    for i in range(0, len(perturbations), 2):
+      p_raw = rng.normal(size=len(self._learner.get_model_weights()))
+      np.testing.assert_array_almost_equal(perturbations[i], p_raw)
+      np.testing.assert_array_almost_equal(perturbations[i + 1], -p_raw)
 
   def test_prune_skipped_perturbations(self):
     perturbations = [1, 2, 3, 4, 5]
     rewards = [1, None, 1, None, 1]
-    blackbox_learner._prune_skipped_perturbations(perturbations, rewards)  # pylint: disable=protected-access
-    self.assertListEqual(perturbations, [1, 3, 5])
+    # Use a dummy helper with is_antithetic=False
+    helper = Perturbations(
+        dimension=3,
+        precision_parameter=1.0,
+        perturbation_scale_vector=np.ones(3),
+        total_num_perturbations=5,
+        is_antithetic=False)
+    pruned_p, pruned_r = helper.prune_skipped_perturbations(
+        perturbations, rewards)
+    self.assertListEqual(pruned_p, [1, 3, 5])
+    self.assertListEqual(pruned_r, [1, 1, 1])
+
+  def test_prune_skipped_perturbations_antithetic(self):
+    # Antithetic pairs are structured as [p0, -p0, p1, -p1, p2, -p2]
+    # Total 6 elements.
+    perturbations = [1, 2, 3, 4, 5, 6]
+
+    # Case 1: Prune second element of the first pair (index 1) -> both index 0
+    # and 1 should be pruned.
+    rewards = [1.0, None, 1.0, 1.0, 1.0, 1.0]
+    # pylint: disable=protected-access
+    pruned_p, pruned_r = (
+        self._learner._perturbations_generator.prune_skipped_perturbations(
+            perturbations, rewards))
+    self.assertListEqual(pruned_p, [3, 4, 5, 6])
+    self.assertListEqual(pruned_r, [1.0, 1.0, 1.0, 1.0])
+
+    # Case 2: Prune first element of the second pair (index 2) -> index 2 and 3
+    # (first pair is index 0 and 1, second is 2 and 3).
+    perturbations = [1, 2, 3, 4, 5, 6]
+    rewards = [1.0, 1.0, None, 1.0, 1.0, 1.0]
+    pruned_p, pruned_r = (
+        self._learner._perturbations_generator.prune_skipped_perturbations(
+            perturbations, rewards))
+    # pylint: enable=protected-access
+    self.assertListEqual(pruned_p, [1, 2, 5, 6])
+    self.assertListEqual(pruned_r, [1.0, 1.0, 1.0, 1.0])
 
   def test_run_step(self):
     with local_worker_manager.LocalWorkerPoolManager(
