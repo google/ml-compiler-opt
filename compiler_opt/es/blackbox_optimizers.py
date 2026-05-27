@@ -245,7 +245,9 @@ class StatefulOptimizer(BlackboxOptimizer):
   Class contains common methods for handling the state.
   """
 
-  def __init__(self, estimator_type: EstimatorType, normalize_fvalues: bool,
+  def __init__(self,
+               estimator_type: EstimatorType,
+               normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
                extra_params: Sequence[int] | None,
                stdev_floor: float = 1e-5):
@@ -900,10 +902,13 @@ class TrustRegionOptimizer(StatefulOptimizer):
        schedule that would have to be tuned.
   """
 
-  def __init__(self, precision_parameter: float, estimator_type: EstimatorType,
+  def __init__(self,
+               precision_parameter: float,
+               estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Sequence[int] | None, tr_params: Mapping[str, Any],
+               extra_params: Sequence[int] | None,
+               tr_params: Mapping[str, Any],
                stdev_floor: float = 1e-5):
     self.precision_parameter = precision_parameter
     super().__init__(estimator_type, normalize_fvalues,
