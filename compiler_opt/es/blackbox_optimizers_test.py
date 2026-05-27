@@ -89,6 +89,15 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_allclose(norm_fs, [0.0, 0.0, 0.0])
     self.assertEqual(norm_cv, 0.0)
 
+  def test_normalize_function_values_z_score_small_stdev(self):
+    # If stdev is very small, it should be clamped by stdev_floor
+    function_values = np.array([5.000001, 4.999999], dtype=np.float32)
+    current_value = 5.0
+    norm_fs, norm_cv = blackbox_optimizers.normalize_function_values(
+        function_values, current_value, stdev_floor=1e-4)
+    np.testing.assert_allclose(norm_fs, [0.0095367, -0.0095367], atol=1e-6)
+    self.assertAlmostEqual(norm_cv, 0.0, places=6)
+
   @parameterized.parameters(
       (perturbation_array, function_value_array,
        blackbox_optimizers.EstimatorType.ANTITHETIC, 3, np.array([100, -16])),

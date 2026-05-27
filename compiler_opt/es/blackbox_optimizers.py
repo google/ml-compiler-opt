@@ -247,11 +247,13 @@ class StatefulOptimizer(BlackboxOptimizer):
 
   def __init__(self, estimator_type: EstimatorType, normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Sequence[int] | None):
+               extra_params: Sequence[int] | None,
+               stdev_floor: float = 1e-5):
 
     self.estimator_type = estimator_type
     self.normalize_fvalues = normalize_fvalues
     self.hyperparameters_update_method = hyperparameters_update_method
+    self.stdev_floor = stdev_floor
     if hyperparameters_update_method == UpdateMethod.STATE_NORMALIZATION:
       self.state_dim = extra_params[0]
       self.nb_steps = 0
@@ -329,7 +331,8 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
       step_size: float | None = None,
       num_top_directions: int = 0,
       gradient_ascent_optimizer: gradient_ascent_optimization_algorithms
-      .GradientAscentOptimizer | None = None):
+      .GradientAscentOptimizer | None = None,
+      stdev_floor: float = 1e-5):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and \
@@ -343,7 +346,7 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     self.num_top_directions = num_top_directions
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
     super().__init__(estimator_type, normalize_fvalues,
-                     hyperparameters_update_method, extra_params)
+                     hyperparameters_update_method, extra_params, stdev_floor)
 
   # TODO: Issue #285
   def run_step(self, perturbations: FloatArray2D, function_values: FloatArray,
@@ -351,7 +354,7 @@ class MonteCarloBlackboxOptimizer(StatefulOptimizer):
     dim = len(current_input)
     if self.normalize_fvalues:
       function_values, current_value = normalize_function_values(
-          function_values, current_value)
+          function_values, current_value, self.stdev_floor)
     top_ps, top_fs = filter_top_directions(perturbations, function_values,
                                            self.estimator_type,
                                            self.num_top_directions)
@@ -398,7 +401,8 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
       extra_params: Sequence[int] | None,
       step_size: float | None = None,
       gradient_ascent_optimizer: gradient_ascent_optimization_algorithms
-      .GradientAscentOptimizer | None = None):
+      .GradientAscentOptimizer | None = None,
+      stdev_floor: float = 1e-5):
     # Check step_size and gradient_ascent_optimizer
     if (step_size is None) == (gradient_ascent_optimizer is None):
       raise ValueError('Exactly one of step_size and gradient_ascent_optimizer \
@@ -418,14 +422,14 @@ class SklearnRegressionBlackboxOptimizer(StatefulOptimizer):
       raise ValueError('Optimization procedure option not available')
     self.gradient_ascent_optimizer = gradient_ascent_optimizer
     super().__init__(estimator_type, normalize_fvalues,
-                     hyperparameters_update_method, extra_params)
+                     hyperparameters_update_method, extra_params, stdev_floor)
 
   def run_step(self, perturbations: FloatArray2D, function_values: FloatArray,
                current_input: FloatArray, current_value: float) -> FloatArray:
     dim = len(current_input)
     if self.normalize_fvalues:
       function_values, current_value = normalize_function_values(
-          function_values, current_value)
+          function_values, current_value, self.stdev_floor)
 
     matrix = None
     b_vector = None
@@ -473,13 +477,15 @@ Implemented: monte_carlo_gradient
 """
 
 
-def normalize_function_values(function_values: FloatArray,
-                              current_value: float) -> tuple[FloatArray, float]:
+def normalize_function_values(
+    function_values: FloatArray,
+    current_value: float,
+    stdev_floor: float = 1e-5) -> tuple[FloatArray, float]:
   values = function_values.tolist()
   values.append(current_value)
   mean = sum(values) / float(len(values))
   stdev = np.std(np.array(values))
-  stdev = stdev if stdev > 1e-8 else 1.0
+  stdev = max(stdev, stdev_floor)
   normalized_values = [(x - mean) / stdev for x in values]
   return (np.array(normalized_values[:-1],
                    dtype=np.float32), float(normalized_values[-1]))
@@ -897,11 +903,11 @@ class TrustRegionOptimizer(StatefulOptimizer):
   def __init__(self, precision_parameter: float, estimator_type: EstimatorType,
                normalize_fvalues: bool,
                hyperparameters_update_method: UpdateMethod,
-               extra_params: Sequence[int] | None, tr_params: Mapping[str,
-                                                                      Any]):
+               extra_params: Sequence[int] | None, tr_params: Mapping[str, Any],
+               stdev_floor: float = 1e-5):
     self.precision_parameter = precision_parameter
     super().__init__(estimator_type, normalize_fvalues,
-                     hyperparameters_update_method, extra_params)
+                     hyperparameters_update_method, extra_params, stdev_floor)
 
     self.accepted_quadratic_model = None
     self.accepted_function_value = None
@@ -1132,7 +1138,8 @@ class TrustRegionOptimizer(StatefulOptimizer):
                                       0.5 * self.accepted_function_value)
     if self.normalize_fvalues:
       normalized_values = normalize_function_values(function_values,
-                                                    current_value)
+                                                    current_value,
+                                                    self.stdev_floor)
       function_values = normalized_values[0]
       current_value = normalized_values[1]
       self.normalized_current_value = current_value
