@@ -22,4 +22,5 @@ TF_CPP_MIN_LOG_LEVEL=3 PYTHONPATH=/work/ml-compiler-opt:$PYTHONPATH \
   --gin_bindings clang_path="'/work/llvm-train/bin/clang'" \
   --gin_bindings llvm_size_path="'/work/llvm-train/bin/llvm-size'" \
   --gin_bindings inlining.config.get_observation_processing_layer_creator.quantile_file_dir="'/work/corpus/vocab'" \
+  --gin_bindings pretrained_policy_path="'/work/corpus/bc_model/saved_policy'" \
   --output_path /work/corpus/trained_model_es

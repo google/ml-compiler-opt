@@ -14,18 +14,11 @@
 
 #!/bin/bash
 
-SCRIPT_DIR="$(dirname -- "${BASH_SOURCE[0]}")"
+cd /work/ml-compiler-opt
 
-SCRIPT_DIR="$(cd -- "$SCRIPT_DIR" && pwd)"
-if [[ -z "$SCRIPT_DIR" ]] ; then
-    exit 1
-fi
-
-"${SCRIPT_DIR}/init.sh"
-"${SCRIPT_DIR}/build_clang_for_training.sh"
-"${SCRIPT_DIR}/build_clang_for_corpus.sh"
-"${SCRIPT_DIR}/extract_corpus.sh"
-"${SCRIPT_DIR}/generate_default_trace.sh"
-"${SCRIPT_DIR}/generate_vocab.sh"
-"${SCRIPT_DIR}/train_bc.sh"
-"${SCRIPT_DIR}/train_with_es.sh"
+TF_CPP_MIN_LOG_LEVEL=3 GINPATH=/work/ml-compiler-opt PYTHONPATH=/work/ml-compiler-opt:$PYTHONPATH \
+  python /work/ml-compiler-opt/compiler_opt/rl/train_bc.py \
+  --root_dir /work/corpus/bc_model \
+  --gin_files /work/ml-compiler-opt/compiler_opt/rl/inlining/gin_configs/behavioral_cloning_nn_agent.gin \
+  --gin_bindings inlining.config.get_observation_processing_layer_creator.quantile_file_dir="'/work/corpus/vocab'" \
+  --data_path /work/corpus/default_trace
