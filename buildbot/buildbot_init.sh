@@ -88,9 +88,9 @@ ADMIN_PACKAGES="tmux"
         gnupg
 
       bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 20
-      ln -sf /usr/bin/clang-20 /usr/bin/cc
-      ln -sf /usr/bin/clang++-20 /usr/bin/c++
-      ln -sf /usr/bin/ld.lld-20 /usr/bin/ld
+      ln -sf /usr/bin/clang-22 /usr/bin/cc
+      ln -sf /usr/bin/clang++-22 /usr/bin/c++
+      ln -sf /usr/bin/ld.lld-22 /usr/bin/ld
 
     ) && exit 0
   done
