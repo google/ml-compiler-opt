@@ -87,10 +87,11 @@ ADMIN_PACKAGES="tmux"
         software-properties-common \
         gnupg
 
-      bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 20
-      ln -sf /usr/bin/clang-22 /usr/bin/cc
-      ln -sf /usr/bin/clang++-22 /usr/bin/c++
-      ln -sf /usr/bin/ld.lld-22 /usr/bin/ld
+      export LLVM_MAJOR_VERSION=22
+      bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ${LLVM_MAJOR_VERSION}
+      ln -sf /usr/bin/clang-${LLVM_MAJOR_VERSION} /usr/bin/cc
+      ln -sf /usr/bin/clang++-${LLVM_MAJOR_VERSION} /usr/bin/c++
+      ln -sf /usr/bin/ld.lld-${LLVM_MAJOR_VERSION} /usr/bin/ld
 
     ) && exit 0
   done
