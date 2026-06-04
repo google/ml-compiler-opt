@@ -2,7 +2,7 @@
 
 ## 1. Build the Docker Image
 
-From the repository root, build the development environment container:
+From the repository root, build the demo environment container:
 
 ```bash
 docker build -t ml-compiler-opt-llvm docs/llvm/
@@ -13,7 +13,7 @@ docker build -t ml-compiler-opt-llvm docs/llvm/
 Run the container with volume mounts to persist corpus data, training logs, and checkpoints locally. This enables running TensorBoard on the host to monitor training.
 
 ```bash
-sudo docker run -it \
+docker run -it \
   -v "$(pwd):/work/ml-compiler-opt" \
   -v "$(pwd)/local_logs:/work/corpus/" \
   ml-compiler-opt-llvm /bin/bash
