@@ -36,3 +36,15 @@ To monitor the training progress using TensorBoard, run the following command on
 ```bash
 tensorboard --logdir local_logs
 ```
+
+---
+
+## 5. Script Flags Documentation
+
+If you want to understand or customize the flags used in the training pipeline scripts (like `train_bc.py`), you can:
+* **Run with `--help`**: Use the `--help` flag with any of the Python scripts to print all available command-line flags and their descriptions:
+  ```bash
+  PYTHONPATH=. python3 compiler_opt/rl/train_bc.py --help
+  ```
+* **View Source Code Definitions**: The flags are defined inline within their respective Python files (such as [train_bc.py](file:///usr/local/google/home/bmandalapu/dev/ml-compiler-opt/compiler_opt/rl/train_bc.py)).
+
