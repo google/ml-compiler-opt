@@ -92,8 +92,7 @@ class Sleeper(compilation_runner.CompilationRunner):
                    reward_stat=None,
                    model_id=None):
     _ = loaded_module_spec, policy, reward_stat
-    compilation_runner.start_cancellable_process(['sleep', '3600s'], 3600,
-                                                 self._cancellation_manager)
+    self._cancellation_manager.start_cancellable_process(['sleep', '3600s'])
 
     return compilation_runner.CompilationResult(
         sequence_examples=[],

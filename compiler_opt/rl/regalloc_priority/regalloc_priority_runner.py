@@ -28,9 +28,11 @@ class RegAllocPriorityRunner(compilation_runner.CompilationRunner):
   """Class for collecting data for regalloc-priority-prediction."""
 
   def _compile_fn(
-      self, file_paths: tuple[str, ...], tf_policy_path: str, reward_only: bool,
+      self,
+      file_paths: tuple[str, ...],
+      tf_policy_path: str,
+      reward_only: bool,
       workdir: str,
-      cancellation_manager: compilation_runner.WorkerCancellationManager | None
   ) -> dict[str, tuple[tf.train.SequenceExample, float]]:
 
     file_paths = file_paths[0].replace('.bc', '')
@@ -52,9 +54,7 @@ class RegAllocPriorityRunner(compilation_runner.CompilationRunner):
     if tf_policy_path:
       command_line.extend(
           ['-mllvm', '-regalloc-priority-model=' + tf_policy_path])
-    compilation_runner.start_cancellable_process(command_line,
-                                                 self._compilation_timeout,
-                                                 cancellation_manager)
+    self._cancellation_manager.start_cancellable_process(command_line)
 
     # TODO(#202)
     log_result = log_reader.read_log_as_sequence_examples(log_path)

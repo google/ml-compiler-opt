@@ -18,7 +18,7 @@ not necessary, but sufficient for illustration.
 2) define the implementation of
 `compiler_opt.rl.compilation_runner.CompilationRunner` that's specific to your
 problem. Refer to the examples. Note how we always start processes via the
-`compiler_opt.rl.start_cancellable_process()` utility.
+`self._cancellation_manager.start_cancellable_process()` utility.
 
 3) define the ML interface - see the `config.py` file in each of the examples.
 
