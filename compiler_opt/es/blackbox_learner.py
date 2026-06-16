@@ -23,7 +23,7 @@ import numpy.typing as npt
 import tensorflow as tf
 from typing import Protocol
 
-from compiler_opt.distributed.worker import FixedWorkerPool
+from compiler_opt.distributed import worker
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.es import perturbations
 from compiler_opt.rl import corpus
@@ -234,10 +234,10 @@ class BlackboxLearner:
   def get_model_weights(self) -> npt.NDArray[np.float32]:
     return self._model_weights
 
-  def set_baseline(self, pool: FixedWorkerPool) -> None:
+  def set_baseline(self, pool: worker.WorkerPool) -> None:
     self._evaluator.set_baseline(pool)
 
-  def run_step(self, pool: FixedWorkerPool) -> None:
+  def run_step(self, pool: worker.WorkerPool) -> None:
     """Run a single step of blackbox learning.
     This does not instantaneously return due to several I/O
     and executions running while this waits for the responses"""
