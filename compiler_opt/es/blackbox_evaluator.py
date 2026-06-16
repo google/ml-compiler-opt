@@ -23,7 +23,7 @@ from absl import logging
 import gin
 import tensorflow as tf
 
-from compiler_opt.distributed.worker import FixedWorkerPool
+from compiler_opt.distributed import worker
 from compiler_opt.rl import corpus
 from compiler_opt.es import blackbox_optimizers
 from compiler_opt.distributed import buffered_scheduler
@@ -57,12 +57,12 @@ class BlackboxEvaluator(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_results(
-      self, pool: FixedWorkerPool,
+      self, pool: worker.WorkerPool,
       perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def set_baseline(self, pool: FixedWorkerPool) -> None:
+  def set_baseline(self, pool: worker.WorkerPool) -> None:
     raise NotImplementedError()
 
 
@@ -119,7 +119,7 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
 
   def _launch_compilation_workers(
       self,
-      pool: FixedWorkerPool,
+      pool: worker.WorkerPool,
       samples: list[list[corpus.LoadedModuleSpec]],
       perturbations: list[bytes] | None = None
   ) -> list[concurrent.futures.Future]:
@@ -162,14 +162,14 @@ class SamplingBlackboxEvaluator(BlackboxEvaluator):
     ]
 
   def get_results(
-      self, pool: FixedWorkerPool,
+      self, pool: worker.WorkerPool,
       perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     if not self._samples:
       self.load_samples()
     self.ensure_baselines(pool)
     return self._launch_compilation_workers(pool, self._samples, perturbations)
 
-  def set_baseline(self, pool: FixedWorkerPool) -> None:
+  def set_baseline(self, pool: worker.WorkerPool) -> None:
     pass
 
   def get_rewards(
@@ -216,7 +216,7 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
     self._baselines: list[float] | None = None
 
   def get_results(
-      self, pool: FixedWorkerPool,
+      self, pool: worker.WorkerPool,
       perturbations: list[bytes]) -> list[concurrent.futures.Future]:
     job_args = []
     self._current_baselines = []
@@ -239,7 +239,7 @@ class TraceBlackboxEvaluator(BlackboxEvaluator):
         futures, return_when=concurrent.futures.ALL_COMPLETED)
     return futures
 
-  def set_baseline(self, pool: FixedWorkerPool) -> None:
+  def set_baseline(self, pool: worker.WorkerPool) -> None:
     if self._baselines is not None:
       raise RuntimeError('The baseline has already been set.')
 

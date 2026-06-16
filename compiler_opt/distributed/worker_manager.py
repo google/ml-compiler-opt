@@ -36,7 +36,7 @@ class WorkerManager(AbstractContextManager, metaclass=abc.ABCMeta):
     raise ValueError("Not Implemented")
 
   @abc.abstractmethod
-  def __enter__(self) -> worker.FixedWorkerPool:
+  def __enter__(self) -> worker.WorkerPool:
     raise ValueError("Not Implemented")
 
   @abc.abstractmethod
