@@ -211,7 +211,6 @@ class CompilationRunnerTest(tf.test.TestCase):
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
 
-
   def test_calculate_reward_zero_delta(self):
     reward = compilation_runner.calculate_reward(3, 0)
     self.assertTrue(math.isfinite(reward))

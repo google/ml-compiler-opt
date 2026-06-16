@@ -120,8 +120,6 @@ def _overwrite_trajectory_reward(sequence_example: tf.train.SequenceExample,
   return sequence_example
 
 
-
-
 @dataclasses.dataclass(frozen=True)
 class CompilationResult:
   """Result of a call to CompilationRunner.collect_data.
@@ -246,9 +244,7 @@ class CompilationRunner(Worker):
     self._compilation_timeout = COMPILATION_TIMEOUT.value
     self._cancellation_manager = (
         cancellable_process.WorkerCancellationManager(
-            timeout=self._compilation_timeout
-        )
-    )
+            timeout=self._compilation_timeout))
     self._observers = ([f() for f in create_observer_fns]
                        if create_observer_fns else [])
 

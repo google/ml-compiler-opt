@@ -151,9 +151,8 @@ class WorkerCancellationManager:
       if retcode != 0:
         if retcode == -9:
           raise ProcessKilledError()
-        logging.info(
-            'Command returned code %d: %s', retcode, shlex.join(cmdline)
-        )
+        logging.info('Command returned code %d: %s', retcode,
+                     shlex.join(cmdline))
         raise subprocess.CalledProcessError(retcode, cmdline)
       else:
         if p.stdout:
