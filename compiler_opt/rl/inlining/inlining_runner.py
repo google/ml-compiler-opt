@@ -17,6 +17,7 @@ import os
 import tempfile
 
 import gin
+import subprocess
 import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
