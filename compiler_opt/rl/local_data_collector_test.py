@@ -22,6 +22,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 # This is https://github.com/google/pytype/issues/764
 from google.protobuf import text_format  # pytype: disable=pyi-error
+from compiler_opt import cancellable_process
 from compiler_opt.distributed.local.local_worker_manager import LocalWorkerPoolManager
 from compiler_opt.rl import compilation_runner
 from compiler_opt.rl import corpus
@@ -228,7 +229,7 @@ class LocalDataCollectorTest(tf.test.TestCase):
       collector._join_pending_jobs()
       killed = 0
       for w in collector._current_futures:
-        self.assertRaises(compilation_runner.ProcessKilledError, w.result)
+        self.assertRaises(cancellable_process.ProcessKilledError, w.result)
         killed += 1
       self.assertEqual(killed, 4)
       collector.close_pool()
