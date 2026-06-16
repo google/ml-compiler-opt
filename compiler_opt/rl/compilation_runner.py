@@ -150,7 +150,7 @@ class WorkerCancellationManager:
   managing resources.
   """
 
-  def __init__(self):
+  def __init__(self, timeout: float | None = None):
     # the queue is filled only by workers, and drained only by the single
     # consumer. we use _done to manage access to the queue. We can then assume
     # empty() is accurate and get() never blocks.
@@ -158,6 +158,7 @@ class WorkerCancellationManager:
     self._done = False
     self._paused = False
     self._lock = threading.Lock()
+    self._timeout = timeout
 
   def enable(self):
     with self._lock:
@@ -207,66 +208,57 @@ class WorkerCancellationManager:
     if len(self._processes) > 0:
       raise RuntimeError('Cancellation manager deleted while containing items.')
 
-
-def start_cancellable_process(
-    cmdline: list[str],
-    timeout: float,
-    cancellation_manager: WorkerCancellationManager
-    | None,
-    want_output: bool = False,
-    **kwargs,
-) -> bytes | str | None:
-  """Start a cancellable process.
-
-  Args:
-    cmdline: the process executable and command line
-    timeout: process execution timeout
-    cancellation_manager: kill any running process if signaled to do so
-    want_output: if True, return a buffer containing stdout
-
-  Returns:
-    stdout
-  Raises:
-    CalledProcessError: if the process encounters an error.
-    TimeoutExpired: if the process times out.
-    ProcessKilledError: if the process was killed via the cancellation token.
-  """
-  command_env = os.environ.copy()
-  # Disable tensorflow info messages during data collection
-  if _QUIET.value:
-    command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
-  else:
-    logging.info(shlex.join(cmdline))
-  with subprocess.Popen(
-      cmdline,
-      env=command_env,
-      stdout=(subprocess.PIPE if want_output else None),
+  def start_cancellable_process(
+      self,
+      cmdline: list[str],
       **kwargs,
-  ) as p:
-    if cancellation_manager:
-      cancellation_manager.register_process(p)
+  ) -> bytes | str | None:
+    """Start a cancellable process.
 
-    try:
-      retcode = p.wait(timeout=timeout)
-    except subprocess.TimeoutExpired as e:
-      logging.info('Command hit timeout: %s', shlex.join(cmdline))
-      kill_process_ignore_exceptions(p)
-      raise e
-    finally:
-      if cancellation_manager:
-        cancellation_manager.unregister_process(p)
+    Args:
+      cmdline: the process executable and command line
+      **kwargs: keyword arguments to subprocess.Popen (e.g. stdout, env)
 
-    if retcode != 0:
-      if retcode == -9:
-        raise ProcessKilledError()
-      logging.info('Command returned code %d: %s', retcode, shlex.join(cmdline))
-      raise subprocess.CalledProcessError(retcode, cmdline)
+    Returns:
+      stdout if stdout=subprocess.PIPE was requested, else None.
+    Raises:
+      CalledProcessError: if the process encounters an error.
+      TimeoutExpired: if the process times out.
+      ProcessKilledError: if the process was killed via the cancellation token.
+    """
+    env = kwargs.pop('env', None)
+    command_env = env.copy() if env is not None else os.environ.copy()
+    if _QUIET.value:
+      command_env['TF_CPP_MIN_LOG_LEVEL'] = '1'
     else:
-      if want_output:
-        assert p.stdout is not None
-        ret: bytes = p.stdout.read()
-        p.stdout.close()
-        return ret
+      logging.info(shlex.join(cmdline))
+    with subprocess.Popen(
+        cmdline,
+        env=command_env,
+        **kwargs,
+    ) as p:
+      self.register_process(p)
+
+      try:
+        retcode = p.wait(timeout=self._timeout)
+      except subprocess.TimeoutExpired as e:
+        logging.info('Command hit timeout: %s', shlex.join(cmdline))
+        kill_process_ignore_exceptions(p)
+        raise e
+      finally:
+        self.unregister_process(p)
+
+      if retcode != 0:
+        if retcode == -9:
+          raise ProcessKilledError()
+        logging.info('Command returned code %d: %s', retcode,
+                     shlex.join(cmdline))
+        raise subprocess.CalledProcessError(retcode, cmdline)
+      else:
+        if p.stdout:
+          ret = p.stdout.read()
+          p.stdout.close()
+          return ret
 
 
 @dataclasses.dataclass(frozen=True)
@@ -391,7 +383,8 @@ class CompilationRunner(Worker):
     self._moving_average_decay_rate = moving_average_decay_rate
     # Avoid reading the flag during the first interpretation of this module.
     self._compilation_timeout = COMPILATION_TIMEOUT.value
-    self._cancellation_manager = WorkerCancellationManager()
+    self._cancellation_manager = WorkerCancellationManager(
+        timeout=self._compilation_timeout)
     self._observers = ([f() for f in create_observer_fns]
                        if create_observer_fns else [])
 

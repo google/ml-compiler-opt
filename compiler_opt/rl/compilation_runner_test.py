@@ -216,13 +216,10 @@ class CompilationRunnerTest(tf.test.TestCase):
     self.assertEqual(1, mock_compile_fn.call_count)
 
   def test_start_subprocess_output(self):
-    cm = compilation_runner.WorkerCancellationManager()
-    output_str = compilation_runner.start_cancellable_process(
-        ['ls', '-l'],
-        timeout=100,
-        cancellation_manager=cm,
-        want_output=True,
-        text=True)
+    cm = compilation_runner.WorkerCancellationManager(timeout=100)
+    output_str = cm.start_cancellable_process(['ls', '-l'],
+                                              stdout=subprocess.PIPE,
+                                              text=True)
     if not output_str:
       self.fail('output should have been non-empty')
     self.assertNotEmpty(output_str)
@@ -232,16 +229,15 @@ class CompilationRunnerTest(tf.test.TestCase):
                                  'test_timeout_kills_test_file')
     if os.path.exists(sentinel_file):
       os.remove(sentinel_file)
+    cm = compilation_runner.WorkerCancellationManager(timeout=0.5)
     with self.assertRaises(subprocess.TimeoutExpired):
-      compilation_runner.start_cancellable_process(
-          ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file],
-          timeout=0.5,
-          cancellation_manager=None)
+      cm.start_cancellable_process(
+          ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file])
     time.sleep(2)
     self.assertFalse(os.path.exists(sentinel_file))
 
   def test_pause_resume(self):
-    cm = compilation_runner.WorkerCancellationManager()
+    cm = compilation_runner.WorkerCancellationManager(timeout=30)
     start_time = time.time()
 
     def stop_and_start():
@@ -251,9 +247,7 @@ class CompilationRunnerTest(tf.test.TestCase):
       cm.resume_all_processes()
 
     threading.Thread(target=stop_and_start).start()
-    compilation_runner.start_cancellable_process(['sleep', '0.5'],
-                                                 30,
-                                                 cancellation_manager=cm)
+    cm.start_cancellable_process(['sleep', '0.5'])
     # should be at least 1 second due to the pause.
     self.assertGreater(time.time() - start_time, 1)
 

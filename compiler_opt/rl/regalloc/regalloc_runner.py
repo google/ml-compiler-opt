@@ -78,9 +78,7 @@ class RegAllocRunner(compilation_runner.CompilationRunner):
 
     if tf_policy_path:
       cmdline.extend(['-mllvm', '-regalloc-model=' + tf_policy_path])
-    compilation_runner.start_cancellable_process(cmdline,
-                                                 self._compilation_timeout,
-                                                 self._cancellation_manager)
+    self._cancellation_manager.start_cancellable_process(cmdline)
 
     # TODO(#202)
     log_result = log_reader.read_log_as_sequence_examples(log_path)

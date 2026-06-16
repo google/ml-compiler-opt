@@ -17,6 +17,7 @@ import os
 import tempfile
 
 import gin
+import subprocess
 import tensorflow as tf
 
 from compiler_opt.rl import compilation_runner
@@ -93,16 +94,10 @@ class InliningRunner(compilation_runner.CompilationRunner):
     if tf_policy_path:
       cmdline.extend(
           ['-mllvm', '-ml-inliner-model-under-training=' + tf_policy_path])
-    compilation_runner.start_cancellable_process(cmdline,
-                                                 self._compilation_timeout,
-                                                 self._cancellation_manager)
+    self._cancellation_manager.start_cancellable_process(cmdline)
     cmdline = [self._llvm_size_path, output_native_path]
-    output = compilation_runner.start_cancellable_process(
-        cmdline,
-        timeout=self._compilation_timeout,
-        cancellation_manager=self._cancellation_manager,
-        want_output=True,
-        text=True)
+    output = self._cancellation_manager.start_cancellable_process(
+        cmdline, stdout=subprocess.PIPE, text=True)
     if not output:
       raise RuntimeError(f'Empty llvm-size output: {" ".join(cmdline)}')
     tmp = output.split('\n')
