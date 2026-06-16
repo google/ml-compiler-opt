@@ -14,14 +14,10 @@
 """Tests for compiler_opt.rl.compilation_runner."""
 
 import math
-import os
 import string
 import subprocess
-import threading
-import time
 from unittest import mock
 
-from absl import flags
 import tensorflow as tf
 
 # This is https://github.com/google/pytype/issues/764
@@ -214,42 +210,6 @@ class CompilationRunnerTest(tf.test.TestCase):
           policy=_mock_policy,
           reward_stat=None)
     self.assertEqual(1, mock_compile_fn.call_count)
-
-  def test_start_subprocess_output(self):
-    cm = compilation_runner.WorkerCancellationManager(timeout=100)
-    output_str = cm.start_cancellable_process(['ls', '-l'],
-                                              stdout=subprocess.PIPE,
-                                              text=True)
-    if not output_str:
-      self.fail('output should have been non-empty')
-    self.assertNotEmpty(output_str)
-
-  def test_timeout_kills_process(self):
-    sentinel_file = os.path.join(flags.FLAGS.test_tmpdir,
-                                 'test_timeout_kills_test_file')
-    if os.path.exists(sentinel_file):
-      os.remove(sentinel_file)
-    cm = compilation_runner.WorkerCancellationManager(timeout=0.5)
-    with self.assertRaises(subprocess.TimeoutExpired):
-      cm.start_cancellable_process(
-          ['bash', '-c', 'sleep 1s ; touch ' + sentinel_file])
-    time.sleep(2)
-    self.assertFalse(os.path.exists(sentinel_file))
-
-  def test_pause_resume(self):
-    cm = compilation_runner.WorkerCancellationManager(timeout=30)
-    start_time = time.time()
-
-    def stop_and_start():
-      time.sleep(0.25)
-      cm.pause_all_processes()
-      time.sleep(1)
-      cm.resume_all_processes()
-
-    threading.Thread(target=stop_and_start).start()
-    cm.start_cancellable_process(['sleep', '0.5'])
-    # should be at least 1 second due to the pause.
-    self.assertGreater(time.time() - start_time, 1)
 
   def test_calculate_reward_zero_delta(self):
     reward = compilation_runner.calculate_reward(3, 0)

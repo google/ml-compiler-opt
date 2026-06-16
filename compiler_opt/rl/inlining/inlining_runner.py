@@ -67,7 +67,7 @@ class InliningRunner(compilation_runner.CompilationRunner):
 
     Raises:
       subprocess.CalledProcessError: if process fails.
-      compilation_runner.ProcessKilledError: (which it must pass through) on
+      cancellable_process.ProcessKilledError: (which it must pass through) on
       cancelled work.
       RuntimeError: if llvm-size produces unexpected output.
     """
