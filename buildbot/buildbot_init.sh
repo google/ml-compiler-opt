@@ -125,6 +125,8 @@ pushd ml-compiler-opt
 # install the tf pip package for the AOT ("release" scenario) and for test model builds.
 sudo -u buildbot python3 -m pip install --break-system-packages pipenv
 echo installed pipenv
+sudo -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
+echo installed tosa-converter-for-tflite
 sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
 echo used pipenv
 popd
