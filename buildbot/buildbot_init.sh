@@ -132,15 +132,14 @@ echo used pipenv
 popd
 popd
 
-python3 -m pip install --break-system-packages buildbot-worker==2.9.0
+sudo -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
 echo installed buildbot worker
 
 # Install IR2Vec Python binding dependencies.
 # Installs from llvm-project main; canonical source is
 # llvm/tools/llvm-ir2vec/Bindings/requirements.txt
 curl -L --retry 10 https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/tools/llvm-ir2vec/Bindings/requirements.txt > /tmp/ir2vec-reqs.txt
-python3 -m pip install --break-system-packages \
-  -r /tmp/ir2vec-reqs.txt
+sudo -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
 
 TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
