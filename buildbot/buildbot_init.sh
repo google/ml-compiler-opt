@@ -104,8 +104,6 @@ useradd buildbot -g buildbot -m -d /b/home
 rm -rf /var/lib/buildbot
 ln -s /b/home /var/lib/buildbot
 chmod 777 /var/lib/buildbot
-sudo -u buildbot echo 'PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
-
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
@@ -121,35 +119,35 @@ else
 fi
 
 pushd /tmp
-sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
+sudo -i -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
 pushd ml-compiler-opt
 
 # install the tf pip package for the AOT ("release" scenario) and for test model builds.
-sudo -u buildbot python3 -m pip install --break-system-packages pipenv
+sudo -i -u buildbot python3 -m pip install --break-system-packages pipenv
 echo installed pipenv
-sudo -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
+sudo -i -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
 echo installed tosa-converter-for-tflite
-sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
+sudo -i -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
 echo used pipenv
 popd
 popd
 
-sudo -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
+sudo -i -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
 echo installed buildbot worker
 
 # Install IR2Vec Python binding dependencies.
 # Installs from llvm-project main; canonical source is
 # llvm/tools/llvm-ir2vec/Bindings/requirements.txt
 curl -L --retry 10 https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/tools/llvm-ir2vec/Bindings/requirements.txt > /tmp/ir2vec-reqs.txt
-sudo -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
+sudo -i -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
 
-TF_PIP=$(sudo -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
+TF_PIP=$(sudo -i -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
+sudo -i -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
 
 # location we want
-sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
+sudo -i -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
@@ -190,7 +188,7 @@ while pkill buildbot-worker; do sleep 5; done;
 
 rm -rf ${BOT_DIR}/buildbot.tac ${BOT_DIR}/twistd.log
 echo "Starting build worker ${WORKER_NAME}"
-sudo -u buildbot buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
+sudo -i -u buildbot buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
    "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
 echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
@@ -208,7 +206,7 @@ echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
 
 
 chown -R buildbot:buildbot $BOT_DIR
-sudo -u buildbot buildbot-worker start $BOT_DIR
+sudo -i -u buildbot buildbot-worker start $BOT_DIR
 
 sleep 30
 cat $BOT_DIR/twistd.log
