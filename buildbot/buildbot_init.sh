@@ -119,35 +119,35 @@ else
 fi
 
 pushd /tmp
-sudo -i -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
+sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
 pushd ml-compiler-opt
 
 # install the tf pip package for the AOT ("release" scenario) and for test model builds.
-sudo -i -u buildbot python3 -m pip install --break-system-packages pipenv
+sudo -u buildbot python3 -m pip install --break-system-packages pipenv
 echo installed pipenv
-sudo -i -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
+sudo -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
 echo installed tosa-converter-for-tflite
-sudo -i -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
+sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
 echo used pipenv
 popd
 popd
 
-sudo -i -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
+sudo -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
 echo installed buildbot worker
 
 # Install IR2Vec Python binding dependencies.
 # Installs from llvm-project main; canonical source is
 # llvm/tools/llvm-ir2vec/Bindings/requirements.txt
 curl -L --retry 10 https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/tools/llvm-ir2vec/Bindings/requirements.txt > /tmp/ir2vec-reqs.txt
-sudo -i -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
+sudo -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
 
 TF_PIP=$(sudo -i -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
 # temp location until zorg updates
-sudo -i -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
+sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
 
 # location we want
-sudo -i -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
+sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
 
 export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
