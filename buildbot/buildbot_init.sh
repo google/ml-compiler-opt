@@ -104,6 +104,8 @@ useradd buildbot -g buildbot -m -d /b/home
 rm -rf /var/lib/buildbot
 ln -s /b/home /var/lib/buildbot
 chmod 777 /var/lib/buildbot
+sudo -u buildbot echo 'PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
+
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
