@@ -232,7 +232,7 @@ def _add_feature(se: tf.train.SequenceExample, spec: tf.TensorSpec,
     lst = f.float_list.value
   else:
     lst = f.int64_list.value
-  lst.extend(value)
+  lst.extend(value.to_numpy())
 
 
 def read_log_as_sequence_examples(
