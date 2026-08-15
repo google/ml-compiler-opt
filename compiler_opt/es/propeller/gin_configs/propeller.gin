@@ -1,0 +1,27 @@
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.rl.propeller.config
+import compiler_opt.es.es_trainer_lib
+import compiler_opt.rl.propeller
+import compiler_opt.es.propeller.propeller_worker
+import compiler_opt.rl.agent_config
+
+config_registry.get_configuration.implementation = @configs.PropellerConfig
+
+PropellerWorker.workspace_path = ''
+PropellerWorker.initial_clang_path = ''
+PropellerWorker.perf_profile_path = ''
+PropellerWorker.fdo_profile_path = ''
+PropellerWorker.tflite_model_dump_path = ''
+PropellerWorker.propeller_profiles_path = ''
+
+create_agent.policy_network = @agents.RegressionCloningNetwork
+agents.RegressionCloningNetwork.fc_layer_params = (256, 256, 256)
+
+propeller.config.get_observation_processing_layer_creator.quantile_file_dir = ''
+propeller.config.get_observation_processing_layer_creator.with_sqrt = True
+propeller.config.get_observation_processing_layer_creator.with_z_score_normalization = True
+
+policy_utils.create_actor_policy.actor_network_ctor = @agents.RegressionCloningNetwork
+
+compiler_opt.es.es_trainer_lib.train.is_corpus_required = False
+compiler_opt.es.es_trainer_lib.train.worker_class = @PropellerWorker
