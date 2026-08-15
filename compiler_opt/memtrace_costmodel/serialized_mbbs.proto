@@ -1,0 +1,12 @@
+edition = "2024";
+
+package mlgo.latency_model;
+
+import "mbb_trace.proto";
+
+option features.utf8_validation = NONE;
+
+message SerializedMbbs {
+  repeated MachineBbId mbb_ids = 1;
+  repeated bytes mbb_bytes = 2;
+}
