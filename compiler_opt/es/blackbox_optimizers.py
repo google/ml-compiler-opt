@@ -149,24 +149,30 @@ def filter_top_directions(
   if not num_top_directions > 0:
     return (perturbations, function_values)
 
-  assert estimator_type in (EstimatorType.FORWARD_FD, EstimatorType.ANTITHETIC)
+  match estimator_type:
+    case EstimatorType.FORWARD_FD:
+      top_index = np.argsort(-function_values)
+    case EstimatorType.ANTITHETIC:
+      top_index = np.argsort(
+          -np.maximum(function_values[0::2], function_values[1::2]))
+    case _:
+      raise ValueError('Unsupported esimator type')
 
-  if estimator_type == EstimatorType.FORWARD_FD:
-    top_index = np.argsort(-function_values)
-  else:
-    top_index = np.argsort(
-        -np.maximum(function_values[0::2], function_values[1::2]))
   top_index = top_index[:num_top_directions]
-  if estimator_type == EstimatorType.FORWARD_FD:
-    perturbations = perturbations[top_index]
-    function_values = function_values[top_index]
-  else:
-    perturbations = np.concatenate(
-        (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
-        axis=0)
-    function_values = np.concatenate(
-        (function_values[2 * top_index], function_values[2 * top_index + 1]),
-        axis=0)
+  match estimator_type:
+    case EstimatorType.FORWARD_FD:
+      perturbations = perturbations[top_index]
+      function_values = function_values[top_index]
+    case EstimatorType.ANTITHETIC:
+      perturbations = np.concatenate(
+          (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
+          axis=0)
+      function_values = np.concatenate(
+          (function_values[2 * top_index], function_values[2 * top_index + 1]),
+          axis=0)
+    case _:
+      raise ValueError('Unsupported esimator type')
+
   return (perturbations, function_values)
 
 
