@@ -153,9 +153,10 @@ def filter_top_directions(
 
   if estimator_type == EstimatorType.FORWARD_FD:
     top_index = np.argsort(-function_values)
-  else:
-    top_index = np.argsort(-np.abs(function_values[0::2] -
-                                   function_values[1::2]))
+  elif estimator_type == EstimatorType.ANTITHETIC:
+    top_index = np.argsort(
+        -np.maximum(function_values[0::2], function_values[1::2])
+    )
   top_index = top_index[:num_top_directions]
   if estimator_type == EstimatorType.FORWARD_FD:
     perturbations = perturbations[top_index]
