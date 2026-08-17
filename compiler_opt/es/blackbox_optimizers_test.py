@@ -78,6 +78,24 @@ class BlackboxOptimizationAlgorithmsTest(parameterized.TestCase):
     np.testing.assert_array_equal(expected_ps, top_ps)
     np.testing.assert_array_equal(expected_fs, top_fs)
 
+  def test_antithetic_filtering_prioritizes_peaks_over_cliffs(self):
+    # Pair 0 (Peak): p0 gives +0.010 (peak), -p0 gives +0.008 (plateau). Max = 0.010, Diff = 0.002.
+    # Pair 1 (Cliff): p1 gives +0.008 (plateau), -p1 gives -1.000 (cliff). Max = 0.008, Diff = 1.008.
+    perturbations = np.array([[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]])
+    function_values = np.array([0.010, 0.008, 0.008, -1.000])
+
+    top_ps, top_fs = blackbox_optimizers.filter_top_directions(
+        perturbations,
+        function_values,
+        blackbox_optimizers.EstimatorType.ANTITHETIC,
+        num_top_directions=1,
+    )
+    # The peak pair (Pair 0) should be selected as top-1 because max(0.010, 0.008) > max(0.008, -1.0)
+    expected_ps = np.array([[1.0, 0.0], [-1.0, 0.0]])
+    expected_fs = np.array([0.010, 0.008])
+    np.testing.assert_array_equal(expected_ps, top_ps)
+    np.testing.assert_array_equal(expected_fs, top_fs)
+
   def test_normalize_function_values_z_score_zero_stdev(self):
     # Z-score normalization should fall back safely to 1.0 if stdev is 0
     function_values = np.array([5.0, 5.0, 5.0], dtype=np.float32)
