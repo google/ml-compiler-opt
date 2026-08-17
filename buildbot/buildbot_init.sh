@@ -27,7 +27,12 @@ function on_error {
   # shutdown now
 }
 
-SERVER_PORT=${SERVER_PORT:-9990}
+if [[ "${HOSTNAME}" == ml-opt-rel-* ]]; then
+  SERVER_PORT=${SERVER_PORT:-9994}
+else
+  SERVER_PORT=${SERVER_PORT:-9990}
+fi
+
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
