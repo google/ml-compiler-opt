@@ -148,16 +148,19 @@ def filter_top_directions(
   """
   if not num_top_directions > 0:
     return (perturbations, function_values)
+
+  assert estimator_type in (EstimatorType.FORWARD_FD, EstimatorType.ANTITHETIC)
+
   if estimator_type == EstimatorType.FORWARD_FD:
     top_index = np.argsort(-function_values)
-  elif estimator_type == EstimatorType.ANTITHETIC:
-    top_index = np.argsort(
-        -np.maximum(function_values[0::2], function_values[1::2]))
+  else:
+    top_index = np.argsort(-np.abs(function_values[0::2] -
+                                   function_values[1::2]))
   top_index = top_index[:num_top_directions]
   if estimator_type == EstimatorType.FORWARD_FD:
     perturbations = perturbations[top_index]
     function_values = function_values[top_index]
-  elif estimator_type == EstimatorType.ANTITHETIC:
+  else:
     perturbations = np.concatenate(
         (perturbations[2 * top_index], perturbations[2 * top_index + 1]),
         axis=0)
