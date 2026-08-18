@@ -33,6 +33,8 @@ else
   SERVER_PORT=${SERVER_PORT:-9990}
 fi
 
+echo "${HOSTNAME} using server port ${SERVER_PORT}"
+
 BOT_DIR=/b
 
 mount -t tmpfs tmpfs /tmp
