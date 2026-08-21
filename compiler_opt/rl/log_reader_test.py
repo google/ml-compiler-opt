@@ -275,6 +275,8 @@ feature_lists {
 }
 """, tf.train.SequenceExample())
     self.assertProtoEquals(expected_ctx_0, seq_examples['context_nr_0'])
+    self.assertEqual(seq_examples['context_nr_0'].SerializeToString(),
+                     expected_ctx_0.SerializeToString())
 
   def test_errors(self):
     logfile = self.create_tempfile()
