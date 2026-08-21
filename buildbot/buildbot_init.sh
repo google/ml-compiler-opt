@@ -27,11 +27,7 @@ function on_error {
   # shutdown now
 }
 
-if [[ "${HOSTNAME}" == ml-opt-rel-* ]]; then
-  SERVER_PORT=${SERVER_PORT:-9994}
-else
-  SERVER_PORT=${SERVER_PORT:-9990}
-fi
+SERVER_PORT=${SERVER_PORT:-9990}
 
 echo "${HOSTNAME} using server port ${SERVER_PORT}"
 
