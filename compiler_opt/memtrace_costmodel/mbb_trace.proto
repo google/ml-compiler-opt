@@ -1,0 +1,27 @@
+edition = "2024";
+
+package mlgo.latency_model;
+
+option features.utf8_validation = NONE;
+
+message MachineBbId {
+  uint32 function_id = 3;
+  uint32 basic_block_id = 2;
+  uint32 entry_id = 4;
+
+  reserved 1;
+}
+
+message SharedObjectTrace {
+  uint32 trace_id = 1;
+  repeated bytes instruction_data = 2;
+}
+
+message MbbTrace {
+  repeated MachineBbId mbbs = 1;
+  repeated SharedObjectTrace shared_object_traces = 2;
+}
+
+message FunctionMapping {
+  map<string, uint32> function_ids = 1;
+}
