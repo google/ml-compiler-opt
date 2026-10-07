@@ -20,8 +20,9 @@ from tf_agents.trajectories import time_step
 from compiler_opt.rl import feature_ops
 
 
-def get_num_registers():
-  return 33
+@gin.configurable
+def get_num_registers(num_registers=33):
+  return num_registers
 
 
 # pylint: disable=g-complex-comprehension
