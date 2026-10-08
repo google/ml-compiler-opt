@@ -43,9 +43,25 @@ readonly ML_DTYPES_TAG="f739b2f0256d543e68caf214cd54b367302fbf68"
 readonly TENSORFLOW_REPOSITORY="https://github.com/tensorflow/tensorflow"
 readonly TENSORFLOW_TAG="bbed5f60cd2efbbc3f1032a4e7f9fe393a1760af"
 
+function clone_and_checkout {
+  local repo="$1"
+  local tag="$2"
+  local dest="$3"
+  local sleep_seconds=10
+  for i in $(seq 1 5); do
+    rm -rf "${dest}"
+    if git clone --filter=tree:0 --no-checkout "${repo}" "${dest}" && \
+       git -C "${dest}" checkout "${tag}"; then
+      return 0
+    fi
+    sleep "${sleep_seconds}"
+    sleep_seconds=$((sleep_seconds + 10))
+  done
+  return 1
+}
+
 # cpuinfo
-git clone --filter=tree:0 --no-checkout ${CPUINFO_REPOSITORY} cpuinfo/src/cpuinfo
-git -C cpuinfo/src/cpuinfo checkout ${CPUINFO_TAG}
+clone_and_checkout ${CPUINFO_REPOSITORY} ${CPUINFO_TAG} cpuinfo/src/cpuinfo
 cmake -GNinja -S cpuinfo/src/cpuinfo -B cpuinfo/src/cpuinfo-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/cpuinfo \
@@ -57,8 +73,7 @@ cmake -GNinja -S cpuinfo/src/cpuinfo -B cpuinfo/src/cpuinfo-build \
 ninja -C cpuinfo/src/cpuinfo-build install
 
 # ruy
-git clone --filter=tree:0 --no-checkout ${RUY_REPOSITORY} ruy/src/ruy
-git -C ruy/src/ruy checkout ${RUY_TAG}
+clone_and_checkout ${RUY_REPOSITORY} ${RUY_TAG} ruy/src/ruy
 cmake -GNinja -S ruy/src/ruy -B ruy/src/ruy-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/ruy \
@@ -71,8 +86,7 @@ cmake -GNinja -S ruy/src/ruy -B ruy/src/ruy-build \
 ninja -C ruy/src/ruy-build install
 
 # absl
-git clone --filter=tree:0 --no-checkout ${ABSEIL_REPOSITORY} abseil-cpp/src/abseil-cpp
-git -C abseil-cpp/src/abseil-cpp checkout ${ABSEIL_TAG}
+clone_and_checkout ${ABSEIL_REPOSITORY} ${ABSEIL_TAG} abseil-cpp/src/abseil-cpp
 cmake -GNinja -S abseil-cpp/src/abseil-cpp -B abseil-cpp/src/abseil-cpp-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/abseil-cpp \
@@ -83,8 +97,7 @@ cmake -GNinja -S abseil-cpp/src/abseil-cpp -B abseil-cpp/src/abseil-cpp-build \
 ninja -C abseil-cpp/src/abseil-cpp-build install
 
 # eigen
-git clone --filter=tree:0 --no-checkout ${EIGEN_REPOSITORY} eigen/src/eigen
-git -C eigen/src/eigen checkout ${EIGEN_TAG}
+clone_and_checkout ${EIGEN_REPOSITORY} ${EIGEN_TAG} eigen/src/eigen
 cmake -GNinja -S eigen/src/eigen -B eigen/src/eigen-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/eigen \
@@ -95,8 +108,7 @@ cmake -GNinja -S eigen/src/eigen -B eigen/src/eigen-build \
 ninja -C eigen/src/eigen-build install
 
 # ARM_NEON_2_x86_SSE
-git clone --filter=tree:0 --no-checkout ${NEON_2_SSE_REPOSITORY} ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE
-git -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE checkout ${NEON_2_SSE_TAG}
+clone_and_checkout ${NEON_2_SSE_REPOSITORY} ${NEON_2_SSE_TAG} ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE
 cmake -GNinja -S ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE -B ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/ARM_NEON_2_x86_SSE \
@@ -105,8 +117,7 @@ cmake -GNinja -S ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE -B ARM_NEON_2_x86_SSE
 ninja -C ARM_NEON_2_x86_SSE/src/ARM_NEON_2_x86_SSE-build install
 
 # flatbuffers
-git clone --filter=tree:0 --no-checkout ${FLATBUFFERS_REPOSITORY} flatbuffers/src/flatbuffers
-git -C flatbuffers/src/flatbuffers checkout ${FLATBUFFERS_TAG}
+clone_and_checkout ${FLATBUFFERS_REPOSITORY} ${FLATBUFFERS_TAG} flatbuffers/src/flatbuffers
 cmake -GNinja -S flatbuffers/src/flatbuffers -B flatbuffers/src/flatbuffers-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/flatbuffers \
@@ -116,8 +127,7 @@ cmake -GNinja -S flatbuffers/src/flatbuffers -B flatbuffers/src/flatbuffers-buil
 ninja -C flatbuffers/src/flatbuffers-build install
 
 # gemmlowp
-git clone --filter=tree:0 --no-checkout ${GEMMLOWP_REPOSITORY} gemmlowp/src/gemmlowp
-git -C gemmlowp/src/gemmlowp checkout ${GEMMLOWP_TAG}
+clone_and_checkout ${GEMMLOWP_REPOSITORY} ${GEMMLOWP_TAG} gemmlowp/src/gemmlowp
 cmake -GNinja -S gemmlowp/src/gemmlowp/contrib -B gemmlowp/src/gemmlowp-build \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/gemmlowp \
   -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON   \
@@ -125,12 +135,10 @@ cmake -GNinja -S gemmlowp/src/gemmlowp/contrib -B gemmlowp/src/gemmlowp-build \
 ninja -C gemmlowp/src/gemmlowp-build install
 
 # ml_dtypes
-git clone --filter=tree:0 --no-checkout ${ML_DTYPES_REPOSITORY} ml_dtypes/src/ml_dtypes
-git -C ml_dtypes/src/ml_dtypes checkout ${ML_DTYPES_TAG}
+clone_and_checkout ${ML_DTYPES_REPOSITORY} ${ML_DTYPES_TAG} ml_dtypes/src/ml_dtypes
 
 # tflite
-git clone --filter=tree:0 --no-checkout ${TENSORFLOW_REPOSITORY} tensorflow/src/tensorflow
-git -C tensorflow/src/tensorflow checkout ${TENSORFLOW_TAG}
+clone_and_checkout ${TENSORFLOW_REPOSITORY} ${TENSORFLOW_TAG} tensorflow/src/tensorflow
 cmake -GNinja -S tensorflow/src/tensorflow/tensorflow/lite -B tensorflow/src/tensorflow-build \
   -DCMAKE_FIND_PACKAGE_PREFER_CONFIG:BOOL=ON \
   -DCMAKE_INSTALL_PREFIX:PATH=${PWD}/tensorflow \
