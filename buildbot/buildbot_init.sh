@@ -74,7 +74,6 @@ ADMIN_PACKAGES="tmux"
         gawk \
         dos2unix \
         libxml2-dev \
-        rsync \
         git \
         libtool \
         m4 \
