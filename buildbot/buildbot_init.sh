@@ -100,6 +100,13 @@ ADMIN_PACKAGES="tmux"
   exit 1
 ) || on_error "Failed to install required packages."
 
+cat << 'EOF' > /etc/ccache.conf
+sloppiness = pch_defines,time_macros
+depend_mode = true
+run_second_cpp = true
+hash_dir = true
+EOF
+
 userdel buildbot
 groupadd buildbot
 useradd buildbot -g buildbot -m -d /b/home
