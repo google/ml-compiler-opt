@@ -15,9 +15,8 @@
 
 import os
 
-import tensorflow as tf
-from tensorflow.lite.python import schema_py_generated as schema_fb
-from tensorflow.lite.tools import flatbuffer_utils
+from ai_edge_litert import schema_py_generated as schema_fb
+from ai_edge_litert.tools import flatbuffer_utils
 
 ACTION_SIGNATURE_KEY = b'action'
 TFA_EXTRA_FUNCTIONS = frozenset({
@@ -180,7 +179,7 @@ def strip_tfa_functions(model_bytes: bytes | bytearray) -> bytes:
     raise ValueError('Input TFLite model bytes are empty.')
   model = flatbuffer_utils.convert_bytearray_to_object(bytearray(model_bytes))
   strip_tfa_functions_from_object(model)
-  output_bytes = flatbuffer_utils.convert_object_to_bytearray(model)
+  output_bytes = bytes(flatbuffer_utils.convert_object_to_bytearray(model))
   if not output_bytes:
     raise RuntimeError('Serialized stripped TFLite model is empty.')
   return output_bytes
@@ -188,9 +187,10 @@ def strip_tfa_functions(model_bytes: bytes | bytearray) -> bytes:
 
 def strip_tfa_tflite_file(input_path: str, output_path: str) -> None:
   """Reads a TFLite file, strips tf_agents functions, and writes the result."""
-  if not tf.io.gfile.exists(input_path):
-    raise FileNotFoundError(f'Input TFLite file not found: {input_path}')
-  if tf.io.gfile.stat(input_path).length == 0:
+  if not os.path.isfile(input_path):
+    raise FileNotFoundError(
+        f'Input TFLite file not found or is not a file: {input_path}')
+  if os.path.getsize(input_path) == 0:
     raise ValueError(f'Input TFLite file is empty: {input_path}')
 
   model = flatbuffer_utils.read_model(input_path)
@@ -198,10 +198,9 @@ def strip_tfa_tflite_file(input_path: str, output_path: str) -> None:
 
   output_dir = os.path.dirname(output_path)
   if output_dir:
-    tf.io.gfile.makedirs(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
   flatbuffer_utils.write_model(model, output_path)
 
-  if (not tf.io.gfile.exists(output_path) or
-      tf.io.gfile.stat(output_path).length == 0):
+  if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
     raise RuntimeError(
         f'Failed to write non-empty output TFLite file: {output_path}')

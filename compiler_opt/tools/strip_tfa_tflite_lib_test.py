@@ -15,11 +15,11 @@
 
 import os
 
+from ai_edge_litert import interpreter as tflite_interpreter
+from ai_edge_litert import schema_py_generated as schema_fb
+from ai_edge_litert.tools import flatbuffer_utils
 import numpy as np
 import tensorflow as tf
-from tensorflow.lite.python import interpreter as tflite_interpreter
-from tensorflow.lite.python import schema_py_generated as schema_fb
-from tensorflow.lite.tools import flatbuffer_utils
 from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
 from tf_agents.networks import q_rnn_network
 from tf_agents.specs import tensor_spec
@@ -98,7 +98,7 @@ class StripTfaTfliteLibTest(tf.test.TestCase):
 
   def test_strip_idempotent_on_already_stripped_model(self):
     input_path = self._create_tfa_tflite_model()
-    with tf.io.gfile.GFile(input_path, 'rb') as f:
+    with open(input_path, 'rb') as f:
       raw_bytes = f.read()
     once = strip_tfa_tflite_lib.strip_tfa_functions(raw_bytes)
     twice = strip_tfa_tflite_lib.strip_tfa_functions(once)
