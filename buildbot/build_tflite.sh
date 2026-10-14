@@ -47,7 +47,7 @@ function clone_and_checkout {
   local repo="$1"
   local tag="$2"
   local dest="$3"
-  local sleep_seconds=10
+  local sleep_seconds=30
   for i in $(seq 1 5); do
     rm -rf "${dest}"
     if git clone --filter=tree:0 --no-checkout "${repo}" "${dest}" && \
@@ -55,7 +55,7 @@ function clone_and_checkout {
       return 0
     fi
     sleep "${sleep_seconds}"
-    sleep_seconds=$((sleep_seconds + 10))
+    sleep_seconds=$((sleep_seconds + 30))
   done
   return 1
 }
