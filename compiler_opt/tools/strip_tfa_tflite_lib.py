@@ -187,8 +187,9 @@ def strip_tfa_functions(model_bytes: bytes | bytearray) -> bytes:
 
 def strip_tfa_tflite_file(input_path: str, output_path: str) -> None:
   """Reads a TFLite file, strips tf_agents functions, and writes the result."""
-  if not os.path.exists(input_path):
-    raise FileNotFoundError(f'Input TFLite file not found: {input_path}')
+  if not os.path.isfile(input_path):
+    raise FileNotFoundError(
+        f'Input TFLite file not found or is not a file: {input_path}')
   if os.path.getsize(input_path) == 0:
     raise ValueError(f'Input TFLite file is empty: {input_path}')
 
@@ -200,6 +201,6 @@ def strip_tfa_tflite_file(input_path: str, output_path: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
   flatbuffer_utils.write_model(model, output_path)
 
-  if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+  if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
     raise RuntimeError(
         f'Failed to write non-empty output TFLite file: {output_path}')
