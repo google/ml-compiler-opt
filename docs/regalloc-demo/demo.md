@@ -216,16 +216,16 @@ pip3 uninstall protobuf
 
 To build LLVM to train ML models, we first need to build TFLite and some
 dependencies so that we can embed it within LLVM to load and execute models
-on the fly during reinforcement learning. There is a script within this
-repository that clones and builds everything automatically and prepares
-a CMake cache file that can be passed to CMake during the LLVM build
-configuration. Running the script looks like this:
+on the fly during reinforcement learning. The annotated buildbot script in
+`llvm-zorg` clones and builds everything automatically and prepares a CMake
+cache file that can be passed to CMake during the LLVM build configuration.
+Running the script looks like this:
 
 ```bash
 cd $WORKING_DIR
 mkdir tflite
 cd tflite
-$WORKING_DIR/ml-compiler-opt/buildbot/build_tflite.sh
+curl -sSL https://raw.githubusercontent.com/llvm/llvm-zorg/main/zorg/buildbot/builders/annotated/mlgo-dev.sh | bash -s -- --tflite-only
 ```
 
 This script should only take a couple minutes to execute as all the libraries

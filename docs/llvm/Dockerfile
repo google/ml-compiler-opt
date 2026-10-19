@@ -33,7 +33,7 @@ RUN python -m ensurepip
 
 RUN mkdir -p /work/tflite
 WORKDIR /work/tflite
-RUN curl https://raw.githubusercontent.com/google/ml-compiler-opt/main/buildbot/build_tflite.sh | bash -s
+RUN curl -sSL https://raw.githubusercontent.com/llvm/llvm-zorg/main/zorg/buildbot/builders/annotated/mlgo-dev.sh | bash -s -- --tflite-only
 
 WORKDIR /work
 

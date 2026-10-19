@@ -109,7 +109,8 @@ We need to install all of the Python dependencies for this repository, setup
 some environment variables for the AOT compiler, and also build the TFLite
 dependency to compile LLVM in MLGO development mode.
 
-See also [the build bot script](../../buildbot/buildbot_init.sh)
+See also [the build bot initialization script](../../buildbot/buildbot_init.sh)
+and [the annotated build script](https://github.com/llvm/llvm-zorg/blob/main/zorg/buildbot/builders/annotated/mlgo-dev.sh).
 
 ```shell
 cd ~/ml-compiler-opt
@@ -124,7 +125,7 @@ export TENSORFLOW_AOT_PATH="${TF_PIP}/tensorflow"
 export TFLITE_PATH=~/tflite
 mkdir ${TFLITE_PATH}
 cd ${TFLITE_PATH}
-~/ml-compiler-opt/buildbot/build_tflite.sh
+curl -sSL https://raw.githubusercontent.com/llvm/llvm-zorg/main/zorg/buildbot/builders/annotated/mlgo-dev.sh | bash -s -- --tflite-only
 ```
 
 ## Build LLVM

@@ -116,19 +116,6 @@ rm -rf /var/lib/buildbot
 ln -s /b/home /var/lib/buildbot
 chmod 777 /var/lib/buildbot
 
-if [[ "${HOSTNAME}" == ml-opt-dev* ]]
-then
-  echo "Building TFLite"
-  rm -rf /tmp/tflitebuild
-  mkdir -p /tmp/tflitebuild
-  pushd /tmp/tflitebuild
-  curl https://raw.githubusercontent.com/google/ml-compiler-opt/main/buildbot/build_tflite.sh | bash -s
-  popd
-  echo "Done building TFLite"
-else
-  echo "NOT building TFLite - this is a release only bot."
-fi
-
 pushd /tmp
 sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
 pushd ml-compiler-opt
@@ -154,12 +141,6 @@ sudo -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-r
 
 TF_PIP=$(sudo -i -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
 
-# temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
-
-# location we want
-sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
-
 export TENSORFLOW_AOT_PATH="${TF_PIP}"
 
 if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
@@ -169,23 +150,7 @@ else
   on_error "TENSORFLOW_AOT_PATH not found"
 fi
 
-# install the tf C API library ("development" scenario).
-rm -rf /tmp/tensorflow
-mkdir /tmp/tensorflow
-export TENSORFLOW_API_PATH=/tmp/tensorflow
-wget --quiet 	https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz \
-  || on_error "failed to download tensorflow C library"
-tar xfz libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
-
-if [ -f "${TENSORFLOW_API_PATH}/lib/libtensorflow.so" ]
-then
-  echo "TENSORFLOW_API_PATH=${TENSORFLOW_API_PATH}"
-else
-  on_error "TENSORFLOW_API_PATH not found"
-fi
-
 chown buildbot:buildbot $BOT_DIR
-chown buildbot:buildbot $TENSORFLOW_API_PATH
 
 rm -f /b/buildbot.tac
 

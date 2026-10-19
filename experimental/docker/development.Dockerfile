@@ -37,8 +37,7 @@ RUN apt-get update && \
     vim
 RUN mkdir /tflite
 WORKDIR /tflite
-COPY buildbot/build_tflite.sh ./
-RUN ./build_tflite.sh
+RUN wget -qO- https://raw.githubusercontent.com/llvm/llvm-zorg/main/zorg/buildbot/builders/annotated/mlgo-dev.sh | bash -s -- --tflite-only
 COPY . /ml-compiler-opt
 WORKDIR /ml-compiler-opt
 RUN pip3 install pipenv && ./versioned_pipenv sync --categories "packages dev-packages ci" --system && ./versioned_pipenv --clear
