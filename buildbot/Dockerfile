@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:12
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LLVM_MAJOR_VERSION=22
@@ -24,6 +24,7 @@ RUN dpkg --add-architecture i386 && \
       binutils-dev \
       ca-certificates \
       ccache \
+      clang-${LLVM_MAJOR_VERSION} \
       cmake \
       cmake-data \
       curl \
@@ -33,29 +34,32 @@ RUN dpkg --add-architecture i386 && \
       gcc-multilib \
       git \
       gnupg \
-      libgcrypt-dev \
+      libgcrypt20-dev \
       libgss-dev \
       liblzma-dev \
       libssl-dev \
       libtool \
       libxml2-dev \
+      lld-${LLVM_MAJOR_VERSION} \
       lsb-release \
       m4 \
       ninja-build \
       pkg-config \
       procps \
-      python-is-python3 \
-      python3 \
-      python3-dev \
-      python3-distutils \
-      python3-pip \
-      python3-venv \
       software-properties-common \
       sudo \
       tmux \
       wget \
       zlib1g-dev && \
-    bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ${LLVM_MAJOR_VERSION} && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      python3.11 \
+      python3.11-dev \
+      python3.11-distutils \
+      python3.11-venv && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     ln -sf /usr/bin/clang-${LLVM_MAJOR_VERSION} /usr/bin/clang && \
     ln -sf /usr/bin/clang++-${LLVM_MAJOR_VERSION} /usr/bin/clang++ && \
     ln -sf /usr/bin/clang-${LLVM_MAJOR_VERSION} /usr/bin/cc && \
@@ -74,10 +78,12 @@ EOF
 RUN mkdir -p /tflite
 WORKDIR /tflite
 COPY buildbot/build_tflite.sh /tmp/build_tflite.sh
-RUN bash /tmp/build_tflite.sh && rm /tmp/build_tflite.sh
+RUN CMAKE_POLICY_VERSION_MINIMUM=3.5 bash /tmp/build_tflite.sh && rm /tmp/build_tflite.sh
 
 COPY Pipfile Pipfile.lock.3.10 Pipfile.lock.3.11 versioned_pipenv /tmp/mlgo-pipenv/
-RUN python3 -m pip install --no-cache-dir --break-system-packages pipenv buildbot-worker==2.9.0 && \
+RUN python3 -m ensurepip --upgrade && \
+    python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip && \
+    python3 -m pip install --no-cache-dir --break-system-packages pipenv buildbot-worker==2.9.0 && \
     cd /tmp/mlgo-pipenv && \
     python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system && \
     cd / && \
