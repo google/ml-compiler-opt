@@ -61,7 +61,9 @@ Training assumes a clang build with ML 'development-mode'. Please refer to:
 
 *   [LLVM documentation](https://llvm.org/docs/CMake.html)
 *   the build
-    [bot script](https://github.com/google/ml-compiler-opt/blob/main/buildbot/buildbot_init.sh)
+    [bot Dockerfile](https://github.com/google/ml-compiler-opt/blob/main/buildbot/Dockerfile),
+    [bot initialization script](https://github.com/google/ml-compiler-opt/blob/main/buildbot/buildbot_init.sh),
+    and [annotated build script](https://github.com/llvm/llvm-zorg/blob/main/zorg/buildbot/builders/annotated/mlgo-dev.sh)
 
 The model training - specific prerequisites are:
 

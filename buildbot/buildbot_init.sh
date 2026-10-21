@@ -37,187 +37,76 @@ mount -t tmpfs tmpfs /tmp
 mkdir -p $BOT_DIR
 mount -t tmpfs tmpfs -o size=80% $BOT_DIR
 
-TF_API_DEP_PACKAGES="python3 python3-pip"
-ADMIN_PACKAGES="tmux"
+WORKER_NAME="$(hostname)"
+WORKER_PASSWORD="$(gcloud storage cat gs://ml-compiler-opt-buildbot/buildbot_password)"
 
-(
-  SLEEP=0
-  for i in `seq 1 5`; do
-    sleep $SLEEP
-    SLEEP=$(( SLEEP + 10))
+function start_buildbot_worker {
+  set -ex
+  local repro_doc="${1:?Missing reproduction document name}"
 
-    (
-      set -ex
+  userdel buildbot 2>/dev/null || true
+  groupadd -f buildbot
+  useradd buildbot -g buildbot -m -d "${BOT_DIR}/home"
+  rm -rf /var/lib/buildbot
+  ln -s "${BOT_DIR}/home" /var/lib/buildbot
+  chmod 777 /var/lib/buildbot
 
-      dpkg --add-architecture i386
-      echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-      dpkg --configure -a
-      apt-get clean
-      apt-get -qq -y update --allow-releaseinfo-change
+  chown buildbot:buildbot "${BOT_DIR}"
+  rm -f "${BOT_DIR}/buildbot.tac"
 
-      # Logs consume a lot of storage space.
-      apt-get remove -qq -y --purge auditd puppet-agent rsync rsyslog
+  mkdir -p /var/lib/buildbot/workers
+  [[ -d /var/lib/buildbot/workers/b ]] || ln -s "${BOT_DIR}" /var/lib/buildbot/workers/b
 
-      apt-get install -qq -y \
-        python3-distutils \
-        python-is-python3 \
-        $TF_API_DEP_PACKAGES \
-        $ADMIN_PACKAGES \
-        cmake \
-        cmake-data \
-        ccache \
-        binutils-dev \
-        ninja-build \
-        pkg-config \
-        gcc-multilib \
-        g++-multilib \
-        gawk \
-        dos2unix \
-        libxml2-dev \
-        git \
-        libtool \
-        m4 \
-        automake \
-        libgcrypt-dev \
-        liblzma-dev \
-        libssl-dev \
-        libgss-dev \
-        python3-dev \
-        wget \
-        zlib1g-dev \
-        lsb-release \
-        software-properties-common \
-        gnupg
+  while pkill buildbot-worker; do sleep 5; done
 
-      export LLVM_MAJOR_VERSION=22
-      bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ${LLVM_MAJOR_VERSION}
-      ln -sf /usr/bin/clang-${LLVM_MAJOR_VERSION} /usr/bin/cc
-      ln -sf /usr/bin/clang++-${LLVM_MAJOR_VERSION} /usr/bin/c++
-      ln -sf /usr/bin/ld.lld-${LLVM_MAJOR_VERSION} /usr/bin/ld
+  rm -rf "${BOT_DIR}/buildbot.tac" "${BOT_DIR}/twistd.log"
+  echo "Starting build worker ${WORKER_NAME}"
+  sudo -i -u buildbot buildbot-worker create-worker -f --allow-shutdown=signal "${BOT_DIR}" "lab.llvm.org:${SERVER_PORT}" \
+    "${WORKER_NAME}" "${WORKER_PASSWORD}"
 
-    ) && exit 0
-  done
-  exit 1
-) || on_error "Failed to install required packages."
+  echo "Mircea Trofin <mtrofin@google.com>" > "${BOT_DIR}/info/admin"
 
-# BEGIN stopgap until zorg-side LLVM_CCACHE_BUILD propagates
-cat << 'EOF' > /etc/ccache.conf
-sloppiness = pch_defines,time_macros
-depend_mode = true
-run_second_cpp = true
-hash_dir = true
-EOF
-# END
+  {
+    echo "How to reproduce locally: https://github.com/google/ml-compiler-opt/blob/main/buildbot/${repro_doc}"
+    echo
+    uname -a | head -n1
+    date
+    cmake --version | head -n1
+    c++ --version | head -n1
+    ld --version | head -n1
+    lscpu
+  } > "${BOT_DIR}/info/host"
 
-userdel buildbot
-groupadd buildbot
-useradd buildbot -g buildbot -m -d /b/home
-rm -rf /var/lib/buildbot
-ln -s /b/home /var/lib/buildbot
-chmod 777 /var/lib/buildbot
+  chown -R buildbot:buildbot "${BOT_DIR}"
+  sudo -i -u buildbot buildbot-worker start "${BOT_DIR}"
+}
+
+function run_bot_script {
+  local script_name="$1"
+  local script_dir=""
+  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  fi
+  if [[ -n "${script_dir}" && -f "${script_dir}/${script_name}" ]]; then
+    source "${script_dir}/${script_name}"
+  else
+    local tmp_script="/tmp/${script_name}"
+    curl -fsSL --retry 10 "https://raw.githubusercontent.com/google/ml-compiler-opt/main/buildbot/${script_name}" -o "${tmp_script}" \
+      || { on_error "Failed to download ${script_name}."; exit 1; }
+    source "${tmp_script}"
+  fi
+}
 
 if [[ "${HOSTNAME}" == ml-opt-dev* ]]
 then
-  echo "Building TFLite"
-  rm -rf /tmp/tflitebuild
-  mkdir -p /tmp/tflitebuild
-  pushd /tmp/tflitebuild
-  curl https://raw.githubusercontent.com/google/ml-compiler-opt/main/buildbot/build_tflite.sh | bash -s
-  popd
-  echo "Done building TFLite"
-else
-  echo "NOT building TFLite - this is a release only bot."
-fi
-
-pushd /tmp
-sudo -u buildbot git clone https://github.com/google/ml-compiler-opt || on_error "failed to clone ml-compiler-opt repo"
-pushd ml-compiler-opt
-
-# install the tf pip package for the AOT ("release" scenario) and for test model builds.
-sudo -u buildbot python3 -m pip install --break-system-packages pipenv
-echo installed pipenv
-sudo -u buildbot python3 -m pip install --break-system-packages tosa-converter-for-tflite
-echo installed tosa-converter-for-tflite
-sudo -u buildbot python3 versioned_pipenv sync --extra-pip-args="--break-system-packages" --categories "packages dev-packages" --system
-echo used pipenv
-popd
-popd
-
-sudo -u buildbot python3 -m pip install --break-system-packages buildbot-worker==2.9.0
-echo installed buildbot worker
-
-# Install IR2Vec Python binding dependencies.
-# Installs from llvm-project main; canonical source is
-# llvm/tools/llvm-ir2vec/Bindings/requirements.txt
-curl -L --retry 10 https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/tools/llvm-ir2vec/Bindings/requirements.txt > /tmp/ir2vec-reqs.txt
-sudo -u buildbot python3 -m pip install --break-system-packages -r /tmp/ir2vec-reqs.txt
-
-TF_PIP=$(sudo -i -u buildbot python3 -c "import tensorflow as tf; import os; print(os.path.dirname(tf.__file__))")
-
-# temp location until zorg updates
-sudo -u buildbot ln -s ${TF_PIP}/../../ /var/lib/buildbot/.local/lib/python3.7
-
-# location we want
-sudo -u buildbot ln -s ${TF_PIP}/../../ /tmp/tf-aot
-
-export TENSORFLOW_AOT_PATH="${TF_PIP}"
-
-if [ -d "${TENSORFLOW_AOT_PATH}/xla_aot_runtime_src" ]
+  run_bot_script "buildbot_init_dev.sh"
+elif [[ "${HOSTNAME}" == ml-opt-rel* ]]
 then
-  echo "TENSORFLOW_AOT_PATH=${TENSORFLOW_AOT_PATH}"
+  run_bot_script "buildbot_init_rel.sh"
 else
-  on_error "TENSORFLOW_AOT_PATH not found"
+  on_error "Unrecognized bot hostname: ${HOSTNAME}"
+  exit 1
 fi
-
-# install the tf C API library ("development" scenario).
-rm -rf /tmp/tensorflow
-mkdir /tmp/tensorflow
-export TENSORFLOW_API_PATH=/tmp/tensorflow
-wget --quiet 	https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz \
-  || on_error "failed to download tensorflow C library"
-tar xfz libtensorflow-cpu-linux-x86_64-2.6.0.tar.gz -C "${TENSORFLOW_API_PATH}" || echo "failed to unarchive tensorflow C library"
-
-if [ -f "${TENSORFLOW_API_PATH}/lib/libtensorflow.so" ]
-then
-  echo "TENSORFLOW_API_PATH=${TENSORFLOW_API_PATH}"
-else
-  on_error "TENSORFLOW_API_PATH not found"
-fi
-
-chown buildbot:buildbot $BOT_DIR
-chown buildbot:buildbot $TENSORFLOW_API_PATH
-
-rm -f /b/buildbot.tac
-
-
-WORKER_NAME="$(hostname)"
-WORKER_PASSWORD="$(gcloud storage cat gs://ml-compiler-opt-buildbot/buildbot_password)"
-SERVICE_NAME=buildbot-worker@b.service
-[[ -d /var/lib/buildbot/workers/b ]] || ln -s $BOT_DIR /var/lib/buildbot/workers/b
-
-while pkill buildbot-worker; do sleep 5; done;
-
-rm -rf ${BOT_DIR}/buildbot.tac ${BOT_DIR}/twistd.log
-echo "Starting build worker ${WORKER_NAME}"
-sudo -i -u buildbot buildbot-worker create-worker -f --allow-shutdown=signal $BOT_DIR lab.llvm.org:$SERVER_PORT \
-   "${WORKER_NAME}" "${WORKER_PASSWORD}"
-
-echo "Mircea Trofin <mtrofin@google.com>" > $BOT_DIR/info/admin
-
-{
-  echo "How to reproduce locally: https://github.com/google/ml-compiler-opt/wiki/BuildBotReproduceLocally"
-  echo
-  uname -a | head -n1
-  date
-  cmake --version | head -n1
-  g++ --version | head -n1
-  ld --version | head -n1
-  lscpu
-} > $BOT_DIR/info/host
-
-
-chown -R buildbot:buildbot $BOT_DIR
-sudo -i -u buildbot buildbot-worker start $BOT_DIR
 
 sleep 30
 cat $BOT_DIR/twistd.log
