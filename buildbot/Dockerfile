@@ -13,6 +13,7 @@
 # limitations under the License.
 
 FROM debian:12
+LABEL org.opencontainers.image.source="https://github.com/google/ml-compiler-opt"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LLVM_MAJOR_VERSION=22
