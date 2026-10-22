@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+systemctl stop docker.service docker.socket 2>/dev/null || true
 mkdir -p /var/lib/docker
 mount -t tmpfs tmpfs -o size=50% /var/lib/docker
 
@@ -33,6 +34,7 @@ mount -t tmpfs tmpfs -o size=50% /var/lib/docker
       apt-get remove -qq -y --purge auditd puppet-agent rsync rsyslog
 
       apt-get install -qq -y docker.io tmux
+      systemctl restart docker
     ) && exit 0
   done
   exit 1
