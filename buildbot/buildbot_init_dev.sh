@@ -61,7 +61,7 @@ docker run -d \
   "${DOCKER_IMAGE}" \
   sleep infinity || on_error "Failed to start mlgo-buildbot container."
 
-docker exec -i \
+docker exec \
   -e BOT_DIR="${BOT_DIR}" \
   -e SERVER_PORT="${SERVER_PORT}" \
   -e WORKER_NAME="${WORKER_NAME}" \
