@@ -39,6 +39,8 @@ jobs:
       - name: Build container image
         run: |
           docker build \
+            --provenance=false \
+            --sbom=false \
             -f buildbot/Dockerfile \
             -t "${IMAGE_NAME}:${GITHUB_SHA}" \
             -t "${IMAGE_NAME}:latest" \
