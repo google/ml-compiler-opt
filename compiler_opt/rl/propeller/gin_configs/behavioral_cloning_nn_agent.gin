@@ -1,0 +1,48 @@
+import gin.tf.external_configurables
+import compiler_opt.rl.constant
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.rl.propeller.config
+import compiler_opt.rl.trainer
+import tf_agents.agents.behavioral_cloning.behavioral_cloning_agent
+
+# Add the import path for Propeller-specific agent config:
+import compiler_opt.rl.propeller.agent_config
+
+config_registry.get_configuration.implementation=@configs.PropellerConfig
+
+train_eval.agent_config_type=@agents.PropellerBCAgentConfig
+train_eval.num_iterations= 100000
+train_eval.batch_size = 256
+train_eval.train_sequence_length = 1
+
+# Force exact 50/50 dataset interleaving between positive and negative/zero targets
+data_reader.use_exact_50_50_sampling.enabled = False
+data_reader.use_inlining_bc_trajectory.enabled = True
+
+# quantile file dir
+propeller.config.get_observation_processing_layer_creator.with_sqrt = True
+propeller.config.get_observation_processing_layer_creator.with_z_score_normalization = True
+
+# ----------------------------------------------------------------------
+# 1. USE THE REGRESSION MODEL
+# ----------------------------------------------------------------------
+create_agent.policy_network = @agents.PropellerRegressionCloningNetwork
+
+# You can configure the shared dense layers for your scoring network here
+agents.PropellerRegressionCloningNetwork.fc_layer_params=(256, 256, 256)
+
+# ----------------------------------------------------------------------
+# 2. UPDATE OPTIMIZER
+# ----------------------------------------------------------------------
+tf.keras.optimizers.Adam.learning_rate = 0.0001
+tf.keras.optimizers.Adam.epsilon = 1e-8
+
+BehavioralCloningAgent.optimizer = @tf.keras.optimizers.Adam()
+
+BehavioralCloningAgent.epsilon_greedy = 0.1
+BehavioralCloningAgent.gradient_clipping = None
+BehavioralCloningAgent.debug_summaries = True
+BehavioralCloningAgent.summarize_grads_and_vars = True
+
+# Disable percentage correct since we are performing continuous regression now
+Trainer.bc_percentage_correct = False

@@ -1,0 +1,25 @@
+import compiler_opt.es.blackbox_learner
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.es.blackbox_optimizers
+import compiler_opt.es.blackbox_evaluator
+import compiler_opt.es.es_trainer_lib
+
+# Inlining model settings
+
+# Blackbox learner config
+BlackboxLearnerConfig.total_steps = 10000
+BlackboxLearnerConfig.total_num_perturbations = 25
+BlackboxLearnerConfig.blackbox_optimizer = %blackbox_optimizers.Algorithm.MONTE_CARLO
+BlackboxLearnerConfig.estimator_type = %blackbox_optimizers.EstimatorType.ANTITHETIC
+BlackboxLearnerConfig.fvalues_normalization = True
+BlackboxLearnerConfig.hyperparameters_update_method = %blackbox_optimizers.UpdateMethod.NO_METHOD
+
+BlackboxLearnerConfig.num_top_directions = 0
+
+BlackboxLearnerConfig.precision_parameter = 0.5
+
+BlackboxLearnerConfig.step_size = 0.5
+
+blackbox_evaluator.PropellerBlackboxEvaluator.total_num_perturbations = 25
+BlackboxLearnerConfig.evaluator = @blackbox_evaluator.PropellerBlackboxEvaluator
+BlackboxLearnerConfig.save_best_policy = True
