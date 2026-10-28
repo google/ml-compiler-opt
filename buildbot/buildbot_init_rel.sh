@@ -32,9 +32,9 @@ ADMIN_PACKAGES="tmux"
       apt-get -qq -y update --allow-releaseinfo-change
 
       # Logs consume a lot of storage space.
-      apt-get remove -qq -y --purge auditd puppet-agent rsync rsyslog
+      apt-get remove -qq -y --purge auditd puppet-agent rsync rsyslog libheif1
 
-      apt-get install -qq -y \
+      apt-get install -qq -y --no-install-recommends \
         python3-distutils \
         python-is-python3 \
         $TF_API_DEP_PACKAGES \
