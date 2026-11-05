@@ -25,8 +25,6 @@ RUN dpkg --add-architecture i386 && \
       binutils-dev \
       ca-certificates \
       ccache \
-      cmake \
-      cmake-data \
       curl \
       dos2unix \
       g++-multilib \
@@ -56,6 +54,10 @@ RUN dpkg --add-architecture i386 && \
       tmux \
       wget \
       zlib1g-dev && \
+    echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends -t bookworm-backports cmake cmake-data && \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' cmake)" ge 3.31 && \
     bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ${LLVM_MAJOR_VERSION} && \
     ln -sf /usr/bin/clang-${LLVM_MAJOR_VERSION} /usr/bin/clang && \
     ln -sf /usr/bin/clang++-${LLVM_MAJOR_VERSION} /usr/bin/clang++ && \
