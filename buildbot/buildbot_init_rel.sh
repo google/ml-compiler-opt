@@ -67,7 +67,6 @@ ADMIN_PACKAGES="tmux"
       echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list
       apt-get -qq -y update
       apt-get install -qq -y --no-install-recommends -t bookworm-backports cmake cmake-data
-      dpkg --compare-versions "$(dpkg-query -W -f='${Version}' cmake)" ge 3.31
 
       export LLVM_MAJOR_VERSION=22
       bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ${LLVM_MAJOR_VERSION}
