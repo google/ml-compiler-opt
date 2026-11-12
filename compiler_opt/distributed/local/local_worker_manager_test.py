@@ -22,7 +22,6 @@ from absl import flags
 from absl.testing import absltest
 from compiler_opt.distributed.worker import Worker
 from compiler_opt.distributed.local import local_worker_manager
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 _TEST_FLAG = flags.DEFINE_integer(
     'test_only_flag', default=1, help='A flag used by some tests.')
@@ -141,4 +140,4 @@ class LocalWorkerManagerTest(absltest.TestCase):
 
 
 if __name__ == '__main__':
-  multiprocessing.handle_test_main(absltest.main)
+  absltest.main()

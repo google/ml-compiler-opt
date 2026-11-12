@@ -1,0 +1,15 @@
+jax
+flax
+optax
+ai-edge-litert
+tensorflow
+etils[epath]
+numpy
+scipy
+scikit-learn
+absl-py
+gin-config
+cloudpickle
+psutil
+pytest
+ruff

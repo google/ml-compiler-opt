@@ -1,0 +1,33 @@
+name: JAX and ES CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+
+jobs:
+  jax-es-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: requirements-jax.txt
+      - name: Install Dependencies
+        run: python -m pip install -r requirements-jax.txt
+      - name: Ruff
+        run: |
+          RUFF_TARGETS=(compiler_opt/es compiler_opt/distributed)
+          if [ -d compiler_opt/jax ]; then
+            RUFF_TARGETS+=(compiler_opt/jax)
+          fi
+          ruff check "${RUFF_TARGETS[@]}"
+      - name: Test
+        run: ./run_jax_tests.sh
