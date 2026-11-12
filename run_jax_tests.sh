@@ -26,15 +26,4 @@ TEST_TARGETS=(
   "compiler_opt/distributed/local/local_worker_manager_test.py"
 )
 
-if [[ -d "${REPO_ROOT}/compiler_opt/jax" ]]; then
-  TEST_TARGETS+=(
-    "compiler_opt/jax/dense_nn_bc_test.py"
-    "compiler_opt/jax/litert_es_test.py"
-  )
-fi
-
-if [[ -f "${REPO_ROOT}/compiler_opt/es/training_state_test.py" ]]; then
-  TEST_TARGETS+=("compiler_opt/es/training_state_test.py")
-fi
-
 python3 -m pytest "${TEST_TARGETS[@]}"

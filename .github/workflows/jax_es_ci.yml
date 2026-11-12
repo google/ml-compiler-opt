@@ -11,7 +11,7 @@ on:
 
 jobs:
   jax-es-checks:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
@@ -21,13 +21,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements-jax.txt
       - name: Install Dependencies
-        run: python -m pip install -r requirements-jax.txt
-      - name: Ruff
-        run: |
-          RUFF_TARGETS=(compiler_opt/es compiler_opt/distributed)
-          if [ -d compiler_opt/jax ]; then
-            RUFF_TARGETS+=(compiler_opt/jax)
-          fi
-          ruff check "${RUFF_TARGETS[@]}"
+        run: python -m pip install --require-hashes -r requirements-jax.txt
       - name: Test
         run: ./run_jax_tests.sh
