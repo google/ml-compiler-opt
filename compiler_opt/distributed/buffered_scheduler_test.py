@@ -22,7 +22,6 @@ from absl.testing import absltest
 from compiler_opt.distributed import worker
 from compiler_opt.distributed import buffered_scheduler
 from compiler_opt.distributed.local import local_worker_manager
-from tf_agents.system import system_multiprocessing as multiprocessing
 
 
 class BufferedSchedulerTest(absltest.TestCase):
@@ -149,4 +148,4 @@ class BufferedSchedulerTest(absltest.TestCase):
 
 
 if __name__ == '__main__':
-  multiprocessing.handle_test_main(absltest.main)
+  absltest.main()

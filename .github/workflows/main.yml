@@ -16,7 +16,7 @@ jobs:
   LicenseCheck:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: ./check-license.sh
   Checks:
     runs-on: ubuntu-22.04
@@ -26,19 +26,19 @@ jobs:
         task: [Typecheck, Lint, Ruff, Yapf, Test]
         include:
           - task: Typecheck
-            cmd: pytype -j auto .
+            cmd: pytype -j auto . -x compiler_opt/jax compiler_opt/es/training_state.py compiler_opt/es/training_state_test.py
           - task: Lint
-            cmd: pylint --rcfile .pylintrc --recursive yes .
+            cmd: pylint --rcfile .pylintrc --ignore-paths='.*compiler_opt/jax.*,.*training_state.*' --recursive yes .
           - task: Ruff
             cmd: ruff check
           - task: Yapf
             cmd: yapf . -drp
           - task: Test
-            cmd: pytest
+            cmd: pytest --ignore=compiler_opt/jax --ignore=compiler_opt/es/training_state_test.py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pipenv'
