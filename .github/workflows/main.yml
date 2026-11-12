@@ -28,7 +28,7 @@ jobs:
           - task: Typecheck
             cmd: pytype -j auto . -x compiler_opt/jax compiler_opt/es/training_state.py compiler_opt/es/training_state_test.py
           - task: Lint
-            cmd: pylint --rcfile .pylintrc --ignore-paths='^compiler_opt/jax/.*$,^compiler_opt/es/training_state(_test)?\.py$' --recursive yes .
+            cmd: pylint --rcfile .pylintrc --ignore-paths='.*/compiler_opt/jax/.*,.*/compiler_opt/es/training_state(_test)?\.py$' --recursive yes .
           - task: Ruff
             cmd: ruff check
           - task: Yapf
