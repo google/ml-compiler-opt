@@ -24,6 +24,9 @@ TEST_TARGETS=(
   "compiler_opt/distributed/worker_test.py"
   "compiler_opt/distributed/buffered_scheduler_test.py"
   "compiler_opt/distributed/local/local_worker_manager_test.py"
+  "compiler_opt/jax/dense_nn_bc_test.py"
+  "compiler_opt/jax/litert_es_test.py"
+  "compiler_opt/es/training_state_test.py"
 )
 
 python3 -m pytest "${TEST_TARGETS[@]}"
