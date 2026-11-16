@@ -32,8 +32,24 @@ mount -t tmpfs tmpfs -o size=50% /var/lib/docker
 
       # Logs consume a lot of storage space.
       apt-get remove -qq -y --purge auditd puppet-agent rsync rsyslog
+      # Remove Debian's unpatched Docker/runc packages if present (avoid --purge while /var/lib/docker is mounted).
+      apt-get remove -qq -y docker.io containerd runc
 
-      apt-get install -qq -y docker.io tmux
+      apt-get install -qq -y --no-install-recommends ca-certificates curl tmux
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      cat <<EOF > /etc/apt/sources.list.d/docker.sources
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: $(. /etc/os-release && echo "${VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+      apt-get -qq -y update
+      apt-get install -qq -y --no-install-recommends docker-ce docker-ce-cli containerd.io
+      apt-get clean
       systemctl restart docker
     ) && exit 0
   done
