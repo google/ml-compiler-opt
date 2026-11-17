@@ -77,6 +77,7 @@ class RegAllocNetwork(network.DistributionNetwork):
                               types.Tensor] = tf.keras.activations.relu,
       kernel_initializer: tf.keras.initializers.Initializer | None = None,
       batch_squash: bool = True,
+      context_fc_params: Sequence[int] | None = None,
       dtype: tf.DType = tf.float32,
       name: str = 'RegAllocNetwork'):
     """Creates an instance of `RegAllocNetwork`.
@@ -114,6 +115,11 @@ class RegAllocNetwork(network.DistributionNetwork):
       batch_squash: If True the outer_ranks of the observation are squashed into
         the batch dimension. This allow encoding networks to be used with
         observations with shape [BxTx...].
+      context_fc_params: Optional fully connected layers applied per register
+        after concatenating its embedding with cross-register context: masked
+        max/mean pools, the candidate (last) register embedding, the register
+        position and a prefix sum over earlier registers. None keeps the
+        registers independent.
       dtype: The dtype to use by the convolution and fully connected layers.
       name: A string representing name of the network.
 
@@ -151,6 +157,37 @@ class RegAllocNetwork(network.DistributionNetwork):
     self._encoder = encoder
     self._projection_network = projection_network
     self._output_tensor_spec = output_tensor_spec
+    self._context_layers = None
+    if context_fc_params:
+      self._context_gate = tf.keras.layers.Dense(
+          8, activation='sigmoid', kernel_initializer=kernel_initializer)
+      self._context_layers = [
+          tf.keras.layers.Dense(
+              n, activation=activation_fn, kernel_initializer=kernel_initializer)
+          for n in context_fc_params
+      ]
+
+  def _add_context(self, state, mask):
+    # state: [..., R, D], mask: [..., R].
+    m = tf.expand_dims(tf.cast(mask, state.dtype), -1)
+    num_regs = tf.shape(state)[-2]
+    big = tf.constant(1e9, state.dtype)
+    max_pool = tf.reduce_max(state * m - big * (1 - m), axis=-2, keepdims=True)
+    mean_pool = tf.reduce_sum(
+        state * m, axis=-2, keepdims=True) / tf.maximum(
+            tf.reduce_sum(m, axis=-2, keepdims=True), 1)
+    candidate = state[..., -1:, :]
+    tile = tf.ones_like(state[..., :1])
+    pos = tf.reshape(
+        tf.linspace(tf.constant(0, state.dtype), 1, num_regs), [-1, 1]) * tile
+    prefix = tf.math.tanh(
+        tf.math.cumsum(self._context_gate(state) * m, axis=-2, exclusive=True))
+    x = tf.concat(
+        [state, max_pool * tile, mean_pool * tile, candidate * tile, pos, prefix],
+        axis=-1)
+    for layer in self._context_layers:
+      x = layer(x)
+    return x
 
   @property
   def output_tensor_spec(self):
@@ -169,6 +206,8 @@ class RegAllocNetwork(network.DistributionNetwork):
         network_state=network_state,
         training=training)
     outer_rank = nest_utils.get_outer_rank(observations, self.input_tensor_spec)
+    if self._context_layers:
+      state = self._add_context(state, observations['mask'])
 
     # mask un-evictable registers.
     distribution, _ = self._projection_network(
