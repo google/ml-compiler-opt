@@ -1,0 +1,16 @@
+import compiler_opt.rl.gin_external_configurables
+import compiler_opt.rl.inlining.config
+
+include 'compiler_opt/rl/inlining/gin_configs/common.gin'
+
+# Inlining model settings
+ActorDistributionNetwork.preprocessing_combiner=@tf.keras.layers.Concatenate()
+ActorDistributionNetwork.fc_layer_params=(64, 64, 64, 64)
+ActorDistributionNetwork.dropout_layer_params=None
+ActorDistributionNetwork.activation_fn=@tf.keras.activations.relu
+
+inlining.config.get_observation_processing_layer_creator.quantile_file_dir='/cns/oz-d/home/mlcompileropt-dev/llvm_inlining/muppet_20210707/vocab/'
+inlining.config.get_observation_processing_layer_creator.with_sqrt = False
+inlining.config.get_observation_processing_layer_creator.with_z_score_normalization = False
+
+policy_utils.create_actor_policy.actor_network_ctor = @actor_distribution_network.ActorDistributionNetwork
